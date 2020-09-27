@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "noEmit": true,
+        "incremental": true
+    },
+    "typeAcquisition": {
+        "enable": true
+    }
+}

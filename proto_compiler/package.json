@@ -1,0 +1,16 @@
+{
+  "name": "causelang-proto-compiler",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {
+    "ts-node": "^9.0.0",
+    "typescript": "^4.0.3"
+  }
+}
