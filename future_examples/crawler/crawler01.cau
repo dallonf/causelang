@@ -1,0 +1,41 @@
+import collection { map, flatMap, Set }
+import http
+import htmlParse
+
+effect CrawlerCacheCheck(url: string): (alreadyCrawled: bool)
+
+main(args) {
+    // TODO: handle args
+
+    let crawlUrl = "http://meanwhilegames.dallonf.com"
+    let mut alreadyCrawledSet = Set.new
+
+    let links = {
+       crawl(crawlUrl)
+    } handle http.Effect e {
+        http.handler(e)
+    } handle http.Error e {
+        cause Panic(e)
+    } handle CrawlerCacheCheck url {
+        let alreadyCrawled = alreadyCrawledSet |> Set.contains(url)
+        if !alreadyCrawled {
+            alreadyCrawledSet |> Set.add(url)
+        }
+        alreadyCrawled
+    }
+    
+    cause Log(links)
+}
+
+fn crawl(url: string) {
+    let alreadyCrawled = cause CrawlerCacheCheck(url)
+
+    let result = cause http.request("GET", crawlUrl)
+    cause Assertion.Equal("text/html", result |> http.header("Content-Type"))
+    let body = result.body
+    let links = htmlParse.parse(body)
+        |> htmlParse.find("a")
+        |> map(htmlParse.attr("href"))
+
+    links |> flatMap(crawl)
+}

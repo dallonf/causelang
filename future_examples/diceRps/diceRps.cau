@@ -1,0 +1,105 @@
+import collection.{ map, firstSome }
+
+export type DiceSide:
+    | type Rock
+    | type Paper
+    | type Scissors
+    | type Dynamite
+    | type Strawman
+    | type Shield
+
+export type RollOffWinner: type LeftWin | type RightWin | type Tie
+
+export type RollOffResult: {
+    winner: RollOffWinner
+    leftExtras: List<string>
+    rightExtras: List<string>
+}
+
+fn RollOffResult.withWinner(winner: RollOffWinner) {
+    RollOffResult{
+        winner,
+        leftExtras: [],
+        rightExtras: [],
+    }
+}
+
+type RuleFn: (leftDie: DiceSide, rightDie: DiceSide) => Option<RollOffResult>
+
+// Explicit function output annotations are allowed but not required
+fn beatsRule(winner: DiceSide, loser: DiceSide) => RuleFn {
+    // Types are ordinarily nominal, but it's not shy at all about
+    // coercing implicitly typed literals to named types where the context suggests it
+    // In fact, if the context (the explicit return type) didn't suggest it, 
+    // not providing parameter types here would be an error
+    (left, right) => {
+        // Like Go's `switch`, not providing any value matches "true"
+        match {
+            left == winner && right == loser ->
+                Some(RollOffResult.withWinner(RollOffWinner.LeftWin))
+            left == loser && right == winner ->
+                Some(RollOffResult.withWinner(RollOffWinner.RightWin))
+            _ -> None
+        }
+    }
+}
+
+export fn rollOff(leftDie: DiceSide, rightDie: DiceSide) => RollOffResult {
+    let rules = List<RuleFn> [
+        // Shield causes a tie and adds a "shield" extra
+        (left, right) => {
+            let leftIsShield = left == DiceSide.Shield
+            let rightIsShield = right == DiceSide.Shield
+            if leftIsShield || rightIsShield {
+                Some(RollOffResult{
+                    winner: RollOffWinner.Tie
+                    leftExtras: if leftIsShield { ["shield"] } else { [] }
+                    rightExtras: if rightIsShield { ["shield"] } else { [] }
+                })
+            } else {
+                None
+            }
+        },
+        // If both are the same, they tie
+        (left, right) => {
+            if left == right {
+                Some(RollOffResult.withWinner(RollOffWinner.Tie))
+            } else {
+                None
+            }
+        },
+        // Strawman loses to all
+        (left, right) => {
+            match {
+                left == DiceSide.Strawman ->
+                    Some(RollOffResult.withWinner(RollOffWinner.RightWin))
+                right == DiceSide.Strawman ->
+                    Some(RollOffResult.withWinner(RollOffWinner.LeftWin))
+                _ -> None
+            }
+        },
+        // Dynamite beats all
+        (left, right) => {
+            match {
+                left == DiceSide.Dynamite ->
+                    Some(RollOffResult.withWinner(RollOffWinner.LeftWin))
+                right == DiceSide.Dynamite ->
+                    Some(RollOffResult.withWinner(RollOffWinner.RightWin))
+                _ -> None
+            }
+        },
+        // Standard RPS
+        beatsRule(winner=DiceSide.Rock, loser=DiceSide.Scissors)
+        beatsRule(winner=DiceSide.Scissors, loser=DiceSide.Paper)
+        beatsRule(winner=DiceSide.Paper, loser=DiceSide.Rock)
+    ]
+
+    return rules
+        |> map(a => a(leftDie, rightDie))
+        |> firstSome()
+        |> a => 
+            match a {
+                Some(let result) -> result
+                None -> Some(RollOffResult.withWinner(RollOffWinner.Tie))
+            }
+}

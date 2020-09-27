@@ -1,0 +1,48 @@
+// Added some syntax sugar
+
+import collection { map, flatMap, Set }
+import http
+import htmlParse
+
+effect CrawlerCacheCheck(url: string): (alreadyCrawled: bool)
+
+main(args) {
+    // TODO: handle args
+
+    let crawlUrl = "http://meanwhilegames.dallonf.com"
+    let mut alreadyCrawledSet = Set.new
+
+    // with() allows you to set up block-wrappers.
+    // This could also be a great way to handle, er, handles - but we'd
+    // need a way to return a value from it... hm.
+    // how about `with let e = file`? I like that
+    let links = with http.Handler {
+       crawl(crawlUrl)
+    } handle http.Error e {
+        cause Panic(e)
+    } handle CrawlerCacheCheck url {
+        // this is roughly equivalent to `alreadyCrawledSet |> Set.contains(url)` or `Set.contains(url, alreadyCrawledSet)`
+        // We'll need to go into struct definitions and find out how it can know what "methods" a struct has access to
+        let alreadyCrawled = alreadyCrawledSet.contains(url)
+        if !alreadyCrawled {
+            alreadyCrawledSet.add(url)
+        }
+        alreadyCrawled
+    }
+    
+    cause Log(links)
+}
+
+fn crawl(url: string) {
+    let alreadyCrawled = cause CrawlerCacheCheck(url)
+
+    let result = cause http.request("GET", crawlUrl)
+
+    cause Assertion.Equal("text/html", result |> http.header("Content-Type"))
+    let body = result.body
+    let links = htmlParse.parse(body)
+        |> htmlParse.find("a")
+        |> map(htmlParse.attr("href"))
+
+    links |> flatMapResult(crawl)
+}
