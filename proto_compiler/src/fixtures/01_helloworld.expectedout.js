@@ -1,7 +1,6 @@
-// import CauseRuntime from '@causelang/runtime';
-
 function* main() {
-    return yield { type: CauseRuntime.Log, value: "Hello World" }
+    yield { type: CauseRuntime.LogSymbol, value: "Hello World" };
+    return { type: CauseRuntime.ExitCodeSymbol, value: 0 };
 }
 
-CauseRuntime.invokeMain(main);
+CauseRuntime.invokeEntry(main);

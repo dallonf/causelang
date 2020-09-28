@@ -1,13 +1,19 @@
-export const Log = Symbol('Log');
+export const LogSymbol = Symbol('Log');
 export type LogEffect = {
-    type: typeof Log;
+    type: typeof LogSymbol;
     value: string;
 }
 
-export const Panic = Symbol('Panic');
+export const PanicSymbol = Symbol('Panic');
 export type PanicEffect = {
-    type: typeof Panic;
+    type: typeof PanicSymbol;
     value: string;
+}
+
+export const ExitCodeSymbol = Symbol('ExitCode');
+export type ExitCodeType = {
+    type: typeof ExitCodeSymbol;
+    value: number;
 }
 
 export type Effect = LogEffect | PanicEffect;
@@ -24,18 +30,19 @@ function exhaustiveCheck(param: never) {
     throw new Error(`Exhaustive type check failed for param: ${(param as any).toString()}/${JSON.stringify(param)}`);
 };
 
-export function invokeMain(fn: () => Generator<Effect, void, any>) {
+export function invokeEntry(fn: () => Generator<Effect, any, any>) {
     const generator = fn();
 
     let next;
     while (next = generator.next(), !next.done) {
         const effect = next.value;
-        if (effect.type === Log) {
+        if (effect.type === LogSymbol) {
             console.log(effect.value);
-        } else if (effect.type === Panic) {
+        } else if (effect.type === PanicSymbol) {
             throw new CauseError(effect.value);
         } else {
             exhaustiveCheck(effect);
         }
     }
+    return next.value;
 }

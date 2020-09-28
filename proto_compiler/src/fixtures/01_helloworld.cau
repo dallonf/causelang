@@ -1,3 +1,4 @@
-main {
+fn main() {
     cause Log("Hello World")
+    ExitCode(0)
 }
