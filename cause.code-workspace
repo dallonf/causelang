@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "future_examples"
+		},
+		{
+			"path": "proto_compiler"
+		}
+	],
+	"settings": {}
+}
