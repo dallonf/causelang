@@ -1,14 +1,15 @@
-import collection { map, flatMap, Set }
+import console
+import collection.{ map, flatMap, Set }
 import http
 import htmlParse
 
-effect CrawlerCacheCheck(url: string): (alreadyCrawled: bool)
+effect CrawlerCacheCheck(url: String): (alreadyCrawled: Bool)
 
-main(args) {
+fn main(args: console.Args) {
     // TODO: handle args
 
     let crawlUrl = "http://meanwhilegames.dallonf.com"
-    let mut alreadyCrawledSet = Set.new
+    let mut alreadyCrawledSet = Set.new()
 
     let links = {
        crawl(crawlUrl)
@@ -25,9 +26,10 @@ main(args) {
     }
     
     cause Log(links)
+    ExitCode 0
 }
 
-fn crawl(url: string) {
+fn crawl(url: String) {
     let alreadyCrawled = cause CrawlerCacheCheck(url)
 
     let result = cause http.request("GET", crawlUrl)

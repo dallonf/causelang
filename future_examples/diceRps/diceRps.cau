@@ -12,15 +12,15 @@ export type RollOffWinner: type LeftWin | type RightWin | type Tie
 
 export type RollOffResult: {
     winner: RollOffWinner
-    leftExtras: List<string>
-    rightExtras: List<string>
+    leftExtras: List<String>
+    rightExtras: List<String>
 }
 
 fn RollOffResult.withWinner(winner: RollOffWinner) {
     RollOffResult{
         winner,
-        leftExtras: [],
-        rightExtras: [],
+        leftExtras: List(),
+        rightExtras: List(),
     }
 }
 
@@ -45,7 +45,7 @@ fn beatsRule(winner: DiceSide, loser: DiceSide) => RuleFn {
 }
 
 export fn rollOff(leftDie: DiceSide, rightDie: DiceSide) => RollOffResult {
-    let rules = List<RuleFn> [
+    let rules = List<RuleFn>(
         // Shield causes a tie and adds a "shield" extra
         (left, right) => {
             let leftIsShield = left == DiceSide.Shield
@@ -53,8 +53,8 @@ export fn rollOff(leftDie: DiceSide, rightDie: DiceSide) => RollOffResult {
             if leftIsShield || rightIsShield {
                 Some(RollOffResult{
                     winner: RollOffWinner.Tie
-                    leftExtras: if leftIsShield { ["shield"] } else { [] }
-                    rightExtras: if rightIsShield { ["shield"] } else { [] }
+                    leftExtras: if leftIsShield { List("shield") } else { List() }
+                    rightExtras: if rightIsShield { List("shield") } else { List() }
                 })
             } else {
                 None
@@ -92,7 +92,7 @@ export fn rollOff(leftDie: DiceSide, rightDie: DiceSide) => RollOffResult {
         beatsRule(winner=DiceSide.Rock, loser=DiceSide.Scissors)
         beatsRule(winner=DiceSide.Scissors, loser=DiceSide.Paper)
         beatsRule(winner=DiceSide.Paper, loser=DiceSide.Rock)
-    ]
+    )
 
     return rules
         |> map(a => a(leftDie, rightDie))
