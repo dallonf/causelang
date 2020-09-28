@@ -1,120 +1,53 @@
-const keywords = ["cause", "fn"] as const;
-const keywordSet = new Set(keywords);
-type KeywordLiteral = typeof keywords extends readonly (infer T)[] ? T : never;
+import * as path from 'path';
+import * as fs from 'fs';
+import * as ast from './ast';
 
-interface Keyword {
-  type: "Keyword";
-  keyword: KeywordLiteral;
-}
-
-interface Identifier {
-  type: "Identifier";
-  name: string;
-}
-
-interface StringLiteral {
-  type: "StringLiteral";
-  value: string;
-}
-
-interface IntLiteral {
-  type: "IntLiteral";
-  value: number;
-}
-
-type Literal = StringLiteral | IntLiteral;
-
-interface UnaryCallExpression {
-  type: "UnaryCallExpression";
-  callee: Expression;
-  argument: Expression;
-}
-
-interface CallExpression {
-  type: "CallExpression";
-  callee: Expression;
-  arguments: Expression[];
-}
-
-interface BlockExpression {
-  type: "BlockExpression";
-  body: Statement[];
-}
-
-type Expression =
-  | Keyword
-  | Identifier
-  | Literal
-  | UnaryCallExpression
-  | CallExpression
-  | BlockExpression;
-
-interface ExpressionStatement {
-  type: "ExpressionStatement";
-  expression: Expression;
-}
-
-type Statement = ExpressionStatement;
-
-interface FunctionDeclaration {
-  type: "FunctionDeclaration";
-  id: Identifier;
-  body: Expression;
-}
-
-type Declaration = FunctionDeclaration;
-
-interface Module {
-  type: "Module";
-  body: Declaration[];
-}
-
-const sampleAst: Module = {
-  type: "Module",
+const sampleAst: ast.ASTRoot = {
+  type: 'Module',
   body: [
     {
-      type: "FunctionDeclaration",
+      type: 'FunctionDeclaration',
       id: {
-        type: "Identifier",
-        name: "main",
+        type: 'Identifier',
+        name: 'main',
       },
       body: {
-        type: "BlockExpression",
+        type: 'BlockExpression',
         body: [
           {
-            type: "ExpressionStatement",
+            type: 'ExpressionStatement',
             expression: {
-              type: "UnaryCallExpression",
+              type: 'UnaryCallExpression',
               callee: {
-                type: "Keyword",
-                keyword: "cause",
+                type: 'Keyword',
+                keyword: 'cause',
               },
               argument: {
-                type: "CallExpression",
+                type: 'CallExpression',
                 callee: {
-                  type: "Identifier",
-                  name: "Log",
+                  type: 'Identifier',
+                  name: 'Log',
                 },
                 arguments: [
                   {
-                    type: "StringLiteral",
-                    value: "Hello World",
+                    type: 'StringLiteral',
+                    value: 'Hello World',
                   },
                 ],
               },
             },
           },
           {
-            type: "ExpressionStatement",
+            type: 'ExpressionStatement',
             expression: {
-              type: "CallExpression",
+              type: 'CallExpression',
               callee: {
-                type: "Identifier",
-                name: "ExitCode",
+                type: 'Identifier',
+                name: 'ExitCode',
               },
               arguments: [
                 {
-                  type: "IntLiteral",
+                  type: 'IntLiteral',
                   value: 0,
                 },
               ],
@@ -126,4 +59,31 @@ const sampleAst: Module = {
   ],
 };
 
-console.log("hello world");
+interface Context {}
+
+const source = fs.readFileSync(
+  path.join(__dirname, 'fixtures/01_helloworld.cau'),
+  'utf-8'
+);
+
+const parseModule = (source: string, ctx: Context): ast.Module => {
+  let cursor = 0;
+  const root = {
+    type: 'Module' as const,
+    body: [],
+  };
+
+  return root;
+};
+
+const parseDeclaration = (source: string, ctx: Context) => {
+  let cursor = 0;
+};
+
+const tryReadIdentifier = (source: string) => {};
+
+const parsedAst = parseModule(source, {});
+
+console.log(JSON.stringify(parsedAst, null, 2));
+
+const identifierHeadRegex = new RegExp('(?:[a-zA-Z_]|' + ')');

@@ -8,11 +8,38 @@
   },
   "author": "",
   "license": "MIT",
-  "devDependencies": {},
+  "devDependencies": {
+    "@babel/core": "^7.11.6",
+    "@babel/preset-env": "^7.11.5",
+    "@babel/preset-typescript": "^7.10.4",
+    "@types/jest": "^26.0.14",
+    "babel-jest": "^26.3.0",
+    "jest": "^26.4.2"
+  },
   "dependencies": {
     "@tsconfig/node12": "^1.0.7",
     "@types/node": "^14.11.2",
     "ts-node": "^9.0.0",
     "typescript": "^4.0.3"
+  },
+  "jest": {
+    "transform": {
+      "^.+\\.[jt]sx?$": [
+        "babel-jest",
+        {
+          "presets": [
+            [
+              "@babel/preset-env",
+              {
+                "targets": {
+                  "node": "current"
+                }
+              }
+            ],
+            "@babel/preset-typescript"
+          ]
+        }
+      ]
+    }
   }
 }
