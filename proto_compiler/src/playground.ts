@@ -91,12 +91,10 @@ const parseModule = (cursor: SourceStream, ctx: Context): ast.Module => {
       cursor = declaration.cursor;
       root.body.push(declaration.result);
     } else {
-      console.log('done parsing, remainder', remainder(cursor));
-      break;
-      // throw new CompilerError(
-      //   'I\'m looking for declarations here in the root of the module; stuff like "let", "fn", etc.',
-      //   cursor
-      // );
+      throw new CompilerError(
+        'I\'m looking for declarations here in the root of the module; stuff like "let", "fn", etc.',
+        cursor
+      );
     }
   }
 
@@ -182,19 +180,154 @@ const parseExpression = (
   if (char.char === '{') {
     return parseBlockExpression(cursor, ctx);
   } else {
-    const identifier = readIdentifier(cursor);
-    if (identifier) {
-      cursor = identifier.cursor;
-      return {
-        result: {
-          type: 'Identifier',
-          name: identifier.identifier,
-        },
-        cursor,
-      };
+    let initialExpression;
+    let readAttempt;
+    if (((readAttempt = parseStringLiteral(cursor, ctx)), readAttempt)) {
+      initialExpression = readAttempt.result;
+      cursor = readAttempt.cursor;
+    } else if (((readAttempt = parseIntLiteral(cursor, ctx)), readAttempt)) {
+      initialExpression = readAttempt.result;
+      cursor = readAttempt.cursor;
+    } else if (((readAttempt = readIdentifier(cursor)), readAttempt)) {
+      if (ast.keywordSet.has(readAttempt.identifier as ast.KeywordLiteral)) {
+        initialExpression = {
+          type: 'Keyword' as const,
+          keyword: readAttempt.identifier as ast.KeywordLiteral,
+        };
+      } else {
+        initialExpression = {
+          type: 'Identifier' as const,
+          name: readAttempt.identifier,
+        };
+      }
+      cursor = readAttempt.cursor;
+    } else {
+      return null;
     }
+
+    // Look for suffixes that change the meaning of this initial expression
+    const openBrace = nextChar(cursor);
+    if (openBrace && openBrace.char === '(') {
+      return parseCallExpression(initialExpression, cursor, ctx);
+    }
+
+    return { result: initialExpression, cursor };
+  }
+};
+
+const parseStringLiteral = (
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.StringLiteral; cursor: SourceStream } => {
+  const openingQuote = nextChar(cursor);
+  if (!openingQuote || openingQuote.char !== '"') return null;
+  cursor = openingQuote.cursor;
+
+  const stringChars = [];
+  while (true) {
+    const char = nextChar(cursor);
+    if (!char) {
+      throw new CompilerError(
+        'This string literal never ended; are you missing an end quote (") somewhere?',
+        cursor
+      );
+    }
+    cursor = char.cursor;
+
+    // TODO: escaping with \"
+    if (char.char === '"') break;
+
+    stringChars.push(char.char);
+  }
+
+  return {
+    cursor,
+    result: {
+      type: 'StringLiteral',
+      value: stringChars.join(''),
+    },
+  };
+};
+
+const parseIntLiteral = (
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.IntLiteral; cursor: SourceStream } => {
+  // TODO: negative numbers with minus signs
+
+  const intChars = [];
+  let char;
+  while (((char = nextChar(cursor)), char && char.char.match(/[0-9]/))) {
+    intChars.push(char!.char);
+    cursor = char!.cursor;
+  }
+  if (intChars.length === 0) {
     return null;
   }
+
+  const int = parseInt(intChars.join(''), 10);
+  return {
+    cursor,
+    result: {
+      type: 'IntLiteral',
+      value: int,
+    },
+  };
+};
+
+const parseCallExpression = (
+  callee: ast.Expression,
+  cursor: SourceStream,
+  ctx: Context
+): {
+  result: ast.CallExpression;
+  cursor: SourceStream;
+} => {
+  const openBrace = nextChar(cursor);
+  if (!openBrace || openBrace.char !== '(') {
+    throw new CompilerError(
+      "I'm confused; I'm looking for a function call, but I don't even see a starting \"(\". This probably isn't your fault!",
+      cursor
+    );
+  }
+  cursor = openBrace.cursor;
+
+  const args: ast.Expression[] = [];
+
+  let argument;
+  while (
+    ((cursor = skipWhitespace(cursor)),
+    (argument = parseExpression(cursor, ctx)),
+    argument)
+  ) {
+    args.push(argument.result);
+    cursor = skipWhitespace(argument.cursor);
+
+    const comma = nextChar(cursor);
+    if (!comma || comma.char !== ',') {
+      break;
+    } else {
+      cursor = comma.cursor;
+    }
+  }
+
+  const closeBrace = nextChar(cursor);
+  if (!closeBrace || closeBrace.char !== ')') {
+    throw new CompilerError(
+      'I\'m looking for a ")" to close the argument list',
+      cursor
+    );
+  }
+  cursor = closeBrace.cursor;
+
+  return {
+    result: {
+      type: 'CallExpression',
+      callee: callee,
+      arguments: args,
+    },
+    cursor,
+  };
 };
 
 const parseBlockExpression = (
@@ -231,11 +364,10 @@ const parseBlockExpression = (
       cursor = expression.cursor;
       cursor = advanceLine(cursor);
     } else {
-      break;
-      // throw new CompilerError(
-      //   "I'm looking for statements in this block.",
-      //   cursor
-      // );
+      throw new CompilerError(
+        "I'm looking for statements in this block.",
+        cursor
+      );
     }
   }
 
@@ -258,8 +390,8 @@ try {
       `Compiler error at Line ${position.line}, Column ${position.column}`
     );
     console.error('Remainder of code:\n', remainder(e.cursor));
-    throw e;
   }
+  throw e;
 }
 
 console.log(JSON.stringify(parsedAst, null, 2));

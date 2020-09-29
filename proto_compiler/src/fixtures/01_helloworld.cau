@@ -1,4 +1,4 @@
 fn main() {
-    cause Log("Hello World")
+    cause(Log("Hello World"))
     ExitCode(0)
 }

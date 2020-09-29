@@ -19,12 +19,13 @@ export const nextChar = (cursor: SourceStream): null | SourceStreamValue => {
   const codePoint = cursor.source.codePointAt(cursor.index);
   if (codePoint) {
     const char = String.fromCodePoint(codePoint);
+    const newCursor = {
+      source: cursor.source,
+      index: cursor.index + char.length,
+    };
     return {
       char,
-      cursor: {
-        source: cursor.source,
-        index: cursor.index + char.length,
-      },
+      cursor: newCursor,
     };
   } else {
     return null;
