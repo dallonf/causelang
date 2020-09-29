@@ -1,5 +1,5 @@
 import { makeSourceStream, nextChar } from './sourceStream';
-import { readIdentifier } from './readToken';
+import { readIdentifier, skipWhitespace } from './readToken';
 
 describe('readIdentifier', () => {
   const expectIdentifier = (identifier: string, suffix?: string) => {
@@ -32,5 +32,25 @@ describe('readIdentifier', () => {
 
   it('should not recognize numbers at the start of an identifier', () => {
     expect(readIdentifier(makeSourceStream('2cool4u'))).toEqual(null);
+  });
+});
+
+describe('skipWhitespace', () => {
+  it('should skip over whitespace', () => {
+    let cursor = makeSourceStream('     hello there');
+    cursor = skipWhitespace(cursor);
+    expect(nextChar(cursor)?.char).toBe('h');
+  });
+
+  it('should skip over newlines by default', () => {
+    let cursor = makeSourceStream('  \n  GENERAL KENOBI');
+    cursor = skipWhitespace(cursor);
+    expect(nextChar(cursor)?.char).toBe('G');
+  });
+
+  it('should stop at newlines if configured', () => {
+    let cursor = makeSourceStream('  \n  GENERAL KENOBI');
+    cursor = skipWhitespace(cursor, { stopAtNewline: true });
+    expect(nextChar(cursor)?.char).toBe('\n');
   });
 });

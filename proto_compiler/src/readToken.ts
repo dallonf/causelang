@@ -1,3 +1,4 @@
+import CompilerError from './CompilerError';
 import { SourceStream, nextChar } from './sourceStream';
 
 // TODO: support emoji and foreign language characters
@@ -53,10 +54,17 @@ export function readIdentifier(
   return null;
 }
 
-export function skipWhitespace(cursor: SourceStream): SourceStream {
+// TODO: also skip comments
+export function skipWhitespace(
+  cursor: SourceStream,
+  { stopAtNewline } = { stopAtNewline: false }
+): SourceStream {
   while (true) {
     const char = nextChar(cursor);
     if (!char) {
+      return cursor;
+    }
+    if (stopAtNewline && char.char === '\n') {
       return cursor;
     }
     if (whitespaceRegex.test(char.char)) {
@@ -66,4 +74,20 @@ export function skipWhitespace(cursor: SourceStream): SourceStream {
     }
   }
   return cursor;
+}
+
+export function advanceLine(cursor: SourceStream) {
+  cursor = skipWhitespace(cursor, { stopAtNewline: true });
+  const newline = nextChar(cursor);
+  if (!newline) {
+    return cursor;
+  }
+  if (newline.char !== '\n') {
+    throw new CompilerError(
+      'I was expecting this to be the end of a line',
+      cursor
+    );
+  }
+  cursor = newline.cursor;
+  return skipWhitespace(cursor);
 }

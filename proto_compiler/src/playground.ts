@@ -8,7 +8,7 @@ import {
   remainder,
   SourceStream,
 } from './sourceStream';
-import { readIdentifier, skipWhitespace } from './readToken';
+import { advanceLine, readIdentifier, skipWhitespace } from './readToken';
 import CompilerError from './CompilerError';
 
 const sampleAst: ast.ASTRoot = {
@@ -229,6 +229,7 @@ const parseBlockExpression = (
         expression: expression.result,
       });
       cursor = expression.cursor;
+      cursor = advanceLine(cursor);
     } else {
       break;
       // throw new CompilerError(
