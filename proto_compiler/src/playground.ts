@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as ast from './ast';
 import { makeSourceStream, nextChar, SourceStream } from './sourceStream';
-import readIdentifier from './readIdentifier';
+import { readIdentifier, skipWhitespace } from './readToken';
 import CompilerError from './CompilerError';
 
 const sampleAst: ast.ASTRoot = {
@@ -118,6 +118,27 @@ const parseFunctionDeclaration = (
       cursor
     );
   }
+  cursor = idRead.cursor;
+
+  cursor = skipWhitespace(cursor);
+  const argOpenParen = nextChar(cursor);
+  if (!argOpenParen || argOpenParen.char !== '(') {
+    throw new CompilerError(
+      `The next part of a function declaration should be a "(" to list the arguments. I found this instead: ${argOpenParen?.char}`,
+      cursor
+    );
+  }
+  cursor = argOpenParen.cursor;
+
+  cursor = skipWhitespace(cursor);
+  const argCloseParen = nextChar(cursor);
+  if (!argCloseParen || argCloseParen.char !== ')') {
+    throw new CompilerError(
+      `The next part of a function declaration should be a ")" to close out the argument list. I found this instead: ${argCloseParen?.char}`,
+      cursor
+    );
+  }
+  cursor = argCloseParen.cursor;
 
   const result: ast.FunctionDeclaration = {
     type: 'FunctionDeclaration',
@@ -132,7 +153,7 @@ const parseFunctionDeclaration = (
     },
   };
 
-  return { result, cursor: idRead.cursor };
+  return { result, cursor };
 };
 
 const parsedAst = parseModule(makeSourceStream(source), {});

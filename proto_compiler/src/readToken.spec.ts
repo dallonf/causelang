@@ -1,5 +1,5 @@
-import { SourceStream, makeSourceStream, nextChar } from './sourceStream';
-import readIdentifier from './readIdentifier';
+import { makeSourceStream, nextChar } from './sourceStream';
+import { readIdentifier } from './readToken';
 
 describe('readIdentifier', () => {
   const expectIdentifier = (identifier: string, suffix?: string) => {
