@@ -77,17 +77,18 @@ const parseModule = (cursor: SourceStream, ctx: Context): ast.Module => {
   };
 
   let current;
-  while (((current = nextChar(cursor)), current)) {
+  while (
+    ((cursor = skipWhitespace(cursor)), (current = nextChar(cursor)), current)
+  ) {
     const declaration = parseDeclaration(cursor, ctx);
     if (declaration) {
       cursor = declaration.cursor;
       root.body.push(declaration.result);
     } else {
-      console.log(
-        'Not sure what to do with the rest of the source file',
-        `\`${cursor.source.slice(cursor.index)}\``
+      throw new CompilerError(
+        'I\'m looking for declarations here in the root of the module; stuff like "let", "fn", etc.',
+        cursor
       );
-      break;
     }
   }
 
@@ -140,6 +141,15 @@ const parseFunctionDeclaration = (
   }
   cursor = argCloseParen.cursor;
 
+  const body = parseExpression(cursor, ctx);
+  if (!body) {
+    throw new CompilerError(
+      `Your function body should be an expression, like a block: {}`,
+      cursor
+    );
+  }
+  cursor = body.cursor;
+
   const result: ast.FunctionDeclaration = {
     type: 'FunctionDeclaration',
     id: {
@@ -147,13 +157,60 @@ const parseFunctionDeclaration = (
       name: idRead.identifier,
     },
     arguments: [],
-    body: {
-      type: 'Identifier',
-      name: 'TMP',
-    },
+    body: body.result,
   };
 
   return { result, cursor };
+};
+
+const parseExpression = (
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.Expression; cursor: SourceStream } => {
+  cursor = skipWhitespace(cursor);
+  const char = nextChar(cursor);
+  if (!char) return null;
+
+  if (char.char === '{') {
+    return parseBlockExpression(cursor, ctx);
+  } else {
+    return null;
+  }
+};
+
+const parseBlockExpression = (
+  cursor: SourceStream,
+  ctx: Context
+): { result: ast.BlockExpression; cursor: SourceStream } => {
+  cursor = skipWhitespace(cursor);
+  const openBrace = nextChar(cursor);
+  if (!openBrace || openBrace.char !== '{') {
+    throw new CompilerError(
+      "I'm confused; I'm looking for a block expression, but I don't even see a starting \"{\". This probably isn't your fault!",
+      cursor
+    );
+  }
+  cursor = openBrace.cursor;
+
+  const body: ast.Statement[] = [];
+
+  let current;
+  while (
+    ((cursor = skipWhitespace(cursor)), (current = nextChar(cursor)), current)
+  ) {
+    cursor = current.cursor;
+    if (current.char === '}') {
+      break;
+    }
+  }
+
+  return {
+    result: {
+      type: 'BlockExpression',
+      body,
+    },
+    cursor,
+  };
 };
 
 const parsedAst = parseModule(makeSourceStream(source), {});
