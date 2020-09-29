@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as ast from './ast';
+import parseIdentifier from './parseIdentifier';
 
 const sampleAst: ast.ASTRoot = {
   type: 'Module',
@@ -68,22 +69,74 @@ const source = fs.readFileSync(
 
 const parseModule = (source: string, ctx: Context): ast.Module => {
   let cursor = 0;
-  const root = {
-    type: 'Module' as const,
+  const root: ast.Module = {
+    type: 'Module',
     body: [],
   };
+
+  while (cursor < source.length) {
+    const [charsRead, declaration] = parseDeclaration(
+      source.slice(cursor),
+      ctx
+    );
+    if (declaration) {
+      cursor += charsRead;
+      root.body.push(declaration);
+    } else {
+      console.log(
+        'Not sure what to do with the rest of the source file',
+        `\`${source.slice(cursor + 1)}\``
+      );
+      break;
+    }
+  }
 
   return root;
 };
 
-const parseDeclaration = (source: string, ctx: Context) => {
-  let cursor = 0;
+const parseDeclaration = (
+  source: string,
+  ctx: Context
+): [charsRead: number, declaration: null | ast.Declaration] => {
+  const [idCursor, identifier] = parseIdentifier(source);
+  if (identifier) {
+    if (identifier === 'fn') {
+      const [newCursor, fnDefinition] = parseFunctionDeclaration(
+        source.slice(idCursor + 1),
+        ctx
+      );
+      return [idCursor + newCursor, fnDefinition];
+    } else {
+      // throw new Error(
+      //   `Expected a declaration here, but I got ${identifier} instead!`
+      // );
+      return [0, null];
+    }
+  } else {
+    return [0, null];
+  }
 };
 
-const tryReadIdentifier = (source: string) => {};
+const parseFunctionDeclaration = (
+  source: string,
+  ctx: Context
+): [charsRead: number, result: ast.FunctionDeclaration] => {
+  return [
+    0,
+    {
+      type: 'FunctionDeclaration',
+      id: {
+        type: 'Identifier',
+        name: 'TMP',
+      },
+      body: {
+        type: 'Identifier',
+        name: 'TMP',
+      },
+    },
+  ];
+};
 
 const parsedAst = parseModule(source, {});
 
 console.log(JSON.stringify(parsedAst, null, 2));
-
-const identifierHeadRegex = new RegExp('(?:[a-zA-Z_]|' + ')');
