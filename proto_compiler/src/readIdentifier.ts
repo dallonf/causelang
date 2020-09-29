@@ -16,8 +16,6 @@ const identifierAdditionalCharacterRegex = new RegExp('[0-9]');
 export default function readIdentifier(
   cursor: SourceStream
 ): null | { identifier: string; cursor: SourceStream } {
-  // let startPoint = 0;
-
   while (true) {
     const char = nextChar(cursor);
     if (!char) {

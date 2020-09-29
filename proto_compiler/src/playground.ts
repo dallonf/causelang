@@ -1,7 +1,9 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as ast from './ast';
-import parseIdentifier from './parseIdentifier';
+import { makeSourceStream, nextChar, SourceStream } from './sourceStream';
+import readIdentifier from './readIdentifier';
+import CompilerError from './CompilerError';
 
 const sampleAst: ast.ASTRoot = {
   type: 'Module',
@@ -68,25 +70,22 @@ const source = fs.readFileSync(
   'utf-8'
 );
 
-const parseModule = (source: string, ctx: Context): ast.Module => {
-  let cursor = 0;
+const parseModule = (cursor: SourceStream, ctx: Context): ast.Module => {
   const root: ast.Module = {
     type: 'Module',
     body: [],
   };
 
-  while (cursor < source.length) {
-    const [charsRead, declaration] = parseDeclaration(
-      source.slice(cursor),
-      ctx
-    );
+  let current;
+  while (((current = nextChar(cursor)), current)) {
+    const declaration = parseDeclaration(cursor, ctx);
     if (declaration) {
-      cursor += charsRead;
-      root.body.push(declaration);
+      cursor = declaration.cursor;
+      root.body.push(declaration.result);
     } else {
       console.log(
         'Not sure what to do with the rest of the source file',
-        `\`${source.slice(cursor + 1)}\``
+        `\`${cursor.source.slice(cursor.index)}\``
       );
       break;
     }
@@ -96,53 +95,46 @@ const parseModule = (source: string, ctx: Context): ast.Module => {
 };
 
 const parseDeclaration = (
-  source: string,
+  cursor: SourceStream,
   ctx: Context
-): [charsRead: number, declaration: null | ast.Declaration] => {
-  const [idCursor, identifier] = parseIdentifier(source);
-  if (identifier) {
-    if (identifier === 'fn') {
-      const [newCursor, fnDefinition] = parseFunctionDeclaration(
-        source.slice(idCursor + 1),
-        ctx
-      );
-      return [idCursor + newCursor, fnDefinition];
-    } else {
-      // throw new Error(
-      //   `Expected a declaration here, but I got ${identifier} instead!`
-      // );
-      return [0, null];
+): null | { result: ast.Declaration; cursor: SourceStream } => {
+  const keyword = readIdentifier(cursor);
+  if (keyword) {
+    if (keyword.identifier === 'fn') {
+      return parseFunctionDeclaration(keyword.cursor, ctx);
     }
-  } else {
-    return [0, null];
   }
+  return null;
 };
 
 const parseFunctionDeclaration = (
-  source: string,
+  cursor: SourceStream,
   ctx: Context
-): [charsRead: number, result: ast.FunctionDeclaration] => {
-  const [charsRead, id] = parseIdentifier(source);
-  if (!id) {
-    throw new Error('I found a "fn" that isn\'t followed by a function name!');
+): { result: ast.FunctionDeclaration; cursor: SourceStream } => {
+  const idRead = readIdentifier(cursor);
+  if (!idRead) {
+    throw new CompilerError(
+      'I\'m looking for a function name after the "fn" declaration, but I can\'t find one',
+      cursor
+    );
   }
-  return [
-    charsRead,
-    {
-      type: 'FunctionDeclaration',
-      id: {
-        type: 'Identifier',
-        name: id,
-      },
-      arguments: [],
-      body: {
-        type: 'Identifier',
-        name: 'TMP',
-      },
+
+  const result: ast.FunctionDeclaration = {
+    type: 'FunctionDeclaration',
+    id: {
+      type: 'Identifier',
+      name: idRead.identifier,
     },
-  ];
+    arguments: [],
+    body: {
+      type: 'Identifier',
+      name: 'TMP',
+    },
+  };
+
+  return { result, cursor: idRead.cursor };
 };
 
-const parsedAst = parseModule(source, {});
+const parsedAst = parseModule(makeSourceStream(source), {});
 
 console.log(JSON.stringify(parsedAst, null, 2));
