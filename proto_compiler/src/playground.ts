@@ -1,7 +1,13 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as ast from './ast';
-import { makeSourceStream, nextChar, SourceStream } from './sourceStream';
+import {
+  cursorPosition,
+  makeSourceStream,
+  nextChar,
+  remainder,
+  SourceStream,
+} from './sourceStream';
 import { readIdentifier, skipWhitespace } from './readToken';
 import CompilerError from './CompilerError';
 
@@ -85,10 +91,12 @@ const parseModule = (cursor: SourceStream, ctx: Context): ast.Module => {
       cursor = declaration.cursor;
       root.body.push(declaration.result);
     } else {
-      throw new CompilerError(
-        'I\'m looking for declarations here in the root of the module; stuff like "let", "fn", etc.',
-        cursor
-      );
+      console.log('done parsing, remainder', remainder(cursor));
+      break;
+      // throw new CompilerError(
+      //   'I\'m looking for declarations here in the root of the module; stuff like "let", "fn", etc.',
+      //   cursor
+      // );
     }
   }
 
@@ -174,6 +182,17 @@ const parseExpression = (
   if (char.char === '{') {
     return parseBlockExpression(cursor, ctx);
   } else {
+    const identifier = readIdentifier(cursor);
+    if (identifier) {
+      cursor = identifier.cursor;
+      return {
+        result: {
+          type: 'Identifier',
+          name: identifier.identifier,
+        },
+        cursor,
+      };
+    }
     return null;
   }
 };
@@ -198,9 +217,24 @@ const parseBlockExpression = (
   while (
     ((cursor = skipWhitespace(cursor)), (current = nextChar(cursor)), current)
   ) {
-    cursor = current.cursor;
     if (current.char === '}') {
+      cursor = current.cursor;
       break;
+    }
+
+    const expression = parseExpression(cursor, ctx);
+    if (expression) {
+      body.push({
+        type: 'ExpressionStatement',
+        expression: expression.result,
+      });
+      cursor = expression.cursor;
+    } else {
+      break;
+      // throw new CompilerError(
+      //   "I'm looking for statements in this block.",
+      //   cursor
+      // );
     }
   }
 
@@ -213,6 +247,18 @@ const parseBlockExpression = (
   };
 };
 
-const parsedAst = parseModule(makeSourceStream(source), {});
+let parsedAst;
+try {
+  parsedAst = parseModule(makeSourceStream(source), {});
+} catch (e) {
+  if (e instanceof CompilerError) {
+    const position = cursorPosition(e.cursor);
+    console.error(
+      `Compiler error at Line ${position.line}, Column ${position.column}`
+    );
+    console.error('Remainder of code:\n', remainder(e.cursor));
+    throw e;
+  }
+}
 
 console.log(JSON.stringify(parsedAst, null, 2));

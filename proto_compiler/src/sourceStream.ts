@@ -30,3 +30,21 @@ export const nextChar = (cursor: SourceStream): null | SourceStreamValue => {
     return null;
   }
 };
+
+export const remainder = (cursor: SourceStream): string => {
+  return cursor.source.slice(cursor.index);
+};
+
+export const cursorPosition = (
+  cursor: SourceStream
+): { line: number; column: number } => {
+  const before = cursor.source.slice(0, cursor.index);
+  const lines = [...before.matchAll(/\n/g)].length;
+  const lastLineIndex = before.lastIndexOf('\n');
+  const lastLine = before.slice(lastLineIndex);
+
+  return {
+    line: lines + 1,
+    column: [...lastLine].length,
+  };
+};
