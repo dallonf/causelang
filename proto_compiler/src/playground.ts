@@ -12,6 +12,7 @@ const sampleAst: ast.ASTRoot = {
         type: 'Identifier',
         name: 'main',
       },
+      arguments: [],
       body: {
         type: 'BlockExpression',
         body: [
@@ -121,14 +122,19 @@ const parseFunctionDeclaration = (
   source: string,
   ctx: Context
 ): [charsRead: number, result: ast.FunctionDeclaration] => {
+  const [charsRead, id] = parseIdentifier(source);
+  if (!id) {
+    throw new Error('I found a "fn" that isn\'t followed by a function name!');
+  }
   return [
-    0,
+    charsRead,
     {
       type: 'FunctionDeclaration',
       id: {
         type: 'Identifier',
-        name: 'TMP',
+        name: id,
       },
+      arguments: [],
       body: {
         type: 'Identifier',
         name: 'TMP',
