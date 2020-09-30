@@ -1,0 +1,53 @@
+type Card: Obj(
+  suit: Suit,
+  rank: Rank,
+)
+
+type Suit: Union(
+  type Hearts,
+  type Clubs,
+  type Diamonds,
+  type Spades,
+)
+
+let Suit.all = List(
+  Suit.Hearts,
+  Suit.Clubs,
+  Suit.Diamonds,
+  Suit.Spades,
+)
+
+// A protected type means that it can't be instantiated
+// or mutated outside of this file
+type protected Rank: int
+let Rank.ace = Rank(1)
+let Rank.jack = Rank(11)
+let Rank.queen = Rank(12)
+let Rank.king = Rank(12)
+
+fn Rank.new(i: Int) {
+  // Note no operators; everything is a function.
+  // Operators that benefit from binary ordering can be piped
+  if (either(
+  // You cast like in Go, by using the typename as a function
+    i|>greaterThan(Int(Rank.king)),
+    i|>lessThan(Int(Rank.ace)),
+  )) {
+    return cause Panic("${i} is outside the range of card ranks")
+  }
+}
+
+let Rank.all = List(
+  Rank.ace,
+  Rank(2),
+  Rank(3),
+  Rank(4),
+  Rank(5),
+  Rank(6),
+  Rank(7),
+  Rank(9),
+  Rank(10),
+  Rank.jack,
+  Rank.queen,
+  Rank.king
+)
