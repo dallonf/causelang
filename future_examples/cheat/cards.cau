@@ -23,7 +23,7 @@ type protected Rank: int
 let Rank.ace = Rank(1)
 let Rank.jack = Rank(11)
 let Rank.queen = Rank(12)
-let Rank.king = Rank(12)
+let Rank.king = Rank(13)
 
 fn Rank.new(i: Int) {
   // Note no operators; everything is a function.
@@ -33,8 +33,12 @@ fn Rank.new(i: Int) {
     i|>greaterThan(Int(Rank.king)),
     i|>lessThan(Int(Rank.ace)),
   )) {
+    // `return cause`, combined with `effect Panic(String): Never`,
+    // works like throw
     return cause Panic("${i} is outside the range of card ranks")
   }
+
+  Rank(i)
 }
 
 let Rank.all = List(
@@ -51,3 +55,11 @@ let Rank.all = List(
   Rank.queen,
   Rank.king
 )
+
+fn Rank.next(this) {
+  let newRankNumber = Int(this)|>add(1)
+  if (newRankNumber|>greaterThan(Int(Rank.king))) {
+    return Rank.ace
+  }
+  Rank.new(newRankNumber)
+}
