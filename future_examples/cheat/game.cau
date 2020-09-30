@@ -1,0 +1,120 @@
+import math
+import collection
+import ./deck
+import ./cards.{Card, Rank}
+
+effect GameUpdate(playerHands: List<List<Card>>, discardPileSize: Int)
+// TODO: at one point I was thinking that the naming convention for effects
+// would not be verbs, but descriptions of a verbs
+// maybe WaitingForPlay
+effect WaitForPlay(playerId: Int): Obj(cards: List<Card>)
+effect WaitForResponse(playerId: Int, previousPlay: HistoricalPlay): Response
+effect Penalty(
+  reason: Union(type CaughtCheating, type BadAccusation),
+  playerId: Int,
+  discardPile: List<Card>,
+)
+
+type Play: Obj(
+  cards: List<Card>
+)
+type Cheat: Obj(
+  fromPlayerId: Int
+)
+
+type Response: Union(
+  Play,
+  Cheat,
+)
+
+type HistoricalPlay: Obj(
+  // This effectively extends the Play type
+  params(Play),
+  playerId: Int,
+  rank: Rank,
+)
+
+fn winner(playerHands: List<List<Card>>): Option<Int> {
+  playerHands->collection.indexWhere(
+    fn(a) a->length() == 0
+  )
+}
+
+fn nextRank(this: Rank) {
+  let newRankNumber = Int(this)->add(1)
+  if newRankNumber->greaterThan(Int(Rank.king)) {
+    return Rank.ace
+  }
+  Rank.new(newRankNumber)
+}
+
+fn cheatGame(numPlayers: Int) causes GameUpdate, WaitForPlay, WaitForResponse {
+  // let var allows the variable to be swapped to another immutable value
+  let var currentPlayer = 0
+  let var currentRank = Rank.ace
+  let var playerHands = List<List<Card>>(
+    params(
+      range(numPlayers)->collection.map(fn(_) { List() })
+    )
+  )
+  let var drawPile = deck.standard().shuffle()
+  let var discardPile = List<Card>()
+  
+  { // Deal out cards
+    let var receivingPlayer = 0
+    loop match Some(let card) = drawPile->collection.head() {
+      // x =-> is syntax sugar for `x = x->`
+      drawPile =->newPile->collection.tail()
+      // unit types automatically "inherit" methods from their base
+      // `x =.` is likewise sugar for `x = x.`
+      playerHands =.update(receivingPlayer, fn(a) a.append(card))
+      receivingPlayer =->add(1)->math.mod(numPlayers)
+    }
+  }
+
+  effect MakePlay(play: Play): HistoricalPlay
+
+  {
+    cause GameUpdate(playerHands, discardPile->length())
+
+    // First turn; you can't call cheat yet
+    let firstPlay = cause WaitForPlay(currentPlayer)
+    let var previousPlay: HistoricalPlay = cause MakePlay(firstPlay)
+
+    // Game loop
+    loop {
+      cause GameUpdate(playerHands, discardPile->length())
+
+      let response = cause WaitForResponse(currentPlayer, previousPlay)
+      match response {
+        Play(let play) {
+          previousPlay = cause MakePlay(play)
+        }
+        Cheat(let cheat) {
+          let isCheated = previousPlay.cards|>every(fn(a) a.rank == previousPlay.rank)
+          if isCheated {
+            cause Penalty(Penalty.CaughtCheating, previousPlay.playerId, discardPile)
+          } else {
+            cause Penalty(Penalty.BadAccusation, cheat.fromPlayerId, discardPile)
+          }
+        }
+      }
+
+      if match Some(let winner) = winner(playerHands) {
+        return Obj(winner=winner, playerHands)
+      }
+    }
+    // TODO: handle semantics are super fuzzy for me right now
+    // What is "e"? How are its arguments handled? Are they types or something special?
+  } handle MakePlay(let e) {
+    playerHands =.update(currentPlayer, fn(a) a->collection.difference(e.play.cards))
+    discardPile =.append(params(e.play.cards))
+    currentPlayer =->add(1)->math.mod(numPlayers)
+    HistoricalPlay(params(play), playerId=currentPlayer, rank=currentRank)
+  } handle Penalty(let e) {
+    playerHands =.update(e.playerId, fn(a) a->.append(params e.discardPile))
+    discardPile = List()
+    // Bubble it back up for the caller to use
+    cause e
+  }
+}

@@ -1,28 +1,24 @@
 import collection.{flatMap, map, shuffle}
-import ./cards
+import ./cards.{$, Card}
 
-type Deck: List<cards.Card>
-
-fn Deck.standard(): Deck {
-  cards.Suit.all |> flatMap(fn(suit) {
-    cards.Rank.all |> map(fn(rank) {
+fn standard(): List<Card> {
+  cards.Suit.all -> flatMap(fn(suit) {
+    cards.Rank.all -> map(fn(rank) {
       Card(rank=rank, suit=suit)
     })
-  }) |> Deck($)
+  }) -> Deck($)
 }
 
 // Note that this actually isn't necessary at all;
 // Deck is, by extension of being a unit of List, compatable with collection.shuffle()
 // But I'm keeping it here because it's a place where my syntax has really fallen apart
-fn Deck.shuffle(this) {
-  // "..." indicates that the expression continues onto the next line
-  // I feel like this pattern of a chain of pipes shouldn't be ambiguous and require
-  // workarounds... hm
-  this ...
-    // alert! It's unclear here whether
-    // we want to cast this to a List<cards.Card>,
-    // or whether we want to make a new List<Deck> containing a single element, this...
-    |> List($)
-    |> shuffle()
-    |> Deck($)
-}
+// fn Deck.shuffle(this) {
+//   // "..." indicates that the expression continues onto the next line
+//   // I feel like this pattern of a chain of pipes shouldn't be ambiguous and require
+//   // workarounds... hm
+//   this ...
+//     // Because Deck is a unit of List, it can be coerced to List(this)
+//     -> List()
+//     -> shuffle()
+//     -> Deck
+// }

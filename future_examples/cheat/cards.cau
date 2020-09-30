@@ -28,11 +28,11 @@ let Rank.king = Rank(13)
 fn Rank.new(i: Int) {
   // Note no operators; everything is a function.
   // Operators that benefit from binary ordering can be piped
-  if (either(
+  if either(
   // You cast like in Go, by using the typename as a function
-    i|>greaterThan(Int(Rank.king)),
-    i|>lessThan(Int(Rank.ace)),
-  )) {
+    i->greaterThan(Int(Rank.king)),
+    i->lessThan(Int(Rank.ace)),
+  ) {
     // `return cause`, combined with `effect Panic(String): Never`,
     // works like throw
     return cause Panic("${i} is outside the range of card ranks")
@@ -55,11 +55,3 @@ let Rank.all = List(
   Rank.queen,
   Rank.king
 )
-
-fn Rank.next(this) {
-  let newRankNumber = Int(this)|>add(1)
-  if (newRankNumber|>greaterThan(Int(Rank.king))) {
-    return Rank.ace
-  }
-  Rank.new(newRankNumber)
-}
