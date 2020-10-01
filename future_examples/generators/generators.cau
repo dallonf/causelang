@@ -1,0 +1,48 @@
+// This should probably be baked right into the language.
+// But I want to exercise the semantics of Effects and make sure
+// they're capable of implementing features like generators
+// That's how I'll know the model is robust enough to do everything I need
+
+effect YieldIncrement(amountSoFar: Int): Option<Int>
+effect Forbidden(): String
+
+// This is a "generator" function
+// The return/causes type descriptor should probably be inferred
+fn incrementor(): Int causes YieldIncrement, Forbidden {
+  let var i = 0
+  loop {
+    let amountToAdd = cause YieldIncrement(i)
+    if match Some(let amountToAdd) = amountToAdd {
+      if (amountToAdd == 13) {
+        if cause Forbidden() != "I'm sorry" {
+          // Panic is an optional effect; it doesn't have to be explicitly handled
+          cause Panic("Failure to apologize")
+        }
+      } else {
+        i = ->add(amountToAdd)
+      }
+    } else {
+      return i
+    }
+  }
+}
+
+fn callGenerator() {
+  let mut myTask = task incrementor() // executes up to the first cause
+  loop {
+    myTask = match myTask {
+      let myTask: Task<YieldIncrement> {
+        cause Log("Counted to ${myTask.effect} so far")
+        myTask.next(Some(1)) // next() consumes ownership, but provides a new task in its place
+        // .. but I'm not sure my compiler can be smart enough to know that...?
+      }
+      let myTask: Task<Forbidden> {
+        myTask.next("I'm sorry")
+      }
+      let myTask: TaskReturn<Int> {
+        cause Log("Final value: ${myTask.value}")
+        break
+      }
+    }
+  }
+}
