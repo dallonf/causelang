@@ -73,3 +73,11 @@ export interface Module {
 }
 
 export type ASTRoot = Module;
+
+export type Node =
+  | Module
+  | Declaration
+  | Statement
+  | Expression
+  | Literal
+  | Identifier;
