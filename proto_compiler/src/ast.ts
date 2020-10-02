@@ -1,12 +1,12 @@
 const KEYWORDS = ['cause', 'fn'] as const;
 export const keywordSet = new Set(KEYWORDS);
-export type KeywordLiteral = typeof KEYWORDS extends readonly (infer T)[]
+export type KeywordValue = typeof KEYWORDS extends readonly (infer T)[]
   ? T
   : never;
 
 export interface Keyword {
   type: 'Keyword';
-  keyword: KeywordLiteral;
+  keyword: KeywordValue;
 }
 
 export interface Identifier {
@@ -26,11 +26,11 @@ export interface IntLiteral {
 
 export type Literal = StringLiteral | IntLiteral;
 
-export interface UnaryCallExpression {
-  type: 'UnaryCallExpression';
-  callee: Expression;
-  argument: Expression;
-}
+// export interface UnaryCallExpression {
+//   type: 'UnaryCallExpression';
+//   callee: Expression;
+//   argument: Expression;
+// }
 
 export interface CallExpression {
   type: 'CallExpression';
@@ -47,7 +47,7 @@ export type Expression =
   | Keyword
   | Identifier
   | Literal
-  | UnaryCallExpression
+  // | UnaryCallExpression
   | CallExpression
   | BlockExpression;
 

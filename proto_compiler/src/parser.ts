@@ -118,10 +118,10 @@ const parseExpression = (
       initialExpression = readAttempt.result;
       cursor = readAttempt.cursor;
     } else if (((readAttempt = readIdentifier(cursor)), readAttempt)) {
-      if (ast.keywordSet.has(readAttempt.identifier as ast.KeywordLiteral)) {
+      if (ast.keywordSet.has(readAttempt.identifier as ast.KeywordValue)) {
         initialExpression = {
           type: 'Keyword' as const,
-          keyword: readAttempt.identifier as ast.KeywordLiteral,
+          keyword: readAttempt.identifier as ast.KeywordValue,
         };
       } else {
         initialExpression = {
