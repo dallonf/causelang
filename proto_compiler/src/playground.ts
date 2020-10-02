@@ -223,6 +223,24 @@ const generateExpression = (
         return jsAst.yieldExpression(generateExpression(node.arguments[0]));
       }
 
+      const type = node.callee.returnType;
+      if (type.kind === 'effect') {
+        if (node.arguments.length !== 1) {
+          throw new Error('Effects can only have one parameter for now');
+        }
+        return jsAst.objectExpression([
+          jsAst.objectProperty(
+            jsAst.identifier('type'),
+            // TODO: The type name might be out of scope...
+            jsAst.identifier(type.name)
+          ),
+          jsAst.objectProperty(
+            jsAst.identifier('value'),
+            generateExpression(node.arguments[0])
+          ),
+        ]);
+      }
+
       return jsAst.callExpression(
         generateExpression(node.callee),
         node.arguments.map(generateExpression)

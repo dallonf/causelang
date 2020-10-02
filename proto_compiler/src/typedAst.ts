@@ -1,5 +1,9 @@
 import * as ast from './ast';
 
+// TODO: I think an alternate "typed" AST is a bad idea.
+// I'd prefer to make a "type map" with indexes based on the node's
+// location in the tree
+
 export type Typed<T extends ast.Node> = T extends ast.CallExpression
   ? TypedCallExpression
   : {
