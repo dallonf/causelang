@@ -53,12 +53,12 @@ interface InstanceValueType {
   type: DeclarationValueType;
 }
 
-export interface TypedCallExpression {
+interface TypedCallExpression {
   type: 'CallExpression';
   callee: TypedExpression;
-  arguments: ast.Expression[];
+  arguments: Typed<ast.Expression>[];
 }
 
-export type TypedExpression = ast.Expression & {
+export type TypedExpression = Typed<ast.Expression> & {
   returnType: ValueType;
 };

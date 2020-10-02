@@ -114,17 +114,17 @@ const crawlExpression = (
         case 'Identifier': {
           const type: typedAst.ValueType | undefined = ctx.scope[callee.name];
           if (!type) {
-            `I was expecting "${callee.name}" to be a function or type in scope; maybe it's not spelled correctly.`;
+            `I was expecting "${callee.name}" to be a type in scope; maybe it's not spelled correctly.`;
           }
           typedCallee = {
-            ...callee,
+            ...crawlExpression(callee, ctx),
             returnType: type,
           };
           break;
         }
         case 'Keyword':
           typedCallee = {
-            ...callee,
+            ...crawlExpression(callee, ctx),
             returnType: {
               kind: 'keyword',
               keyword: callee.keyword,
@@ -136,8 +136,11 @@ const crawlExpression = (
             `I don't know how to crawl function calls like this yet. The technical name for this sort of callee is ${callee.type}`
           );
       }
+      const args = node.arguments.map((a) => crawlExpression(a, ctx));
+
       return {
         ...node,
+        arguments: args,
         callee: typedCallee,
       };
     }
@@ -146,7 +149,7 @@ const crawlExpression = (
   }
 };
 
-const generateModule = (module: ast.Module) => {
+const generateModule = (module: typedAst.Typed<ast.Module>) => {
   const program = jsAst.program([]);
 
   const statements = module.body.map((a, i) => generateDeclaration(a));
@@ -167,7 +170,7 @@ const generateModule = (module: ast.Module) => {
   return program;
 };
 
-const generateDeclaration = (node: ast.FunctionDeclaration) => {
+const generateDeclaration = (node: typedAst.Typed<ast.FunctionDeclaration>) => {
   let bodyStatements;
   if (node.body.type === 'BlockExpression') {
     const cauStatements = node.body.body;
@@ -194,11 +197,13 @@ const generateDeclaration = (node: ast.FunctionDeclaration) => {
   );
 };
 
-const generateStatement = (node: ast.Statement) => {
+const generateStatement = (node: typedAst.Typed<ast.Statement>) => {
   return jsAst.expressionStatement(generateExpression(node.expression));
 };
 
-const generateExpression = (node: ast.Expression): jsAst.Expression => {
+const generateExpression = (
+  node: typedAst.Typed<ast.Expression>
+): jsAst.Expression => {
   switch (node.type) {
     case 'Identifier': {
       return jsAst.identifier(node.name);
@@ -214,6 +219,7 @@ const generateExpression = (node: ast.Expression): jsAst.Expression => {
         if (node.arguments.length !== 1) {
           throw new Error('"cause" should only have one parameter');
         }
+
         return jsAst.yieldExpression(generateExpression(node.arguments[0]));
       }
 
@@ -237,7 +243,11 @@ const generateExpression = (node: ast.Expression): jsAst.Expression => {
   }
 };
 
-const program = generateModule(parsedAst);
+const crawledAst = crawlModule(parsedAst, {
+  scope: rootScope,
+});
+
+const program = generateModule(crawledAst);
 
 const outputSource = generate(program).code;
 
