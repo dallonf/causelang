@@ -41,6 +41,7 @@ export function runMainSync(
   opts = { library: [] } as {
     library?: RuntimeLibraryValueType[];
     effectHandler?: (e: any) => any;
+    debugJsOutput?: boolean;
   }
 ) {
   const logs: string[] = [];
@@ -55,6 +56,9 @@ export function runMainSync(
   };
 
   const jsSource = compileToJs(script, opts.library ?? []);
+  if (opts.debugJsOutput) {
+    console.log(jsSource);
+  }
   const runtime = new CauseRuntime(jsSource, 'test.cau', {
     library: opts.library,
   });

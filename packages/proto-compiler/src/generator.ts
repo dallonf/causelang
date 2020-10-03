@@ -142,6 +142,46 @@ const generateExpression = (
         );
       }
     }
+    case 'UnaryCallExpression': {
+      if (node.callee.type === 'Keyword' && node.callee.keyword === 'cause') {
+        return jsAst.yieldExpression(
+          generateExpression(node.parameter, [...breadcrumbs, 'parameter'], ctx)
+        );
+      }
+
+      const type = ctx.expressionTypes.get(
+        [...breadcrumbs, 'callee'].join('.')
+      );
+      if (!type) {
+        throw new Error(
+          `I'm confused. I'm trying to figure out the type of this function call, but I don't know what it is. This probably isn't your fault! Here's the technical breadcrumb to the call in question: ${breadcrumbs.join(
+            '.'
+          )}`
+        );
+      }
+      if (type.kind === 'effect' || type.kind === 'type') {
+        return jsAst.objectExpression([
+          jsAst.objectProperty(
+            jsAst.identifier('type'),
+            generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx)
+          ),
+          jsAst.objectProperty(
+            jsAst.identifier('value'),
+            generateExpression(
+              node.parameter,
+              [...breadcrumbs, 'parameters'],
+              ctx
+            )
+          ),
+        ]);
+      } else {
+        throw new Error(
+          `I don't know how to compile this kind of function call yet. The type of the callee is ${JSON.stringify(
+            type
+          )}`
+        );
+      }
+    }
     case 'BlockExpression': {
       throw new Error(
         "I don't know how to compile inline block expressions yet"

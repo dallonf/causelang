@@ -26,11 +26,11 @@ export interface IntLiteral {
 
 export type Literal = StringLiteral | IntLiteral;
 
-// export interface UnaryCallExpression {
-//   type: 'UnaryCallExpression';
-//   callee: Expression;
-//   parameter: Expression;
-// }
+export interface UnaryCallExpression {
+  type: 'UnaryCallExpression';
+  callee: Expression;
+  parameter: Expression;
+}
 
 export interface CallExpression {
   type: 'CallExpression';
@@ -47,7 +47,7 @@ export type Expression =
   | Keyword
   | Identifier
   | Literal
-  // | UnaryCallExpression
+  | UnaryCallExpression
   | CallExpression
   | BlockExpression;
 

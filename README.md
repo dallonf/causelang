@@ -28,7 +28,7 @@ Not much. Here's what Hello World looks like, though!
 
 ```
 fn main() {
-  cause(Log("Hello World"))
+  cause Log("Hello World")
 }
 ```
 

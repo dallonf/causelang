@@ -41,3 +41,14 @@ it('returns a hello world value', () => {
   expect(result).toEqual({ type: GreetingSymbol, value: 'Hello World' });
   expect(logs).toEqual([]);
 });
+
+it('supports unary call syntax', () => {
+  const script = `
+    fn main() {
+      cause Log("Hello World")
+    }
+  `;
+  const { result, logs } = runMainSync(script);
+  expect(result).toBe(undefined);
+  expect(logs).toEqual(['Hello World']);
+});

@@ -135,9 +135,20 @@ const parseExpression = (
     }
 
     // Look for suffixes that change the meaning of this initial expression
-    const openBrace = nextChar(cursor);
-    if (openBrace && openBrace.char === '(') {
-      return parseCallExpression(initialExpression, cursor, ctx);
+    const suffixStart = nextChar(cursor);
+    if (suffixStart) {
+      if (suffixStart.char === '(') {
+        return parseCallExpression(initialExpression, cursor, ctx);
+      } else if (suffixStart.char === ' ') {
+        const unaryCall = parseUnaryCallExpression(
+          initialExpression,
+          cursor,
+          ctx
+        );
+        if (unaryCall) {
+          return unaryCall;
+        }
+      }
     }
 
     return { result: initialExpression, cursor };
@@ -257,6 +268,30 @@ const parseCallExpression = (
     },
     cursor,
   };
+};
+
+const parseUnaryCallExpression = (
+  callee: ast.Expression,
+  cursor: SourceStream,
+  ctx: Context
+):
+  | undefined
+  | {
+      result: ast.UnaryCallExpression;
+      cursor: SourceStream;
+    } => {
+  cursor = skipWhitespace(cursor);
+  const expression = parseExpression(cursor, ctx);
+  if (expression) {
+    return {
+      result: {
+        type: 'UnaryCallExpression',
+        callee,
+        parameter: expression.result,
+      },
+      cursor: expression.cursor,
+    };
+  }
 };
 
 const parseBlockExpression = (

@@ -143,6 +143,37 @@ const analyzeExpression = (
       node.parameters.forEach((a, i) =>
         analyzeExpression(a, [...breadcrumbs, 'parameters', i], ctx)
       );
+      break;
+    }
+    case 'UnaryCallExpression': {
+      const { callee } = node;
+      let calleeType: ValueType;
+      switch (callee.type) {
+        case 'Identifier': {
+          const type: ValueType | undefined = ctx.scope[callee.name];
+          if (!type) {
+            throw new Error(
+              `I was expecting "${callee.name}" to be a type in scope; maybe it's not spelled correctly.`
+            );
+          }
+          calleeType = type;
+          break;
+        }
+        case 'Keyword':
+          calleeType = {
+            kind: 'keyword',
+            keyword: callee.keyword,
+          };
+          break;
+        default:
+          throw new Error(
+            `I don't know how to analyze function calls like this yet. The technical name for this sort of callee is ${callee.type}`
+          );
+      }
+
+      ctx.expressionTypes.set([...breadcrumbs, 'callee'].join('.'), calleeType);
+
+      analyzeExpression(node.parameter, [...breadcrumbs, 'parameter'], ctx);
     }
   }
 };
