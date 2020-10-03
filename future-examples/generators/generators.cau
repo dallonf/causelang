@@ -12,9 +12,9 @@ fn incrementor(): Int causes YieldIncrement, Forbidden {
   let var i = 0
   loop {
     let amountToAdd = cause YieldIncrement(i)
-    if match Some(let amountToAdd) = amountToAdd {
-      if (amountToAdd == 13) {
-        if cause Forbidden() != "I'm sorry" {
+    if match Some(let amountToAdd) as amountToAdd {
+      if (amountToAdd->equals(13)) {
+        if cause Forbidden()->equals("I'm sorry")->not() {
           // Panic is an optional effect; it doesn't have to be explicitly handled
           cause Panic("Failure to apologize")
         }

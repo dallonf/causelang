@@ -1,6 +1,5 @@
 // Added some syntax sugar
 
-import console
 import collection { map, flatMap, Set }
 import http
 import htmlParse
@@ -8,10 +7,8 @@ import htmlParse
 effect CrawlerCacheCheck(url: String): (alreadyCrawled: Bool)
 
 fn main(args: console.Args) {
-    // TODO: handle args
-
     let crawlUrl = "http://meanwhilegames.dallonf.com"
-    let mut alreadyCrawledSet = Set.new()
+    let var alreadyCrawledSet = Set.new()
 
     // with() allows you to set up block-wrappers.
     // This could also be a great way to handle, er, handles - but we'd
@@ -19,20 +16,17 @@ fn main(args: console.Args) {
     // how about `with let e = file`? I like that
     let links = with http.Handler {
        crawl(crawlUrl)
-    } handle http.Error e {
-        cause Panic(e)
     } handle CrawlerCacheCheck url {
-        // this is roughly equivalent to `alreadyCrawledSet |> Set.contains(url)` or `Set.contains(url, alreadyCrawledSet)`
+        // this is roughly equivalent to `alreadyCrawledSet->Set.contains(url)` or `Set.contains(url, alreadyCrawledSet)`
         // We'll need to go into struct definitions and find out how it can know what "methods" a struct has access to
         let alreadyCrawled = alreadyCrawledSet.contains(url)
         if !alreadyCrawled {
-            alreadyCrawledSet.add(url)
+            alreadyCrawledSet =.add(url)
         }
         alreadyCrawled
     }
     
     cause Log(links)
-    ExitCode 0
 }
 
 fn crawl(url: String) {
@@ -40,11 +34,11 @@ fn crawl(url: String) {
 
     let result = cause http.request("GET", crawlUrl)
 
-    cause Assertion.Equal("text/html", result |> http.header("Content-Type"))
+    cause Assertion.Equal("text/html", result.header("Content-Type"))
     let body = result.body
     let links = htmlParse.parse(body)
-        |> htmlParse.find("a")
-        |> map(htmlParse.attr("href"))
+        ->find("a")
+        ->map(htmlParse.attr("href"))
 
-    links |> flatMapResult(crawl)
+    links->flatMap(crawl)
 }

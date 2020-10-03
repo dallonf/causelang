@@ -86,9 +86,9 @@ fn cheatGame(numPlayers: Int) causes GameUpdate, WaitForPlay, WaitForResponse {
       cause GameUpdate(playerHands, discardPile->length())
 
       let response = cause WaitForResponse(currentPlayer, previousPlay)
-      match response {
+      let play = match response {
         Play(let play) {
-          previousPlay = cause MakePlay(play)
+          play
         }
         Cheat(let cheat) {
           let isCheated = previousPlay.cards|>every(fn(a) a.rank == previousPlay.rank)
@@ -97,21 +97,24 @@ fn cheatGame(numPlayers: Int) causes GameUpdate, WaitForPlay, WaitForResponse {
           } else {
             cause Penalty(Penalty.BadAccusation, cheat.fromPlayerId, discardPile)
           }
+          
+          // At this point, nobody can interrupt, since the previous move has already been called
+          cause WaitForPlay(currentPlayer)
         }
       }
 
-      if match Some(let winner) = winner(playerHands) {
+      previousPlay = cause MakePlay(play)
+
+      if match Some(let winner) as winner(playerHands) {
         return Obj(winner=winner, playerHands)
       }
     }
-    // TODO: handle semantics are super fuzzy for me right now
-    // What is "e"? How are its arguments handled? Are they types or something special?
-  } handle MakePlay(let e) {
-    playerHands =.update(currentPlayer, fn(a) a->collection.difference(e.play.cards))
-    discardPile =.append(params(e.play.cards))
+  } handle MakePlay(let play) {
+    playerHands =.update(currentPlayer, fn(a) a->collection.difference(play.cards))
+    discardPile =.append(params(play.cards))
     currentPlayer =->add(1)->math.mod(numPlayers)
     HistoricalPlay(params(play), playerId=currentPlayer, rank=currentRank)
-  } handle Penalty(let e) {
+  } handle let e: Penalty {
     playerHands =.update(e.playerId, fn(a) a->.append(params e.discardPile))
     discardPile = List()
     // Bubble it back up for the caller to use

@@ -1,15 +1,12 @@
-import console
 import collection.{ map, flatMap, Set }
 import http
 import htmlParse
 
-effect CrawlerCacheCheck(url: String): (alreadyCrawled: Bool)
+effect CrawlerCacheCheck(url: String): Obj(alreadyCrawled: Bool)
 
-fn main(args: console.Args) {
-    // TODO: handle args
-
+fn main() {
     let crawlUrl = "http://meanwhilegames.dallonf.com"
-    let mut alreadyCrawledSet = Set.new()
+    let var alreadyCrawledSet = Set.new()
 
     let links = {
        crawl(crawlUrl)
@@ -18,26 +15,25 @@ fn main(args: console.Args) {
     } handle http.Error e {
         cause Panic(e)
     } handle CrawlerCacheCheck url {
-        let alreadyCrawled = alreadyCrawledSet |> Set.contains(url)
+        let alreadyCrawled = alreadyCrawledSet->Set.contains(url)
         if !alreadyCrawled {
-            alreadyCrawledSet |> Set.add(url)
+            alreadyCrawledSet = alreadyCrawledSet->Set.add(url)
         }
         alreadyCrawled
     }
     
     cause Log(links)
-    ExitCode 0
 }
 
 fn crawl(url: String) {
     let alreadyCrawled = cause CrawlerCacheCheck(url)
 
     let result = cause http.request("GET", crawlUrl)
-    cause Assertion.Equal("text/html", result |> http.header("Content-Type"))
+    cause Assertion.Equal("text/html", result->http.header("Content-Type"))
     let body = result.body
-    let links = htmlParse.parse(body)
-        |> htmlParse.find("a")
-        |> map(htmlParse.attr("href"))
+    let links = htmlParse.parse(body) ...
+        ->htmlParse.find("a")
+        ->map(htmlParse.attr("href"))
 
-    links |> flatMap(crawl)
+    links->flatMap(crawl)
 }

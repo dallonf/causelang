@@ -3,7 +3,7 @@ type Card: Obj(
   rank: Rank,
 )
 
-type Suit: Union(
+type Suit: Variant(
   type Hearts,
   type Clubs,
   type Diamonds,
@@ -19,7 +19,7 @@ let Suit.all = List(
 
 // A protected type means that it can't be instantiated
 // or mutated outside of this file
-type protected Rank: int
+type protected Rank: Int
 let Rank.ace = Rank(1)
 let Rank.jack = Rank(11)
 let Rank.queen = Rank(12)
