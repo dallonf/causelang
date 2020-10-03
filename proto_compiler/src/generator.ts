@@ -123,8 +123,7 @@ const generateExpression = (
         return jsAst.objectExpression([
           jsAst.objectProperty(
             jsAst.identifier('type'),
-            // TODO: The type name might be out of scope...
-            jsAst.identifier(type.name)
+            generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx)
           ),
           jsAst.objectProperty(
             jsAst.identifier('value'),

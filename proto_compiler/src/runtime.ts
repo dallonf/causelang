@@ -1,5 +1,4 @@
 import * as vm from 'vm';
-import { exhaustiveCheck } from './utils';
 import * as analyzer from './analyzer';
 
 type EffectHandler = (effect: any) => Promise<any>;
