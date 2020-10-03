@@ -34,6 +34,10 @@ const rootScope: analyzer.Scope = {
     kind: 'effect',
     name: 'Log',
   },
+  Panic: {
+    kind: 'effect',
+    name: 'Panic',
+  },
   ExitCode: {
     kind: 'type',
     name: 'ExitCode',
@@ -49,11 +53,26 @@ const outputSource = generator.generateModule(parsedAst, ['main'], {
   expressionTypes: analyzerContext.expressionTypes,
 });
 
-const sandbox = vm.createContext({
-  Log: runtime.LogSymbol,
-  ExitCode: runtime.ExitCodeSymbol,
+const ExitCodeSymbol = Symbol('ExitCode');
+interface ExitCodeType {
+  type: 'ExitCodeSymbol';
+  value: number;
+}
+
+const execute = async () => {
+  const causeRuntime = new runtime.CauseRuntime(
+    outputSource,
+    '01_helloworld.cau',
+    {
+      types: { [ExitCodeSymbol]: 'ExitCode' },
+    }
+  );
+  const exitCode: ExitCodeType = await causeRuntime.invokeFn('main', []);
+
+  console.log('Exit code', exitCode.value);
+};
+
+execute().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });
-vm.runInContext(outputSource, sandbox);
-const entry = sandbox.main;
-const exitCode = runtime.invokeEntry(entry);
-console.log('Exit code', exitCode.value);
