@@ -89,99 +89,9 @@ const generateExpression = (
     case 'IntLiteral': {
       return jsAst.numericLiteral(0);
     }
-    case 'CallExpression': {
-      if (node.callee.type === 'Keyword' && node.callee.keyword === 'cause') {
-        if (node.parameters.length !== 1) {
-          throw new Error('"cause" should only have one parameter');
-        }
-
-        return jsAst.yieldExpression(
-          generateExpression(
-            node.parameters[0],
-            [...breadcrumbs, 'parameters', 0],
-            ctx
-          )
-        );
-      }
-
-      const type = ctx.expressionTypes.get(
-        [...breadcrumbs, 'callee'].join('.')
-      );
-      if (!type) {
-        throw new Error(
-          `I'm confused. I'm trying to figure out the type of this function call, but I don't know what it is. This probably isn't your fault! Here's the technical breadcrumb to the call in question: ${breadcrumbs.join(
-            '.'
-          )}`
-        );
-      }
-      if (type.kind === 'effect' || type.kind === 'type') {
-        if (node.parameters.length !== 1) {
-          throw new Error(
-            'Effects and types can only have one parameter for now'
-          );
-        }
-        return jsAst.objectExpression([
-          jsAst.objectProperty(
-            jsAst.identifier('type'),
-            generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx)
-          ),
-          jsAst.objectProperty(
-            jsAst.identifier('value'),
-            generateExpression(
-              node.parameters[0],
-              [...breadcrumbs, 'parameters', 0],
-              ctx
-            )
-          ),
-        ]);
-      } else {
-        throw new Error(
-          `I don't know how to compile this kind of function call yet. The type of the callee is ${JSON.stringify(
-            type
-          )}`
-        );
-      }
-    }
-    case 'UnaryCallExpression': {
-      if (node.callee.type === 'Keyword' && node.callee.keyword === 'cause') {
-        return jsAst.yieldExpression(
-          generateExpression(node.parameter, [...breadcrumbs, 'parameter'], ctx)
-        );
-      }
-
-      const type = ctx.expressionTypes.get(
-        [...breadcrumbs, 'callee'].join('.')
-      );
-      if (!type) {
-        throw new Error(
-          `I'm confused. I'm trying to figure out the type of this function call, but I don't know what it is. This probably isn't your fault! Here's the technical breadcrumb to the call in question: ${breadcrumbs.join(
-            '.'
-          )}`
-        );
-      }
-      if (type.kind === 'effect' || type.kind === 'type') {
-        return jsAst.objectExpression([
-          jsAst.objectProperty(
-            jsAst.identifier('type'),
-            generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx)
-          ),
-          jsAst.objectProperty(
-            jsAst.identifier('value'),
-            generateExpression(
-              node.parameter,
-              [...breadcrumbs, 'parameters'],
-              ctx
-            )
-          ),
-        ]);
-      } else {
-        throw new Error(
-          `I don't know how to compile this kind of function call yet. The type of the callee is ${JSON.stringify(
-            type
-          )}`
-        );
-      }
-    }
+    case 'CallExpression':
+    case 'UnaryCallExpression':
+      return generateCallExpression(node, breadcrumbs, ctx);
     case 'BlockExpression': {
       throw new Error(
         "I don't know how to compile inline block expressions yet"
@@ -194,5 +104,63 @@ const generateExpression = (
     }
     default:
       return exhaustiveCheck(node);
+  }
+};
+
+const generateCallExpression = (
+  node: ast.CallExpression | ast.UnaryCallExpression,
+  breadcrumbs: Breadcrumbs,
+  ctx: GeneratorContext
+): jsAst.Expression => {
+  let parameters: { node: ast.Expression; breadcrumbs: Breadcrumbs }[];
+  if (node.type === 'UnaryCallExpression') {
+    parameters = [
+      { node: node.parameter, breadcrumbs: [...breadcrumbs, 'parameter'] },
+    ];
+  } else {
+    parameters = node.parameters.map((a, i) => ({
+      node: a,
+      breadcrumbs: [...breadcrumbs, 'parameters', i],
+    }));
+  }
+
+  if (node.callee.type === 'Keyword' && node.callee.keyword === 'cause') {
+    if (parameters.length !== 1) {
+      throw new Error('"cause" should only have one parameter');
+    }
+
+    return jsAst.yieldExpression(
+      generateExpression(parameters[0].node, parameters[0].breadcrumbs, ctx)
+    );
+  }
+
+  const type = ctx.expressionTypes.get([...breadcrumbs, 'callee'].join('.'));
+  if (!type) {
+    throw new Error(
+      `I'm confused. I'm trying to figure out the type of this function call, but I don't know what it is. This probably isn't your fault! Here's the technical breadcrumb to the call in question: ${breadcrumbs.join(
+        '.'
+      )}`
+    );
+  }
+  if (type.kind === 'effect' || type.kind === 'type') {
+    if (parameters.length !== 1) {
+      throw new Error('Effects and types can only have one parameter for now');
+    }
+    return jsAst.objectExpression([
+      jsAst.objectProperty(
+        jsAst.identifier('type'),
+        generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx)
+      ),
+      jsAst.objectProperty(
+        jsAst.identifier('value'),
+        generateExpression(parameters[0].node, parameters[0].breadcrumbs, ctx)
+      ),
+    ]);
+  } else {
+    throw new Error(
+      `I don't know how to compile this kind of function call yet. The type of the callee is ${JSON.stringify(
+        type
+      )}`
+    );
   }
 };

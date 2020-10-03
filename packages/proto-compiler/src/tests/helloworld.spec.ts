@@ -45,7 +45,7 @@ it('returns a hello world value', () => {
 it('supports unary call syntax', () => {
   const script = `
     fn main() {
-      cause Log("Hello World")
+      cause Log "Hello World"
     }
   `;
   const { result, logs } = runMainSync(script);

@@ -112,68 +112,54 @@ const analyzeExpression = (
       });
       break;
     }
-    case 'CallExpression': {
-      const { callee } = node;
-      let calleeType: ValueType;
-      switch (callee.type) {
-        case 'Identifier': {
-          const type: ValueType | undefined = ctx.scope[callee.name];
-          if (!type) {
-            throw new Error(
-              `I was expecting "${callee.name}" to be a type in scope; maybe it's not spelled correctly.`
-            );
-          }
-          calleeType = type;
-          break;
-        }
-        case 'Keyword':
-          calleeType = {
-            kind: 'keyword',
-            keyword: callee.keyword,
-          };
-          break;
-        default:
-          throw new Error(
-            `I don't know how to analyze function calls like this yet. The technical name for this sort of callee is ${callee.type}`
-          );
+    case 'CallExpression':
+    case 'UnaryCallExpression':
+      analyzeCallExpression(node, breadcrumbs, ctx);
+      break;
+  }
+};
+
+const analyzeCallExpression = (
+  node: ast.CallExpression | ast.UnaryCallExpression,
+  breadcrumbs: Breadcrumbs,
+  ctx: AnalyzerContext
+) => {
+  const { callee } = node;
+  let calleeType: ValueType;
+  switch (callee.type) {
+    case 'Identifier': {
+      const type: ValueType | undefined = ctx.scope[callee.name];
+      if (!type) {
+        throw new Error(
+          `I was expecting "${callee.name}" to be a type in scope; maybe it's not spelled correctly.`
+        );
       }
-
-      ctx.expressionTypes.set([...breadcrumbs, 'callee'].join('.'), calleeType);
-
-      node.parameters.forEach((a, i) =>
-        analyzeExpression(a, [...breadcrumbs, 'parameters', i], ctx)
-      );
+      calleeType = type;
       break;
     }
-    case 'UnaryCallExpression': {
-      const { callee } = node;
-      let calleeType: ValueType;
-      switch (callee.type) {
-        case 'Identifier': {
-          const type: ValueType | undefined = ctx.scope[callee.name];
-          if (!type) {
-            throw new Error(
-              `I was expecting "${callee.name}" to be a type in scope; maybe it's not spelled correctly.`
-            );
-          }
-          calleeType = type;
-          break;
-        }
-        case 'Keyword':
-          calleeType = {
-            kind: 'keyword',
-            keyword: callee.keyword,
-          };
-          break;
-        default:
-          throw new Error(
-            `I don't know how to analyze function calls like this yet. The technical name for this sort of callee is ${callee.type}`
-          );
-      }
-
-      ctx.expressionTypes.set([...breadcrumbs, 'callee'].join('.'), calleeType);
-
-      analyzeExpression(node.parameter, [...breadcrumbs, 'parameter'], ctx);
-    }
+    case 'Keyword':
+      calleeType = {
+        kind: 'keyword',
+        keyword: callee.keyword,
+      };
+      break;
+    default:
+      throw new Error(
+        `I don't know how to analyze function calls like this yet. The technical name for this sort of callee is ${callee.type}`
+      );
   }
+  ctx.expressionTypes.set([...breadcrumbs, 'callee'].join('.'), calleeType);
+
+  let parameters: { node: ast.Expression; breadcrumbs: Breadcrumbs }[];
+  if (node.type === 'UnaryCallExpression') {
+    parameters = [
+      { node: node.parameter, breadcrumbs: [...breadcrumbs, 'parameter'] },
+    ];
+  } else {
+    parameters = node.parameters.map((a, i) => ({
+      node: a,
+      breadcrumbs: [...breadcrumbs, 'parameters', i],
+    }));
+  }
+  parameters.forEach((a) => analyzeExpression(a.node, a.breadcrumbs, ctx));
 };
