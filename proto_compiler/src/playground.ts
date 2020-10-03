@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import generate from '@babel/generator';
 import * as jsAst from '@babel/types';
 import * as ast from './ast';
-import * as typedAst from './typedAst';
+import * as analyzer from './analyzer';
 import {
   cursorPosition,
   makeSourceStream,
@@ -36,11 +36,12 @@ try {
 }
 
 interface Scope {
-  [name: string]: typedAst.ValueType;
+  [name: string]: analyzer.ValueType;
 }
 
-interface CrawlerContext {
+interface AnalyzerContext {
   scope: Scope;
+  expressionTypes: Map<string, analyzer.ValueType>;
 }
 
 const rootScope: Scope = {
@@ -54,10 +55,13 @@ const rootScope: Scope = {
   },
 };
 
-const crawlModule = (
+type Breadcrumbs = (string | number)[];
+
+const analyzeModule = (
   module: ast.Module,
-  ctx: CrawlerContext
-): typedAst.Typed<ast.Module> => {
+  breadcrumbs: Breadcrumbs,
+  ctx: AnalyzerContext
+): AnalyzerContext => {
   // First, superficially check all the declarations to see what's hoisted
   // into scope
   const newScope: Scope = { ...ctx.scope };
@@ -70,89 +74,91 @@ const crawlModule = (
     }
   }
 
-  return {
-    ...module,
-    body: module.body.map((declaration) => {
-      return crawlFunctionDeclaration(declaration, {
-        ...ctx,
-        scope: newScope,
-      });
-    }),
-  };
+  module.body.forEach((declaration, i) => {
+    analyzeFunctionDeclaration(declaration, [...breadcrumbs, 'body', i], {
+      ...ctx,
+      scope: newScope,
+    });
+  });
+
+  return ctx;
 };
 
-const crawlFunctionDeclaration = (
+const analyzeFunctionDeclaration = (
   node: ast.FunctionDeclaration,
-  ctx: CrawlerContext
-): typedAst.Typed<ast.FunctionDeclaration> => {
-  return {
-    ...node,
-    body: crawlExpression(node.body, ctx),
-  };
+  breadcrumbs: Breadcrumbs,
+  ctx: AnalyzerContext
+): void => {
+  analyzeExpression(node.body, [...breadcrumbs, 'body'], ctx);
 };
 
-const crawlExpression = (
+const analyzeExpression = (
   node: ast.Expression,
-  ctx: CrawlerContext
-): typedAst.Typed<ast.Expression> => {
+  breadcrumbs: Breadcrumbs,
+  ctx: AnalyzerContext
+): void => {
   switch (node.type) {
     case 'BlockExpression': {
       // TODO: this is gonna get tricky with scope when variable declarations
       // are a thing
-      return {
-        ...node,
-        body: node.body.map((a: ast.ExpressionStatement) => ({
-          ...a,
-          expression: crawlExpression(a.expression, ctx),
-        })),
-      };
+      node.body.forEach((a: ast.ExpressionStatement, i) => {
+        analyzeExpression(
+          a.expression,
+          [...breadcrumbs, 'body', i, 'expression'],
+          ctx
+        );
+      });
+      break;
     }
     case 'CallExpression': {
       const { callee } = node;
-      let typedCallee: typedAst.TypedExpression;
+      let calleeType: analyzer.ValueType;
       switch (callee.type) {
         case 'Identifier': {
-          const type: typedAst.ValueType | undefined = ctx.scope[callee.name];
+          const type: analyzer.ValueType | undefined = ctx.scope[callee.name];
           if (!type) {
-            `I was expecting "${callee.name}" to be a type in scope; maybe it's not spelled correctly.`;
+            throw new Error(
+              `I was expecting "${callee.name}" to be a type in scope; maybe it's not spelled correctly.`
+            );
           }
-          typedCallee = {
-            ...crawlExpression(callee, ctx),
-            returnType: type,
-          };
+          calleeType = type;
           break;
         }
         case 'Keyword':
-          typedCallee = {
-            ...crawlExpression(callee, ctx),
-            returnType: {
-              kind: 'keyword',
-              keyword: callee.keyword,
-            },
+          calleeType = {
+            kind: 'keyword',
+            keyword: callee.keyword,
           };
           break;
         default:
           throw new Error(
-            `I don't know how to crawl function calls like this yet. The technical name for this sort of callee is ${callee.type}`
+            `I don't know how to analyze function calls like this yet. The technical name for this sort of callee is ${callee.type}`
           );
       }
-      const args = node.arguments.map((a) => crawlExpression(a, ctx));
 
-      return {
-        ...node,
-        arguments: args,
-        callee: typedCallee,
-      };
+      ctx.expressionTypes.set([...breadcrumbs, 'callee'].join('.'), calleeType);
+
+      node.arguments.forEach((a, i) =>
+        analyzeExpression(a, [...breadcrumbs, 'parameters', i], ctx)
+      );
     }
-    default:
-      return node;
   }
 };
 
-const generateModule = (module: typedAst.Typed<ast.Module>) => {
+interface GeneratorContext {
+  expressionTypes: Map<string, analyzer.ValueType>;
+}
+
+const generateModule = (
+  module: ast.Module,
+  breadcrumbs: Breadcrumbs,
+  ctx: GeneratorContext
+) => {
   const program = jsAst.program([]);
 
-  const statements = module.body.map((a, i) => generateDeclaration(a));
+  const statements = module.body.map((a, i) =>
+    generateDeclaration(a, [...breadcrumbs, 'body', i], ctx)
+  );
   program.body.push(...statements);
 
   // runtime call to invoke the main function
@@ -170,12 +176,20 @@ const generateModule = (module: typedAst.Typed<ast.Module>) => {
   return program;
 };
 
-const generateDeclaration = (node: typedAst.Typed<ast.FunctionDeclaration>) => {
+const generateDeclaration = (
+  node: ast.FunctionDeclaration,
+  breadcrumbs: Breadcrumbs,
+  ctx: GeneratorContext
+) => {
   let bodyStatements;
   if (node.body.type === 'BlockExpression') {
     const cauStatements = node.body.body;
     bodyStatements = cauStatements.map((a, i) => {
-      const statement = generateStatement(a);
+      const statement = generateStatement(
+        a,
+        [...breadcrumbs, 'body', 'body', i],
+        ctx
+      );
       if (
         statement.type === 'ExpressionStatement' &&
         i === cauStatements.length - 1
@@ -186,7 +200,11 @@ const generateDeclaration = (node: typedAst.Typed<ast.FunctionDeclaration>) => {
       }
     });
   } else {
-    bodyStatements = [jsAst.returnStatement(generateExpression(node.body))];
+    bodyStatements = [
+      jsAst.returnStatement(
+        generateExpression(node.body, [...breadcrumbs, 'body'], ctx)
+      ),
+    ];
   }
 
   return jsAst.functionDeclaration(
@@ -197,12 +215,20 @@ const generateDeclaration = (node: typedAst.Typed<ast.FunctionDeclaration>) => {
   );
 };
 
-const generateStatement = (node: typedAst.Typed<ast.Statement>) => {
-  return jsAst.expressionStatement(generateExpression(node.expression));
+const generateStatement = (
+  node: ast.Statement,
+  breadcrumbs: Breadcrumbs,
+  ctx: GeneratorContext
+) => {
+  return jsAst.expressionStatement(
+    generateExpression(node.expression, [...breadcrumbs, 'expression'], ctx)
+  );
 };
 
 const generateExpression = (
-  node: typedAst.Typed<ast.Expression>
+  node: ast.Expression,
+  breadcrumbs: Breadcrumbs,
+  ctx: GeneratorContext
 ): jsAst.Expression => {
   switch (node.type) {
     case 'Identifier': {
@@ -220,10 +246,25 @@ const generateExpression = (
           throw new Error('"cause" should only have one parameter');
         }
 
-        return jsAst.yieldExpression(generateExpression(node.arguments[0]));
+        return jsAst.yieldExpression(
+          generateExpression(
+            node.arguments[0],
+            [...breadcrumbs, 'parameters', 0],
+            ctx
+          )
+        );
       }
 
-      const type = node.callee.returnType;
+      const type = ctx.expressionTypes.get(
+        [...breadcrumbs, 'callee'].join('.')
+      );
+      if (!type) {
+        throw new Error(
+          `I'm confused. I'm trying to figure out the type of this function call, but I don't know what it is. This probably isn't your fault! Here's the technical breadcrumb to the call in question: ${breadcrumbs.join(
+            '.'
+          )}`
+        );
+      }
       if (type.kind === 'effect') {
         if (node.arguments.length !== 1) {
           throw new Error('Effects can only have one parameter for now');
@@ -236,14 +277,20 @@ const generateExpression = (
           ),
           jsAst.objectProperty(
             jsAst.identifier('value'),
-            generateExpression(node.arguments[0])
+            generateExpression(
+              node.arguments[0],
+              [...breadcrumbs, 'parameters', 0],
+              ctx
+            )
           ),
         ]);
       }
 
       return jsAst.callExpression(
-        generateExpression(node.callee),
-        node.arguments.map(generateExpression)
+        generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
+        node.arguments.map((a, i) =>
+          generateExpression(a, [...breadcrumbs, 'parameters', i], ctx)
+        )
       );
     }
     case 'BlockExpression': {
@@ -261,11 +308,14 @@ const generateExpression = (
   }
 };
 
-const crawledAst = crawlModule(parsedAst, {
+const analyzerContext = analyzeModule(parsedAst, [], {
   scope: rootScope,
+  expressionTypes: new Map(),
 });
 
-const program = generateModule(crawledAst);
+const program = generateModule(parsedAst, ['main'], {
+  expressionTypes: analyzerContext.expressionTypes,
+});
 
 const outputSource = generate(program).code;
 

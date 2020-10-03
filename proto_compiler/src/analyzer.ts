@@ -1,21 +1,5 @@
 import * as ast from './ast';
 
-// TODO: I think an alternate "typed" AST is a bad idea.
-// I'd prefer to make a "type map" with indexes based on the node's
-// location in the tree
-
-export type Typed<T extends ast.Node> = T extends ast.CallExpression
-  ? TypedCallExpression
-  : {
-      [K in keyof T]: TypedValue<T[K]>;
-    };
-
-type TypedValue<T> = T extends (infer TArrayValue)[]
-  ? TypedValue<TArrayValue>[]
-  : T extends ast.Node
-  ? Typed<T>
-  : T;
-
 export type ValueType =
   | DynamicValueType
   | KeywordValueType
@@ -56,13 +40,3 @@ interface InstanceValueType {
   name?: string;
   type: DeclarationValueType;
 }
-
-interface TypedCallExpression {
-  type: 'CallExpression';
-  callee: TypedExpression;
-  arguments: Typed<ast.Expression>[];
-}
-
-export type TypedExpression = Typed<ast.Expression> & {
-  returnType: ValueType;
-};
