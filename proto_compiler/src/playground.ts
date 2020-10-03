@@ -1,14 +1,12 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import * as vm from 'vm';
 import * as analyzer from './analyzer';
 import * as runtime from './runtime';
 import { cursorPosition, makeSourceStream, remainder } from './sourceStream';
 import CompilerError from './CompilerError';
 import * as parser from './parser';
 import * as generator from './generator';
-
-type Breadcrumbs = analyzer.Breadcrumbs;
+import { assert } from 'console';
 
 const source = fs.readFileSync(
   path.join(__dirname, 'fixtures/01_helloworld.cau'),
@@ -29,23 +27,21 @@ try {
   throw e;
 }
 
-const rootScope: analyzer.Scope = {
-  Log: {
-    kind: 'effect',
-    name: 'Log',
-  },
-  Panic: {
-    kind: 'effect',
-    name: 'Panic',
-  },
-  ExitCode: {
+const ExitCodeSymbol = Symbol('ExitCode');
+interface ExitCodeType {
+  type: typeof ExitCodeSymbol;
+  value: number;
+}
+const library: runtime.LibraryItem[] = [
+  {
     kind: 'type',
     name: 'ExitCode',
+    symbol: ExitCodeSymbol,
   },
-};
+];
 
 const analyzerContext = analyzer.analyzeModule(parsedAst, ['main'], {
-  scope: rootScope,
+  scope: analyzer.scopeFromLibrary(library),
   expressionTypes: new Map(),
 });
 
@@ -53,21 +49,16 @@ const outputSource = generator.generateModule(parsedAst, ['main'], {
   expressionTypes: analyzerContext.expressionTypes,
 });
 
-const ExitCodeSymbol = Symbol('ExitCode');
-interface ExitCodeType {
-  type: 'ExitCodeSymbol';
-  value: number;
-}
-
 const execute = async () => {
   const causeRuntime = new runtime.CauseRuntime(
     outputSource,
     '01_helloworld.cau',
     {
-      types: { [ExitCodeSymbol]: 'ExitCode' },
+      library,
     }
   );
   const exitCode: ExitCodeType = await causeRuntime.invokeFn('main', []);
+  assert(exitCode.type === ExitCodeSymbol);
 
   console.log('Exit code', exitCode.value);
 };

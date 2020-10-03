@@ -1,4 +1,5 @@
 import * as ast from './ast';
+import { defaultLibrary } from './runtime';
 
 export type ValueType =
   | DynamicValueType
@@ -26,7 +27,7 @@ interface KeywordValueType {
   keyword: ast.KeywordValue;
 }
 
-interface EffectDeclarationValueType {
+export interface EffectDeclarationValueType {
   kind: 'effect';
   name: string;
 }
@@ -36,7 +37,7 @@ interface FunctionDeclarationValueType {
   name?: string;
 }
 
-interface TypeDeclarationValueType {
+export interface TypeDeclarationValueType {
   kind: 'type';
   name: string;
 }
@@ -57,6 +58,12 @@ export interface AnalyzerContext {
 }
 
 export type Breadcrumbs = (string | number)[];
+
+export const scopeFromLibrary = (
+  library: (EffectDeclarationValueType | TypeDeclarationValueType)[]
+): Scope =>
+  // TODO: It'd be great not to depend on the runtime in the analyzer...
+  Object.fromEntries([...defaultLibrary, ...library].map((x) => [x.name, x]));
 
 export const analyzeModule = (
   module: ast.Module,

@@ -1,11 +1,16 @@
 import * as vm from 'vm';
 import { exhaustiveCheck } from './utils';
+import * as analyzer from './analyzer';
 
-export type EffectMap = Record<
-  string | symbol,
-  { topLevelName: string; handler: (effect: unknown) => Promise<unknown> }
->;
-export type TypeMap = Record<string | symbol, string>;
+type EffectHandler = (effect: any) => Promise<any>;
+export type LibraryItem =
+  | (analyzer.EffectDeclarationValueType & {
+      symbol: symbol;
+      handler: EffectHandler;
+    })
+  | (analyzer.TypeDeclarationValueType & {
+      symbol: symbol;
+    });
 
 export const LogSymbol = Symbol('Log');
 export type LogEffect = {
@@ -19,6 +24,25 @@ export type PanicEffect = {
   value: string;
 };
 
+export const defaultLibrary: LibraryItem[] = [
+  {
+    kind: 'effect',
+    name: 'Log',
+    symbol: LogSymbol,
+    handler: async (effect: LogEffect) => {
+      console.log(effect.value);
+    },
+  },
+  {
+    kind: 'effect',
+    name: 'Panic',
+    symbol: PanicSymbol,
+    handler: async (effect: PanicEffect) => {
+      throw new CauseError(effect.value);
+    },
+  },
+];
+
 export type Effect = LogEffect | PanicEffect;
 
 export class CauseError extends Error {
@@ -28,65 +52,44 @@ export class CauseError extends Error {
   }
 }
 
-export function invokeEntry(fn: () => Generator<Effect, any, any>) {
-  const generator = fn();
-
-  let next;
-  while (((next = generator.next()), !next.done)) {
-    const effect = next.value;
-    if (effect.type === LogSymbol) {
-      console.log(effect.value);
-    } else if (effect.type === PanicSymbol) {
-      throw new CauseError(effect.value);
-    } else {
-      exhaustiveCheck(effect);
-    }
-  }
-  return next.value;
+interface CauseRuntimeOptions {
+  library: LibraryItem[];
 }
 
-export const defaultEffects: EffectMap = {
-  [LogSymbol]: {
-    topLevelName: 'Log',
-    handler: async (effect: LogEffect) => {
-      console.log(effect.value);
-    },
-  },
-  [PanicSymbol]: {
-    topLevelName: 'Panic',
-    handler: async (effect: PanicEffect) => {
-      throw new CauseError(effect.value);
-    },
-  },
-};
-
-interface CauseRuntimeOptions {
-  effectHandlers?: EffectMap;
-  types?: TypeMap;
+function dumbAssert(condition: any): asserts condition {
+  if (!condition) {
+    throw new Error('assertion failed');
+  }
 }
 
 export class CauseRuntime {
   script: vm.Script;
-  effectMap: EffectMap;
-  typeMap: TypeMap;
+  effectMap: Map<symbol, EffectHandler>;
+  typeMap: Record<string, symbol>;
 
   constructor(jsSource: string, filename: string, opts?: CauseRuntimeOptions) {
     this.script = new vm.Script(jsSource, {
       filename,
     });
-    this.effectMap = { ...defaultEffects, ...opts?.effectHandlers };
-    this.typeMap = opts?.types || {};
+    const library = defaultLibrary.concat(opts?.library ?? []);
+    this.effectMap = new Map(
+      library
+        .filter((x) => x.kind === 'effect')
+        .map((x) => {
+          dumbAssert(x.kind === 'effect');
+          return [x.symbol, x.handler];
+        })
+    );
+    this.typeMap = Object.fromEntries(library.map((x) => [x.name, x.symbol]));
   }
 
-  async invokeFn(name: string, params: unknown[]): Promise<any> {
+  async invokeFn(
+    name: string,
+    params: unknown[],
+    alternateEffectHandlers?: Map<symbol, EffectHandler>
+  ): Promise<any> {
     // TODO: symbols don't seem to play right with Object.entries()
-    const context = Object.fromEntries(
-      Object.entries(this.effectMap)
-        .map(([key, value]) => [value.topLevelName, key])
-        .concat(
-          Object.entries(this.typeMap).map(([key, value]) => [value, key])
-        )
-    );
+    const context = { ...this.typeMap };
 
     this.script.runInNewContext(context, {
       breakOnSigint: true,
@@ -100,16 +103,16 @@ export class CauseRuntime {
 
     let next = generator.next();
     while (!next.done) {
-      const effect = next.value as { type: string };
+      const effect = next.value as { type: symbol };
 
-      const handler = this.effectMap[effect.type];
+      const handler = this.effectMap.get(effect.type);
       if (!handler) {
         throw new CauseError(
-          `I don't know how to handle a ${effect.type} effect`
+          `I don't know how to handle a ${effect.type.toString()} effect`
         );
       }
 
-      const result = await handler.handler(effect);
+      const result = await handler(effect);
       next = generator.next(result);
     }
     return next.value;
