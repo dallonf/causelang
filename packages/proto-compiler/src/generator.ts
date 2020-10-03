@@ -156,6 +156,14 @@ const generateCallExpression = (
         generateExpression(parameters[0].node, parameters[0].breadcrumbs, ctx)
       ),
     ]);
+  } else if (type.kind === 'fn') {
+    return jsAst.yieldExpression(
+      jsAst.callExpression(
+        generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
+        parameters.map((a) => generateExpression(a.node, a.breadcrumbs, ctx))
+      ),
+      true
+    );
   } else {
     throw new Error(
       `I don't know how to compile this kind of function call yet. The type of the callee is ${JSON.stringify(

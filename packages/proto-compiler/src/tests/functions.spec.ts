@@ -29,4 +29,3 @@ it('can cause effects in a nested function call', () => {
   expect(result).toBe(undefined);
   expect(logs).toEqual(['Hello World']);
 });
-
