@@ -1,5 +1,5 @@
-import compileToJs from '../compileToJs';
-import { CauseRuntime, LibraryItem, LogSymbol, LogEffect } from '../runtime';
+import compileAndInvoke from '../compileAndInvoke';
+import { LibraryItem, LogSymbol, LogEffect } from '../runtime';
 
 export async function runMain(script: string, library = [] as LibraryItem[]) {
   const logs: string[] = [];
@@ -15,12 +15,12 @@ export async function runMain(script: string, library = [] as LibraryItem[]) {
 
   library = [log, ...library];
 
-  const jsSource = compileToJs(script, library);
-  const runtime = new CauseRuntime(jsSource, 'test.cau', {
-    library,
-  });
-
-  const result = await runtime.invokeFn('main', []);
+  const result = await compileAndInvoke(
+    { source: script, filename: 'test.cau' },
+    'main',
+    [],
+    { library }
+  );
 
   return {
     result,

@@ -51,8 +51,8 @@ export class CauseError extends Error {
   }
 }
 
-interface CauseRuntimeOptions {
-  library: LibraryItem[];
+export interface CauseRuntimeOptions {
+  library?: LibraryItem[];
 }
 
 function dumbAssert(condition: any): asserts condition {
@@ -82,12 +82,7 @@ export class CauseRuntime {
     this.typeMap = Object.fromEntries(library.map((x) => [x.name, x.symbol]));
   }
 
-  async invokeFn(
-    name: string,
-    params: unknown[],
-    alternateEffectHandlers?: Map<symbol, EffectHandler>
-  ): Promise<any> {
-    // TODO: symbols don't seem to play right with Object.entries()
+  async invokeFn(name: string, params: unknown[]): Promise<any> {
     const context = { ...this.typeMap };
 
     this.script.runInNewContext(context, {
