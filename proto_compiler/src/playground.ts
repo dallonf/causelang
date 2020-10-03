@@ -16,6 +16,8 @@ import CompilerError from './CompilerError';
 import { parseModule } from './parser';
 import { exhaustiveCheck } from './utils';
 
+type Breadcrumbs = analyzer.Breadcrumbs;
+
 const source = fs.readFileSync(
   path.join(__dirname, 'fixtures/01_helloworld.cau'),
   'utf-8'
@@ -35,16 +37,7 @@ try {
   throw e;
 }
 
-interface Scope {
-  [name: string]: analyzer.ValueType;
-}
-
-interface AnalyzerContext {
-  scope: Scope;
-  expressionTypes: Map<string, analyzer.ValueType>;
-}
-
-const rootScope: Scope = {
+const rootScope: analyzer.Scope = {
   Log: {
     kind: 'effect',
     name: 'Log',
@@ -53,96 +46,6 @@ const rootScope: Scope = {
     kind: 'effect',
     name: 'ExitCode',
   },
-};
-
-type Breadcrumbs = (string | number)[];
-
-const analyzeModule = (
-  module: ast.Module,
-  breadcrumbs: Breadcrumbs,
-  ctx: AnalyzerContext
-): AnalyzerContext => {
-  // First, superficially check all the declarations to see what's hoisted
-  // into scope
-  const newScope: Scope = { ...ctx.scope };
-  for (const declaration of module.body) {
-    if (declaration.type === 'FunctionDeclaration') {
-      newScope[declaration.id.name] = {
-        kind: 'fn',
-        name: declaration.id.name,
-      };
-    }
-  }
-
-  module.body.forEach((declaration, i) => {
-    analyzeFunctionDeclaration(declaration, [...breadcrumbs, 'body', i], {
-      ...ctx,
-      scope: newScope,
-    });
-  });
-
-  return ctx;
-};
-
-const analyzeFunctionDeclaration = (
-  node: ast.FunctionDeclaration,
-  breadcrumbs: Breadcrumbs,
-  ctx: AnalyzerContext
-): void => {
-  analyzeExpression(node.body, [...breadcrumbs, 'body'], ctx);
-};
-
-const analyzeExpression = (
-  node: ast.Expression,
-  breadcrumbs: Breadcrumbs,
-  ctx: AnalyzerContext
-): void => {
-  switch (node.type) {
-    case 'BlockExpression': {
-      // TODO: this is gonna get tricky with scope when variable declarations
-      // are a thing
-      node.body.forEach((a: ast.ExpressionStatement, i) => {
-        analyzeExpression(
-          a.expression,
-          [...breadcrumbs, 'body', i, 'expression'],
-          ctx
-        );
-      });
-      break;
-    }
-    case 'CallExpression': {
-      const { callee } = node;
-      let calleeType: analyzer.ValueType;
-      switch (callee.type) {
-        case 'Identifier': {
-          const type: analyzer.ValueType | undefined = ctx.scope[callee.name];
-          if (!type) {
-            throw new Error(
-              `I was expecting "${callee.name}" to be a type in scope; maybe it's not spelled correctly.`
-            );
-          }
-          calleeType = type;
-          break;
-        }
-        case 'Keyword':
-          calleeType = {
-            kind: 'keyword',
-            keyword: callee.keyword,
-          };
-          break;
-        default:
-          throw new Error(
-            `I don't know how to analyze function calls like this yet. The technical name for this sort of callee is ${callee.type}`
-          );
-      }
-
-      ctx.expressionTypes.set([...breadcrumbs, 'callee'].join('.'), calleeType);
-
-      node.parameters.forEach((a, i) =>
-        analyzeExpression(a, [...breadcrumbs, 'parameters', i], ctx)
-      );
-    }
-  }
 };
 
 interface GeneratorContext {
@@ -308,7 +211,7 @@ const generateExpression = (
   }
 };
 
-const analyzerContext = analyzeModule(parsedAst, ['main'], {
+const analyzerContext = analyzer.analyzeModule(parsedAst, ['main'], {
   scope: rootScope,
   expressionTypes: new Map(),
 });
