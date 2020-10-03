@@ -1,4 +1,4 @@
-import { LibraryItem } from '../runtime';
+import { RuntimeLibraryValueType } from '../analyzer';
 import { runMain } from './testRunner';
 
 it('logs hello world', async () => {
@@ -22,12 +22,12 @@ it('returns a hello world value', async () => {
   `;
 
   const GreetingSymbol = Symbol('Greeting');
-  const greetingType: LibraryItem = {
+  const greetingType: RuntimeLibraryValueType = {
     kind: 'type',
     name: 'Greeting',
     symbol: GreetingSymbol,
   };
-  const { result, logs } = await runMain(script, [greetingType]);
+  const { result, logs } = await runMain(script, { library: [greetingType] });
 
   expect(result).toEqual({ type: GreetingSymbol, value: 'Hello World' });
   expect(logs).toEqual([]);

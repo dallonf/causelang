@@ -1,25 +1,31 @@
+import { RuntimeLibraryValueType } from '../analyzer';
 import compileAndInvoke from '../compileAndInvoke';
-import { LibraryItem, LogSymbol, LogEffect } from '../runtime';
+import { LogEffectSymbol } from '../coreLibrary';
+import { EffectHandler } from '../runtime';
 
-export async function runMain(script: string, library = [] as LibraryItem[]) {
+export async function runMain(
+  script: string,
+  opts = { library: [] } as {
+    library?: RuntimeLibraryValueType[];
+    effectHandler?: EffectHandler;
+  }
+) {
   const logs: string[] = [];
 
-  const log: LibraryItem = {
-    kind: 'effect',
-    name: 'Log',
-    symbol: LogSymbol,
-    handler: async (effect: LogEffect) => {
-      logs.push(effect.value);
-    },
+  const logOverrideEffectHandler: EffectHandler = async (e) => {
+    if (e.type === LogEffectSymbol) {
+      logs.push(e.value);
+      return { handled: true };
+    } else {
+      return opts.effectHandler?.(e);
+    }
   };
-
-  library = [log, ...library];
 
   const result = await compileAndInvoke(
     { source: script, filename: 'test.cau' },
     'main',
     [],
-    { library }
+    { library: opts.library, effectHandler: logOverrideEffectHandler }
   );
 
   return {

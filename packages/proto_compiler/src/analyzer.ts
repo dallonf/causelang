@@ -1,8 +1,7 @@
 import * as ast from './ast';
-import { defaultLibrary } from './runtime';
+import coreLibrary from './coreLibrary';
 
 export type ValueType =
-  | DynamicValueType
   | KeywordValueType
   | DeclarationValueType
   | InstanceValueType;
@@ -16,16 +15,6 @@ export type RuntimeLibraryValueType =
   | EffectDeclarationValueType
   | TypeDeclarationValueType;
 
-/**
- * This is gonna have to be phased out pretty quickly;
- * Cause is not a dynamically typed language
- * and it mostly just exists as a placeholder for an incomplete
- * crawler
- */
-interface DynamicValueType {
-  kind: 'dynamic';
-}
-
 interface KeywordValueType {
   kind: 'keyword';
   keyword: ast.KeywordValue;
@@ -34,6 +23,7 @@ interface KeywordValueType {
 export interface EffectDeclarationValueType {
   kind: 'effect';
   name: string;
+  symbol: symbol;
 }
 
 interface FunctionDeclarationValueType {
@@ -44,6 +34,7 @@ interface FunctionDeclarationValueType {
 export interface TypeDeclarationValueType {
   kind: 'type';
   name: string;
+  symbol: symbol;
 }
 
 interface InstanceValueType {
@@ -66,8 +57,7 @@ export type Breadcrumbs = (string | number)[];
 export const scopeFromLibrary = (
   library: (EffectDeclarationValueType | TypeDeclarationValueType)[]
 ): Scope =>
-  // TODO: It'd be great not to depend on the runtime in the analyzer...
-  Object.fromEntries([...defaultLibrary, ...library].map((x) => [x.name, x]));
+  Object.fromEntries([...coreLibrary, ...library].map((x) => [x.name, x]));
 
 export const analyzeModule = (
   module: ast.Module,

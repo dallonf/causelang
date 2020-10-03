@@ -1,48 +1,20 @@
 import * as vm from 'vm';
 import * as analyzer from './analyzer';
+import coreLibrary, { LogEffectSymbol, PanicEffectSymbol } from './coreLibrary';
 
-type EffectHandler = (effect: any) => Promise<any>;
-export type LibraryItem =
-  | (analyzer.EffectDeclarationValueType & {
-      symbol: symbol;
-      handler: EffectHandler;
-    })
-  | (analyzer.TypeDeclarationValueType & {
-      symbol: symbol;
-    });
+export type EffectHandler = (
+  effect: any
+) => Promise<undefined | { handled: true; value?: any }>;
 
-export const LogSymbol = Symbol('Log');
-export type LogEffect = {
-  type: typeof LogSymbol;
-  value: string;
-};
-
-export const PanicSymbol = Symbol('Panic');
-export type PanicEffect = {
-  type: typeof PanicSymbol;
-  value: string;
-};
-
-export const defaultLibrary: LibraryItem[] = [
-  {
-    kind: 'effect',
-    name: 'Log',
-    symbol: LogSymbol,
-    handler: async (effect: LogEffect) => {
+const coreLibraryEffectHandler: EffectHandler = async (effect) => {
+  switch (effect.type) {
+    case LogEffectSymbol:
       console.log(effect.value);
-    },
-  },
-  {
-    kind: 'effect',
-    name: 'Panic',
-    symbol: PanicSymbol,
-    handler: async (effect: PanicEffect) => {
+      return { handled: true };
+    case PanicEffectSymbol:
       throw new CauseError('Error while running Cause file: ' + effect.value);
-    },
-  },
-];
-
-export type Effect = LogEffect | PanicEffect;
+  }
+};
 
 export class CauseError extends Error {
   constructor(message?: string) {
@@ -52,34 +24,23 @@ export class CauseError extends Error {
 }
 
 export interface CauseRuntimeOptions {
-  library?: LibraryItem[];
-}
-
-function dumbAssert(condition: any): asserts condition {
-  if (!condition) {
-    throw new Error('assertion failed');
-  }
+  library?: analyzer.RuntimeLibraryValueType[];
+  effectHandler?: EffectHandler;
 }
 
 export class CauseRuntime {
   script: vm.Script;
-  effectMap: Map<symbol, EffectHandler>;
   typeMap: Record<string, symbol>;
+  effectHandler: EffectHandler;
 
   constructor(jsSource: string, filename: string, opts?: CauseRuntimeOptions) {
     this.script = new vm.Script(jsSource, {
       filename,
     });
-    const library = defaultLibrary.concat(opts?.library ?? []);
-    this.effectMap = new Map(
-      library
-        .filter((x) => x.kind === 'effect')
-        .map((x) => {
-          dumbAssert(x.kind === 'effect');
-          return [x.symbol, x.handler];
-        })
-    );
+    const library = coreLibrary.concat(opts?.library ?? []);
     this.typeMap = Object.fromEntries(library.map((x) => [x.name, x.symbol]));
+    this.effectHandler =
+      opts?.effectHandler ?? ((e) => Promise.resolve(undefined));
   }
 
   async invokeFn(name: string, params: unknown[]): Promise<any> {
@@ -88,6 +49,7 @@ export class CauseRuntime {
     this.script.runInNewContext(context, {
       breakOnSigint: true,
     });
+
     const fn = (context[name] as unknown) as (...args: any) => Generator;
     if (typeof fn !== 'function') {
       throw new Error(`${name} is not a function in this Cause module`);
@@ -97,17 +59,24 @@ export class CauseRuntime {
 
     let next = generator.next();
     while (!next.done) {
-      const effect = next.value as { type: symbol };
+      const effect = next.value;
 
-      const handler = this.effectMap.get(effect.type);
-      if (!handler) {
+      const handlers = [this.effectHandler, coreLibraryEffectHandler];
+      let effectResult;
+      for (const handler of handlers) {
+        effectResult = await handler(effect);
+        if (effectResult?.handled) {
+          break;
+        }
+      }
+
+      if (!effectResult?.handled) {
         throw new CauseError(
-          `I don't know how to handle a ${effect.type.toString()} effect`
+          `I don't know how to handle a ${(effect as any).type.toString()} effect`
         );
       }
 
-      const result = await handler(effect);
-      next = generator.next(result);
+      next = generator.next(effectResult.value);
     }
     return next.value;
   }
