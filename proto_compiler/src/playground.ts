@@ -1,6 +1,8 @@
 import * as path from 'path';
 import * as fs from 'fs';
+import * as vm from 'vm';
 import * as analyzer from './analyzer';
+import * as runtime from './runtime';
 import { cursorPosition, makeSourceStream, remainder } from './sourceStream';
 import CompilerError from './CompilerError';
 import * as parser from './parser';
@@ -33,7 +35,7 @@ const rootScope: analyzer.Scope = {
     name: 'Log',
   },
   ExitCode: {
-    kind: 'effect',
+    kind: 'type',
     name: 'ExitCode',
   },
 };
@@ -47,4 +49,11 @@ const outputSource = generator.generateModule(parsedAst, ['main'], {
   expressionTypes: analyzerContext.expressionTypes,
 });
 
-console.log(outputSource);
+const sandbox = vm.createContext({
+  Log: runtime.LogSymbol,
+  ExitCode: runtime.ExitCodeSymbol,
+});
+vm.runInContext(outputSource, sandbox);
+const entry = sandbox.main;
+const exitCode = runtime.invokeEntry(entry);
+console.log('Exit code', exitCode.value);

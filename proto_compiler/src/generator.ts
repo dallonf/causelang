@@ -1,12 +1,7 @@
-import * as path from 'path';
-import * as fs from 'fs';
 import generate from '@babel/generator';
 import * as jsAst from '@babel/types';
 import * as ast from './ast';
 import * as analyzer from './analyzer';
-import { cursorPosition, makeSourceStream, remainder } from './sourceStream';
-import CompilerError from './CompilerError';
-import { parseModule } from './parser';
 import { exhaustiveCheck } from './utils';
 
 type Breadcrumbs = analyzer.Breadcrumbs;
@@ -26,18 +21,6 @@ export const generateModule = (
     generateDeclaration(a, [...breadcrumbs, 'body', i], ctx)
   );
   program.body.push(...statements);
-
-  // runtime call to invoke the main function
-  const entryExpression = jsAst.expressionStatement(
-    jsAst.callExpression(
-      jsAst.memberExpression(
-        jsAst.identifier('CauseRuntime'),
-        jsAst.identifier('invokeEntry')
-      ),
-      [jsAst.identifier('main')]
-    )
-  );
-  program.body.push(entryExpression);
 
   return generate(program).code;
 };
@@ -131,9 +114,11 @@ const generateExpression = (
           )}`
         );
       }
-      if (type.kind === 'effect') {
+      if (type.kind === 'effect' || type.kind === 'type') {
         if (node.parameters.length !== 1) {
-          throw new Error('Effects can only have one parameter for now');
+          throw new Error(
+            'Effects and types can only have one parameter for now'
+          );
         }
         return jsAst.objectExpression([
           jsAst.objectProperty(
@@ -150,14 +135,13 @@ const generateExpression = (
             )
           ),
         ]);
+      } else {
+        throw new Error(
+          `I don't know how to compile this kind of function call yet. The type of the callee is ${JSON.stringify(
+            type
+          )}`
+        );
       }
-
-      return jsAst.callExpression(
-        generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
-        node.parameters.map((a, i) =>
-          generateExpression(a, [...breadcrumbs, 'parameters', i], ctx)
-        )
-      );
     }
     case 'BlockExpression': {
       throw new Error(

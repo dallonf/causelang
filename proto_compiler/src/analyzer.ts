@@ -8,7 +8,8 @@ export type ValueType =
 
 export type DeclarationValueType =
   | EffectDeclarationValueType
-  | FunctionDeclarationValueType;
+  | FunctionDeclarationValueType
+  | TypeDeclarationValueType;
 
 /**
  * This is gonna have to be phased out pretty quickly;
@@ -33,6 +34,11 @@ interface EffectDeclarationValueType {
 interface FunctionDeclarationValueType {
   kind: 'fn';
   name?: string;
+}
+
+interface TypeDeclarationValueType {
+  kind: 'type';
+  name: string;
 }
 
 interface InstanceValueType {
