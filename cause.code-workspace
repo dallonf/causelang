@@ -7,7 +7,7 @@
 			"path": "future_examples"
 		},
 		{
-			"path": "proto_compiler"
+			"path": "packages/proto_compiler"
 		}
 	],
 	"settings": {}
