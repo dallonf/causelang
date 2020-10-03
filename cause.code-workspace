@@ -1,14 +1,16 @@
 {
-	"folders": [
-		{
-			"path": "."
-		},
-		{
-			"path": "future_examples"
-		},
-		{
-			"path": "packages/proto_compiler"
-		}
-	],
-	"settings": {}
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "future_examples"
+    },
+    {
+      "path": "packages/proto_compiler"
+    },
+    {
+      "path": "packages/cause-cli"
+    }
+  ]
 }
