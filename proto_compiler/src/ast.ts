@@ -29,13 +29,13 @@ export type Literal = StringLiteral | IntLiteral;
 // export interface UnaryCallExpression {
 //   type: 'UnaryCallExpression';
 //   callee: Expression;
-//   argument: Expression;
+//   parameter: Expression;
 // }
 
 export interface CallExpression {
   type: 'CallExpression';
   callee: Expression;
-  arguments: Expression[];
+  parameters: Expression[];
 }
 
 export interface BlockExpression {
@@ -61,7 +61,7 @@ export type Statement = ExpressionStatement;
 export interface FunctionDeclaration {
   type: 'FunctionDeclaration';
   id: Identifier;
-  arguments: void[];
+  parameters: void[];
   body: Expression;
 }
 

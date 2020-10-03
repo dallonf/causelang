@@ -138,7 +138,7 @@ const analyzeExpression = (
 
       ctx.expressionTypes.set([...breadcrumbs, 'callee'].join('.'), calleeType);
 
-      node.arguments.forEach((a, i) =>
+      node.parameters.forEach((a, i) =>
         analyzeExpression(a, [...breadcrumbs, 'parameters', i], ctx)
       );
     }
@@ -242,13 +242,13 @@ const generateExpression = (
     }
     case 'CallExpression': {
       if (node.callee.type === 'Keyword' && node.callee.keyword === 'cause') {
-        if (node.arguments.length !== 1) {
+        if (node.parameters.length !== 1) {
           throw new Error('"cause" should only have one parameter');
         }
 
         return jsAst.yieldExpression(
           generateExpression(
-            node.arguments[0],
+            node.parameters[0],
             [...breadcrumbs, 'parameters', 0],
             ctx
           )
@@ -258,7 +258,7 @@ const generateExpression = (
       const type = ctx.expressionTypes.get(
         [...breadcrumbs, 'callee'].join('.')
       );
-      if (!type) {
+      if (!type) {        
         throw new Error(
           `I'm confused. I'm trying to figure out the type of this function call, but I don't know what it is. This probably isn't your fault! Here's the technical breadcrumb to the call in question: ${breadcrumbs.join(
             '.'
@@ -266,7 +266,7 @@ const generateExpression = (
         );
       }
       if (type.kind === 'effect') {
-        if (node.arguments.length !== 1) {
+        if (node.parameters.length !== 1) {
           throw new Error('Effects can only have one parameter for now');
         }
         return jsAst.objectExpression([
@@ -278,7 +278,7 @@ const generateExpression = (
           jsAst.objectProperty(
             jsAst.identifier('value'),
             generateExpression(
-              node.arguments[0],
+              node.parameters[0],
               [...breadcrumbs, 'parameters', 0],
               ctx
             )
@@ -288,7 +288,7 @@ const generateExpression = (
 
       return jsAst.callExpression(
         generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
-        node.arguments.map((a, i) =>
+        node.parameters.map((a, i) =>
           generateExpression(a, [...breadcrumbs, 'parameters', i], ctx)
         )
       );

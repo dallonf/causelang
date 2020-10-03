@@ -60,7 +60,7 @@ const parseFunctionDeclaration = (
   const argOpenParen = nextChar(cursor);
   if (!argOpenParen || argOpenParen.char !== '(') {
     throw new CompilerError(
-      `The next part of a function declaration should be a "(" to list the arguments. I found this instead: ${argOpenParen?.char}`,
+      `The next part of a function declaration should be a "(" to list the parameters. I found this instead: ${argOpenParen?.char}`,
       cursor
     );
   }
@@ -70,7 +70,7 @@ const parseFunctionDeclaration = (
   const argCloseParen = nextChar(cursor);
   if (!argCloseParen || argCloseParen.char !== ')') {
     throw new CompilerError(
-      `The next part of a function declaration should be a ")" to close out the argument list. I found this instead: ${argCloseParen?.char}`,
+      `The next part of a function declaration should be a ")" to close out the parameter list. I found this instead: ${argCloseParen?.char}`,
       cursor
     );
   }
@@ -91,7 +91,7 @@ const parseFunctionDeclaration = (
       type: 'Identifier',
       name: idRead.identifier,
     },
-    arguments: [],
+    parameters: [],
     body: body.result,
   };
 
@@ -223,14 +223,14 @@ const parseCallExpression = (
 
   const args: ast.Expression[] = [];
 
-  let argument;
+  let parameter;
   while (
     ((cursor = skipWhitespace(cursor)),
-    (argument = parseExpression(cursor, ctx)),
-    argument)
+    (parameter = parseExpression(cursor, ctx)),
+    parameter)
   ) {
-    args.push(argument.result);
-    cursor = skipWhitespace(argument.cursor);
+    args.push(parameter.result);
+    cursor = skipWhitespace(parameter.cursor);
 
     const comma = nextChar(cursor);
     if (!comma || comma.char !== ',') {
@@ -243,7 +243,7 @@ const parseCallExpression = (
   const closeBrace = nextChar(cursor);
   if (!closeBrace || closeBrace.char !== ')') {
     throw new CompilerError(
-      'I\'m looking for a ")" to close the argument list',
+      'I\'m looking for a ")" to close the parameter list',
       cursor
     );
   }
@@ -253,7 +253,7 @@ const parseCallExpression = (
     result: {
       type: 'CallExpression',
       callee: callee,
-      arguments: args,
+      parameters: args,
     },
     cursor,
   };
