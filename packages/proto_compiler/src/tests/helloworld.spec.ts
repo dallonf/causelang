@@ -1,20 +1,29 @@
 import { RuntimeLibraryValueType } from '../analyzer';
-import { runMain } from './testRunner';
+import { runMain, runMainSync } from './testRunner';
 
-it('logs hello world', async () => {
+describe('basic hello world', () => {
   const script = ` 
     fn main() {
       cause(Log("Hello World"))
     }
   `;
 
-  const { result, logs } = await runMain(script);
+  it('logs hello world', () => {
+    const { result, logs } = runMainSync(script);
 
-  expect(result).toBe(undefined);
-  expect(logs).toEqual(['Hello World']);
+    expect(result).toBe(undefined);
+    expect(logs).toEqual(['Hello World']);
+  });
+
+  it('logs hello world async', async () => {
+    const { result, logs } = await runMain(script);
+
+    expect(result).toBe(undefined);
+    expect(logs).toEqual(['Hello World']);
+  });
 });
 
-it('returns a hello world value', async () => {
+it('returns a hello world value', () => {
   const script = ` 
     fn main() {
       Greeting("Hello World")
@@ -27,7 +36,7 @@ it('returns a hello world value', async () => {
     name: 'Greeting',
     symbol: GreetingSymbol,
   };
-  const { result, logs } = await runMain(script, { library: [greetingType] });
+  const { result, logs } = runMainSync(script, { library: [greetingType] });
 
   expect(result).toEqual({ type: GreetingSymbol, value: 'Hello World' });
   expect(logs).toEqual([]);
