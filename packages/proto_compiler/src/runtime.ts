@@ -37,7 +37,7 @@ export const defaultLibrary: LibraryItem[] = [
     name: 'Panic',
     symbol: PanicSymbol,
     handler: async (effect: PanicEffect) => {
-      throw new CauseError(effect.value);
+      throw new CauseError('Error while running Cause file: ' + effect.value);
     },
   },
 ];
