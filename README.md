@@ -49,3 +49,9 @@ To install dependencies, just run `npm install` and `npx lerna init` in the root
 ## It compiles to JavaScript?
 
 At the moment, it does. I consider that an implementation detail, and I'm strongly considering moving to a lighter runtime for the purpose of a language that can be embedded in many other runtimes!
+
+## This is, without a doubt, the worst compiler code I have ever seen.
+
+![I have no idea what I'm doing](https://media.giphy.com/media/xDQ3Oql1BN54c/giphy.gif)
+
+You're probably right! I've never done anything like this before, and definitely didn't study up very much on how others have done it. That'll be a job for after I'm convinced the language is a good idea! Of course, if you're willing to help, I'll happily accept advice or PRs :)
