@@ -1,7 +1,7 @@
 import compileToJs from '../compileToJs';
 import { CauseRuntime, LibraryItem, LogSymbol, LogEffect } from '../runtime';
 
-export async function runMain(script: string) {
+export async function runMain(script: string, library = [] as LibraryItem[]) {
   const logs: string[] = [];
 
   const log: LibraryItem = {
@@ -13,9 +13,11 @@ export async function runMain(script: string) {
     },
   };
 
-  const jsSource = compileToJs(script, [log]);
+  library = [log, ...library];
+
+  const jsSource = compileToJs(script, library);
   const runtime = new CauseRuntime(jsSource, 'test.cau', {
-    library: [log],
+    library,
   });
 
   const result = await runtime.invokeFn('main', []);
