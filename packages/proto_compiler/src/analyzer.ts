@@ -12,6 +12,10 @@ export type DeclarationValueType =
   | FunctionDeclarationValueType
   | TypeDeclarationValueType;
 
+export type RuntimeLibraryValueType =
+  | EffectDeclarationValueType
+  | TypeDeclarationValueType;
+
 /**
  * This is gonna have to be phased out pretty quickly;
  * Cause is not a dynamically typed language
