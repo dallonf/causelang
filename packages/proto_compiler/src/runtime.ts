@@ -28,6 +28,10 @@ export interface CauseRuntimeOptions {
   effectHandler?: EffectHandler;
 }
 
+export interface CauseRuntimeInvokeOptions {
+  additionalEffectHandler?: EffectHandler;
+}
+
 export class CauseRuntime {
   script: vm.Script;
   typeMap: Record<string, symbol>;
@@ -43,7 +47,24 @@ export class CauseRuntime {
       opts?.effectHandler ?? ((e) => Promise.resolve(undefined));
   }
 
-  async invokeFn(name: string, params: unknown[]): Promise<any> {
+  async invokeFn(
+    name: string,
+    params: unknown[],
+    opts = {} as CauseRuntimeInvokeOptions
+  ): Promise<any> {
+    const generator = this.invokeFnAsGenerator(name, params);
+    let next = generator.next();
+    while (!next.done) {
+      const effect = next.value;
+
+      next = generator.next(
+        await this.handleEffect(effect, opts.additionalEffectHandler)
+      );
+    }
+    return next.value;
+  }
+
+  invokeFnAsGenerator(name: string, params: unknown[]): Generator {
     const context = { ...this.typeMap };
 
     this.script.runInNewContext(context, {
@@ -56,28 +77,29 @@ export class CauseRuntime {
     }
 
     const generator = fn(...params);
+    return generator;
+  }
 
-    let next = generator.next();
-    while (!next.done) {
-      const effect = next.value;
-
-      const handlers = [this.effectHandler, coreLibraryEffectHandler];
-      let effectResult;
-      for (const handler of handlers) {
-        effectResult = await handler(effect);
-        if (effectResult?.handled) {
-          break;
-        }
+  async handleEffect(effect: any, extraHandler?: EffectHandler) {
+    const handlers = [
+      extraHandler,
+      this.effectHandler,
+      coreLibraryEffectHandler,
+    ].filter((a) => a) as EffectHandler[];
+    let effectResult;
+    for (const handler of handlers) {
+      effectResult = await handler(effect);
+      if (effectResult?.handled) {
+        break;
       }
-
-      if (!effectResult?.handled) {
-        throw new CauseError(
-          `I don't know how to handle a ${(effect as any).type.toString()} effect`
-        );
-      }
-
-      next = generator.next(effectResult.value);
     }
-    return next.value;
+
+    if (!effectResult?.handled) {
+      throw new CauseError(
+        `I don't know how to handle a ${(effect as any).type.toString()} effect`
+      );
+    }
+
+    return effectResult.value;
   }
 }
