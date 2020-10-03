@@ -258,7 +258,7 @@ const generateExpression = (
       const type = ctx.expressionTypes.get(
         [...breadcrumbs, 'callee'].join('.')
       );
-      if (!type) {        
+      if (!type) {
         throw new Error(
           `I'm confused. I'm trying to figure out the type of this function call, but I don't know what it is. This probably isn't your fault! Here's the technical breadcrumb to the call in question: ${breadcrumbs.join(
             '.'
@@ -308,7 +308,7 @@ const generateExpression = (
   }
 };
 
-const analyzerContext = analyzeModule(parsedAst, [], {
+const analyzerContext = analyzeModule(parsedAst, ['main'], {
   scope: rootScope,
   expressionTypes: new Map(),
 });
