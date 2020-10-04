@@ -113,14 +113,17 @@ const analyzeExpression = (
       break;
     }
     case 'CallExpression':
-    case 'UnaryCallExpression':
       analyzeCallExpression(node, breadcrumbs, ctx);
       break;
+    case 'PrefixOperatorExpression': {
+      analyzeExpression(node.expression, [...breadcrumbs, 'expression'], ctx);
+      break;
+    }
   }
 };
 
 const analyzeCallExpression = (
-  node: ast.CallExpression | ast.UnaryCallExpression,
+  node: ast.CallExpression,
   breadcrumbs: Breadcrumbs,
   ctx: AnalyzerContext
 ) => {
@@ -137,12 +140,6 @@ const analyzeCallExpression = (
       calleeType = type;
       break;
     }
-    case 'Keyword':
-      calleeType = {
-        kind: 'keyword',
-        keyword: callee.keyword,
-      };
-      break;
     default:
       throw new Error(
         `I don't know how to analyze function calls like this yet. The technical name for this sort of callee is ${callee.type}`
@@ -150,16 +147,7 @@ const analyzeCallExpression = (
   }
   ctx.expressionTypes.set([...breadcrumbs, 'callee'].join('.'), calleeType);
 
-  let parameters: { node: ast.Expression; breadcrumbs: Breadcrumbs }[];
-  if (node.type === 'UnaryCallExpression') {
-    parameters = [
-      { node: node.parameter, breadcrumbs: [...breadcrumbs, 'parameter'] },
-    ];
-  } else {
-    parameters = node.parameters.map((a, i) => ({
-      node: a,
-      breadcrumbs: [...breadcrumbs, 'parameters', i],
-    }));
-  }
-  parameters.forEach((a) => analyzeExpression(a.node, a.breadcrumbs, ctx));
+  node.parameters.forEach((a, i) =>
+    analyzeExpression(a, [...breadcrumbs, 'parameters', i], ctx)
+  );
 };

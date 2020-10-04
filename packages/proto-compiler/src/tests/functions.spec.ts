@@ -3,7 +3,7 @@ import { runMainSync } from './testRunner';
 it('can call another function in scope and use its value', () => {
   const script = `
     fn main() {
-      cause Log getGreeting()
+      cause Log(getGreeting())
     }
 
     fn getGreeting() {
@@ -22,7 +22,7 @@ it('can cause effects in a nested function call', () => {
     }
 
     fn greet() {
-      cause Log "Hello World"
+      cause Log("Hello World")
     }
   `;
   const { result, logs } = runMainSync(script);

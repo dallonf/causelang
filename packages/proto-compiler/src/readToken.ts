@@ -91,3 +91,21 @@ export function advanceLine(cursor: SourceStream) {
   cursor = newline.cursor;
   return skipWhitespace(cursor);
 }
+
+export function consumeSequence(
+  cursor: SourceStream,
+  expected: string
+): null | SourceStream {
+  const expectedChars = [...expected];
+  let readChars = 0;
+  while (readChars < expectedChars.length) {
+    const next = nextChar(cursor);
+    if (next && next.char === expectedChars[readChars]) {
+      readChars += 1;
+      cursor = next.cursor;
+    } else {
+      return null;
+    }
+  }
+  return cursor;
+}

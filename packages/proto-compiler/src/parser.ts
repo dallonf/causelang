@@ -1,6 +1,11 @@
 import * as ast from './ast';
 import { nextChar, SourceStream } from './sourceStream';
-import { advanceLine, readIdentifier, skipWhitespace } from './readToken';
+import {
+  advanceLine,
+  consumeSequence,
+  readIdentifier,
+  skipWhitespace,
+} from './readToken';
 import CompilerError from './CompilerError';
 
 export interface Context {}
@@ -111,25 +116,25 @@ const parseExpression = (
   } else {
     let initialExpression;
     let readAttempt;
-    if (((readAttempt = parseStringLiteral(cursor, ctx)), readAttempt)) {
+    if (((readAttempt = parsePrefixOperatorExpression(cursor, ctx)), readAttempt)) {
+      initialExpression = readAttempt.result;
+      cursor = readAttempt.cursor;
+    } else if (((readAttempt = parseStringLiteral(cursor, ctx)), readAttempt)) {
       initialExpression = readAttempt.result;
       cursor = readAttempt.cursor;
     } else if (((readAttempt = parseIntLiteral(cursor, ctx)), readAttempt)) {
       initialExpression = readAttempt.result;
       cursor = readAttempt.cursor;
-    } else if (((readAttempt = readIdentifier(cursor)), readAttempt)) {
-      if (ast.keywordSet.has(readAttempt.identifier as ast.KeywordValue)) {
-        initialExpression = {
-          type: 'Keyword' as const,
-          keyword: readAttempt.identifier as ast.KeywordValue,
-        };
-      } else {
-        initialExpression = {
-          type: 'Identifier' as const,
-          name: readAttempt.identifier,
-        };
-      }
-      cursor = readAttempt.cursor;
+    } else if (
+      ((readAttempt = readIdentifier(cursor)),
+      readAttempt &&
+        !ast.keywordSet.has(readAttempt.identifier as ast.KeywordValue))
+    ) {
+      initialExpression = {
+        type: 'Identifier' as const,
+        name: readAttempt!.identifier,
+      };
+      cursor = readAttempt!.cursor;
     } else {
       return null;
     }
@@ -139,15 +144,6 @@ const parseExpression = (
     if (suffixStart) {
       if (suffixStart.char === '(') {
         return parseCallExpression(initialExpression, cursor, ctx);
-      } else if (suffixStart.char === ' ') {
-        const unaryCall = parseUnaryCallExpression(
-          initialExpression,
-          cursor,
-          ctx
-        );
-        if (unaryCall) {
-          return unaryCall;
-        }
       }
     }
 
@@ -215,6 +211,45 @@ const parseIntLiteral = (
   };
 };
 
+const prefixOperators = new Set(['cause'] as const);
+type PrefixSupportedOperator = typeof prefixOperators extends Set<infer T>
+  ? T
+  : never;
+const parsePrefixOperatorExpression = (
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.PrefixOperatorExpression; cursor: SourceStream } => {
+  const keyword = readIdentifier(cursor);
+  if (
+    keyword &&
+    prefixOperators.has(keyword.identifier as PrefixSupportedOperator)
+  ) {
+    cursor = keyword.cursor;
+    let tmp;
+    if (((tmp = consumeSequence(cursor, ' ')), !tmp)) {
+      return null;
+    }
+    cursor = tmp;
+    skipWhitespace(cursor);
+
+    let expression = parseExpression(cursor, ctx);
+    if (expression) {
+      return {
+        result: {
+          type: 'PrefixOperatorExpression',
+          operator: {
+            type: 'Keyword',
+            keyword: keyword.identifier as PrefixSupportedOperator,
+          },
+          expression: expression.result,
+        },
+        cursor: expression.cursor,
+      };
+    }
+  }
+  return null;
+};
+
 const parseCallExpression = (
   callee: ast.Expression,
   cursor: SourceStream,
@@ -268,30 +303,6 @@ const parseCallExpression = (
     },
     cursor,
   };
-};
-
-const parseUnaryCallExpression = (
-  callee: ast.Expression,
-  cursor: SourceStream,
-  ctx: Context
-):
-  | undefined
-  | {
-      result: ast.UnaryCallExpression;
-      cursor: SourceStream;
-    } => {
-  cursor = skipWhitespace(cursor, { stopAtNewline: true });
-  const expression = parseExpression(cursor, ctx);
-  if (expression) {
-    return {
-      result: {
-        type: 'UnaryCallExpression',
-        callee,
-        parameter: expression.result,
-      },
-      cursor: expression.cursor,
-    };
-  }
 };
 
 const parseBlockExpression = (
