@@ -143,7 +143,7 @@ const generateCallExpression = (
     );
   }
   if (type.kind === 'effect' || type.kind === 'type') {
-    if (parameters.length !== 1) {
+    if (parameters.length > 1) {
       throw new Error('Effects and types can only have one parameter for now');
     }
     return jsAst.objectExpression([
@@ -151,10 +151,18 @@ const generateCallExpression = (
         jsAst.identifier('type'),
         generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx)
       ),
-      jsAst.objectProperty(
-        jsAst.identifier('value'),
-        generateExpression(parameters[0].node, parameters[0].breadcrumbs, ctx)
-      ),
+      ...(parameters.length
+        ? [
+            jsAst.objectProperty(
+              jsAst.identifier('value'),
+              generateExpression(
+                parameters[0].node,
+                parameters[0].breadcrumbs,
+                ctx
+              )
+            ),
+          ]
+        : []),
     ]);
   } else if (type.kind === 'fn') {
     return jsAst.yieldExpression(

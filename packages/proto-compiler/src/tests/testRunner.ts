@@ -35,25 +35,31 @@ export async function runMain(
   };
 }
 
+export type SyncEffectHandler = (
+  effect: any
+) => undefined | { handled: true; value: any };
+
 export function runMainSync(
   script: string,
 
   opts = { library: [] } as {
     library?: RuntimeLibraryValueType[];
-    effectHandler?: (e: any) => any;
+    effectHandler?: SyncEffectHandler;
     debugJsOutput?: boolean;
   }
 ) {
   const logs: string[] = [];
 
-  const effectHandler = (e: any): any => {
+  const innerHandler = (e: any) => {
     if (e.type === LogEffectSymbol) {
       logs.push(e.value);
-      return;
-    } else {
-      return effectHandler(e);
+      return { handled: true };
     }
   };
+
+  const handlers = [opts.effectHandler, innerHandler].filter(
+    (a) => a
+  ) as SyncEffectHandler[];
 
   const jsSource = compileToJs(script, opts.library ?? []);
   if (opts.debugJsOutput) {
@@ -66,7 +72,20 @@ export function runMainSync(
   let next = generator.next();
   while (!next.done) {
     const effect = next.value;
-    next = generator.next(effectHandler(effect));
+    let effectResult;
+    for (const handler of handlers) {
+      effectResult = handler(effect);
+      if (effectResult?.handled) {
+        break;
+      }
+    }
+
+    if (!effectResult?.handled) {
+      throw new Error(
+        `I don't know how to handle a ${(effect as any).type.toString()} effect`
+      );
+    }
+    next = generator.next(effectResult.value);
   }
   return { result: next.value, logs };
 }
