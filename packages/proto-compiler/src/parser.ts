@@ -280,7 +280,7 @@ const parseUnaryCallExpression = (
       result: ast.UnaryCallExpression;
       cursor: SourceStream;
     } => {
-  cursor = skipWhitespace(cursor);
+  cursor = skipWhitespace(cursor, { stopAtNewline: true });
   const expression = parseExpression(cursor, ctx);
   if (expression) {
     return {
