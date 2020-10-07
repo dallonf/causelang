@@ -1,6 +1,12 @@
 import * as ast from './ast';
 import { nextChar, SourceStream } from './sourceStream';
-import { advanceLine, readIdentifier, skipWhitespace } from './readToken';
+import {
+  advanceLine,
+  consumeSequence,
+  expectWhitespace,
+  readIdentifier,
+  skipWhitespace,
+} from './readToken';
 import CompilerError from './CompilerError';
 
 export interface Context {}
@@ -111,25 +117,27 @@ const parseExpression = (
   } else {
     let initialExpression;
     let readAttempt;
-    if (((readAttempt = parseStringLiteral(cursor, ctx)), readAttempt)) {
+    if (
+      ((readAttempt = parsePrefixOperatorExpression(cursor, ctx)), readAttempt)
+    ) {
+      initialExpression = readAttempt.result;
+      cursor = readAttempt.cursor;
+    } else if (((readAttempt = parseStringLiteral(cursor, ctx)), readAttempt)) {
       initialExpression = readAttempt.result;
       cursor = readAttempt.cursor;
     } else if (((readAttempt = parseIntLiteral(cursor, ctx)), readAttempt)) {
       initialExpression = readAttempt.result;
       cursor = readAttempt.cursor;
-    } else if (((readAttempt = readIdentifier(cursor)), readAttempt)) {
-      if (ast.keywordSet.has(readAttempt.identifier as ast.KeywordValue)) {
-        initialExpression = {
-          type: 'Keyword' as const,
-          keyword: readAttempt.identifier as ast.KeywordValue,
-        };
-      } else {
-        initialExpression = {
-          type: 'Identifier' as const,
-          name: readAttempt.identifier,
-        };
-      }
-      cursor = readAttempt.cursor;
+    } else if (
+      ((readAttempt = readIdentifier(cursor)),
+      readAttempt &&
+        !ast.keywordSet.has(readAttempt.identifier as ast.KeywordValue))
+    ) {
+      initialExpression = {
+        type: 'Identifier' as const,
+        name: readAttempt!.identifier,
+      };
+      cursor = readAttempt!.cursor;
     } else {
       return null;
     }
@@ -139,15 +147,6 @@ const parseExpression = (
     if (suffixStart) {
       if (suffixStart.char === '(') {
         return parseCallExpression(initialExpression, cursor, ctx);
-      } else if (suffixStart.char === ' ') {
-        const unaryCall = parseUnaryCallExpression(
-          initialExpression,
-          cursor,
-          ctx
-        );
-        if (unaryCall) {
-          return unaryCall;
-        }
       }
     }
 
@@ -215,6 +214,45 @@ const parseIntLiteral = (
   };
 };
 
+const prefixOperators = new Set(['cause'] as const);
+type PrefixSupportedOperator = typeof prefixOperators extends Set<infer T>
+  ? T
+  : never;
+const parsePrefixOperatorExpression = (
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.PrefixOperatorExpression; cursor: SourceStream } => {
+  const keyword = readIdentifier(cursor);
+  if (
+    keyword &&
+    prefixOperators.has(keyword.identifier as PrefixSupportedOperator)
+  ) {
+    cursor = keyword.cursor;
+    let tmp;
+    if (((tmp = consumeSequence(cursor, ' ')), !tmp)) {
+      return null;
+    }
+    cursor = tmp;
+    skipWhitespace(cursor);
+
+    let expression = parseExpression(cursor, ctx);
+    if (expression) {
+      return {
+        result: {
+          type: 'PrefixOperatorExpression',
+          operator: {
+            type: 'Keyword',
+            keyword: keyword.identifier as PrefixSupportedOperator,
+          },
+          expression: expression.result,
+        },
+        cursor: expression.cursor,
+      };
+    }
+  }
+  return null;
+};
+
 const parseCallExpression = (
   callee: ast.Expression,
   cursor: SourceStream,
@@ -270,30 +308,6 @@ const parseCallExpression = (
   };
 };
 
-const parseUnaryCallExpression = (
-  callee: ast.Expression,
-  cursor: SourceStream,
-  ctx: Context
-):
-  | undefined
-  | {
-      result: ast.UnaryCallExpression;
-      cursor: SourceStream;
-    } => {
-  cursor = skipWhitespace(cursor);
-  const expression = parseExpression(cursor, ctx);
-  if (expression) {
-    return {
-      result: {
-        type: 'UnaryCallExpression',
-        callee,
-        parameter: expression.result,
-      },
-      cursor: expression.cursor,
-    };
-  }
-};
-
 const parseBlockExpression = (
   cursor: SourceStream,
   ctx: Context
@@ -319,14 +333,10 @@ const parseBlockExpression = (
       break;
     }
 
-    const expression = parseExpression(cursor, ctx);
-    if (expression) {
-      body.push({
-        type: 'ExpressionStatement',
-        expression: expression.result,
-      });
-      cursor = expression.cursor;
-      cursor = advanceLine(cursor);
+    const statement = parseStatement(cursor, ctx);
+    if (statement) {
+      body.push(statement.result);
+      cursor = advanceLine(statement.cursor);
     } else {
       throw new CompilerError(
         "I'm looking for statements in this block.",
@@ -339,6 +349,70 @@ const parseBlockExpression = (
     result: {
       type: 'BlockExpression',
       body,
+    },
+    cursor,
+  };
+};
+
+const parseStatement = (
+  cursor: SourceStream,
+  ctx: Context
+): undefined | { result: ast.Statement; cursor: SourceStream } => {
+  const nameDeclaration = parseNameDeclarationStatement(cursor, ctx);
+  if (nameDeclaration) {
+    return nameDeclaration;
+  }
+
+  const expression = parseExpression(cursor, ctx);
+  if (expression) {
+    return {
+      result: {
+        type: 'ExpressionStatement',
+        expression: expression.result,
+      },
+      cursor: expression.cursor,
+    };
+  }
+};
+
+const parseNameDeclarationStatement = (
+  cursor: SourceStream,
+  ctx: Context
+):
+  | undefined
+  | { result: ast.NameDeclarationStatement; cursor: SourceStream } => {
+  let tmp;
+  tmp = consumeSequence(cursor, 'let');
+  if (!tmp) return;
+  cursor = tmp;
+  tmp = expectWhitespace(cursor);
+  if (!tmp) return;
+  cursor = tmp;
+
+  const name = readIdentifier(cursor);
+  if (!name)
+    throw new CompilerError('I was expected to see a name after "let"', cursor);
+  cursor = name.cursor;
+
+  cursor = skipWhitespace(cursor);
+  tmp = consumeSequence(cursor, '=');
+  if (!tmp) throw new CompilerError('I was expecting to see an "="', cursor);
+  cursor = tmp;
+
+  cursor = skipWhitespace(cursor);
+  const expression = parseExpression(cursor, ctx);
+  if (!expression)
+    throw new CompilerError(
+      `I was expecting an expression after "let ${name.identifier} ="`,
+      cursor
+    );
+  cursor = expression.cursor;
+
+  return {
+    result: {
+      type: 'NameDeclarationStatement',
+      name: { type: 'Identifier', name: name.identifier },
+      value: expression.result,
     },
     cursor,
   };

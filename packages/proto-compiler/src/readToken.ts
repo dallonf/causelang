@@ -76,6 +76,16 @@ export function skipWhitespace(
   return cursor;
 }
 
+export function expectWhitespace(
+  cursor: SourceStream
+): undefined | SourceStream {
+  const char = nextChar(cursor);
+  if (!char) return;
+  if (!whitespaceRegex.test(char.char)) return;
+  cursor = char.cursor;
+  return skipWhitespace(cursor);
+}
+
 export function advanceLine(cursor: SourceStream) {
   cursor = skipWhitespace(cursor, { stopAtNewline: true });
   const newline = nextChar(cursor);
@@ -90,4 +100,22 @@ export function advanceLine(cursor: SourceStream) {
   }
   cursor = newline.cursor;
   return skipWhitespace(cursor);
+}
+
+export function consumeSequence(
+  cursor: SourceStream,
+  expected: string
+): null | SourceStream {
+  const expectedChars = [...expected];
+  let readChars = 0;
+  while (readChars < expectedChars.length) {
+    const next = nextChar(cursor);
+    if (next && next.char === expectedChars[readChars]) {
+      readChars += 1;
+      cursor = next.cursor;
+    } else {
+      return null;
+    }
+  }
+  return cursor;
 }

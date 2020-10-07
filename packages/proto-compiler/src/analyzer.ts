@@ -1,17 +1,18 @@
 import * as ast from './ast';
-import coreLibrary from './coreLibrary';
 
 export type ValueType =
   | KeywordValueType
   | DeclarationValueType
-  | InstanceValueType;
+  | InstanceValueType
+  | CoreFunctionValueType;
 
 export type DeclarationValueType =
   | EffectDeclarationValueType
   | FunctionDeclarationValueType
-  | TypeDeclarationValueType;
+  | TypeDeclarationValueType
+  | NameDeclarationValueType;
 
-export type RuntimeLibraryValueType =
+export type LibraryValueType =
   | EffectDeclarationValueType
   | TypeDeclarationValueType;
 
@@ -37,15 +38,24 @@ export interface TypeDeclarationValueType {
   symbol: symbol;
 }
 
+export interface NameDeclarationValueType {
+  kind: 'name';
+  name: string;
+  valueType?: ValueType;
+}
+
+export interface CoreFunctionValueType {
+  kind: 'coreFn';
+  name: string;
+}
+
 interface InstanceValueType {
   kind: 'instance';
   name?: string;
   type: DeclarationValueType;
 }
 
-export interface Scope {
-  [name: string]: ValueType;
-}
+export type Scope = Record<string, ValueType>;
 
 export interface AnalyzerContext {
   scope: Scope;
@@ -53,11 +63,6 @@ export interface AnalyzerContext {
 }
 
 export type Breadcrumbs = (string | number)[];
-
-export const scopeFromLibrary = (
-  library: (EffectDeclarationValueType | TypeDeclarationValueType)[]
-): Scope =>
-  Object.fromEntries([...coreLibrary, ...library].map((x) => [x.name, x]));
 
 export const analyzeModule = (
   module: ast.Module,
@@ -101,26 +106,48 @@ const analyzeExpression = (
 ): void => {
   switch (node.type) {
     case 'BlockExpression': {
-      // TODO: this is gonna get tricky with scope when variable declarations
-      // are a thing
-      node.body.forEach((a: ast.ExpressionStatement, i) => {
-        analyzeExpression(
-          a.expression,
-          [...breadcrumbs, 'body', i, 'expression'],
-          ctx
-        );
-      });
+      analyzeBlockExpression(node, breadcrumbs, ctx);
       break;
     }
     case 'CallExpression':
-    case 'UnaryCallExpression':
       analyzeCallExpression(node, breadcrumbs, ctx);
       break;
+    case 'PrefixOperatorExpression': {
+      analyzeExpression(node.expression, [...breadcrumbs, 'expression'], ctx);
+      break;
+    }
   }
 };
 
+const analyzeBlockExpression = (
+  node: ast.BlockExpression,
+  breadcrumbs: Breadcrumbs,
+  ctx: AnalyzerContext
+) => {
+  let scope = { ...ctx.scope };
+  node.body.forEach((a: ast.Statement, i) => {
+    const statementBreadcrumbs = [...breadcrumbs, 'body', i];
+    if (a.type === 'ExpressionStatement') {
+      analyzeExpression(a.expression, [...statementBreadcrumbs, 'expression'], {
+        ...ctx,
+        scope,
+      });
+    } else if (a.type === 'NameDeclarationStatement') {
+      analyzeExpression(a.value, [...statementBreadcrumbs, 'value'], {
+        ...ctx,
+        scope,
+      });
+      const valueType: ValueType = {
+        kind: 'name',
+        name: a.name.name,
+      };
+      scope = { ...scope, [a.name.name]: valueType };
+    }
+  });
+};
+
 const analyzeCallExpression = (
-  node: ast.CallExpression | ast.UnaryCallExpression,
+  node: ast.CallExpression,
   breadcrumbs: Breadcrumbs,
   ctx: AnalyzerContext
 ) => {
@@ -131,18 +158,12 @@ const analyzeCallExpression = (
       const type: ValueType | undefined = ctx.scope[callee.name];
       if (!type) {
         throw new Error(
-          `I was expecting "${callee.name}" to be a type in scope; maybe it's not spelled correctly.`
+          `I was expecting "${callee.name}" to be a function or type in scope; maybe it's not spelled correctly.`
         );
       }
       calleeType = type;
       break;
     }
-    case 'Keyword':
-      calleeType = {
-        kind: 'keyword',
-        keyword: callee.keyword,
-      };
-      break;
     default:
       throw new Error(
         `I don't know how to analyze function calls like this yet. The technical name for this sort of callee is ${callee.type}`
@@ -150,16 +171,7 @@ const analyzeCallExpression = (
   }
   ctx.expressionTypes.set([...breadcrumbs, 'callee'].join('.'), calleeType);
 
-  let parameters: { node: ast.Expression; breadcrumbs: Breadcrumbs }[];
-  if (node.type === 'UnaryCallExpression') {
-    parameters = [
-      { node: node.parameter, breadcrumbs: [...breadcrumbs, 'parameter'] },
-    ];
-  } else {
-    parameters = node.parameters.map((a, i) => ({
-      node: a,
-      breadcrumbs: [...breadcrumbs, 'parameters', i],
-    }));
-  }
-  parameters.forEach((a) => analyzeExpression(a.node, a.breadcrumbs, ctx));
+  node.parameters.forEach((a, i) =>
+    analyzeExpression(a, [...breadcrumbs, 'parameters', i], ctx)
+  );
 };

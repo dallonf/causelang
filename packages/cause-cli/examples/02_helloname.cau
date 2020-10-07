@@ -1,0 +1,5 @@
+fn main() {
+  cause Log("What is your name?")
+  let name = cause Prompt()
+  cause Log(append("Hello, ", name))
+}

@@ -1,32 +1,44 @@
-import { RuntimeLibraryValueType } from '../analyzer';
 import compileAndInvoke from '../compileAndInvoke';
 import compileToJs from '../compileToJs';
 import { LogEffectSymbol } from '../coreLibrary';
-import { CauseRuntime, EffectHandler } from '../runtime';
+import { emptyLibrary, Library, mergeLibraries } from '../makeLibrary';
+import { CauseRuntime } from '../runtime';
+
+function makeLogOverride() {
+  const logs: string[] = [];
+  const logOverrideLibrary: Library = {
+    symbols: {},
+    analyzerScope: {},
+    handleEffects: (e) => {
+      if (e.type === LogEffectSymbol) {
+        logs.push(e.value);
+        return { handled: true };
+      }
+    },
+  };
+  return { logOverrideLibrary, logs };
+}
 
 export async function runMain(
   script: string,
-  opts = { library: [] } as {
-    library?: RuntimeLibraryValueType[];
-    effectHandler?: EffectHandler;
+  opts = {} as {
+    library?: Library;
   }
 ) {
-  const logs: string[] = [];
-
-  const logOverrideEffectHandler: EffectHandler = async (e) => {
-    if (e.type === LogEffectSymbol) {
-      logs.push(e.value);
-      return { handled: true };
-    } else {
-      return opts.effectHandler?.(e);
-    }
-  };
+  const {
+    logOverrideLibrary,
+    logs,
+  }: { logOverrideLibrary: Library; logs: string[] } = makeLogOverride();
+  const library = mergeLibraries(
+    logOverrideLibrary,
+    opts.library ?? emptyLibrary
+  );
 
   const result = await compileAndInvoke(
     { source: script, filename: 'test.cau' },
     'main',
     [],
-    { library: opts.library, effectHandler: logOverrideEffectHandler }
+    { library: library }
   );
 
   return {
@@ -35,38 +47,32 @@ export async function runMain(
   };
 }
 
+export type SyncEffectHandler = (
+  effect: any
+) => undefined | { handled: true; value: any };
+
 export function runMainSync(
   script: string,
 
-  opts = { library: [] } as {
-    library?: RuntimeLibraryValueType[];
-    effectHandler?: (e: any) => any;
+  opts = {} as {
+    library?: Library;
     debugJsOutput?: boolean;
   }
 ) {
-  const logs: string[] = [];
+  const { logOverrideLibrary, logs } = makeLogOverride();
+  const library = mergeLibraries(
+    logOverrideLibrary,
+    opts.library ?? emptyLibrary
+  );
 
-  const effectHandler = (e: any): any => {
-    if (e.type === LogEffectSymbol) {
-      logs.push(e.value);
-      return;
-    } else {
-      return effectHandler(e);
-    }
-  };
-
-  const jsSource = compileToJs(script, opts.library ?? []);
+  const jsSource = compileToJs(script, library.analyzerScope);
   if (opts.debugJsOutput) {
     console.log(jsSource);
   }
   const runtime = new CauseRuntime(jsSource, 'test.cau', {
-    library: opts.library,
+    library: library,
   });
-  const generator = runtime.invokeFnAsGenerator('main', []);
-  let next = generator.next();
-  while (!next.done) {
-    const effect = next.value;
-    next = generator.next(effectHandler(effect));
-  }
-  return { result: next.value, logs };
+
+  const result = runtime.invokeFnSync('main', []);
+  return { result, logs };
 }

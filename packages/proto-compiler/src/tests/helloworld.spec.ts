@@ -1,10 +1,10 @@
-import { RuntimeLibraryValueType } from '../analyzer';
+import makeLibrary from '../makeLibrary';
 import { runMain, runMainSync } from './testRunner';
 
 describe('basic hello world', () => {
   const script = ` 
     fn main() {
-      cause(Log("Hello World"))
+      cause Log("Hello World")
     }
   `;
 
@@ -30,25 +30,16 @@ it('returns a hello world value', () => {
     }
   `;
 
-  const GreetingSymbol = Symbol('Greeting');
-  const greetingType: RuntimeLibraryValueType = {
-    kind: 'type',
+  const library = makeLibrary({
+    type: 'type',
     name: 'Greeting',
-    symbol: GreetingSymbol,
-  };
-  const { result, logs } = runMainSync(script, { library: [greetingType] });
+  });
 
-  expect(result).toEqual({ type: GreetingSymbol, value: 'Hello World' });
+  const { result, logs } = runMainSync(script, { library });
+
+  expect(result).toEqual({
+    type: library.symbols.Greeting,
+    value: 'Hello World',
+  });
   expect(logs).toEqual([]);
-});
-
-it('supports unary call syntax', () => {
-  const script = `
-    fn main() {
-      cause Log "Hello World"
-    }
-  `;
-  const { result, logs } = runMainSync(script);
-  expect(result).toBe(undefined);
-  expect(logs).toEqual(['Hello World']);
 });

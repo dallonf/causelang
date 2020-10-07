@@ -69,9 +69,21 @@ const generateStatement = (
   breadcrumbs: Breadcrumbs,
   ctx: GeneratorContext
 ) => {
-  return jsAst.expressionStatement(
-    generateExpression(node.expression, [...breadcrumbs, 'expression'], ctx)
-  );
+  switch (node.type) {
+    case 'NameDeclarationStatement':
+      return jsAst.variableDeclaration('const', [
+        jsAst.variableDeclarator(
+          jsAst.identifier(node.name.name),
+          generateExpression(node.value, [...breadcrumbs, 'value'], ctx)
+        ),
+      ]);
+    case 'ExpressionStatement':
+      return jsAst.expressionStatement(
+        generateExpression(node.expression, [...breadcrumbs, 'expression'], ctx)
+      );
+    default:
+      return exhaustiveCheck(node);
+  }
 };
 
 const generateExpression = (
@@ -90,50 +102,36 @@ const generateExpression = (
       return jsAst.numericLiteral(0);
     }
     case 'CallExpression':
-    case 'UnaryCallExpression':
       return generateCallExpression(node, breadcrumbs, ctx);
     case 'BlockExpression': {
       throw new Error(
         "I don't know how to compile inline block expressions yet"
       );
     }
-    case 'Keyword': {
-      throw new Error(
-        `${node.keyword} is a keyword, which you can't use here; if this is a variable, try renaming it`
-      );
-    }
+    case 'PrefixOperatorExpression':
+      if (node.operator.keyword === 'cause') {
+        return jsAst.yieldExpression(
+          generateExpression(
+            node.expression,
+            [...breadcrumbs, 'expression'],
+            ctx
+          )
+        );
+      } else {
+        throw new Error(
+          `I'm not sure how to compile a ${node.operator.keyword} operator here`
+        );
+      }
     default:
       return exhaustiveCheck(node);
   }
 };
 
 const generateCallExpression = (
-  node: ast.CallExpression | ast.UnaryCallExpression,
+  node: ast.CallExpression,
   breadcrumbs: Breadcrumbs,
   ctx: GeneratorContext
 ): jsAst.Expression => {
-  let parameters: { node: ast.Expression; breadcrumbs: Breadcrumbs }[];
-  if (node.type === 'UnaryCallExpression') {
-    parameters = [
-      { node: node.parameter, breadcrumbs: [...breadcrumbs, 'parameter'] },
-    ];
-  } else {
-    parameters = node.parameters.map((a, i) => ({
-      node: a,
-      breadcrumbs: [...breadcrumbs, 'parameters', i],
-    }));
-  }
-
-  if (node.callee.type === 'Keyword' && node.callee.keyword === 'cause') {
-    if (parameters.length !== 1) {
-      throw new Error('"cause" should only have one parameter');
-    }
-
-    return jsAst.yieldExpression(
-      generateExpression(parameters[0].node, parameters[0].breadcrumbs, ctx)
-    );
-  }
-
   const type = ctx.expressionTypes.get([...breadcrumbs, 'callee'].join('.'));
   if (!type) {
     throw new Error(
@@ -143,7 +141,7 @@ const generateCallExpression = (
     );
   }
   if (type.kind === 'effect' || type.kind === 'type') {
-    if (parameters.length !== 1) {
+    if (node.parameters.length > 1) {
       throw new Error('Effects and types can only have one parameter for now');
     }
     return jsAst.objectExpression([
@@ -151,18 +149,35 @@ const generateCallExpression = (
         jsAst.identifier('type'),
         generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx)
       ),
-      jsAst.objectProperty(
-        jsAst.identifier('value'),
-        generateExpression(parameters[0].node, parameters[0].breadcrumbs, ctx)
-      ),
+      ...(node.parameters.length
+        ? [
+            jsAst.objectProperty(
+              jsAst.identifier('value'),
+              generateExpression(
+                node.parameters[0],
+                [...breadcrumbs, 'parameters', 0],
+                ctx
+              )
+            ),
+          ]
+        : []),
     ]);
   } else if (type.kind === 'fn') {
     return jsAst.yieldExpression(
       jsAst.callExpression(
         generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
-        parameters.map((a) => generateExpression(a.node, a.breadcrumbs, ctx))
+        node.parameters.map((a, i) =>
+          generateExpression(a, [...breadcrumbs, 'parameters', i], ctx)
+        )
       ),
       true
+    );
+  } else if (type.kind === 'coreFn') {
+    return jsAst.callExpression(
+      generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
+      node.parameters.map((a, i) =>
+        generateExpression(a, [...breadcrumbs, 'parameters', i], ctx)
+      )
     );
   } else {
     throw new Error(

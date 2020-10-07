@@ -15,7 +15,7 @@ I'm actually not sure. I'm not familiar enough with the academic principles of f
 * Immutable-by-default data structures (in fact I don't have mutable data structures yet)
 * Pure functions
 * Function pipeline calls / extension methods
-* Strong typing with type inference
+* Static typing with type inference
 * Something like [Rust's enums](https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html), which I believe are called "algebraic data types" in the FP world
 * Pattern matching
 * No classical or prototypical inheritance
@@ -24,17 +24,19 @@ I'm actually not sure. I'm not familiar enough with the academic principles of f
 
 ## What can it do so far?
 
-Not much. Here's what Hello World looks like, though!
+Not much. Here's a sample program, though:
 
 ```
 fn main() {
-  cause Log("Hello World")
+  cause Log("What is your name?")
+  let name = cause Prompt()
+  cause Log(append("Hello, ", name))
 }
 ```
 
 ## What's up next?
 
-Adding more to the language so it can do obvious things that every programming language should be able to do. Flow control, method calls, custom types, stuff like that. Unfortunately it's hard to explore Effects and their implications without those!
+Adding more to the language so it can do obvious things that every programming language should be able to do. Flow control, custom types, stuff like that. Unfortunately it's hard to explore Effects and their implications without those!
 
 You can look at the `future-examples` directory for some ideas about where I think the language could go. It's mostly just sketches at this point, but I look to these - especially the Cheat game - as goals for the language to support in the future.
 

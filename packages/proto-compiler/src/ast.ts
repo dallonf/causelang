@@ -26,16 +26,16 @@ export interface IntLiteral {
 
 export type Literal = StringLiteral | IntLiteral;
 
-export interface UnaryCallExpression {
-  type: 'UnaryCallExpression';
-  callee: Expression;
-  parameter: Expression;
-}
-
 export interface CallExpression {
   type: 'CallExpression';
   callee: Expression;
   parameters: Expression[];
+}
+
+export interface PrefixOperatorExpression {
+  type: 'PrefixOperatorExpression';
+  operator: Keyword;
+  expression: Expression;
 }
 
 export interface BlockExpression {
@@ -44,19 +44,24 @@ export interface BlockExpression {
 }
 
 export type Expression =
-  | Keyword
   | Identifier
   | Literal
-  | UnaryCallExpression
   | CallExpression
-  | BlockExpression;
+  | BlockExpression
+  | PrefixOperatorExpression;
 
 export interface ExpressionStatement {
   type: 'ExpressionStatement';
   expression: Expression;
 }
 
-export type Statement = ExpressionStatement;
+export interface NameDeclarationStatement {
+  type: 'NameDeclarationStatement';
+  name: Identifier;
+  value: Expression;
+}
+
+export type Statement = ExpressionStatement | NameDeclarationStatement;
 
 export interface FunctionDeclaration {
   type: 'FunctionDeclaration';
