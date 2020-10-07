@@ -1,4 +1,4 @@
-import { RuntimeLibraryValueType } from '../analyzer';
+import makeLibrary from '../makeLibrary';
 import { runMain, runMainSync } from './testRunner';
 
 describe('basic hello world', () => {
@@ -30,14 +30,16 @@ it('returns a hello world value', () => {
     }
   `;
 
-  const GreetingSymbol = Symbol('Greeting');
-  const greetingType: RuntimeLibraryValueType = {
-    kind: 'type',
+  const library = makeLibrary({
+    type: 'type',
     name: 'Greeting',
-    symbol: GreetingSymbol,
-  };
-  const { result, logs } = runMainSync(script, { library: [greetingType] });
+  });
 
-  expect(result).toEqual({ type: GreetingSymbol, value: 'Hello World' });
+  const { result, logs } = runMainSync(script, { library });
+
+  expect(result).toEqual({
+    type: library.symbols.Greeting,
+    value: 'Hello World',
+  });
   expect(logs).toEqual([]);
 });

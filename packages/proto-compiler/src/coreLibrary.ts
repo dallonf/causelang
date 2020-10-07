@@ -1,19 +1,24 @@
-import { RuntimeLibraryValueType } from './analyzer';
+import makeLibrary from './makeLibrary';
+import { CauseError } from './runtime';
 
-export const LogEffectSymbol = Symbol('Log');
-export const PanicEffectSymbol = Symbol('Panic');
-
-const coreLibrary: RuntimeLibraryValueType[] = [
+const coreLibrary = makeLibrary(
   {
-    kind: 'effect',
+    type: 'effect',
     name: 'Log',
-    symbol: LogEffectSymbol,
+    handler(effect: any) {
+      console.log(effect.value);
+    },
   },
   {
-    kind: 'effect',
+    type: 'effect',
     name: 'Panic',
-    symbol: PanicEffectSymbol,
-  },
-];
+    handler(effect: any) {
+      throw new CauseError('Error while running Cause file: ' + effect.value);
+    },
+  }
+);
+
+export const LogEffectSymbol = coreLibrary.symbols['Log'];
+export const PanicEffectSymbol = coreLibrary.symbols['Panic'];
 
 export default coreLibrary;

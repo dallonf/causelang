@@ -1,7 +1,7 @@
-import { RuntimeLibraryValueType } from '../analyzer';
-import { runMainSync, SyncEffectHandler } from './testRunner';
+import makeLibrary from '../makeLibrary';
+import { runMainSync } from './testRunner';
 
-it('can receive a value from an input effect and return it', () => {
+it.skip('can receive a value from an input effect and return it', () => {
   const script = `
     fn main() {
       cause Log("What is your name?")
@@ -9,29 +9,20 @@ it('can receive a value from an input effect and return it', () => {
     }
   `;
 
-  const promptSymbol = Symbol('Prompt');
-  const library: RuntimeLibraryValueType[] = [
-    {
-      kind: 'effect',
-      name: 'Prompt',
-      symbol: promptSymbol,
-    },
-  ];
-  const effectHandler: SyncEffectHandler = (e) => {
-    if (e.type === promptSymbol) {
-      return { handled: true, value: 'Batman' };
-    }
-  };
+  const library = makeLibrary({
+    type: 'effect',
+    name: 'Prompt',
+    handler: (e) => 'Batman',
+  });
 
   const { result, logs } = runMainSync(script, {
     library,
-    effectHandler,
   });
   expect(result).toBe(undefined);
-  expect(logs).toEqual(['What is your name?', 'Batman']);
+  expect(logs).toEqual(['What is your name?', 'Hello, Batman']);
 });
 
-it('can assign a received value to a variable', () => {
+it.skip('can assign a received value to a variable', () => {
   const script = `
   fn main() {
     cause Log("What is your name?")
@@ -40,23 +31,14 @@ it('can assign a received value to a variable', () => {
   }
 `;
 
-  const promptSymbol = Symbol('Prompt');
-  const library: RuntimeLibraryValueType[] = [
-    {
-      kind: 'effect',
-      name: 'Prompt',
-      symbol: promptSymbol,
-    },
-  ];
-  const effectHandler: SyncEffectHandler = (e) => {
-    if (e.type === promptSymbol) {
-      return { handled: true, value: 'Batman' };
-    }
-  };
+  const library = makeLibrary({
+    type: 'effect',
+    name: 'Prompt',
+    handler: (e) => 'Batman',
+  });
 
   const { result, logs } = runMainSync(script, {
     library,
-    effectHandler,
   });
   expect(result).toBe(undefined);
   expect(logs).toEqual(['What is your name?', 'Hello, Batman']);

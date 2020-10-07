@@ -11,7 +11,7 @@ export type DeclarationValueType =
   | FunctionDeclarationValueType
   | TypeDeclarationValueType;
 
-export type RuntimeLibraryValueType =
+export type LibraryValueType =
   | EffectDeclarationValueType
   | TypeDeclarationValueType;
 
@@ -43,9 +43,7 @@ interface InstanceValueType {
   type: DeclarationValueType;
 }
 
-export interface Scope {
-  [name: string]: ValueType;
-}
+export type Scope = Record<string, ValueType>;
 
 export interface AnalyzerContext {
   scope: Scope;
@@ -53,11 +51,6 @@ export interface AnalyzerContext {
 }
 
 export type Breadcrumbs = (string | number)[];
-
-export const scopeFromLibrary = (
-  library: (EffectDeclarationValueType | TypeDeclarationValueType)[]
-): Scope =>
-  Object.fromEntries([...coreLibrary, ...library].map((x) => [x.name, x]));
 
 export const analyzeModule = (
   module: ast.Module,

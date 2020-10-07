@@ -1,13 +1,13 @@
-import { RuntimeLibraryValueType } from './analyzer';
 import { cursorPosition, makeSourceStream } from './sourceStream';
 import * as parser from './parser';
 import * as analyzer from './analyzer';
 import * as generator from './generator';
 import CompilerError from './CompilerError';
+import coreLibrary from './coreLibrary';
 
 export default function compileToJs(
   source: string,
-  library: RuntimeLibraryValueType[]
+  analyzerScope?: analyzer.Scope
 ) {
   let parsedAst;
   try {
@@ -24,7 +24,7 @@ export default function compileToJs(
   }
 
   const analyzerContext = analyzer.analyzeModule(parsedAst, ['main'], {
-    scope: analyzer.scopeFromLibrary(library),
+    scope: { ...coreLibrary.analyzerScope, ...analyzerScope },
     expressionTypes: new Map(),
   });
 

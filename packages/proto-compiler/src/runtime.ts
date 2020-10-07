@@ -1,20 +1,12 @@
 import * as vm from 'vm';
-import * as analyzer from './analyzer';
-import coreLibrary, { LogEffectSymbol, PanicEffectSymbol } from './coreLibrary';
+import coreLibrary from './coreLibrary';
+import { emptyLibrary, Library, mergeLibraries } from './makeLibrary';
 
 export type EffectHandler = (
   effect: any
-) => Promise<undefined | { handled: true; value?: any }>;
+) => undefined | { handled: true; value?: Promise<any> | any };
 
-const coreLibraryEffectHandler: EffectHandler = async (effect) => {
-  switch (effect.type) {
-    case LogEffectSymbol:
-      console.log(effect.value);
-      return { handled: true };
-    case PanicEffectSymbol:
-      throw new CauseError('Error while running Cause file: ' + effect.value);
-  }
-};
+export type LibrarySymbolMap = Record<string, symbol>;
 
 export class CauseError extends Error {
   constructor(message?: string) {
@@ -24,8 +16,7 @@ export class CauseError extends Error {
 }
 
 export interface CauseRuntimeOptions {
-  library?: analyzer.RuntimeLibraryValueType[];
-  effectHandler?: EffectHandler;
+  library?: Library;
 }
 
 export interface CauseRuntimeInvokeOptions {
@@ -34,17 +25,14 @@ export interface CauseRuntimeInvokeOptions {
 
 export class CauseRuntime {
   script: vm.Script;
-  typeMap: Record<string, symbol>;
-  effectHandler: EffectHandler;
+  library: Library;
 
   constructor(jsSource: string, filename: string, opts?: CauseRuntimeOptions) {
     this.script = new vm.Script(jsSource, {
       filename,
     });
-    const library = coreLibrary.concat(opts?.library ?? []);
-    this.typeMap = Object.fromEntries(library.map((x) => [x.name, x.symbol]));
-    this.effectHandler =
-      opts?.effectHandler ?? ((e) => Promise.resolve(undefined));
+
+    this.library = mergeLibraries(coreLibrary, opts?.library ?? emptyLibrary);
   }
 
   async invokeFn(
@@ -64,8 +52,28 @@ export class CauseRuntime {
     return next.value;
   }
 
+  invokeFnSync(
+    name: string,
+    params: unknown[],
+    opts = {} as CauseRuntimeInvokeOptions
+  ): any {
+    const generator = this.invokeFnAsGenerator(name, params);
+    let next = generator.next();
+    while (!next.done) {
+      const effect = next.value as any;
+      const result = this.handleEffect(effect, opts.additionalEffectHandler);
+      if (typeof result?.then === 'function') {
+        throw new CauseError(
+          `invokeFnSync: ${effect.type.toString()} effect was handled asynchronously!`
+        );
+      }
+      next = generator.next(result);
+    }
+    return next.value;
+  }
+
   invokeFnAsGenerator(name: string, params: unknown[]): Generator {
-    const context = { ...this.typeMap };
+    const context = this.library.symbols;
 
     this.script.runInNewContext(context, {
       breakOnSigint: true,
@@ -80,19 +88,15 @@ export class CauseRuntime {
     return generator;
   }
 
-  async handleEffect(effect: any, extraHandler?: EffectHandler) {
-    const handlers = [
-      extraHandler,
-      this.effectHandler,
-      coreLibraryEffectHandler,
-    ].filter((a) => a) as EffectHandler[];
-    let effectResult;
-    for (const handler of handlers) {
-      effectResult = await handler(effect);
-      if (effectResult?.handled) {
-        break;
+  handleEffect(effect: any, extraHandler?: EffectHandler) {
+    if (extraHandler) {
+      const result = extraHandler(effect);
+      if (result?.handled) {
+        return result.value;
       }
     }
+
+    const effectResult = this.library.handleEffects(effect);
 
     if (!effectResult?.handled) {
       throw new CauseError(
