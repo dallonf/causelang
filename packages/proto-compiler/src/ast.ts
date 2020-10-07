@@ -55,7 +55,13 @@ export interface ExpressionStatement {
   expression: Expression;
 }
 
-export type Statement = ExpressionStatement;
+export interface NameDeclarationStatement {
+  type: 'NameDeclarationStatement';
+  name: Identifier;
+  value: Expression;
+}
+
+export type Statement = ExpressionStatement | NameDeclarationStatement;
 
 export interface FunctionDeclaration {
   type: 'FunctionDeclaration';

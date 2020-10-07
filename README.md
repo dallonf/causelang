@@ -15,7 +15,7 @@ I'm actually not sure. I'm not familiar enough with the academic principles of f
 * Immutable-by-default data structures (in fact I don't have mutable data structures yet)
 * Pure functions
 * Function pipeline calls / extension methods
-* Strong typing with type inference
+* Static typing with type inference
 * Something like [Rust's enums](https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html), which I believe are called "algebraic data types" in the FP world
 * Pattern matching
 * No classical or prototypical inheritance

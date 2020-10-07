@@ -69,9 +69,21 @@ const generateStatement = (
   breadcrumbs: Breadcrumbs,
   ctx: GeneratorContext
 ) => {
-  return jsAst.expressionStatement(
-    generateExpression(node.expression, [...breadcrumbs, 'expression'], ctx)
-  );
+  switch (node.type) {
+    case 'NameDeclarationStatement':
+      return jsAst.variableDeclaration('const', [
+        jsAst.variableDeclarator(
+          jsAst.identifier(node.name.name),
+          generateExpression(node.value, [...breadcrumbs, 'value'], ctx)
+        ),
+      ]);
+    case 'ExpressionStatement':
+      return jsAst.expressionStatement(
+        generateExpression(node.expression, [...breadcrumbs, 'expression'], ctx)
+      );
+    default:
+      return exhaustiveCheck(node);
+  }
 };
 
 const generateExpression = (

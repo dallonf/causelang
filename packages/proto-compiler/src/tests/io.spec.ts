@@ -22,7 +22,7 @@ it('can receive a value from an input effect and return it', () => {
   expect(logs).toEqual(['What is your name?', 'Hello, Batman']);
 });
 
-it.skip('can assign a received value to a variable', () => {
+it('can assign a received value to a name', () => {
   const script = `
   fn main() {
     cause Log("What is your name?")

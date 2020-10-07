@@ -9,7 +9,8 @@ export type ValueType =
 export type DeclarationValueType =
   | EffectDeclarationValueType
   | FunctionDeclarationValueType
-  | TypeDeclarationValueType;
+  | TypeDeclarationValueType
+  | NameDeclarationValueType;
 
 export type LibraryValueType =
   | EffectDeclarationValueType
@@ -35,6 +36,12 @@ export interface TypeDeclarationValueType {
   kind: 'type';
   name: string;
   symbol: symbol;
+}
+
+export interface NameDeclarationValueType {
+  kind: 'name';
+  name: string;
+  valueType?: ValueType;
 }
 
 export interface CoreFunctionValueType {
@@ -99,15 +106,7 @@ const analyzeExpression = (
 ): void => {
   switch (node.type) {
     case 'BlockExpression': {
-      // TODO: this is gonna get tricky with scope when variable declarations
-      // are a thing
-      node.body.forEach((a: ast.ExpressionStatement, i) => {
-        analyzeExpression(
-          a.expression,
-          [...breadcrumbs, 'body', i, 'expression'],
-          ctx
-        );
-      });
+      analyzeBlockExpression(node, breadcrumbs, ctx);
       break;
     }
     case 'CallExpression':
@@ -118,6 +117,33 @@ const analyzeExpression = (
       break;
     }
   }
+};
+
+const analyzeBlockExpression = (
+  node: ast.BlockExpression,
+  breadcrumbs: Breadcrumbs,
+  ctx: AnalyzerContext
+) => {
+  let scope = { ...ctx.scope };
+  node.body.forEach((a: ast.Statement, i) => {
+    const statementBreadcrumbs = [...breadcrumbs, 'body', i];
+    if (a.type === 'ExpressionStatement') {
+      analyzeExpression(a.expression, [...statementBreadcrumbs, 'expression'], {
+        ...ctx,
+        scope,
+      });
+    } else if (a.type === 'NameDeclarationStatement') {
+      analyzeExpression(a.value, [...statementBreadcrumbs, 'value'], {
+        ...ctx,
+        scope,
+      });
+      const valueType: ValueType = {
+        kind: 'name',
+        name: a.name.name,
+      };
+      scope = { ...scope, [a.name.name]: valueType };
+    }
+  });
 };
 
 const analyzeCallExpression = (
