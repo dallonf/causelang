@@ -1,10 +1,10 @@
 import * as ast from './ast';
-import coreLibrary from './coreLibrary';
 
 export type ValueType =
   | KeywordValueType
   | DeclarationValueType
-  | InstanceValueType;
+  | InstanceValueType
+  | CoreFunctionValueType;
 
 export type DeclarationValueType =
   | EffectDeclarationValueType
@@ -35,6 +35,11 @@ export interface TypeDeclarationValueType {
   kind: 'type';
   name: string;
   symbol: symbol;
+}
+
+export interface CoreFunctionValueType {
+  kind: 'coreFn';
+  name: string;
 }
 
 interface InstanceValueType {
@@ -127,7 +132,7 @@ const analyzeCallExpression = (
       const type: ValueType | undefined = ctx.scope[callee.name];
       if (!type) {
         throw new Error(
-          `I was expecting "${callee.name}" to be a type in scope; maybe it's not spelled correctly.`
+          `I was expecting "${callee.name}" to be a function or type in scope; maybe it's not spelled correctly.`
         );
       }
       calleeType = type;

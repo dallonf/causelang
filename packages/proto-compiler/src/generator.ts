@@ -160,6 +160,13 @@ const generateCallExpression = (
       ),
       true
     );
+  } else if (type.kind === 'coreFn') {
+    return jsAst.callExpression(
+      generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
+      node.parameters.map((a, i) =>
+        generateExpression(a, [...breadcrumbs, 'parameters', i], ctx)
+      )
+    );
   } else {
     throw new Error(
       `I don't know how to compile this kind of function call yet. The type of the callee is ${JSON.stringify(

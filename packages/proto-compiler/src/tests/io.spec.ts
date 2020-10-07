@@ -1,7 +1,7 @@
 import makeLibrary from '../makeLibrary';
 import { runMainSync } from './testRunner';
 
-it.skip('can receive a value from an input effect and return it', () => {
+it('can receive a value from an input effect and return it', () => {
   const script = `
     fn main() {
       cause Log("What is your name?")

@@ -1,5 +1,5 @@
 import * as vm from 'vm';
-import coreLibrary from './coreLibrary';
+import coreLibrary, { CoreLibrary, mergeCoreLibrary } from './coreLibrary';
 import { emptyLibrary, Library, mergeLibraries } from './makeLibrary';
 
 export type EffectHandler = (
@@ -25,14 +25,14 @@ export interface CauseRuntimeInvokeOptions {
 
 export class CauseRuntime {
   script: vm.Script;
-  library: Library;
+  library: CoreLibrary;
 
   constructor(jsSource: string, filename: string, opts?: CauseRuntimeOptions) {
     this.script = new vm.Script(jsSource, {
       filename,
     });
 
-    this.library = mergeLibraries(coreLibrary, opts?.library ?? emptyLibrary);
+    this.library = mergeCoreLibrary(opts?.library ?? emptyLibrary);
   }
 
   async invokeFn(
@@ -73,7 +73,7 @@ export class CauseRuntime {
   }
 
   invokeFnAsGenerator(name: string, params: unknown[]): Generator {
-    const context = this.library.symbols;
+    const context = this.library.runtimeScope;
 
     this.script.runInNewContext(context, {
       breakOnSigint: true,
