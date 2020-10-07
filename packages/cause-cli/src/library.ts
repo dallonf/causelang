@@ -1,4 +1,4 @@
-import * as analyzer from 'causelang-proto-compiler/src/analyzer';
+import makeLibrary from 'causelang-proto-compiler/src/makeLibrary';
 
-const library: analyzer.RuntimeLibraryValueType[] = [];
+const library = makeLibrary();
 export default library;

@@ -28,29 +28,7 @@ USAGE
 <!-- usagestop -->
 # Commands
 <!-- commands -->
-* [`cause hello [FILE]`](#cause-hello-file)
 * [`cause help [COMMAND]`](#cause-help-command)
-* [`cause run [FILE]`](#cause-run-file)
-
-## `cause hello [FILE]`
-
-describe the command here
-
-```
-USAGE
-  $ cause hello [FILE]
-
-OPTIONS
-  -f, --force
-  -h, --help       show CLI help
-  -n, --name=name  name to print
-
-EXAMPLE
-  $ cause hello
-  hello world from ./src/hello.ts!
-```
-
-_See code: [src/commands/hello.ts](https://github.com/dallonf/causelang/blob/v0.0.0/src/commands/hello.ts)_
 
 ## `cause help [COMMAND]`
 
@@ -68,20 +46,4 @@ OPTIONS
 ```
 
 _See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v3.2.0/src/commands/help.ts)_
-
-## `cause run [FILE]`
-
-describe the command here
-
-```
-USAGE
-  $ cause run [FILE]
-
-OPTIONS
-  -f, --force
-  -h, --help       show CLI help
-  -n, --name=name  name to print
-```
-
-_See code: [src/commands/run.ts](https://github.com/dallonf/causelang/blob/v0.0.0/src/commands/run.ts)_
 <!-- commandsstop -->
