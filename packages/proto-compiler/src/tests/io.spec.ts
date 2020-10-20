@@ -43,3 +43,28 @@ it('can assign a received value to a name', () => {
   expect(result).toBe(undefined);
   expect(output).toEqual(['What is your name?', 'Hello, Batman']);
 });
+
+it('can use an inline block expression to return a result', () => {
+  const script = `
+    fn main() {
+      cause Print("What is your name?")
+      let greeting = {
+        let name = cause Prompt()
+        append("Hello, ", name)
+      }
+      cause Print(greeting)
+    }
+  `;
+
+  const library = makeLibrary('test', {
+    type: 'effect',
+    name: 'Prompt',
+    handler: (e) => 'Superman',
+  });
+
+  const { result, output: output } = runMainSync(script, {
+    libraries: [library],
+  });
+  expect(result).toBe(undefined);
+  expect(output).toEqual(['What is your name?', 'Hello, Superman']);
+});

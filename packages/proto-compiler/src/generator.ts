@@ -32,22 +32,11 @@ const generateDeclaration = (
 ) => {
   let bodyStatements;
   if (node.body.type === 'BlockExpression') {
-    const cauStatements = node.body.body;
-    bodyStatements = cauStatements.map((a, i) => {
-      const statement = generateStatement(
-        a,
-        [...breadcrumbs, 'body', 'body', i],
-        ctx
-      );
-      if (
-        statement.type === 'ExpressionStatement' &&
-        i === cauStatements.length - 1
-      ) {
-        return jsAst.returnStatement(statement.expression);
-      } else {
-        return statement;
-      }
-    });
+    bodyStatements = generateBlockExpressionStatements(
+      node.body,
+      [...breadcrumbs, 'body'],
+      ctx
+    );
   } else {
     bodyStatements = [
       jsAst.returnStatement(
@@ -104,9 +93,16 @@ const generateExpression = (
     case 'CallExpression':
       return generateCallExpression(node, breadcrumbs, ctx);
     case 'BlockExpression': {
-      throw new Error(
-        "I don't know how to compile inline block expressions yet"
+      const iife = jsAst.functionExpression(
+        null,
+        [],
+        jsAst.blockStatement(
+          generateBlockExpressionStatements(node, breadcrumbs, ctx)
+        ),
+        true
       );
+
+      return jsAst.yieldExpression(jsAst.callExpression(iife, []), true);
     }
     case 'PrefixOperatorExpression':
       if (node.operator.keyword === 'cause') {
@@ -187,3 +183,21 @@ const generateCallExpression = (
     );
   }
 };
+function generateBlockExpressionStatements(
+  node: ast.BlockExpression,
+  breadcrumbs: analyzer.Breadcrumbs,
+  ctx: GeneratorContext
+) {
+  const cauStatements = node.body;
+  return cauStatements.map((a, i) => {
+    const statement = generateStatement(a, [...breadcrumbs, 'body', i], ctx);
+    if (
+      statement.type === 'ExpressionStatement' &&
+      i === cauStatements.length - 1
+    ) {
+      return jsAst.returnStatement(statement.expression);
+    } else {
+      return statement;
+    }
+  });
+}
