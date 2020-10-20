@@ -161,6 +161,11 @@ const analyzeBlockExpression = (
       scope = { ...scope, [a.name.name]: valueType };
     }
   });
+
+  node.handlers?.forEach((a, i) => {
+    // TODO: add pattern to scope
+    analyzeExpression(a.body, [...breadcrumbs, 'handlers', i, 'body'], ctx);
+  });
 };
 
 const analyzeCallExpression = (

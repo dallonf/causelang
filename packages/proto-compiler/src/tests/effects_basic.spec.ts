@@ -1,6 +1,6 @@
 import { runMainSync } from './testRunner';
 
-it('Can handle an effect', () => {
+it('Can intercept an effect', () => {
   const script = `
     fn main() {
       {
@@ -11,7 +11,7 @@ it('Can handle an effect', () => {
     }
   `;
 
-  const { result, output } = runMainSync(script, { debugJsOutput: true });
+  const { result, output } = runMainSync(script);
   expect(result).toBe(undefined);
   expect(output).toEqual(['Intercepted a Print effect']);
 });

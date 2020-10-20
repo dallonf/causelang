@@ -31,7 +31,7 @@ const generateDeclaration = (
   ctx: GeneratorContext
 ) => {
   let bodyStatements;
-  if (node.body.type === 'BlockExpression') {
+  if (node.body.type === 'BlockExpression' && !node.body.handlers) {
     bodyStatements = generateBlockExpressionStatements(
       node.body,
       [...breadcrumbs, 'body'],
@@ -93,16 +93,7 @@ const generateExpression = (
     case 'CallExpression':
       return generateCallExpression(node, breadcrumbs, ctx);
     case 'BlockExpression': {
-      const iife = jsAst.functionExpression(
-        null,
-        [],
-        jsAst.blockStatement(
-          generateBlockExpressionStatements(node, breadcrumbs, ctx)
-        ),
-        true
-      );
-
-      return jsAst.yieldExpression(jsAst.callExpression(iife, []), true);
+      return generateBlockExpression(node, breadcrumbs, ctx);
     }
     case 'PrefixOperatorExpression':
       if (node.operator.keyword === 'cause') {
@@ -200,4 +191,62 @@ function generateBlockExpressionStatements(
       return statement;
     }
   });
+}
+
+function generateBlockExpression(
+  node: ast.BlockExpression,
+  breadcrumbs: Breadcrumbs,
+  ctx: GeneratorContext
+) {
+  const iife = jsAst.callExpression(
+    jsAst.functionExpression(
+      null,
+      [],
+      jsAst.blockStatement(
+        generateBlockExpressionStatements(node, breadcrumbs, ctx)
+      ),
+      true
+    ),
+    []
+  );
+
+  if (node.handlers?.length) {
+    const handlers = node.handlers.map((h, i) => {
+      const handlerBreadcrumbs = [...breadcrumbs, 'handlers', i, 'body'];
+
+      const blockStatement = jsAst.blockStatement([
+        jsAst.returnStatement(
+          jsAst.objectExpression([
+            jsAst.objectProperty(
+              jsAst.identifier('handled'),
+              jsAst.booleanLiteral(true)
+            ),
+            jsAst.objectProperty(
+              jsAst.identifier('value'),
+              generateExpression(h.body, handlerBreadcrumbs, ctx)
+            ),
+          ])
+        ),
+      ]);
+
+      return jsAst.functionExpression(
+        null,
+        [
+          /* todo: results of pattern matching */
+        ],
+        blockStatement,
+        true
+      );
+    });
+
+    return jsAst.yieldExpression(
+      jsAst.callExpression(jsAst.identifier('cauRuntime$handleEffects'), [
+        iife,
+        ...handlers,
+      ]),
+      true
+    );
+  } else {
+    return jsAst.yieldExpression(iife, true);
+  }
 }
