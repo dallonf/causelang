@@ -26,7 +26,7 @@ export default class Run extends Command {
       'main',
       [],
       {
-        library,
+        libraries: [library],
       }
     );
   }
