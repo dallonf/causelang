@@ -1,12 +1,12 @@
 import * as vm from 'vm';
-import coreLibrary, { CoreLibrary, mergeCoreLibrary } from './coreLibrary';
-import { emptyLibrary, Library, mergeLibraries } from './makeLibrary';
+import coreLibrary, { coreFunctions } from './coreLibrary';
+import { Library } from './makeLibrary';
 
 export type EffectHandler = (
   effect: any
 ) => undefined | { handled: true; value?: Promise<any> | any };
 
-export type LibrarySymbolMap = Record<string, symbol>;
+export type LibraryIDMap = Record<string, string>;
 
 export class CauseError extends Error {
   constructor(message?: string) {
@@ -16,7 +16,8 @@ export class CauseError extends Error {
 }
 
 export interface CauseRuntimeOptions {
-  library?: Library;
+  libraries?: Library[];
+  additionalEffectHandler?: EffectHandler;
 }
 
 export interface CauseRuntimeInvokeOptions {
@@ -25,14 +26,16 @@ export interface CauseRuntimeInvokeOptions {
 
 export class CauseRuntime {
   script: vm.Script;
-  library: CoreLibrary;
+  library: RuntimeLibrary;
+  additionalEffectHandler?: EffectHandler;
 
   constructor(jsSource: string, filename: string, opts?: CauseRuntimeOptions) {
     this.script = new vm.Script(jsSource, {
       filename,
     });
+    this.additionalEffectHandler = opts?.additionalEffectHandler;
 
-    this.library = mergeCoreLibrary(opts?.library ?? emptyLibrary);
+    this.library = makeRuntimeLibrary(...(opts?.libraries ?? []));
   }
 
   async invokeFn(
@@ -89,14 +92,15 @@ export class CauseRuntime {
   }
 
   handleEffect(effect: any, extraHandler?: EffectHandler) {
-    if (extraHandler) {
-      const result = extraHandler(effect);
-      if (result?.handled) {
-        return result.value;
-      }
-    }
+    const compositeHandler = mergeEffectHandlers(
+      ...([
+        this.library.handleEffects,
+        this.additionalEffectHandler,
+        extraHandler,
+      ].filter((x) => x) as EffectHandler[])
+    );
 
-    const effectResult = this.library.handleEffects(effect);
+    const effectResult = compositeHandler(effect);
 
     if (!effectResult?.handled) {
       throw new CauseError(
@@ -106,4 +110,46 @@ export class CauseRuntime {
 
     return effectResult.value;
   }
+}
+
+export const mergeEffectHandlers = (
+  ...handlers: EffectHandler[]
+): EffectHandler => {
+  const reverseHandlerList = [...handlers].reverse();
+  return (e: any) => {
+    for (const handler of reverseHandlerList) {
+      const result = handler(e);
+      if (result?.handled) {
+        return result;
+      }
+    }
+  };
+};
+
+interface RuntimeLibrary {
+  runtimeScope: Record<string, string | Function>;
+  handleEffects: EffectHandler;
+}
+
+function makeRuntimeLibrary(...libraries: Library[]): RuntimeLibrary {
+  const nameSet = new Set<string>([coreLibrary.name]);
+  for (const lib of libraries) {
+    if (nameSet.has(lib.name)) {
+      throw new Error(
+        `I can't include two libraries with the same name! The duplicate name is ${lib.name}`
+      );
+    }
+  }
+
+  const allLibraries = [coreLibrary, ...libraries];
+
+  return {
+    runtimeScope: {
+      ...coreFunctions,
+      ...Object.fromEntries(allLibraries.flatMap((a) => Object.entries(a.ids))),
+    },
+    handleEffects: mergeEffectHandlers(
+      ...allLibraries.map((l) => l.handleEffects)
+    ),
+  };
 }

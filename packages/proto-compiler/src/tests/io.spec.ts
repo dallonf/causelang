@@ -9,14 +9,14 @@ it('can receive a value from an input effect and return it', () => {
     }
   `;
 
-  const library = makeLibrary({
+  const library = makeLibrary('test', {
     type: 'effect',
     name: 'Prompt',
     handler: (e) => 'Batman',
   });
 
   const { result, logs } = runMainSync(script, {
-    library,
+    libraries: [library],
   });
   expect(result).toBe(undefined);
   expect(logs).toEqual(['What is your name?', 'Hello, Batman']);
@@ -31,14 +31,14 @@ it('can assign a received value to a name', () => {
   }
 `;
 
-  const library = makeLibrary({
+  const library = makeLibrary('test', {
     type: 'effect',
     name: 'Prompt',
     handler: (e) => 'Batman',
   });
 
   const { result, logs } = runMainSync(script, {
-    library,
+    libraries: [library],
   });
   expect(result).toBe(undefined);
   expect(logs).toEqual(['What is your name?', 'Hello, Batman']);

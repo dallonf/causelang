@@ -1,9 +1,10 @@
+import * as analyzer from './analyzer';
 import compileToJs from './compileToJs';
 import { Library } from './makeLibrary';
 import { CauseRuntime, CauseRuntimeOptions } from './runtime';
 
-export interface CompileAndInvokeOptions {
-  library?: Library;
+export interface CompileAndInvokeOptions extends CauseRuntimeOptions {
+  libraries?: Library[];
 }
 
 export default async function compileAndInvoke(
@@ -12,13 +13,14 @@ export default async function compileAndInvoke(
   params: unknown[],
   opts = {} as CompileAndInvokeOptions
 ) {
-  const jsSource = compileToJs(file.source, opts.library?.analyzerScope);
+  const jsSource = compileToJs(
+    file.source,
+    analyzer.getAnalyzerScope(...(opts.libraries ?? []))
+  );
   const runtime = new CauseRuntime(
     jsSource,
     file.filename ?? '<inline script>',
-    {
-      library: opts.library,
-    }
+    opts
   );
   return runtime.invokeFn(fn, params);
 }

@@ -30,15 +30,15 @@ it('returns a hello world value', () => {
     }
   `;
 
-  const library = makeLibrary({
+  const library = makeLibrary('test', {
     type: 'type',
     name: 'Greeting',
   });
 
-  const { result, logs } = runMainSync(script, { library });
+  const { result, logs } = runMainSync(script, { libraries: [library] });
 
   expect(result).toEqual({
-    type: library.symbols.Greeting,
+    type: library.ids.Greeting,
     value: 'Hello World',
   });
   expect(logs).toEqual([]);

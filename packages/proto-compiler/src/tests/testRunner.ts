@@ -1,44 +1,35 @@
+import { getAnalyzerScope } from '../analyzer';
 import compileAndInvoke from '../compileAndInvoke';
 import compileToJs from '../compileToJs';
-import { LogEffectSymbol } from '../coreLibrary';
-import { emptyLibrary, Library, mergeLibraries } from '../makeLibrary';
-import { CauseRuntime } from '../runtime';
+import { LogEffectID } from '../coreLibrary';
+import { Library } from '../makeLibrary';
+import { CauseRuntime, EffectHandler } from '../runtime';
 
 function makeLogOverride() {
   const logs: string[] = [];
-  const logOverrideLibrary: Library = {
-    symbols: {},
-    analyzerScope: {},
-    handleEffects: (e) => {
-      if (e.type === LogEffectSymbol) {
-        logs.push(e.value);
-        return { handled: true };
-      }
-    },
+  const logOverrideHandler: EffectHandler = (e) => {
+    if (e.type === LogEffectID) {
+      logs.push(e.value);
+      return { handled: true };
+    }
   };
-  return { logOverrideLibrary, logs };
+
+  return { logOverrideHandler, logs };
 }
 
 export async function runMain(
   script: string,
   opts = {} as {
-    library?: Library;
+    libraries?: Library[];
   }
 ) {
-  const {
-    logOverrideLibrary,
-    logs,
-  }: { logOverrideLibrary: Library; logs: string[] } = makeLogOverride();
-  const library = mergeLibraries(
-    logOverrideLibrary,
-    opts.library ?? emptyLibrary
-  );
+  const { logOverrideHandler, logs } = makeLogOverride();
 
   const result = await compileAndInvoke(
     { source: script, filename: 'test.cau' },
     'main',
     [],
-    { library: library }
+    { libraries: opts.libraries, additionalEffectHandler: logOverrideHandler }
   );
 
   return {
@@ -55,22 +46,22 @@ export function runMainSync(
   script: string,
 
   opts = {} as {
-    library?: Library;
+    libraries?: Library[];
     debugJsOutput?: boolean;
   }
 ) {
-  const { logOverrideLibrary, logs } = makeLogOverride();
-  const library = mergeLibraries(
-    logOverrideLibrary,
-    opts.library ?? emptyLibrary
-  );
+  const { logOverrideHandler, logs } = makeLogOverride();
 
-  const jsSource = compileToJs(script, library.analyzerScope);
+  const jsSource = compileToJs(
+    script,
+    getAnalyzerScope(...(opts.libraries ?? []))
+  );
   if (opts.debugJsOutput) {
     console.log(jsSource);
   }
   const runtime = new CauseRuntime(jsSource, 'test.cau', {
-    library: library,
+    libraries: opts.libraries,
+    additionalEffectHandler: logOverrideHandler,
   });
 
   const result = runtime.invokeFnSync('main', []);

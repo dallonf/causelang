@@ -1,4 +1,6 @@
 import * as ast from './ast';
+import { coreFunctions } from './coreLibrary';
+import { Library } from './makeLibrary';
 
 export type ValueType =
   | KeywordValueType
@@ -24,7 +26,7 @@ interface KeywordValueType {
 export interface EffectDeclarationValueType {
   kind: 'effect';
   name: string;
-  symbol: symbol;
+  id: string;
 }
 
 interface FunctionDeclarationValueType {
@@ -35,7 +37,7 @@ interface FunctionDeclarationValueType {
 export interface TypeDeclarationValueType {
   kind: 'type';
   name: string;
-  symbol: symbol;
+  id: string;
 }
 
 export interface NameDeclarationValueType {
@@ -63,6 +65,21 @@ export interface AnalyzerContext {
 }
 
 export type Breadcrumbs = (string | number)[];
+
+export const getAnalyzerScope = (
+  ...libraries: Library[]
+): Record<string, LibraryValueType> => {
+  return Object.fromEntries([
+    ...Object.entries(coreFunctions).map(([k, v]) => [
+      k,
+      {
+        kind: 'coreFn',
+        name: k,
+      } as CoreFunctionValueType,
+    ]),
+    ...libraries.flatMap((l) => Object.entries(l.analyzerScope)),
+  ]);
+};
 
 export const analyzeModule = (
   module: ast.Module,

@@ -1,5 +1,5 @@
 import * as analyzer from './analyzer';
-import { EffectHandler, LibrarySymbolMap } from './runtime';
+import { EffectHandler, LibraryIDMap } from './runtime';
 
 interface TypeLibraryItem {
   type: 'type';
@@ -15,32 +15,36 @@ interface EffectLibraryItem {
 export type LibraryItem = TypeLibraryItem | EffectLibraryItem;
 
 export interface Library {
-  symbols: LibrarySymbolMap;
+  name: string;
+  ids: LibraryIDMap;
   analyzerScope: Record<string, analyzer.LibraryValueType>;
   handleEffects: EffectHandler;
 }
 
-export default function makeLibrary(...items: LibraryItem[]): Library {
-  const itemsAndSymbols = items.map((item) => ({
+export default function makeLibrary(
+  libraryName: string,
+  ...items: LibraryItem[]
+): Library {
+  const itemsAndIds = items.map((item) => ({
     item,
-    symbol: Symbol(item.name),
+    id: `${item.name}$${libraryName}`,
   }));
 
-  const symbols = Object.fromEntries(
-    itemsAndSymbols.map(({ item, symbol }) => [item.name, symbol])
+  const ids = Object.fromEntries(
+    itemsAndIds.map(({ item, id }) => [item.name, id])
   );
   const analyzerScope = Object.fromEntries(
-    itemsAndSymbols.map(({ item, symbol }) => [
+    itemsAndIds.map(({ item, id }) => [
       item.name,
       {
         kind: item.type,
         name: item.name,
-        symbol,
+        id,
       },
     ])
   );
   const handleEffects: EffectHandler = (e: any) => {
-    const effectItem = itemsAndSymbols.find((a) => a.symbol === e.type);
+    const effectItem = itemsAndIds.find((a) => a.id === e.type);
     if (effectItem && effectItem.item.type === 'effect') {
       return {
         handled: true,
@@ -49,33 +53,9 @@ export default function makeLibrary(...items: LibraryItem[]): Library {
     }
   };
   return {
-    symbols,
+    name: libraryName,
+    ids,
     analyzerScope,
     handleEffects,
   };
 }
-
-export function mergeLibraries(...libraries: Library[]): Library {
-  return {
-    symbols: Object.fromEntries(
-      libraries.flatMap((a) => Object.entries(a.symbols))
-    ),
-    analyzerScope: Object.fromEntries(
-      libraries.flatMap((a) => Object.entries(a.analyzerScope))
-    ),
-    handleEffects: (e) => {
-      for (const handler of libraries.map((a) => a.handleEffects).reverse()) {
-        const result = handler(e);
-        if (result?.handled) {
-          return result;
-        }
-      }
-    },
-  };
-}
-
-export const emptyLibrary: Library = {
-  symbols: {},
-  analyzerScope: {},
-  handleEffects: () => undefined,
-};
