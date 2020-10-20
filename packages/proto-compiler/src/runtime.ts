@@ -1,5 +1,6 @@
 import * as vm from 'vm';
 import coreLibrary, { coreFunctions } from './coreLibrary';
+import * as runtimeFns from './runtimeFns';
 import { Library } from './makeLibrary';
 
 export type EffectHandler = (
@@ -145,6 +146,7 @@ function makeRuntimeLibrary(...libraries: Library[]): RuntimeLibrary {
 
   return {
     runtimeScope: {
+      ...runtimeFns,
       ...coreFunctions,
       ...Object.fromEntries(allLibraries.flatMap((a) => Object.entries(a.ids))),
     },
