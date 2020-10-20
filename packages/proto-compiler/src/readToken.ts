@@ -119,3 +119,24 @@ export function consumeSequence(
   }
   return cursor;
 }
+
+export function expectCursor(
+  prevCursor: SourceStream,
+  newCursor: SourceStream | null | undefined,
+  error: string
+): SourceStream {
+  if (!newCursor) {
+    throw new CompilerError(error, prevCursor);
+  }
+  return newCursor;
+}
+
+export function assertCursor(
+  prevCursor: SourceStream,
+  newCursor: SourceStream | null | undefined,
+  error: string
+): asserts newCursor is SourceStream {
+  if (!newCursor) {
+    throw new CompilerError(error, prevCursor);
+  }
+}

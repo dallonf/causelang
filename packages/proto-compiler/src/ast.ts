@@ -41,6 +41,12 @@ export interface PrefixOperatorExpression {
 export interface BlockExpression {
   type: 'BlockExpression';
   body: Statement[];
+  handlers?: HandlerBlockSuffix[];
+}
+
+export interface HandlerBlockSuffix {
+  type: 'HandlerBlockSuffix';
+  body: Expression;
 }
 
 export type Expression =

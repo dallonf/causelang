@@ -2,10 +2,12 @@ import * as ast from './ast';
 import { nextChar, SourceStream } from './sourceStream';
 import {
   advanceLine,
+  expectCursor,
   consumeSequence,
   expectWhitespace,
   readIdentifier,
   skipWhitespace,
+  assertCursor,
 } from './readToken';
 import CompilerError from './CompilerError';
 
@@ -344,11 +346,46 @@ const parseBlockExpression = (
       );
     }
   }
+  if (!current) {
+    throw new CompilerError(
+      'I\'m looking for a "}" to close this block',
+      cursor
+    );
+  }
+
+  cursor = skipWhitespace(cursor, { stopAtNewline: true });
+
+  const handlers: ast.HandlerBlockSuffix[] = [];
+  const handleSuffixKeywordCursor = consumeSequence(cursor, 'handle');
+  if (handleSuffixKeywordCursor) {
+    cursor = handleSuffixKeywordCursor;
+    cursor = skipWhitespace(cursor, { stopAtNewline: true });
+    cursor = expectCursor(
+      cursor,
+      consumeSequence(cursor, '=>'),
+      'I\'m looking for an arrow ("=>") to seperate the handler match pattern from the handler itself.'
+    );
+    cursor = skipWhitespace(cursor);
+
+    const bodyExpression = parseExpression(cursor, ctx);
+    assertCursor(
+      cursor,
+      bodyExpression?.cursor,
+      "I'm looking for an expression to handle the effect."
+    );
+    cursor = bodyExpression.cursor;
+    handlers.push({
+      type: 'HandlerBlockSuffix',
+      body: bodyExpression.result,
+    });
+  }
+  // TODO: multiple handlers
 
   return {
     result: {
       type: 'BlockExpression',
       body,
+      handlers: handlers.length ? handlers : undefined,
     },
     cursor,
   };
