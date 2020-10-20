@@ -3,16 +3,16 @@ import { runMainSync } from './testRunner';
 it('can call another function in scope and use its value', () => {
   const script = `
     fn main() {
-      cause Log(getGreeting())
+      cause Print(getGreeting())
     }
 
     fn getGreeting() {
       "Hello World"
     }
   `;
-  const { result, logs } = runMainSync(script);
+  const { result, output } = runMainSync(script);
   expect(result).toBe(undefined);
-  expect(logs).toEqual(['Hello World']);
+  expect(output).toEqual(['Hello World']);
 });
 
 it('can cause effects in a nested function call', () => {
@@ -22,10 +22,10 @@ it('can cause effects in a nested function call', () => {
     }
 
     fn greet() {
-      cause Log("Hello World")
+      cause Print("Hello World")
     }
   `;
-  const { result, logs } = runMainSync(script);
+  const { result, output } = runMainSync(script);
   expect(result).toBe(undefined);
-  expect(logs).toEqual(['Hello World']);
+  expect(output).toEqual(['Hello World']);
 });

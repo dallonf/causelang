@@ -1,20 +1,20 @@
 import { getAnalyzerScope } from '../analyzer';
 import compileAndInvoke from '../compileAndInvoke';
 import compileToJs from '../compileToJs';
-import { LogEffectID } from '../coreLibrary';
+import { PrintEffectID } from '../coreLibrary';
 import { Library } from '../makeLibrary';
 import { CauseRuntime, EffectHandler } from '../runtime';
 
-function makeLogOverride() {
-  const logs: string[] = [];
-  const logOverrideHandler: EffectHandler = (e) => {
-    if (e.type === LogEffectID) {
-      logs.push(e.value);
+function makePrintOverride() {
+  const output: string[] = [];
+  const printOverrideHandler: EffectHandler = (e) => {
+    if (e.type === PrintEffectID) {
+      output.push(e.value);
       return { handled: true };
     }
   };
 
-  return { logOverrideHandler, logs };
+  return { printOverrideHandler, output };
 }
 
 export async function runMain(
@@ -23,18 +23,18 @@ export async function runMain(
     libraries?: Library[];
   }
 ) {
-  const { logOverrideHandler, logs } = makeLogOverride();
+  const { printOverrideHandler, output } = makePrintOverride();
 
   const result = await compileAndInvoke(
     { source: script, filename: 'test.cau' },
     'main',
     [],
-    { libraries: opts.libraries, additionalEffectHandler: logOverrideHandler }
+    { libraries: opts.libraries, additionalEffectHandler: printOverrideHandler }
   );
 
   return {
     result,
-    logs,
+    output,
   };
 }
 
@@ -50,7 +50,7 @@ export function runMainSync(
     debugJsOutput?: boolean;
   }
 ) {
-  const { logOverrideHandler, logs } = makeLogOverride();
+  const { printOverrideHandler, output } = makePrintOverride();
 
   const jsSource = compileToJs(
     script,
@@ -61,9 +61,9 @@ export function runMainSync(
   }
   const runtime = new CauseRuntime(jsSource, 'test.cau', {
     libraries: opts.libraries,
-    additionalEffectHandler: logOverrideHandler,
+    additionalEffectHandler: printOverrideHandler,
   });
 
   const result = runtime.invokeFnSync('main', []);
-  return { result, logs };
+  return { result, output };
 }

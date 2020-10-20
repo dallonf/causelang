@@ -5,7 +5,7 @@ const coreLibrary = makeLibrary(
   'core',
   {
     type: 'effect',
-    name: 'Log',
+    name: 'Print',
     handler(effect: any) {
       console.log(effect.value);
     },
@@ -20,7 +20,7 @@ const coreLibrary = makeLibrary(
 );
 export default coreLibrary;
 
-export const LogEffectID = coreLibrary.ids['Log'];
+export const PrintEffectID = coreLibrary.ids['Print'];
 export const PanicEffectID = coreLibrary.ids['Panic'];
 
 type CoreFnMap = { [name: string]: Function };

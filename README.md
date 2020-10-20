@@ -28,9 +28,9 @@ Not much. Here's a sample program, though:
 
 ```
 fn main() {
-  cause Log("What is your name?")
+  cause Print("What is your name?")
   let name = cause Prompt()
-  cause Log(append("Hello, ", name))
+  cause Print(append("Hello, ", name))
 }
 ```
 

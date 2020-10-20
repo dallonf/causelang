@@ -4,22 +4,22 @@ import { runMain, runMainSync } from './testRunner';
 describe('basic hello world', () => {
   const script = ` 
     fn main() {
-      cause Log("Hello World")
+      cause Print("Hello World")
     }
   `;
 
-  it('logs hello world', () => {
-    const { result, logs } = runMainSync(script);
+  it('prints hello world', () => {
+    const { result, output } = runMainSync(script);
 
     expect(result).toBe(undefined);
-    expect(logs).toEqual(['Hello World']);
+    expect(output).toEqual(['Hello World']);
   });
 
-  it('logs hello world async', async () => {
-    const { result, logs } = await runMain(script);
+  it('print hello world async', async () => {
+    const { result, output } = await runMain(script);
 
     expect(result).toBe(undefined);
-    expect(logs).toEqual(['Hello World']);
+    expect(output).toEqual(['Hello World']);
   });
 });
 
@@ -35,11 +35,11 @@ it('returns a hello world value', () => {
     name: 'Greeting',
   });
 
-  const { result, logs } = runMainSync(script, { libraries: [library] });
+  const { result, output } = runMainSync(script, { libraries: [library] });
 
   expect(result).toEqual({
     type: library.ids.Greeting,
     value: 'Hello World',
   });
-  expect(logs).toEqual([]);
+  expect(output).toEqual([]);
 });
