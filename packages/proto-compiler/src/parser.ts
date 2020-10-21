@@ -38,6 +38,24 @@ export const parseModule = (cursor: SourceStream, ctx: Context): ast.Module => {
   return root;
 };
 
+const parseIdentifier = (
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.Identifier; cursor: SourceStream } => {
+  const result = readIdentifier(cursor);
+  if (result) {
+    return {
+      cursor: result.cursor,
+      result: {
+        type: 'Identifier',
+        name: result.identifier,
+      },
+    };
+  } else {
+    return null;
+  }
+};
+
 const parseDeclaration = (
   cursor: SourceStream,
   ctx: Context
@@ -469,6 +487,21 @@ const parsePattern = (
   cursor: SourceStream,
   ctx: Context
 ): null | { result: ast.Pattern; cursor: SourceStream } => {
+  let tmp;
+
+  tmp = parseTypePattern(cursor, ctx);
+  if (tmp) return tmp;
+
+  tmp = parseNamePattern(cursor, ctx);
+  if (tmp) return tmp;
+
+  return null;
+};
+
+const parseTypePattern = (
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.TypePattern; cursor: SourceStream } => {
   const typeName = readIdentifier(cursor);
   if (!typeName) return null;
   cursor = typeName.cursor;
@@ -490,5 +523,52 @@ const parsePattern = (
       },
     },
     cursor,
+  };
+};
+
+const parseNamePattern = (
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.NamePattern; cursor: SourceStream } => {
+  let tmp;
+
+  tmp = consumeSequence(cursor, 'let');
+  if (!tmp) return null;
+  cursor = tmp;
+
+  cursor = skipWhitespace(cursor);
+
+  const name = readIdentifier(cursor);
+  if (!name) {
+    throw new CompilerError("I'm looking for an identifier.", cursor);
+  }
+  cursor = name.cursor;
+
+  let valueType;
+  const typeColon = consumeSequence(cursor, ':');
+  if (typeColon) {
+    cursor = typeColon;
+    cursor = skipWhitespace(cursor);
+    if (
+      ((valueType = parseTypePattern(cursor, ctx)) ||
+        (valueType = parseIdentifier(cursor, ctx)),
+      valueType)
+    ) {
+      cursor = valueType.cursor;
+    } else {
+      throw new CompilerError(
+        "I'm looking for a type name or a type pattern.",
+        cursor
+      );
+    }
+  }
+
+  return {
+    cursor,
+    result: {
+      type: 'NamePattern',
+      name: { type: 'Identifier', name: name.identifier },
+      valueType: valueType?.result,
+    },
   };
 };

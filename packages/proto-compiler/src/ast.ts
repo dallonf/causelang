@@ -94,9 +94,15 @@ export type Node =
   | Literal
   | Identifier;
 
-export type Pattern = TypePattern;
+export type Pattern = TypePattern | NamePattern;
 
 export interface TypePattern {
   type: 'TypePattern';
   typeName: Identifier;
+}
+
+export interface NamePattern {
+  type: 'NamePattern';
+  name: Identifier;
+  valueType?: Identifier | TypePattern;
 }

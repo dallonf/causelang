@@ -264,9 +264,20 @@ function generateHandlerFunction(
         ];
         break;
       }
+      case 'NamePattern': {
+        statements = [
+          jsAst.variableDeclaration('const', [
+            jsAst.variableDeclarator(
+              jsAst.identifier(node.pattern.name.name),
+              jsAst.identifier('$effect')
+            ),
+          ]),
+          returnHandled,
+        ];
+        break;
+      }
       default: {
-        throw new Error('impossible');
-        // exhaustiveCheck(node);
+        return exhaustiveCheck(node.pattern);
       }
     }
   } else {
