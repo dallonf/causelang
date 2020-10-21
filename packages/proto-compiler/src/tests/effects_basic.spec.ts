@@ -112,3 +112,37 @@ it('Provides access to the captured effect without a type', () => {
     },
   });
 });
+
+it('Can use effects to mutate from a closure', () => {
+  const library = makeLibrary('test', {
+    type: 'effect',
+    name: 'SetX',
+    handler: () => {
+      throw new Error('Should be handled');
+    },
+  });
+
+  const script = `
+    fn main() {
+      let var x = 1
+      
+      let update = fn() {
+        cause SetX(2)
+      }
+
+      {
+        update()
+      } handle let e: SetX => {
+        x = e.value
+      }
+
+      x
+    }
+  `;
+
+  const { result, output } = runMainSync(script, {
+    libraries: [library],
+  });
+  expect(output).toEqual([]);
+  expect(result).toEqual(2);
+});
