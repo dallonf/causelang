@@ -1,36 +1,35 @@
 fn main() {
-  loop(0, fn(counter) {
+  let result = loop(0, fn(counter) {
     cause Print("current value: "->append(toString(cause ReadCounter())))
     cause Print("Type up/down/quit:")
     let input = (cause Prompt())->toLowerCase()
-    let var loopResult = LoopResult.Continue(counter)
     switch {
       if input->equals("up") => {
-        loopResult = LoopResult.Continue(counter + 1)
+        counter->add(1)
       }
       if input->equals("down") => {
-        loopResult = LoopResult.Continue(counter - 1)
+        counter->add(-1)
       }
       if input->equals("quit") => {
-        loopResult = LoopResult.Break(counter)
+        cause BreakLoop(counter)
       }
       else {
         cause Print("invalid input: "->append(input))
+        counter
       }
     }
-    loopResult
   }
+  cause Print("Counter quit with value: "->append(result))
 }
 
 //probably part of the standard library
-type LoopResult<T>: Variant(
-  type Continue(value: T),
-  type Break(value: T)
-)
+effect BreakLoop<T>(value: T): Never
 
-fn loop<T>(startValue: T, loopFn: fn(): LoopResult<T>): T  {
-  switch loopFn() {
-    Continue(let value) => loopFn(value)
-    Break(let value) => value
+fn loop<T>(startValue: T, loopFn: fn(value: T): T): T  {
+  {
+    fn innerLoop(value: T) innerLoop(loopFn(value))
+    innerLoop(startValue)
+  } handle BreakLoop(let value) {
+    break value
   }
 }
