@@ -27,6 +27,7 @@ export const parseModule = (cursor: SourceStream, ctx: Context): ast.Module => {
     if (declaration) {
       cursor = declaration.cursor;
       root.body.push(declaration.result);
+      cursor = advanceLine(cursor);
     } else {
       throw new CompilerError(
         'I\'m looking for declarations here in the root of the module; stuff like "let", "fn", etc.',
@@ -64,6 +65,8 @@ const parseDeclaration = (
   if (keyword) {
     if (keyword.identifier === 'fn') {
       return parseFunctionDeclaration(keyword.cursor, ctx);
+    } else if (keyword.identifier === 'effect') {
+      return parseEffectDeclaration(keyword.cursor, ctx);
     }
   }
   return null;
@@ -82,25 +85,17 @@ const parseFunctionDeclaration = (
   }
   cursor = idRead.cursor;
 
-  cursor = skipWhitespace(cursor);
-  const argOpenParen = nextChar(cursor);
-  if (!argOpenParen || argOpenParen.char !== '(') {
-    throw new CompilerError(
-      `The next part of a function declaration should be a "(" to list the parameters. I found this instead: ${argOpenParen?.char}`,
-      cursor
-    );
-  }
-  cursor = argOpenParen.cursor;
+  cursor = expectCursor(
+    cursor,
+    consumeSequence(cursor, '('),
+    'The next part of a function declaration should be a "(" to list the parameters.'
+  );
 
-  cursor = skipWhitespace(cursor);
-  const argCloseParen = nextChar(cursor);
-  if (!argCloseParen || argCloseParen.char !== ')') {
-    throw new CompilerError(
-      `The next part of a function declaration should be a ")" to close out the parameter list. I found this instead: ${argCloseParen?.char}`,
-      cursor
-    );
-  }
-  cursor = argCloseParen.cursor;
+  cursor = expectCursor(
+    cursor,
+    consumeSequence(cursor, ')'),
+    'The next part of a function declaration should be a ")" to close out the parameter list.'
+  );
 
   const body = parseExpression(cursor, ctx);
   if (!body) {
@@ -119,6 +114,94 @@ const parseFunctionDeclaration = (
     },
     parameters: [],
     body: body.result,
+  };
+
+  return { result, cursor };
+};
+
+const parseEffectDeclaration = (
+  cursor: SourceStream,
+  ctx: Context
+): { result: ast.EffectDeclaration; cursor: SourceStream } => {
+  const idRead = readIdentifier(cursor);
+  if (!idRead) {
+    throw new CompilerError(
+      'I\'m looking for an effect name after the "effect" declaration, but I can\'t find one',
+      cursor
+    );
+  }
+  cursor = idRead.cursor;
+
+  cursor = expectCursor(
+    cursor,
+    consumeSequence(cursor, '('),
+    'The next part of an effect declaration should be a "(" to list the parameters.'
+  );
+
+  let parameters: ast.ParameterDescriptor[] = [];
+  let parameterName;
+  while (
+    ((cursor = skipWhitespace(cursor)),
+    (parameterName = parseIdentifier(cursor, ctx)),
+    parameterName)
+  ) {
+    cursor = skipWhitespace(parameterName.cursor);
+
+    cursor = expectCursor(
+      cursor,
+      consumeSequence(cursor, ':'),
+      'I\'m looking for a ":" to set the type of this parameter'
+    );
+
+    cursor = skipWhitespace(cursor);
+
+    const typeId = parseIdentifier(cursor, ctx);
+    assertCursor(cursor, typeId?.cursor, "I'm looking for a type name");
+    cursor = typeId.cursor;
+
+    parameters.push({
+      type: 'ParameterDescriptor',
+      name: parameterName.result,
+      valueType: typeId.result,
+    });
+
+    const comma = consumeSequence(cursor, ',');
+    if (!comma) {
+      break;
+    } else {
+      cursor = comma;
+    }
+  }
+
+  cursor = expectCursor(
+    cursor,
+    consumeSequence(cursor, ')'),
+    'The next part of an effect declaration should be a ")" to close out the parameter list.'
+  );
+
+  cursor = skipWhitespace(cursor, { stopAtNewline: true });
+
+  let returnType;
+  const returnTypeColon = consumeSequence(cursor, ':');
+  if (returnTypeColon) {
+    cursor = returnTypeColon;
+    cursor = skipWhitespace(cursor);
+
+    const typeId = parseIdentifier(cursor, ctx);
+    assertCursor(cursor, typeId?.cursor, "I'm looking for a type name");
+    cursor = typeId.cursor;
+
+    returnType = typeId.result;
+  }
+
+  const result: ast.EffectDeclaration = {
+    type: 'EffectDeclaration',
+    id: {
+      type: 'Identifier',
+      name: idRead.identifier,
+    },
+    parameters: [],
+    returnType,
   };
 
   return { result, cursor };

@@ -62,6 +62,7 @@ interface InstanceValueType {
 export type Scope = Record<string, ValueType>;
 
 export interface AnalyzerContext {
+  declarationSuffix: string;
   scope: Scope;
   typesOfExpressions: Map<string, ValueType>;
 }
@@ -91,20 +92,41 @@ export const analyzeModule = (
   // First, superficially check all the declarations to see what's hoisted
   // into scope
   const newScope: Scope = { ...ctx.scope };
-  for (const declaration of module.body) {
-    if (declaration.type === 'FunctionDeclaration') {
-      newScope[declaration.id.name] = {
-        kind: 'fn',
-        name: declaration.id.name,
-      };
+  module.body.forEach((declaration, i) => {
+    switch (declaration.type) {
+      case 'FunctionDeclaration':
+        newScope[declaration.id.name] = {
+          kind: 'fn',
+          name: declaration.id.name,
+        };
+        break;
+      case 'EffectDeclaration':
+        const type: EffectDeclarationValueType = {
+          kind: 'effect',
+          id: `${declaration.id.name}$${ctx.declarationSuffix}`,
+          name: declaration.id.name,
+        };
+        newScope[declaration.id.name] = type;
+        ctx.typesOfExpressions.set([...breadcrumbs, 'body', i].join('.'), type);
+        break;
+      default:
+        return exhaustiveCheck(declaration);
     }
-  }
+  });
 
   module.body.forEach((declaration, i) => {
-    analyzeFunctionDeclaration(declaration, [...breadcrumbs, 'body', i], {
-      ...ctx,
-      scope: newScope,
-    });
+    switch (declaration.type) {
+      case 'FunctionDeclaration':
+        analyzeFunctionDeclaration(declaration, [...breadcrumbs, 'body', i], {
+          ...ctx,
+          scope: newScope,
+        });
+        break;
+      case 'EffectDeclaration':
+        break;
+      default:
+        return exhaustiveCheck(declaration);
+    }
   });
 
   return ctx;

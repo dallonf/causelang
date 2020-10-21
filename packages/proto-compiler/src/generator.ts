@@ -7,7 +7,7 @@ import { exhaustiveCheck } from './utils';
 type Breadcrumbs = analyzer.Breadcrumbs;
 
 interface GeneratorContext {
-  expressionTypes: Map<string, analyzer.ValueType>;
+  typesOfExpressions: Map<string, analyzer.ValueType>;
 }
 
 export const generateModule = (
@@ -17,15 +17,40 @@ export const generateModule = (
 ) => {
   const program = jsAst.program([]);
 
-  const statements = module.body.map((a, i) =>
-    generateDeclaration(a, [...breadcrumbs, 'body', i], ctx)
-  );
+  const statements = module.body.map((a, i) => {
+    const statementBreadcrumbs = [...breadcrumbs, 'body', i];
+    switch (a.type) {
+      case 'FunctionDeclaration':
+        return generateFunctionDeclaration(a, statementBreadcrumbs, ctx);
+      case 'EffectDeclaration': {
+        const effect = ctx.typesOfExpressions.get(
+          statementBreadcrumbs.join('.')
+        );
+        if (effect?.kind !== 'effect') {
+          throw new Error(
+            `I'm confused; I'm can't find the metadata for this effect declaration at ${statementBreadcrumbs.join(
+              '.'
+            )}. This probably isn't your fault!`
+          );
+        }
+
+        return jsAst.variableDeclaration('const', [
+          jsAst.variableDeclarator(
+            jsAst.identifier(a.id.name),
+            jsAst.stringLiteral(effect.id)
+          ),
+        ]);
+      }
+      default:
+        return exhaustiveCheck(a);
+    }
+  });
   program.body.push(...statements);
 
   return generate(program).code;
 };
 
-const generateDeclaration = (
+const generateFunctionDeclaration = (
   node: ast.FunctionDeclaration,
   breadcrumbs: Breadcrumbs,
   ctx: GeneratorContext
@@ -155,7 +180,7 @@ const generateCallExpression = (
   breadcrumbs: Breadcrumbs,
   ctx: GeneratorContext
 ): jsAst.Expression => {
-  const type = ctx.expressionTypes.get([...breadcrumbs, 'callee'].join('.'));
+  const type = ctx.typesOfExpressions.get([...breadcrumbs, 'callee'].join('.'));
   if (!type) {
     throw new Error(
       `I'm confused. I'm trying to figure out the type of this function call, but I don't know what it is. This probably isn't your fault! Here's the technical breadcrumb to the call in question: ${breadcrumbs.join(

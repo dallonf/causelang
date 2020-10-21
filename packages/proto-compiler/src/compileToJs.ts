@@ -24,12 +24,13 @@ export default function compileToJs(
   }
 
   const analyzerContext = analyzer.analyzeModule(parsedAst, ['main'], {
+    declarationSuffix: 'main',
     scope: { ...coreLibrary.analyzerScope, ...analyzerScope },
     typesOfExpressions: new Map(),
   });
 
   const outputSource = generator.generateModule(parsedAst, ['main'], {
-    expressionTypes: analyzerContext.typesOfExpressions,
+    typesOfExpressions: analyzerContext.typesOfExpressions,
   });
 
   return outputSource;

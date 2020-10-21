@@ -24,6 +24,8 @@ export interface IntLiteral {
   value: number;
 }
 
+export type TypeReference = Identifier;
+
 export type Literal = StringLiteral | IntLiteral;
 
 export interface CallExpression {
@@ -101,7 +103,20 @@ export interface FunctionDeclaration {
   body: Expression;
 }
 
-export type Declaration = FunctionDeclaration;
+export interface EffectDeclaration {
+  type: 'EffectDeclaration';
+  id: Identifier;
+  parameters: ParameterDescriptor[];
+  returnType?: TypeReference;
+}
+
+export interface ParameterDescriptor {
+  type: 'ParameterDescriptor';
+  name: Identifier;
+  valueType: TypeReference;
+}
+
+export type Declaration = FunctionDeclaration | EffectDeclaration;
 
 export interface Module {
   type: 'Module';
@@ -122,7 +137,7 @@ export type Pattern = TypePattern | NamePattern;
 
 export interface TypePattern {
   type: 'TypePattern';
-  typeName: Identifier;
+  typeName: TypeReference;
 }
 
 export interface NamePattern {

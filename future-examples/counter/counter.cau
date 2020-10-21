@@ -1,44 +1,36 @@
 fn main() {
-  let var counter = 0
-  effect Increment(amount: Int)
-  effect ReadCounter: Int
-  {
-    loop(fn() {
-      Log("current value: "->append(toString(cause ReadCounter())))
-      Log("Type up/down/quit:")
-      let input = (cause Prompt())->toLowerCase()
-      switch {
-        input->equals("up") {
-          cause Increment(1)
-        }
-        input->equals("down") {
-          cause Increment(-1)
-        }
-        input->equals("quit") {
-          return Break()
-        }
-        match _ {
-          cause Log("invalid input: "->append(input))
-        }
+  loop(0, fn(counter) {
+    cause Print("current value: "->append(toString(cause ReadCounter())))
+    cause Print("Type up/down/quit:")
+    let input = (cause Prompt())->toLowerCase()
+    let var loopResult = LoopResult.Continue(counter)
+    switch {
+      if input->equals("up") => {
+        loopResult = LoopResult.Continue(counter + 1)
       }
-      Continue()
+      if input->equals("down") => {
+        loopResult = LoopResult.Continue(counter - 1)
+      }
+      if input->equals("quit") => {
+        loopResult = LoopResult.Break(counter)
+      }
+      else {
+        cause Print("invalid input: "->append(input))
+      }
     }
-  } handle Increment(let amount) {
-    set counter =->add(amount)
-  } handle ReadCounter {
-    counter
+    loopResult
   }
 }
 
 //probably part of the standard library
-type Continue
-type Break
-type LoopResult = Variant(Continue, Break)
+type LoopResult<T>: Variant(
+  type Continue(value: T),
+  type Break(value: T)
+)
 
- // although this is very impure design that requires effects to not be infinite...
-fn loop(loopFn: type fn(): LoopResult): Action  {
+fn loop<T>(startValue: T, loopFn: fn(): LoopResult<T>): T  {
   switch loopFn() {
-    Continue { loopFn() }
-    Break { Action() }
+    Continue(let value) => loopFn(value)
+    Break(let value) => value
   }
 }

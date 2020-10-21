@@ -146,3 +146,23 @@ it('Can use effects to mutate from a closure', () => {
   expect(output).toEqual([]);
   expect(result).toEqual(2);
 });
+
+it('Can define your own effects', () => {
+  const script = `
+    effect Greet(value: String): String
+
+    fn main() {
+      {
+        let greeting = cause Greet("partner")
+        cause Print(greeting)
+      } handle let e: Greet => {
+        append("Howdy, ", e.value)
+      }
+    }
+  `;
+
+  const { result, output } = runMainSync(script);
+
+  expect(result).toBe(undefined);
+  expect(output).toEqual(['Howdy, partner']);
+});
