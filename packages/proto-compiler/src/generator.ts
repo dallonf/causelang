@@ -211,33 +211,9 @@ function generateBlockExpression(
   );
 
   if (node.handlers?.length) {
-    const handlers = node.handlers.map((h, i) => {
-      const handlerBreadcrumbs = [...breadcrumbs, 'handlers', i, 'body'];
-
-      const blockStatement = jsAst.blockStatement([
-        jsAst.returnStatement(
-          jsAst.objectExpression([
-            jsAst.objectProperty(
-              jsAst.identifier('handled'),
-              jsAst.booleanLiteral(true)
-            ),
-            jsAst.objectProperty(
-              jsAst.identifier('value'),
-              generateExpression(h.body, handlerBreadcrumbs, ctx)
-            ),
-          ])
-        ),
-      ]);
-
-      return jsAst.functionExpression(
-        null,
-        [
-          /* todo: results of pattern matching */
-        ],
-        blockStatement,
-        true
-      );
-    });
+    const handlers = node.handlers.map((h, i) =>
+      generateHandlerFunction(h, [...breadcrumbs, 'handlers', i], ctx)
+    );
 
     return jsAst.yieldExpression(
       jsAst.callExpression(jsAst.identifier('cauRuntime$handleEffects'), [
@@ -249,4 +225,58 @@ function generateBlockExpression(
   } else {
     return jsAst.yieldExpression(iife, true);
   }
+}
+
+function generateHandlerFunction(
+  node: ast.HandlerBlockSuffix,
+  breadcrumbs: Breadcrumbs,
+  ctx: GeneratorContext
+) {
+  const returnHandled = jsAst.returnStatement(
+    jsAst.objectExpression([
+      jsAst.objectProperty(
+        jsAst.identifier('handled'),
+        jsAst.booleanLiteral(true)
+      ),
+      jsAst.objectProperty(
+        jsAst.identifier('value'),
+        generateExpression(node.body, [...breadcrumbs, 'body'], ctx)
+      ),
+    ])
+  );
+
+  let statements;
+  if (node.pattern) {
+    switch (node.pattern.type) {
+      case 'TypePattern': {
+        statements = [
+          jsAst.ifStatement(
+            jsAst.binaryExpression(
+              '===',
+              jsAst.memberExpression(
+                jsAst.identifier('$effect'),
+                jsAst.identifier('type')
+              ),
+              jsAst.identifier(node.pattern.typeName.name)
+            ),
+            returnHandled
+          ),
+        ];
+        break;
+      }
+      default: {
+        throw new Error('impossible');
+        // exhaustiveCheck(node);
+      }
+    }
+  } else {
+    statements = [returnHandled];
+  }
+
+  return jsAst.functionExpression(
+    null,
+    node.pattern ? [jsAst.identifier('$effect')] : [],
+    jsAst.blockStatement(statements),
+    true
+  );
 }

@@ -360,10 +360,19 @@ const parseBlockExpression = (
   if (handleSuffixKeywordCursor) {
     cursor = handleSuffixKeywordCursor;
     cursor = skipWhitespace(cursor, { stopAtNewline: true });
+
+    const pattern = parsePattern(cursor, ctx);
+    if (pattern) {
+      cursor = pattern.cursor;
+    }
+
+    cursor = skipWhitespace(cursor, { stopAtNewline: true });
     cursor = expectCursor(
       cursor,
       consumeSequence(cursor, '=>'),
-      'I\'m looking for an arrow ("=>") to seperate the handler match pattern from the handler itself.'
+      pattern
+        ? 'I\'m looking for an arrow ("=>") to seperate the handler match pattern from the handler itself.'
+        : 'I\'m looking for a handler match pattern or an arrow ("=>")'
     );
     cursor = skipWhitespace(cursor);
 
@@ -377,6 +386,7 @@ const parseBlockExpression = (
     handlers.push({
       type: 'HandlerBlockSuffix',
       body: bodyExpression.result,
+      pattern: pattern?.result,
     });
   }
   // TODO: multiple handlers
@@ -450,6 +460,34 @@ const parseNameDeclarationStatement = (
       type: 'NameDeclarationStatement',
       name: { type: 'Identifier', name: name.identifier },
       value: expression.result,
+    },
+    cursor,
+  };
+};
+
+const parsePattern = (
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.Pattern; cursor: SourceStream } => {
+  const typeName = readIdentifier(cursor);
+  if (!typeName) return null;
+  cursor = typeName.cursor;
+
+  const openBrace = consumeSequence(cursor, '(');
+  if (!openBrace) return null;
+  cursor = openBrace;
+
+  const closeBrace = consumeSequence(cursor, ')');
+  if (!closeBrace) return null;
+  cursor = closeBrace;
+
+  return {
+    result: {
+      type: 'TypePattern',
+      typeName: {
+        type: 'Identifier',
+        name: typeName.identifier,
+      },
     },
     cursor,
   };

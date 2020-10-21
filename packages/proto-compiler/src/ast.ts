@@ -46,6 +46,7 @@ export interface BlockExpression {
 
 export interface HandlerBlockSuffix {
   type: 'HandlerBlockSuffix';
+  pattern?: Pattern;
   body: Expression;
 }
 
@@ -92,3 +93,10 @@ export type Node =
   | Expression
   | Literal
   | Identifier;
+
+export type Pattern = TypePattern;
+
+export interface TypePattern {
+  type: 'TypePattern';
+  typeName: Identifier;
+}
