@@ -50,12 +50,19 @@ export interface HandlerBlockSuffix {
   body: Expression;
 }
 
+export interface MemberExpression {
+  type: 'MemberExpression';
+  object: Expression;
+  property: Identifier;
+}
+
 export type Expression =
   | Identifier
   | Literal
   | CallExpression
   | BlockExpression
-  | PrefixOperatorExpression;
+  | PrefixOperatorExpression
+  | MemberExpression;
 
 export interface ExpressionStatement {
   type: 'ExpressionStatement';

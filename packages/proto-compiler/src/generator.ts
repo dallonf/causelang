@@ -109,6 +109,11 @@ const generateExpression = (
           `I'm not sure how to compile a ${node.operator.keyword} operator here`
         );
       }
+    case 'MemberExpression':
+      return jsAst.memberExpression(
+        generateExpression(node.object, [...breadcrumbs, 'object'], ctx),
+        jsAst.identifier(node.property.name)
+      );
     default:
       return exhaustiveCheck(node);
   }
@@ -227,6 +232,59 @@ function generateBlockExpression(
   }
 }
 
+function generatePatternHandlingStatements(
+  matchingExpression: jsAst.Expression,
+  node: ast.Pattern,
+  breadcrumbs: Breadcrumbs,
+  ctx: GeneratorContext
+): jsAst.Statement[] {
+  switch (node.type) {
+    case 'TypePattern': {
+      return [
+        jsAst.ifStatement(
+          jsAst.binaryExpression(
+            '!==',
+            jsAst.memberExpression(
+              matchingExpression,
+              jsAst.identifier('type')
+            ),
+            jsAst.identifier(node.typeName.name)
+          ),
+          jsAst.returnStatement()
+        ),
+      ];
+    }
+    case 'NamePattern': {
+      const varName = jsAst.identifier(node.name.name);
+      const result: jsAst.Statement[] = [
+        jsAst.variableDeclaration('const', [
+          jsAst.variableDeclarator(varName, matchingExpression),
+        ]),
+      ];
+      if (node.valueType) {
+        // Using an identifier as a type (`Effect`) is
+        // syntax sugar for a basic TypePattern (`Effect()`)
+        const typePattern: ast.TypePattern =
+          node.valueType.type === 'Identifier'
+            ? { type: 'TypePattern', typeName: node.valueType }
+            : node.valueType;
+        result.push(
+          ...generatePatternHandlingStatements(
+            varName,
+            typePattern,
+            [...breadcrumbs, 'valueType'],
+            ctx
+          )
+        );
+      }
+      return result;
+    }
+    default: {
+      return exhaustiveCheck(node);
+    }
+  }
+}
+
 function generateHandlerFunction(
   node: ast.HandlerBlockSuffix,
   breadcrumbs: Breadcrumbs,
@@ -247,39 +305,15 @@ function generateHandlerFunction(
 
   let statements;
   if (node.pattern) {
-    switch (node.pattern.type) {
-      case 'TypePattern': {
-        statements = [
-          jsAst.ifStatement(
-            jsAst.binaryExpression(
-              '===',
-              jsAst.memberExpression(
-                jsAst.identifier('$effect'),
-                jsAst.identifier('type')
-              ),
-              jsAst.identifier(node.pattern.typeName.name)
-            ),
-            returnHandled
-          ),
-        ];
-        break;
-      }
-      case 'NamePattern': {
-        statements = [
-          jsAst.variableDeclaration('const', [
-            jsAst.variableDeclarator(
-              jsAst.identifier(node.pattern.name.name),
-              jsAst.identifier('$effect')
-            ),
-          ]),
-          returnHandled,
-        ];
-        break;
-      }
-      default: {
-        return exhaustiveCheck(node.pattern);
-      }
-    }
+    statements = [
+      ...generatePatternHandlingStatements(
+        jsAst.identifier('$effect'),
+        node.pattern,
+        [...breadcrumbs, 'pattern'],
+        ctx
+      ),
+      returnHandled,
+    ];
   } else {
     statements = [returnHandled];
   }

@@ -49,7 +49,7 @@ it('Can identify the type of effect', () => {
   ]);
 });
 
-it.skip('Provides access to the captured effects and its values', () => {
+it('Provides access to the captured effects and its values', () => {
   const library = makeLibrary('test', {
     type: 'effect',
     name: 'Greet',
@@ -61,6 +61,7 @@ it.skip('Provides access to the captured effects and its values', () => {
   const script = `
     fn main() {
       {
+        cause Print("Don't handle this one")
         cause Greet("partner")
       } handle let e: Greet => {
         cause Print(append("Howdy, ", e.value))
@@ -70,11 +71,10 @@ it.skip('Provides access to the captured effects and its values', () => {
 
   const { result, output } = runMainSync(script, {
     libraries: [library],
-    debugJsOutput: true,
   });
 
   expect(result).toBe(undefined);
-  expect(output).toEqual(['Howdy, partner']);
+  expect(output).toEqual(["Don't handle this one", 'Howdy, partner']);
 });
 
 it('Provides access to the captured effect without a type', () => {

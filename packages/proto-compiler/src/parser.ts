@@ -162,16 +162,23 @@ const parseExpression = (
       return null;
     }
 
-    // Look for suffixes that change the meaning of this initial expression
-    const suffixStart = nextChar(cursor);
-    if (suffixStart) {
-      if (suffixStart.char === '(') {
-        return parseCallExpression(initialExpression, cursor, ctx);
-      }
-    }
-
-    return { result: initialExpression, cursor };
+    return transformExpressionWithSuffixes(initialExpression, cursor, ctx);
   }
+};
+
+const transformExpressionWithSuffixes = (
+  initialExpression: ast.Expression,
+  cursor: SourceStream,
+  ctx: Context
+): { cursor: SourceStream; result: ast.Expression } => {
+  let suffixStart;
+  if (((suffixStart = consumeSequence(cursor, '(')), suffixStart)) {
+    return parseCallExpression(initialExpression, cursor, ctx);
+  } else if (((suffixStart = consumeSequence(cursor, '.')), suffixStart)) {
+    return parseMemberExpression(initialExpression, cursor, ctx);
+  }
+
+  return { result: initialExpression, cursor: cursor };
 };
 
 const parseStringLiteral = (
@@ -325,6 +332,35 @@ const parseCallExpression = (
       parameters: args,
     },
     cursor,
+  };
+};
+
+const parseMemberExpression = (
+  object: ast.Expression,
+  cursor: SourceStream,
+  ctx: Context
+): { result: ast.MemberExpression; cursor: SourceStream } => {
+  cursor = expectCursor(
+    cursor,
+    consumeSequence(cursor, '.'),
+    "I'm confused; I'm looking for a property access, but I don't even see a \".\". This probably isn't your fault!"
+  );
+
+  const property = parseIdentifier(cursor, ctx);
+  assertCursor(
+    cursor,
+    property?.cursor,
+    "I'm looking for the name of a property of this object."
+  );
+  cursor = property.cursor;
+
+  return {
+    cursor: cursor,
+    result: {
+      type: 'MemberExpression',
+      object,
+      property: property.result,
+    },
   };
 };
 
