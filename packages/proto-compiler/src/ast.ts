@@ -73,9 +73,19 @@ export interface NameDeclarationStatement {
   type: 'NameDeclarationStatement';
   name: Identifier;
   value: Expression;
+  variable: boolean;
 }
 
-export type Statement = ExpressionStatement | NameDeclarationStatement;
+export interface AssignmentStatement {
+  type: 'AssignmentStatement';
+  name: Identifier;
+  value: Expression;
+}
+
+export type Statement =
+  | ExpressionStatement
+  | NameDeclarationStatement
+  | AssignmentStatement;
 
 export interface FunctionDeclaration {
   type: 'FunctionDeclaration';

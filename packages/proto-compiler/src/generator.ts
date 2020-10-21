@@ -60,7 +60,7 @@ const generateStatement = (
 ) => {
   switch (node.type) {
     case 'NameDeclarationStatement':
-      return jsAst.variableDeclaration('const', [
+      return jsAst.variableDeclaration(node.variable ? 'let' : 'const', [
         jsAst.variableDeclarator(
           jsAst.identifier(node.name.name),
           generateExpression(node.value, [...breadcrumbs, 'value'], ctx)
@@ -70,6 +70,15 @@ const generateStatement = (
       return jsAst.expressionStatement(
         generateExpression(node.expression, [...breadcrumbs, 'expression'], ctx)
       );
+    case 'AssignmentStatement': {
+      return jsAst.expressionStatement(
+        jsAst.assignmentExpression(
+          '=',
+          jsAst.identifier(node.name.name),
+          generateExpression(node.value, [...breadcrumbs, 'value'], ctx)
+        )
+      );
+    }
     default:
       return exhaustiveCheck(node);
   }
@@ -88,7 +97,7 @@ const generateExpression = (
       return jsAst.stringLiteral(node.value);
     }
     case 'IntLiteral': {
-      return jsAst.numericLiteral(0);
+      return jsAst.numericLiteral(node.value);
     }
     case 'CallExpression':
       return generateCallExpression(node, breadcrumbs, ctx);

@@ -458,22 +458,28 @@ const parseBlockExpression = (
 const parseStatement = (
   cursor: SourceStream,
   ctx: Context
-): undefined | { result: ast.Statement; cursor: SourceStream } => {
+): null | { result: ast.Statement; cursor: SourceStream } => {
   const nameDeclaration = parseNameDeclarationStatement(cursor, ctx);
   if (nameDeclaration) {
     return nameDeclaration;
   }
 
-  const expression = parseExpression(cursor, ctx);
-  if (expression) {
+  let parseAttempt;
+
+  if ((parseAttempt = parseAssignmentStatement(cursor, ctx))) {
+    return parseAttempt;
+  }
+  if (((parseAttempt = parseExpression(cursor, ctx)), parseAttempt)) {
     return {
       result: {
         type: 'ExpressionStatement',
-        expression: expression.result,
+        expression: parseAttempt.result,
       },
-      cursor: expression.cursor,
+      cursor: parseAttempt.cursor,
     };
   }
+
+  return null;
 };
 
 const parseNameDeclarationStatement = (
@@ -489,6 +495,16 @@ const parseNameDeclarationStatement = (
   tmp = expectWhitespace(cursor);
   if (!tmp) return;
   cursor = tmp;
+
+  const variable = consumeSequence(cursor, 'var');
+  if (variable) {
+    cursor = variable;
+    cursor = expectCursor(
+      cursor,
+      expectWhitespace(cursor),
+      'I was expecting to see whitespace after "var"'
+    );
+  }
 
   const name = readIdentifier(cursor);
   if (!name)
@@ -514,8 +530,41 @@ const parseNameDeclarationStatement = (
       type: 'NameDeclarationStatement',
       name: { type: 'Identifier', name: name.identifier },
       value: expression.result,
+      variable: Boolean(variable),
     },
     cursor,
+  };
+};
+
+const parseAssignmentStatement = (
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.AssignmentStatement; cursor: SourceStream } => {
+  const name = parseIdentifier(cursor, ctx);
+  if (!name) return null;
+  cursor = name.cursor;
+
+  cursor = skipWhitespace(cursor, { stopAtNewline: true });
+  const equals = consumeSequence(cursor, '=');
+  if (!equals) return null;
+  cursor = equals;
+  cursor = skipWhitespace(cursor);
+
+  const expression = parseExpression(cursor, ctx);
+  assertCursor(
+    cursor,
+    expression?.cursor,
+    `I'm looking for an expression to assign to ${name.result.name}`
+  );
+  cursor = expression.cursor;
+
+  return {
+    cursor,
+    result: {
+      type: 'AssignmentStatement',
+      name: name.result,
+      value: expression.result,
+    },
   };
 };
 
