@@ -22,7 +22,7 @@ it('cannot set a name that is not "var"', () => {
   `;
 
   expect(() => runMainSync(script)).toThrowErrorMatchingInlineSnapshot(
-    `"Assignment to constant variable."`
+    `"x isn't a variable; it's just a name. You could try adding var to its declaration: \\"let var x...\\""`
   );
 });
 
@@ -39,5 +39,9 @@ it('cannot update a variable in a closure', () => {
     }
   `;
 
-  expect(() => runMainSync(script)).toThrowErrorMatchingInlineSnapshot();
+  expect(() =>
+    runMainSync(script, { debugJsOutput: true })
+  ).toThrowErrorMatchingInlineSnapshot(
+    `"I can't find a variable called x in the current scope."`
+  );
 });

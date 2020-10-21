@@ -25,11 +25,11 @@ export default function compileToJs(
 
   const analyzerContext = analyzer.analyzeModule(parsedAst, ['main'], {
     scope: { ...coreLibrary.analyzerScope, ...analyzerScope },
-    expressionTypes: new Map(),
+    typesOfExpressions: new Map(),
   });
 
   const outputSource = generator.generateModule(parsedAst, ['main'], {
-    expressionTypes: analyzerContext.expressionTypes,
+    expressionTypes: analyzerContext.typesOfExpressions,
   });
 
   return outputSource;
