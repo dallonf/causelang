@@ -142,6 +142,11 @@ const parseExpression = (
     ) {
       initialExpression = readAttempt.result;
       cursor = readAttempt.cursor;
+    } else if (
+      ((readAttempt = parseFunctionExpression(cursor, ctx)), readAttempt)
+    ) {
+      initialExpression = readAttempt.result;
+      cursor = readAttempt.cursor;
     } else if (((readAttempt = parseStringLiteral(cursor, ctx)), readAttempt)) {
       initialExpression = readAttempt.result;
       cursor = readAttempt.cursor;
@@ -656,4 +661,45 @@ const parseNamePattern = (
       valueType: valueType?.result,
     },
   };
+};
+
+const parseFunctionExpression = (
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.FunctionExpression; cursor: SourceStream } => {
+  let tmp;
+  tmp = consumeSequence(cursor, 'fn');
+  if (!tmp) return null;
+  cursor = tmp;
+
+  cursor = skipWhitespace(cursor);
+
+  cursor = expectCursor(
+    cursor,
+    consumeSequence(cursor, '('),
+    'The next part of a function expression should be a "(" to list the parameters.'
+  );
+
+  cursor = expectCursor(
+    cursor,
+    consumeSequence(cursor, ')'),
+    'The next part of a function expression should be a ")" to close out the parameter list.'
+  );
+
+  const body = parseExpression(cursor, ctx);
+  if (!body) {
+    throw new CompilerError(
+      `Your function body should be an expression, like a block: {}`,
+      cursor
+    );
+  }
+  cursor = body.cursor;
+
+  const result: ast.FunctionExpression = {
+    type: 'FunctionExpression',
+    parameters: [],
+    body: body.result,
+  };
+
+  return { result, cursor };
 };

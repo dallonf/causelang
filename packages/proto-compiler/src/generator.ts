@@ -123,6 +123,28 @@ const generateExpression = (
         generateExpression(node.object, [...breadcrumbs, 'object'], ctx),
         jsAst.identifier(node.property.name)
       );
+    case 'FunctionExpression': {
+      let bodyStatements;
+      if (node.body.type === 'BlockExpression' && !node.body.handlers) {
+        bodyStatements = generateBlockExpressionStatements(
+          node.body,
+          [...breadcrumbs, 'body'],
+          ctx
+        );
+      } else {
+        bodyStatements = [
+          jsAst.returnStatement(
+            generateExpression(node.body, [...breadcrumbs, 'body'], ctx)
+          ),
+        ];
+      }
+      return jsAst.functionExpression(
+        null,
+        [],
+        jsAst.blockStatement(bodyStatements),
+        true
+      );
+    }
     default:
       return exhaustiveCheck(node);
   }
@@ -163,7 +185,7 @@ const generateCallExpression = (
           ]
         : []),
     ]);
-  } else if (type.kind === 'fn') {
+  } else if (type.kind === 'fn' || type.kind === 'name') {
     return jsAst.yieldExpression(
       jsAst.callExpression(
         generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),

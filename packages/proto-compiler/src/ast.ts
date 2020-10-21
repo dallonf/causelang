@@ -56,13 +56,20 @@ export interface MemberExpression {
   property: Identifier;
 }
 
+export interface FunctionExpression {
+  type: 'FunctionExpression';
+  parameters: void[];
+  body: Expression;
+}
+
 export type Expression =
   | Identifier
   | Literal
   | CallExpression
   | BlockExpression
   | PrefixOperatorExpression
-  | MemberExpression;
+  | MemberExpression
+  | FunctionExpression;
 
 export interface ExpressionStatement {
   type: 'ExpressionStatement';
