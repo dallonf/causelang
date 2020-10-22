@@ -3,16 +3,10 @@ fn main() {
     cause Print("current value: "->append(toString(cause ReadCounter())))
     cause Print("Type up/down/quit:")
     let input = (cause Prompt())->toLowerCase()
-    switch {
-      if input->equals("up") => {
-        counter->add(1)
-      }
-      if input->equals("down") => {
-        counter->add(-1)
-      }
-      if input->equals("quit") => {
-        cause BreakLoop(counter)
-      }
+    branch {
+      if input->equals("up") => counter->add(1)
+      if input->equals("down") => counter->add(-1)
+      if input->equals("quit") => cause BreakLoop(counter)
       else {
         cause Print("invalid input: "->append(input))
         counter

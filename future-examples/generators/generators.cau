@@ -28,21 +28,31 @@ fn incrementor(): Int causes YieldIncrement, Forbidden {
 }
 
 fn callGenerator() {
-  let mut myTask = task incrementor() // executes up to the first cause
-  loop {
-    myTask = match myTask {
-      let myTask: Task<YieldIncrement> {
-        cause Log("Counted to ${myTask.effect} so far")
-        myTask.next(Some(1)) // next() consumes ownership, but provides a new task in its place
-        // .. but I'm not sure my compiler can be smart enough to know that...?
+  // `task incrementor()` executes up to the first cause.
+  // it is a mutable value, so it has all the same restrictions as a `var`,
+  // and also, if you pass it to any function, the value is consumed
+  // and can no longer be used in this scope
+  // (perhaps some functions can "borrow" it like in Rust and avoid consuming it)
+  loop(task incrementor(), fn(myTask) {
+    // next() also consumes the value (`fn Task.next(this: Task<T>)`)
+    // It returns a TaskResponse
+    branch myTask.next() { 
+      let t: TaskEffect<YieldIncrement> => {
+        // Any members of a mutable object (such as `t.effect` here) are copied when referenced
+        cause Print("Counted to ${t.effect} so far")
+        // give() consumes the mutable TaskEffect
+        // and returns a Task, which lets you loop back over it
+        t.give(Some(1))
       }
-      let myTask: Task<Forbidden> {
-        myTask.next("I'm sorry")
+      let t: TaskEffect<Forbidden> => {
+        t.give("I'm sorry")
       }
-      let myTask: TaskReturn<Int> {
-        cause Log("Final value: ${myTask.value}")
-        break
+      let t: TaskReturn<Int> => {
+        // TaskReturn is actually not mutable!
+        // It can be passed around freely
+        cause Print("Final value: ${t.value}")
+        cause LoopBreak(t)
       }
     }
-  }
+  })
 }
