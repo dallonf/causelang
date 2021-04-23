@@ -1,0 +1,46 @@
+protected type ValueHandle<T>(handle: Handle)
+protected type SubscriptionHandle<T>(handle: Handle, valueHandle: ValueHandle<T>)
+
+effect NewValue<T>(initial: T): ValueHandle<T>
+
+type Subscriber<T> = fn(new: T, previous: T): Nothing
+effect Subscribe<T>(valueHandle: ValueHandle<T>, subscriber: Subscriber<T>): Object(
+    currentValue: T,
+    subscription: SubscriptionHandle<T>,
+)
+effect Unsubscribe<T>(subscription: SubscriptionHandle<T>): Nothing
+
+protected type Value<T>(
+    currentValue: T,
+    subscribers: HandleMap<Subscriber<T>>,
+)
+
+handler ReactiveHandler {
+    // TODO: How to handle garbage collection for a HandleMap?
+    // ...maybe it just happens automatically, in this case. HandleMap could be effectively a WeakMap
+    let var values = HandleMap<Value<Dynamic>>()
+
+    handle(
+        NewValue(initial) {
+            let handle = cause NewHandle()
+            values = .add(handle, Value(initial, List()))
+        }
+        Subscribe(valueHandle, subscriber) {
+            let subscriptionHandle = cause NewHandle()
+            values = .set(valueHandle, fn(value) {
+                value->merge(
+                    subscribers: fn($) $.add(subscriptionHandle, subscriber))
+                )
+            }
+            SubscriptionHandle(subscriptionHandle, valueHandle)
+        }
+        Unsubscribe(subscriptionHandle) {
+            values = .set(subscriptionHandle.valueHandle, fn(value) {
+                value->merge(
+                    subscribers: fn($) $.remove(subscriptionHandle)
+                )
+            })
+        }
+    )
+}
+
