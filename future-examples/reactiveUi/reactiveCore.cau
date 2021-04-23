@@ -1,45 +1,68 @@
-protected type ValueHandle<T>(handle: Handle)
-protected type SubscriptionHandle<T>(handle: Handle, valueHandle: ValueHandle<T>)
+protected type ValueTag<T>(protected tag: Tag)
+protected type SubscriptionTag<T>(protected tag: Tag, valueTag: ValueTag<T>)
 
-effect NewValue<T>(initial: T): ValueHandle<T>
+effect NewValue<T>(initial: T): ValueTag<T>
 
-type Subscriber<T> = fn(new: T, previous: T): Nothing
-effect Subscribe<T>(valueHandle: ValueHandle<T>, subscriber: Subscriber<T>): Object(
+type Subscriber<T> = fn(new: T, previous: T): Action
+effect Subscribe<T>(valueTag: ValueTag<T>, subscriber: Subscriber<T>): Object(
     currentValue: T,
-    subscription: SubscriptionHandle<T>,
+    subscription: SubscriptionTag<T>,
 )
-effect Unsubscribe<T>(subscription: SubscriptionHandle<T>): Nothing
+effect Unsubscribe<T>(subscription: SubscriptionTag<T>): Action
+
+effect GetValue<T>(value: ValueTag<T>): T
+effect SetValue<T>(value: ValueTag<T>, newValue: Variant(T, Setter<T>)): Action
 
 protected type Value<T>(
     currentValue: T,
-    subscribers: HandleMap<Subscriber<T>>,
+    subscribers: TagMap<Subscriber<T>>,
 )
 
 handler ReactiveHandler {
-    // TODO: How to handle garbage collection for a HandleMap?
-    // ...maybe it just happens automatically, in this case. HandleMap could be effectively a WeakMap
-    let var values = HandleMap<Value<Dynamic>>()
+    let var values = TagMap<Value<Dynamic>>()
 
     handle(
-        NewValue(initial) {
-            let handle = cause NewHandle()
-            values = .add(handle, Value(initial, List()))
+        NewValue(initial) => {
+            let tag = cause NewTag()
+            values = .add(tag, Value(initial, List()))
         }
-        Subscribe(valueHandle, subscriber) {
-            let subscriptionHandle = cause NewHandle()
-            values = .set(valueHandle, fn(value) {
+        Subscribe(valueTag, subscriber) => {
+            let subscriptionTag = cause NewTag()
+            values = .set(valueTag.tag, fn(value) {
                 value->merge(
-                    subscribers: fn($) $.add(subscriptionHandle, subscriber))
+                    subscribers = fn($) $.add(subscriptionTag, subscriber))
                 )
             }
-            SubscriptionHandle(subscriptionHandle, valueHandle)
+            SubscriptionTag(subscriptionTag, valueTag)
         }
-        Unsubscribe(subscriptionHandle) {
-            values = .set(subscriptionHandle.valueHandle, fn(value) {
+        Unsubscribe(subscriptionTag) => {
+            values = .set(subscriptionTag.valueTag, fn(value) {
                 value->merge(
-                    subscribers: fn($) $.remove(subscriptionHandle)
+                    subscribers = fn($) $.remove(subscriptionTag)
                 )
             })
+        }
+
+        GetValue<T>(valueTag) => {
+            branch values.get(valueTag.tag) {
+                Exists(let value: Value<T>) => value.currentValue
+                default => cause Panic("matching value not found for tag")
+            }
+        }
+
+        SetValue<T>(valueTag, newValue) => {
+            branch values.get(valueTag.tag) {
+                Exists(let value: Value<T>) => {
+                    let oldValue = value.currentValue
+                    values.set(valueTag.tag, fn($) $->merge(
+                        currentValue: newValue
+                    ))
+                    value.subscribers.each(fn(Pair(_, let $)) {
+                        $(oldValue, newValue)
+                    })
+                }
+                default => cause Panic("matching value not found for tag")
+            }
         }
     )
 }

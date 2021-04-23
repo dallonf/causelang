@@ -1,0 +1,22 @@
+import math.add
+import reactiveUi.(Component, template!)
+import reactiveCore.(Value, Computed)
+
+let CounterApp = Component.new!(
+    setup({
+        let counter = Value.new!(0)
+        let counter2 = Computed.new!(multiply(counter, 2))
+    }),
+    render({
+        let increment = fn() {
+            state.counter.set!($->add(1))
+        }
+        template!("
+            <div>
+                <h1>Counter: {state.counter}</h1>
+                <h2>Counter x 2: {state.counter2}</h2>
+                <button onClick={increment}>Increment</button>
+            </div>
+        ")
+    })
+)

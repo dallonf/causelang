@@ -1,13 +1,13 @@
 import math.add
-import reactiveUi.{Component, e}
-import reactiveCore.{NewValue, NewComputed, GetValue, SetValue}
+import reactiveUi.(Component, e)
+import reactiveCore.(NewValue, NewComputed, GetValue, SetValue)
 
 let CounterApp = Component(
     setup = fn() {
         let counter = cause NewValue(0)
         Object(
             counter,
-            counter2: cause NewComputed(fn() {
+            counter2 = cause NewComputed(fn() {
                 multiply(cause GetValue(counter), 2)
             })
         )
