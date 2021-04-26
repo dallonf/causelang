@@ -10,8 +10,8 @@ effect Subscribe<T>(observableTag: ObservableTag<T>, subscriber: Subscriber<T>):
 )
 effect Unsubscribe<T>(subscription: SubscriptionTag<T>): Action
 
-effect Get<T>(value: supports ObservableTag<T>): T
-protected effect SetObservableValue<T>(value: ObservableTag<T>, newValue: Variant(T, Setter<T>)): Action
+effect Get<T>(observable: supports ObservableTag<T>): T
+protected effect SetObservableValue<T>(observable: ObservableTag<T>, newValue: Variant(T, Setter<T>)): Action
 
 protected type Observable<T>(
     currentValue: T,
@@ -19,81 +19,151 @@ protected type Observable<T>(
 )
 
 interface ToObservableTag<T> {
-    fn toObservableTag(this): T
+    toObservableTag(this): T
 }
 
 support ToObservableTag<T> on ObservableTag<T> {
     fn toObservableTag(this) => this
 }
 
-handler ReactiveHandler {
+handler ReactiveHandler() {
     let var observables = TagMap<Observable<Dynamic>>()
 
-    handle(
-        NewObservable(initial) => {
+    handle {
+        NewObservable(let initial) => {
             let tag = cause NewTag()
             observables = .add(tag, Observable(initial, List()))
             ObservableTag(tag)
         }
-        Subscribe(observableTag, subscriber) => {
+        Subscribe(let observableTag, let subscriber) => {
             let subscriptionTag = cause NewTag()
-            observables = .set(observableTag.tag, fn(value) {
+            observables = .set(observableTag.tag, fn(observable) {
                 Observable(
-                    params(value),
+                    params(observable),
                     subscribers = fn($) $.add(subscriptionTag, subscriber)),
                 )
             })
             SubscriptionTag(subscriptionTag, observableTag)
         }
-        Unsubscribe(subscriptionTag) => {
-            observables = .set(subscriptionTag.observableTag, fn(value) {
+        Unsubscribe(let subscriptionTag) => {
+            observables = .set(subscriptionTag.observableTag, fn(observable) {
                 Observable(
-                    params(value),
+                    params(observable),
                     subscribers = fn($) $.remove(subscriptionTag),
                 )
             })
         }
 
-        Get<T>($) => {
+        Get<T>(let $) => {
             let observableTag = $.toObservableTag()
             branch observables.get(observableTag.tag) {
-                Exists(let value: Observable<T>) => value.currentValue
-                default => cause Panic("matching value not found for tag")
+                Exists(let observable: Observable<T>) => observable.currentValue
+                default => cause Panic("matching observable not found for tag")
             }
         }
-        SetObservableValue<T>(observableTag, newValue) => {
+        SetObservableValue<T>(let observableTag, let newValue) => {
             branch observables.get(observableTag.tag) {
-                Exists(let value: Observable<T>) => {
-                    let oldValue = value.currentValue
+                Exists(let observable: Observable<T>) => {
+                    let oldValue = observable.currentValue
                     observables = .set(observableTag.tag, fn($) Observable(
                         params($),
                         currentValue: newValue,
                     ))
-                    value.subscribers.each(fn(Pair(_, let $)) {
+                    observable.subscribers.each(fn(Pair(_, let $)) {
                         $(oldValue, newValue)
                     })
                 }
-                default => cause Panic("matching value not found for tag")
+                default => cause Panic("matching observable not found for tag")
             }
         }
-    )
+    }
 
-    handle(ValueHandler)
+    handle {
+        ValueHandler()
+        ComputedHandler()
+    }
 }
 
-protected type Value<T>(protected tag: ObservableTag<T>)
+// Value
 
-support ToObservableTag<T> on Value<T> {
+protected type ValueTag<T>(protected tag: ObservableTag<T>)
+
+support ToObservableTag<T> on ValueTag<T> {
     fn toObservableTag(this) => this.tag
 }
 
-effect NewValue<T>(initial: T): Value<T>
-effect SetValue<T>(value: Value<T>, newValue: Variant(T, Setter<T>)): Action
+effect NewValue<T>(initial: T): ValueTag<T>
+effect SetValue<T>(value: ValueTag<T>, newValue: Variant(T, Setter<T>)): Action
 
-handle ValueHandler => handle {
-    NewValue(initial) => {
+handler ValueHandler() => handle {
+    NewValue(let initial) => {
         let observableTag = cause NewObservable(initial)
-        Value(observableTag)
+        ValueTag(observableTag)
     }
-    SetValue(value, newValue) => cause SetObservableValue(value.toObservableTag(), newValue)
+    SetValue(let value, let newValue) => cause SetObservableValue(value.toObservableTag(), newValue)
+}
+
+// Computed
+
+protected type ComputedTag<T>(protected tag: Tag)
+type ComputedFn<T>(): T causes GetValue<Dynamic>
+
+support ToObservableTag<T> on ComputedTag<T> {
+    fn toObservableTag(this) => cause GetObservableTagForComputedTag(this)
+}
+
+effect NewComputed<T>(fn: ComputedFn<T>): Computed
+
+type Computed<T> {
+    observableTag: ObservableTag<T>
+    fn: ComputedFn<T>
+    subscriptions: SubscriptionTag[]
+}
+
+protected fn computeWithDependencies<T>(fn: ComputedFn<T>): Object(value: T, dependencies: List<ObservableTag>) {
+    let var dependencies = Set<ObservableTag>()
+    let result = {
+        fn()
+    } handle Get(let observable) {
+        let observableTag = observable.toObservableTag()
+        dependencies = .add(observableTag)
+        cause Get(observableTag)
+    }
+    Object(result, dependencies.toList())
+}
+
+protected effect Recompute(computedTag: ComputedTag): Action
+protected effect GetObservableTagForComputedTag<T>(computed: ComputedTag<T>): ObservableTag<T>
+
+handler ComputedHandler() {
+    let var computedMap = TagMap<Computed<Dynamic>>.new()
+
+    handle {
+        NewComputed<T>(let fn) => {
+            match Object(let value, let dependencies) = computeWithDependencies(fn)
+            let tag = cause NewTag()
+            let observableTag = cause NewObservable(value)
+        
+            let computed = Computed<T>(observableTag, fn, List())
+            let subscriptions = dependencies.map(fn(dependency) {
+                match Object(let subscription) = cause Subscribe(dependency, fn() cause Recompute(tag))
+            })
+            computed = Computed(params(computed), subscriptions = subscriptions)
+            computedMap = .set(tag, computed)
+            ComputedTag(tag)
+        }
+        GetObservableTagForComputedTag<T>(ComputedTag(let tag)) => {
+            computedMap.getOrPanic<Computed<T>>(tag).observableTag
+        }
+        Recompute(let computedTag = ComputedTag(let tag)) => {
+            let computed = branch computed.getOrPanic(tag)
+            
+            // TODO: deal with potential circular dependencies
+            computed.subscriptions.forEach(fn($) cause Unsubscribe($))
+
+            match Object(let value, let dependencies) = computeWithDependencies(fn)
+            computedMap = .set(tag, fn($) Computed(params($), subscriptions = subscriptions))
+            cause SetObservableValue(tag.toObservableTag(), value)
+        }
+    }
 }
