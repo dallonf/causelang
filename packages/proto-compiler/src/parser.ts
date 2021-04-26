@@ -311,7 +311,7 @@ const parseStringLiteral = (
 const parseIntLiteral = (
   cursor: SourceStream,
   ctx: Context
-): null | { result: ast.IntLiteral; cursor: SourceStream } => {
+): null | { result: ast.IntegerLiteral; cursor: SourceStream } => {
   // TODO: negative numbers with minus signs
 
   const intChars = [];
@@ -605,6 +605,21 @@ const parseNameDeclarationStatement = (
   cursor = name.cursor;
 
   cursor = skipWhitespace(cursor);
+
+  tmp = consumeSequence(cursor, ':');
+  let typeAnnotation;
+  if (tmp) {
+    cursor = skipWhitespace(tmp);
+    typeAnnotation = parseIdentifier(cursor, ctx);
+    if (!typeAnnotation) {
+      throw new CompilerError(
+        'I was expecting to find a type pattern after ":"',
+        cursor
+      );
+    }
+    cursor = skipWhitespace(typeAnnotation.cursor);
+  }
+
   tmp = consumeSequence(cursor, '=');
   if (!tmp) throw new CompilerError('I was expecting to see an "="', cursor);
   cursor = tmp;
@@ -622,6 +637,7 @@ const parseNameDeclarationStatement = (
     result: {
       type: 'NameDeclarationStatement',
       name: { type: 'Identifier', name: name.identifier },
+      typeAnnotation: typeAnnotation?.result,
       value: expression.result,
       variable: Boolean(variable),
     },

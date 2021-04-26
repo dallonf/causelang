@@ -19,14 +19,14 @@ export interface StringLiteral {
   value: string;
 }
 
-export interface IntLiteral {
+export interface IntegerLiteral {
   type: 'IntLiteral';
   value: number;
 }
 
 export type TypeReference = Identifier;
 
-export type Literal = StringLiteral | IntLiteral;
+export type Literal = StringLiteral | IntegerLiteral;
 
 export interface CallExpression {
   type: 'CallExpression';
@@ -93,6 +93,7 @@ export interface ExpressionStatement {
 export interface NameDeclarationStatement {
   type: 'NameDeclarationStatement';
   name: Identifier;
+  typeAnnotation?: Identifier;
   value: Expression;
   variable: boolean;
 }
