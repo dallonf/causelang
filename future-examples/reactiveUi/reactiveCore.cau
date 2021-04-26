@@ -29,16 +29,18 @@ handler ReactiveHandler {
         Subscribe(valueTag, subscriber) => {
             let subscriptionTag = cause NewTag()
             values = .set(valueTag.tag, fn(value) {
-                value->merge(
-                    subscribers = fn($) $.add(subscriptionTag, subscriber))
+                Value(
+                    params(value),
+                    subscribers = fn($) $.add(subscriptionTag, subscriber)),
                 )
-            }
+            })
             SubscriptionTag(subscriptionTag, valueTag)
         }
         Unsubscribe(subscriptionTag) => {
             values = .set(subscriptionTag.valueTag, fn(value) {
-                value->merge(
-                    subscribers = fn($) $.remove(subscriptionTag)
+                Value(
+                    params(value),
+                    subscribers = fn($) $.remove(subscriptionTag),
                 )
             })
         }
@@ -54,8 +56,9 @@ handler ReactiveHandler {
             branch values.get(valueTag.tag) {
                 Exists(let value: Value<T>) => {
                     let oldValue = value.currentValue
-                    values.set(valueTag.tag, fn($) $->merge(
-                        currentValue: newValue
+                    values = .set(valueTag.tag, fn($) Value(
+                        params($),
+                        currentValue: newValue,
                     ))
                     value.subscribers.each(fn(Pair(_, let $)) {
                         $(oldValue, newValue)
@@ -66,4 +69,3 @@ handler ReactiveHandler {
         }
     )
 }
-
