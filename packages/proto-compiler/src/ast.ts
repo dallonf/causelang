@@ -64,6 +64,17 @@ export interface FunctionExpression {
   body: Expression;
 }
 
+export interface BranchExpression {
+  type: 'BranchExpression';
+  conditions: BranchCondition[];
+}
+
+export interface BranchCondition {
+  type: 'BranchCondition';
+  guard?: Expression;
+  body: Expression;
+}
+
 export type Expression =
   | Identifier
   | Literal
@@ -71,7 +82,8 @@ export type Expression =
   | BlockExpression
   | PrefixOperatorExpression
   | MemberExpression
-  | FunctionExpression;
+  | FunctionExpression
+  | BranchExpression;
 
 export interface ExpressionStatement {
   type: 'ExpressionStatement';

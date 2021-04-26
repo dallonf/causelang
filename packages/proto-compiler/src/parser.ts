@@ -230,6 +230,11 @@ const parseExpression = (
     ) {
       initialExpression = readAttempt.result;
       cursor = readAttempt.cursor;
+    } else if (
+      ((readAttempt = parseBranchExpression(cursor, ctx)), readAttempt)
+    ) {
+      initialExpression = readAttempt.result;
+      cursor = readAttempt.cursor;
     } else if (((readAttempt = parseStringLiteral(cursor, ctx)), readAttempt)) {
       initialExpression = readAttempt.result;
       cursor = readAttempt.cursor;
@@ -785,4 +790,88 @@ const parseFunctionExpression = (
   };
 
   return { result, cursor };
+};
+
+const parseBranchExpression = (
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.BranchExpression; cursor: SourceStream } => {
+  let tmp;
+  tmp = consumeSequence(cursor, 'branch');
+  if (!tmp) return null;
+  cursor = tmp;
+
+  cursor = skipWhitespace(cursor);
+
+  cursor = expectCursor(
+    cursor,
+    consumeSequence(cursor, '{'),
+    'The next part of a branch expression should be a "{" to list the conditions'
+  );
+  cursor = skipWhitespace(cursor);
+
+  const conditions: ast.BranchCondition[] = [];
+  while (((tmp = consumeSequence(cursor, '}')), !tmp)) {
+    const condition = parseBranchCondition(cursor, ctx);
+    cursor = condition.cursor;
+    conditions.push(condition.result);
+    cursor = skipWhitespace(cursor);
+  }
+  cursor = tmp;
+
+  const result: ast.BranchExpression = {
+    type: 'BranchExpression',
+    conditions,
+  };
+
+  return { result, cursor };
+};
+
+const parseBranchCondition = (
+  cursor: SourceStream,
+  ctx: Context
+): { result: ast.BranchCondition; cursor: SourceStream } => {
+  let tmp;
+  let guard;
+
+  if (((tmp = consumeSequence(cursor, 'if')), tmp)) {
+    cursor = tmp;
+    guard = parseExpression(cursor, ctx);
+    if (!guard)
+      throw new CompilerError('Expected an expression after "if"', cursor);
+    cursor = guard.cursor;
+  } else {
+    cursor = expectCursor(
+      cursor,
+      consumeSequence(cursor, 'default'),
+      'Expected a pattern, an "if" guard, or a "default" case'
+    );
+  }
+
+  cursor = skipWhitespace(cursor);
+
+  cursor = expectCursor(
+    cursor,
+    consumeSequence(cursor, '=>'),
+    'The next part of a branch condition should be a "=>" to transition to the body'
+  );
+  cursor = skipWhitespace(cursor, { stopAtNewline: true });
+
+  const body = parseExpression(cursor, ctx);
+  if (!body)
+    throw new CompilerError(
+      'Expected an expression as condition body after "=>"',
+      cursor
+    );
+  cursor = advanceLine(body.cursor);
+
+  const result: ast.BranchCondition = {
+    type: 'BranchCondition',
+    guard: guard?.result,
+    body: body.result,
+  };
+  return {
+    result,
+    cursor,
+  };
 };

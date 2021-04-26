@@ -183,6 +183,23 @@ const analyzeExpression = (
       });
       break;
     }
+    case 'BranchExpression':
+      node.conditions.forEach((condition, i) => {
+        if (condition.guard) {
+          analyzeExpression(
+            condition.guard,
+            [...breadcrumbs, 'branch', 'conditions', i, 'guard'],
+            ctx
+          );
+        }
+
+        analyzeExpression(
+          condition.body,
+          [...breadcrumbs, 'branch', 'conditions', i, 'body'],
+          ctx
+        );
+      });
+      break;
     default:
       return exhaustiveCheck(node);
   }

@@ -29,4 +29,7 @@ export const coreFunctions: CoreFnMap = {
   append: (x: string, y: string) => {
     return x + y;
   },
+  equals: (x: any, y: any) => {
+    return x === y;
+  },
 };

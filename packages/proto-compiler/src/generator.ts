@@ -170,6 +170,9 @@ const generateExpression = (
         true
       );
     }
+    case 'BranchExpression': {
+      return generateBranchExpression(node, breadcrumbs, ctx);
+    }
     default:
       return exhaustiveCheck(node);
   }
@@ -286,6 +289,45 @@ function generateBlockExpression(
   } else {
     return jsAst.yieldExpression(iife, true);
   }
+}
+
+function generateBranchExpression(
+  node: ast.BranchExpression,
+  breadcrumbs: Breadcrumbs,
+  ctx: GeneratorContext
+) {
+  const defaultConditionIndex = node.conditions.findIndex((x) => !x.guard);
+  const conditions = node.conditions
+    .filter((x) => x.guard)
+    .map((condition, i) => ({
+      test: generateExpression(
+        condition.guard!,
+        [...breadcrumbs, 'branch', 'conditions', i, 'guard'],
+        ctx
+      ),
+      consequent: generateExpression(
+        condition.body,
+        [...breadcrumbs, 'branch', 'conditions', i, 'body'],
+        ctx
+      ),
+    }));
+
+  let defaultConditionBody;
+  if (defaultConditionIndex === -1) {
+    defaultConditionBody = null;
+  } else {
+    defaultConditionBody = generateExpression(
+      node.conditions[defaultConditionIndex].body,
+      [...breadcrumbs, 'branch', 'conditions', defaultConditionIndex, 'body'],
+      ctx
+    );
+  }
+
+  return conditions.reduceRight(
+    (prev, next) =>
+      jsAst.conditionalExpression(next.test, next.consequent, prev),
+    defaultConditionBody ?? jsAst.identifier('undefined')
+  );
 }
 
 function generatePatternHandlingStatements(
