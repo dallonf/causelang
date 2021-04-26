@@ -1,62 +1,71 @@
-protected type ValueTag<T>(protected tag: Tag)
-protected type SubscriptionTag<T>(protected tag: Tag, valueTag: ValueTag<T>)
+protected type ObservableTag<T>(protected tag: Tag)
+protected type SubscriptionTag<T>(protected tag: Tag, observableTag: ObservableTag<T>)
 
-effect NewValue<T>(initial: T): ValueTag<T>
+protected effect NewObservable<T>(initial: T): ObservableTag<T>
 
 type Subscriber<T> = fn(new: T, previous: T): Action
-effect Subscribe<T>(valueTag: ValueTag<T>, subscriber: Subscriber<T>): Object(
+effect Subscribe<T>(observableTag: ObservableTag<T>, subscriber: Subscriber<T>): Object(
     currentValue: T,
     subscription: SubscriptionTag<T>,
 )
 effect Unsubscribe<T>(subscription: SubscriptionTag<T>): Action
 
-effect GetValue<T>(value: ValueTag<T>): T
-effect SetValue<T>(value: ValueTag<T>, newValue: Variant(T, Setter<T>)): Action
+effect Get<T>(value: supports ObservableTag<T>): T
+protected effect SetObservableValue<T>(value: ObservableTag<T>, newValue: Variant(T, Setter<T>)): Action
 
-protected type Value<T>(
+protected type Observable<T>(
     currentValue: T,
     subscribers: TagMap<Subscriber<T>>,
 )
 
+interface ToObservableTag<T> {
+    fn toObservableTag(this): T
+}
+
+support ToObservableTag<T> on ObservableTag<T> {
+    fn toObservableTag(this) => this
+}
+
 handler ReactiveHandler {
-    let var values = TagMap<Value<Dynamic>>()
+    let var observables = TagMap<Observable<Dynamic>>()
 
     handle(
-        NewValue(initial) => {
+        NewObservable(initial) => {
             let tag = cause NewTag()
-            values = .add(tag, Value(initial, List()))
+            observables = .add(tag, Observable(initial, List()))
+            ObservableTag(tag)
         }
-        Subscribe(valueTag, subscriber) => {
+        Subscribe(observableTag, subscriber) => {
             let subscriptionTag = cause NewTag()
-            values = .set(valueTag.tag, fn(value) {
-                Value(
+            observables = .set(observableTag.tag, fn(value) {
+                Observable(
                     params(value),
                     subscribers = fn($) $.add(subscriptionTag, subscriber)),
                 )
             })
-            SubscriptionTag(subscriptionTag, valueTag)
+            SubscriptionTag(subscriptionTag, observableTag)
         }
         Unsubscribe(subscriptionTag) => {
-            values = .set(subscriptionTag.valueTag, fn(value) {
-                Value(
+            observables = .set(subscriptionTag.observableTag, fn(value) {
+                Observable(
                     params(value),
                     subscribers = fn($) $.remove(subscriptionTag),
                 )
             })
         }
 
-        GetValue<T>(valueTag) => {
-            branch values.get(valueTag.tag) {
-                Exists(let value: Value<T>) => value.currentValue
+        Get<T>($) => {
+            let observableTag = $.toObservableTag()
+            branch observables.get(observableTag.tag) {
+                Exists(let value: Observable<T>) => value.currentValue
                 default => cause Panic("matching value not found for tag")
             }
         }
-
-        SetValue<T>(valueTag, newValue) => {
-            branch values.get(valueTag.tag) {
-                Exists(let value: Value<T>) => {
+        SetObservableValue<T>(observableTag, newValue) => {
+            branch observables.get(observableTag.tag) {
+                Exists(let value: Observable<T>) => {
                     let oldValue = value.currentValue
-                    values = .set(valueTag.tag, fn($) Value(
+                    observables = .set(observableTag.tag, fn($) Observable(
                         params($),
                         currentValue: newValue,
                     ))
@@ -68,4 +77,23 @@ handler ReactiveHandler {
             }
         }
     )
+
+    handle(ValueHandler)
+}
+
+protected type Value<T>(protected tag: ObservableTag<T>)
+
+support ToObservableTag<T> on Value<T> {
+    fn toObservableTag(this) => this.tag
+}
+
+effect NewValue<T>(initial: T): Value<T>
+effect SetValue<T>(value: Value<T>, newValue: Variant(T, Setter<T>)): Action
+
+handle ValueHandler => handle {
+    NewValue(initial) => {
+        let observableTag = cause NewObservable(initial)
+        Value(observableTag)
+    }
+    SetValue(value, newValue) => cause SetObservableValue(value.toObservableTag(), newValue)
 }
