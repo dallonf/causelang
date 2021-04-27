@@ -3,82 +3,67 @@ import { coreFunctions } from './coreLibrary';
 import { Library } from './makeLibrary';
 import { exhaustiveCheck } from './utils';
 
-export type ValueType =
-  | KeywordValueType
-  | DeclarationValueType
-  | InstanceValueType
-  | CoreFunctionValueType;
+export type ScopeSymbol = DeclarationScopeSymbol | CoreFunctionScopeSymbol;
 
-export type DeclarationValueType =
-  | EffectDeclarationValueType
-  | FunctionDeclarationValueType
-  | TypeDeclarationValueType
-  | NameDeclarationValueType;
+export type DeclarationScopeSymbol =
+  | EffectScopeSymbol
+  | FunctionScopeSymbol
+  | TypeScopeSymbol
+  | NamedValueScopeSymbol;
 
-export type LibraryValueType =
-  | EffectDeclarationValueType
-  | TypeDeclarationValueType;
+export type LibraryScopeSymbol =
+  | EffectScopeSymbol
+  | TypeScopeSymbol;
 
-interface KeywordValueType {
-  kind: 'keyword';
-  keyword: ast.KeywordValue;
-}
-
-export interface EffectDeclarationValueType {
+export interface EffectScopeSymbol {
   kind: 'effect';
   name: string;
   id: string;
 }
 
-interface FunctionDeclarationValueType {
+interface FunctionScopeSymbol {
   kind: 'fn';
   name?: string;
 }
 
-export interface TypeDeclarationValueType {
+export interface TypeScopeSymbol {
   kind: 'type';
   name: string;
   id: string;
 }
 
-export interface NameDeclarationValueType {
-  kind: 'name';
+export interface NamedValueScopeSymbol {
+  kind: 'namedValue';
   name: string;
-  valueType?: ValueType;
+  valueType?: ScopeSymbol;
   variable: boolean;
 }
 
-export interface CoreFunctionValueType {
+export interface CoreFunctionScopeSymbol {
   kind: 'coreFn';
   name: string;
 }
 
-interface InstanceValueType {
-  kind: 'instance';
-  name?: string;
-  type: DeclarationValueType;
-}
-
-export type Scope = Record<string, ValueType>;
+export type Scope = Record<string, ScopeSymbol>;
 
 export interface AnalyzerContext {
   declarationSuffix: string;
   scope: Scope;
-  typesOfExpressions: Map<string, ValueType>;
+  typesOfExpressions: Map<string, ScopeSymbol>;
 }
 
 export type Breadcrumbs = (string | number)[];
 
 export const getAnalyzerScope = (
   ...libraries: Library[]
-): Record<string, LibraryValueType> => {
+): Record<string, LibraryScopeSymbol> => {
   return Object.fromEntries([
     ...Object.entries(coreFunctions).map(([k, v]) => [
       k,
       {
         kind: 'coreFn',
         name: k,
-      } as CoreFunctionValueType,
+      } as CoreFunctionScopeSymbol,
     ]),
     ...libraries.flatMap((l) => Object.entries(l.analyzerScope)),
   ]);
@@ -101,7 +86,7 @@ export const analyzeModule = (
         };
         break;
       case 'EffectDeclaration':
-        const type: EffectDeclarationValueType = {
+        const type: EffectScopeSymbol = {
           kind: 'effect',
           id: `${declaration.id.name}$${ctx.declarationSuffix}`,
           name: declaration.id.name,
@@ -174,7 +159,7 @@ const analyzeExpression = (
       // Function expressions don't inherit variables from their scope; only constant names
       const filteredScope: Scope = Object.fromEntries(
         Object.entries(ctx.scope).filter(
-          ([k, v]) => !(v.kind === 'name' && v.variable)
+          ([k, v]) => !(v.kind === 'namedValue' && v.variable)
         )
       );
       analyzeExpression(node.body, [...breadcrumbs, 'body'], {
@@ -229,17 +214,17 @@ const analyzeBlockExpression = (
           ...ctx,
           scope,
         });
-        const valueType: ValueType = {
-          kind: 'name',
+        const scopeSymbol: ScopeSymbol = {
+          kind: 'namedValue',
           name: a.name.name,
           variable: a.variable,
         };
-        scope = { ...scope, [a.name.name]: valueType };
+        scope = { ...scope, [a.name.name]: scopeSymbol };
         break;
       }
       case 'AssignmentStatement': {
         const possibleVariable = scope[a.name.name];
-        if (!possibleVariable || possibleVariable.kind !== 'name') {
+        if (!possibleVariable || possibleVariable.kind !== 'namedValue') {
           throw new Error(
             `I can't find a variable called ${a.name.name} in the current scope.`
           );
@@ -301,10 +286,10 @@ const getPatternScope = (
         valueType = typeInScope;
       }
 
-      const valueTypeToAddToScope: ValueType = {
-        kind: 'name',
+      const symbolToAddToScope: ScopeSymbol = {
+        kind: 'namedValue',
         name,
-        valueType,
+        valueType: valueType,
         variable: false,
       };
 
@@ -314,7 +299,7 @@ const getPatternScope = (
         );
       }
 
-      const newScope = { ...ctx.scope, [name]: valueTypeToAddToScope };
+      const newScope = { ...ctx.scope, [name]: symbolToAddToScope };
 
       return typePattern
         ? getPatternScope(typePattern, [...breadcrumbs, 'valueType'], {
@@ -337,10 +322,10 @@ const analyzeCallExpression = (
   ctx: AnalyzerContext
 ) => {
   const { callee } = node;
-  let calleeType: ValueType;
+  let calleeType: ScopeSymbol;
   switch (callee.type) {
     case 'Identifier': {
-      const type: ValueType | undefined = ctx.scope[callee.name];
+      const type: ScopeSymbol | undefined = ctx.scope[callee.name];
       if (!type) {
         throw new Error(
           `I was expecting "${callee.name}" to be a function or type in scope; maybe it's not spelled correctly.`

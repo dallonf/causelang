@@ -7,7 +7,7 @@ import { exhaustiveCheck } from './utils';
 type Breadcrumbs = analyzer.Breadcrumbs;
 
 interface GeneratorContext {
-  typesOfExpressions: Map<string, analyzer.ValueType>;
+  typesOfExpressions: Map<string, analyzer.ScopeSymbol>;
 }
 
 export const generateModule = (
@@ -213,7 +213,7 @@ const generateCallExpression = (
           ]
         : []),
     ]);
-  } else if (type.kind === 'fn' || type.kind === 'name') {
+  } else if (type.kind === 'fn' || type.kind === 'namedValue') {
     return jsAst.yieldExpression(
       jsAst.callExpression(
         generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),

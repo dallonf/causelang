@@ -17,7 +17,7 @@ export type LibraryItem = TypeLibraryItem | EffectLibraryItem;
 export interface Library {
   name: string;
   ids: LibraryIDMap;
-  analyzerScope: Record<string, analyzer.LibraryValueType>;
+  analyzerScope: Record<string, analyzer.LibraryScopeSymbol>;
   handleEffects: EffectHandler;
 }
 
