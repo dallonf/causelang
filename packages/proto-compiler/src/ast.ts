@@ -93,7 +93,7 @@ export interface ExpressionStatement {
 export interface NameDeclarationStatement {
   type: 'NameDeclarationStatement';
   name: Identifier;
-  typeAnnotation?: Identifier;
+  typeAnnotation?: TypeReference;
   value: Expression;
   variable: boolean;
 }
@@ -113,6 +113,7 @@ export interface FunctionDeclaration {
   type: 'FunctionDeclaration';
   id: Identifier;
   parameters: void[];
+  returnType?: TypeReference;
   body: Expression;
 }
 

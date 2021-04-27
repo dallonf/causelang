@@ -2,18 +2,16 @@ import { runMainSync } from './testRunner';
 
 it('is an error to assign an Integer to a String type', () => {
   const script = `
-    fn main() {
+    fn main(): String {
       let bad: String = 5
-      append("five: ", bad)
+      bad
     }
   `;
   try {
     runMainSync(script);
   } catch (err) {
     expect(err.message).toMatch(/String/);
-    expect(err.message).toMatchInlineSnapshot(
-      `"I can't find a type named String in teh current scope"`
-    );
+    expect(err.message).toMatchInlineSnapshot();
     return;
   }
   throw new Error('Should not have succeeded');

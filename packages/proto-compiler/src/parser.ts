@@ -97,6 +97,19 @@ const parseFunctionDeclaration = (
     'The next part of a function declaration should be a ")" to close out the parameter list.'
   );
 
+  let tmp = consumeSequence(cursor, ':');
+  let returnType;
+  if (tmp) {
+    cursor = tmp;
+    returnType = parseTypeReference(cursor, ctx);
+    assertCursor(
+      cursor,
+      returnType?.cursor,
+      'Expected a type reference after ":"'
+    );
+    cursor = returnType.cursor;
+  }
+
   const body = parseExpression(cursor, ctx);
   if (!body) {
     throw new CompilerError(
@@ -113,6 +126,7 @@ const parseFunctionDeclaration = (
       name: idRead.identifier,
     },
     parameters: [],
+    returnType: returnType?.result,
     body: body.result,
   };
 
@@ -610,10 +624,10 @@ const parseNameDeclarationStatement = (
   let typeAnnotation;
   if (tmp) {
     cursor = skipWhitespace(tmp);
-    typeAnnotation = parseIdentifier(cursor, ctx);
+    typeAnnotation = parseTypeReference(cursor, ctx);
     if (!typeAnnotation) {
       throw new CompilerError(
-        'I was expecting to find a type pattern after ":"',
+        'I was expecting to find a type after ":"',
         cursor
       );
     }
@@ -890,4 +904,11 @@ const parseBranchCondition = (
     result,
     cursor,
   };
+};
+
+const parseTypeReference = (
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.TypeReference; cursor: SourceStream } => {
+  return parseIdentifier(cursor, ctx);
 };
