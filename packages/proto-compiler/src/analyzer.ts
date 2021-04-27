@@ -3,6 +3,22 @@ import { coreFunctions } from './coreLibrary';
 import { Library } from './makeLibrary';
 import { exhaustiveCheck } from './utils';
 
+export type ValueType = PendingInferenceType | KnownType | FailedToResolveType;
+
+export interface PendingInferenceType {
+  kind: 'pendingInference';
+}
+
+export interface KnownType {
+  kind: 'known';
+  id: string;
+}
+
+export interface FailedToResolveType {
+  kind: 'failedToResolve';
+  name: string;
+}
+
 export type ScopeSymbol = DeclarationScopeSymbol | CoreFunctionScopeSymbol;
 
 export type DeclarationScopeSymbol =
@@ -11,9 +27,7 @@ export type DeclarationScopeSymbol =
   | TypeScopeSymbol
   | NamedValueScopeSymbol;
 
-export type LibraryScopeSymbol =
-  | EffectScopeSymbol
-  | TypeScopeSymbol;
+export type LibraryScopeSymbol = EffectScopeSymbol | TypeScopeSymbol;
 
 export interface EffectScopeSymbol {
   kind: 'effect';
@@ -35,7 +49,7 @@ export interface TypeScopeSymbol {
 export interface NamedValueScopeSymbol {
   kind: 'namedValue';
   name: string;
-  valueType?: ScopeSymbol;
+  valueType: ValueType;
   variable: boolean;
 }
 
@@ -49,7 +63,8 @@ export type Scope = Record<string, ScopeSymbol>;
 export interface AnalyzerContext {
   declarationSuffix: string;
   scope: Scope;
-  typesOfExpressions: Map<string, ScopeSymbol>;
+  typesOfExpressions: Map<string, string>;
+  resolvedSymbols: Map<string, ScopeSymbol>;
 }
 
 export type Breadcrumbs = (string | number)[];
@@ -92,7 +107,7 @@ export const analyzeModule = (
           name: declaration.id.name,
         };
         newScope[declaration.id.name] = type;
-        ctx.typesOfExpressions.set([...breadcrumbs, 'body', i].join('.'), type);
+        ctx.resolvedSymbols.set([...breadcrumbs, 'body', i].join('.'), type);
         break;
       default:
         return exhaustiveCheck(declaration);
@@ -214,10 +229,27 @@ const analyzeBlockExpression = (
           ...ctx,
           scope,
         });
+
+        let type: ValueType;
+        if (a.typeAnnotation) {
+          const typeSymbol = ctx.scope[a.typeAnnotation.name];
+          if (
+            typeSymbol &&
+            (typeSymbol.kind === 'type' || typeSymbol.kind === 'effect')
+          ) {
+            type = { kind: 'known', id: typeSymbol.id };
+          } else {
+            type = { kind: 'failedToResolve', name: a.typeAnnotation.name };
+          }
+        } else {
+          type = { kind: 'pendingInference' };
+        }
+
         const scopeSymbol: ScopeSymbol = {
           kind: 'namedValue',
           name: a.name.name,
           variable: a.variable,
+          valueType: type,
         };
         scope = { ...scope, [a.name.name]: scopeSymbol };
         break;
@@ -267,7 +299,7 @@ const getPatternScope = (
   switch (node.type) {
     case 'NamePattern': {
       const name = node.name.name;
-      let valueType;
+      let valueType: ValueType;
 
       const typePattern: ast.TypePattern | undefined =
         node.valueType?.type === 'Identifier'
@@ -279,11 +311,15 @@ const getPatternScope = (
       if (typePattern) {
         const typeInScope = ctx.scope[typePattern.typeName.name];
         if (!typeInScope || !(typeInScope.kind === 'effect')) {
-          throw new Error(
-            `I can't find a type or effect called "${typeInScope}" in the current scope`
-          );
+          valueType = {
+            kind: 'failedToResolve',
+            name: typePattern.typeName.name,
+          };
+        } else {
+          valueType = { kind: 'known', id: typeInScope.id };
         }
-        valueType = typeInScope;
+      } else {
+        valueType = { kind: 'pendingInference' };
       }
 
       const symbolToAddToScope: ScopeSymbol = {
@@ -322,16 +358,16 @@ const analyzeCallExpression = (
   ctx: AnalyzerContext
 ) => {
   const { callee } = node;
-  let calleeType: ScopeSymbol;
+  let calleeSymbol: ScopeSymbol;
   switch (callee.type) {
     case 'Identifier': {
-      const type: ScopeSymbol | undefined = ctx.scope[callee.name];
-      if (!type) {
+      const symbol: ScopeSymbol | undefined = ctx.scope[callee.name];
+      if (!symbol) {
         throw new Error(
           `I was expecting "${callee.name}" to be a function or type in scope; maybe it's not spelled correctly.`
         );
       }
-      calleeType = type;
+      calleeSymbol = symbol;
       break;
     }
     default:
@@ -339,7 +375,7 @@ const analyzeCallExpression = (
         `I don't know how to analyze function calls like this yet. The technical name for this sort of callee is ${callee.type}`
       );
   }
-  ctx.typesOfExpressions.set([...breadcrumbs, 'callee'].join('.'), calleeType);
+  ctx.resolvedSymbols.set([...breadcrumbs, 'callee'].join('.'), calleeSymbol);
 
   node.parameters.forEach((a, i) =>
     analyzeExpression(a, [...breadcrumbs, 'parameters', i], ctx)

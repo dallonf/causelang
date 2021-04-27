@@ -7,7 +7,8 @@ import { exhaustiveCheck } from './utils';
 type Breadcrumbs = analyzer.Breadcrumbs;
 
 interface GeneratorContext {
-  typesOfExpressions: Map<string, analyzer.ScopeSymbol>;
+  typesOfExpressions: Map<string, string>;
+  resolvedSymbols: Map<string, analyzer.ScopeSymbol>;
 }
 
 export const generateModule = (
@@ -23,7 +24,7 @@ export const generateModule = (
       case 'FunctionDeclaration':
         return generateFunctionDeclaration(a, statementBreadcrumbs, ctx);
       case 'EffectDeclaration': {
-        const effect = ctx.typesOfExpressions.get(
+        const effect = ctx.resolvedSymbols.get(
           statementBreadcrumbs.join('.')
         );
         if (effect?.kind !== 'effect') {
@@ -183,10 +184,10 @@ const generateCallExpression = (
   breadcrumbs: Breadcrumbs,
   ctx: GeneratorContext
 ): jsAst.Expression => {
-  const type = ctx.typesOfExpressions.get([...breadcrumbs, 'callee'].join('.'));
+  const type = ctx.resolvedSymbols.get([...breadcrumbs, 'callee'].join('.'));
   if (!type) {
     throw new Error(
-      `I'm confused. I'm trying to figure out the type of this function call, but I don't know what it is. This probably isn't your fault! Here's the technical breadcrumb to the call in question: ${breadcrumbs.join(
+      `I'm confused. I'm trying to resolve this function call, but I don't know what it is. This probably isn't your fault! Here's the technical breadcrumb to the call in question: ${breadcrumbs.join(
         '.'
       )}`
     );

@@ -11,7 +11,9 @@ it('is an error to assign an Integer to a String type', () => {
     runMainSync(script);
   } catch (err) {
     expect(err.message).toMatch(/String/);
-    expect(err.message).toMatchInlineSnapshot();
+    expect(err.message).toMatchInlineSnapshot(
+      `"I can't find a type named String in teh current scope"`
+    );
     return;
   }
   throw new Error('Should not have succeeded');

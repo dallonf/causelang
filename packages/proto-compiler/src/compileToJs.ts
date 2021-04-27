@@ -27,10 +27,12 @@ export default function compileToJs(
     declarationSuffix: 'main',
     scope: { ...coreLibrary.analyzerScope, ...analyzerScope },
     typesOfExpressions: new Map(),
+    resolvedSymbols: new Map(),
   });
 
   const outputSource = generator.generateModule(parsedAst, ['main'], {
     typesOfExpressions: analyzerContext.typesOfExpressions,
+    resolvedSymbols: analyzerContext.resolvedSymbols,
   });
 
   return outputSource;
