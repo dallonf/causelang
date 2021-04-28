@@ -1,4 +1,5 @@
 import * as analyzer from './analyzer';
+import * as context from './context';
 import { EffectHandler, LibraryIDMap } from './runtime';
 
 interface TypeLibraryItem {
@@ -17,7 +18,7 @@ export type LibraryItem = TypeLibraryItem | EffectLibraryItem;
 export interface Library {
   name: string;
   ids: LibraryIDMap;
-  analyzerScope: Record<string, analyzer.LibraryScopeSymbol>;
+  analyzerScope: Record<string, context.LibraryScopeSymbol>;
   handleEffects: EffectHandler;
 }
 

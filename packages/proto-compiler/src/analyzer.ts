@@ -1,73 +1,26 @@
 import * as ast from './ast';
+import {
+  Breadcrumbs,
+  CoreFunctionScopeSymbol,
+  EffectScopeSymbol,
+  findInScope,
+  findScope,
+  LibraryScopeSymbol,
+  Scope,
+  ScopeMap,
+  ScopeSymbol,
+  toKey,
+  ValueType,
+} from './context';
 import { coreFunctions } from './coreLibrary';
 import { Library } from './makeLibrary';
 import { exhaustiveCheck } from './utils';
 
-export type ValueType = PendingInferenceType | KnownType | FailedToResolveType;
-
-export interface PendingInferenceType {
-  kind: 'pendingInference';
-}
-
-export interface KnownType {
-  kind: 'known';
-  id: string;
-}
-
-export interface FailedToResolveType {
-  kind: 'failedToResolve';
-  name: string;
-}
-
-export type ScopeSymbol = DeclarationScopeSymbol | CoreFunctionScopeSymbol;
-
-export type DeclarationScopeSymbol =
-  | EffectScopeSymbol
-  | FunctionScopeSymbol
-  | TypeScopeSymbol
-  | NamedValueScopeSymbol;
-
-export type LibraryScopeSymbol = EffectScopeSymbol | TypeScopeSymbol;
-
-export interface EffectScopeSymbol {
-  kind: 'effect';
-  name: string;
-  id: string;
-}
-
-interface FunctionScopeSymbol {
-  kind: 'fn';
-  name?: string;
-}
-
-export interface TypeScopeSymbol {
-  kind: 'type';
-  name: string;
-  id: string;
-}
-
-export interface NamedValueScopeSymbol {
-  kind: 'namedValue';
-  name: string;
-  valueType: ValueType;
-  variable: boolean;
-}
-
-export interface CoreFunctionScopeSymbol {
-  kind: 'coreFn';
-  name: string;
-}
-
-export type Scope = Record<string, ScopeSymbol>;
-
 export interface AnalyzerContext {
   declarationSuffix: string;
-  scope: Scope;
   typesOfExpressions: Map<string, string>;
-  resolvedSymbols: Map<string, ScopeSymbol>;
+  scopes: ScopeMap;
 }
-
-export type Breadcrumbs = (string | number)[];
 
 export const getAnalyzerScope = (
   ...libraries: Library[]
@@ -87,11 +40,20 @@ export const getAnalyzerScope = (
 export const analyzeModule = (
   module: ast.Module,
   breadcrumbs: Breadcrumbs,
-  ctx: AnalyzerContext
+  opts: {
+    declarationSuffix: string;
+    scope: Scope;
+  }
 ): AnalyzerContext => {
+  const ctx: AnalyzerContext = {
+    declarationSuffix: opts.declarationSuffix,
+    scopes: new Map(),
+    typesOfExpressions: new Map(),
+  };
+
   // First, superficially check all the declarations to see what's hoisted
   // into scope
-  const newScope: Scope = { ...ctx.scope };
+  const newScope: Scope = { ...opts.scope };
   module.body.forEach((declaration, i) => {
     switch (declaration.type) {
       case 'FunctionDeclaration':
@@ -107,20 +69,21 @@ export const analyzeModule = (
           name: declaration.id.name,
         };
         newScope[declaration.id.name] = type;
-        ctx.resolvedSymbols.set([...breadcrumbs, 'body', i].join('.'), type);
         break;
       default:
         return exhaustiveCheck(declaration);
     }
   });
+  ctx.scopes.set(toKey(breadcrumbs), newScope);
 
   module.body.forEach((declaration, i) => {
     switch (declaration.type) {
       case 'FunctionDeclaration':
-        analyzeFunctionDeclaration(declaration, [...breadcrumbs, 'body', i], {
-          ...ctx,
-          scope: newScope,
-        });
+        analyzeFunctionDeclaration(
+          declaration,
+          [...breadcrumbs, 'body', i],
+          ctx
+        );
         break;
       case 'EffectDeclaration':
         break;
@@ -149,13 +112,15 @@ const analyzeExpression = (
     case 'IntLiteral':
     case 'StringLiteral':
       break;
-    case 'Identifier':
-      if (!ctx.scope[node.name]) {
+    case 'Identifier': {
+      const scope = findScope(breadcrumbs, ctx.scopes);
+      if (!scope[node.name]) {
         throw new Error(
           `I can't find anything called ${node.name} in the current scope.`
         );
       }
       break;
+    }
     case 'MemberExpression':
       analyzeExpression(node.object, [...breadcrumbs, 'object'], ctx);
       break;
@@ -173,14 +138,12 @@ const analyzeExpression = (
     case 'FunctionExpression': {
       // Function expressions don't inherit variables from their scope; only constant names
       const filteredScope: Scope = Object.fromEntries(
-        Object.entries(ctx.scope).filter(
+        Object.entries(findScope(breadcrumbs, ctx.scopes)).filter(
           ([k, v]) => !(v.kind === 'namedValue' && v.variable)
         )
       );
-      analyzeExpression(node.body, [...breadcrumbs, 'body'], {
-        ...ctx,
-        scope: filteredScope,
-      });
+      ctx.scopes.set(toKey(breadcrumbs), filteredScope);
+      analyzeExpression(node.body, [...breadcrumbs, 'body'], ctx);
       break;
     }
     case 'BranchExpression':
@@ -210,29 +173,25 @@ const analyzeBlockExpression = (
   breadcrumbs: Breadcrumbs,
   ctx: AnalyzerContext
 ) => {
-  let scope = { ...ctx.scope };
+  const parentScope = findScope(breadcrumbs, ctx.scopes);
+  let scope = { ...parentScope };
   node.body.forEach((a: ast.Statement, i) => {
     const statementBreadcrumbs = [...breadcrumbs, 'body', i];
+    ctx.scopes.set(toKey(statementBreadcrumbs), scope);
     switch (a.type) {
       case 'ExpressionStatement':
         analyzeExpression(
           a.expression,
           [...statementBreadcrumbs, 'expression'],
-          {
-            ...ctx,
-            scope,
-          }
+          ctx
         );
         break;
       case 'NameDeclarationStatement': {
-        analyzeExpression(a.value, [...statementBreadcrumbs, 'value'], {
-          ...ctx,
-          scope,
-        });
+        analyzeExpression(a.value, [...statementBreadcrumbs, 'value'], ctx);
 
         let type: ValueType;
         if (a.typeAnnotation) {
-          const typeSymbol = ctx.scope[a.typeAnnotation.name];
+          const typeSymbol = scope[a.typeAnnotation.name];
           if (
             typeSymbol &&
             (typeSymbol.kind === 'type' || typeSymbol.kind === 'effect')
@@ -281,13 +240,17 @@ const analyzeBlockExpression = (
         ctx
       );
     } else {
-      patternScope = ctx.scope;
+      patternScope = parentScope;
     }
 
-    analyzeExpression(a.body, [...breadcrumbs, 'handlers', i, 'body'], {
-      ...ctx,
-      scope: patternScope,
-    });
+    const handlerExpressionBreadcrumbs = [
+      ...breadcrumbs,
+      'handlers',
+      i,
+      'body',
+    ];
+    ctx.scopes.set(toKey(handlerExpressionBreadcrumbs), patternScope);
+    analyzeExpression(a.body, handlerExpressionBreadcrumbs, ctx);
   });
 };
 
@@ -309,7 +272,11 @@ const getPatternScope = (
             }
           : (node.valueType as ast.TypePattern);
       if (typePattern) {
-        const typeInScope = ctx.scope[typePattern.typeName.name];
+        const typeInScope = findInScope(
+          typePattern.typeName.name,
+          breadcrumbs,
+          ctx.scopes
+        );
         if (!typeInScope || !(typeInScope.kind === 'effect')) {
           valueType = {
             kind: 'failedToResolve',
@@ -329,23 +296,24 @@ const getPatternScope = (
         variable: false,
       };
 
-      if (ctx.scope[name]) {
+      if (findInScope(name, breadcrumbs, ctx.scopes)) {
         throw new Error(
           `I'm trying to add ${name} to the scope, but this pattern is already adding another value with the same name`
         );
       }
 
-      const newScope = { ...ctx.scope, [name]: symbolToAddToScope };
+      const newScope = {
+        ...findScope(breadcrumbs, ctx.scopes),
+        [name]: symbolToAddToScope,
+      };
+      ctx.scopes.set(toKey([...breadcrumbs, 'valueType']), newScope);
 
       return typePattern
-        ? getPatternScope(typePattern, [...breadcrumbs, 'valueType'], {
-            ...ctx,
-            scope: newScope,
-          })
+        ? getPatternScope(typePattern, [...breadcrumbs, 'valueType'], ctx)
         : newScope;
     }
     case 'TypePattern': {
-      return ctx.scope;
+      return findScope(breadcrumbs, ctx.scopes);
     }
     default:
       return exhaustiveCheck(node);
@@ -361,7 +329,11 @@ const analyzeCallExpression = (
   let calleeSymbol: ScopeSymbol;
   switch (callee.type) {
     case 'Identifier': {
-      const symbol: ScopeSymbol | undefined = ctx.scope[callee.name];
+      const symbol: ScopeSymbol | undefined = findInScope(
+        callee.name,
+        breadcrumbs,
+        ctx.scopes
+      );
       if (!symbol) {
         throw new Error(
           `I was expecting "${callee.name}" to be a function or type in scope; maybe it's not spelled correctly.`
@@ -375,7 +347,6 @@ const analyzeCallExpression = (
         `I don't know how to analyze function calls like this yet. The technical name for this sort of callee is ${callee.type}`
       );
   }
-  ctx.resolvedSymbols.set([...breadcrumbs, 'callee'].join('.'), calleeSymbol);
 
   node.parameters.forEach((a, i) =>
     analyzeExpression(a, [...breadcrumbs, 'parameters', i], ctx)

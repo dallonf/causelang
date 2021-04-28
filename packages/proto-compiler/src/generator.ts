@@ -2,13 +2,12 @@ import generate from '@babel/generator';
 import * as jsAst from '@babel/types';
 import * as ast from './ast';
 import * as analyzer from './analyzer';
+import { Breadcrumbs, findInScope, ScopeMap, toKey } from './context';
 import { exhaustiveCheck } from './utils';
-
-type Breadcrumbs = analyzer.Breadcrumbs;
 
 interface GeneratorContext {
   typesOfExpressions: Map<string, string>;
-  resolvedSymbols: Map<string, analyzer.ScopeSymbol>;
+  scopes: ScopeMap;
 }
 
 export const generateModule = (
@@ -24,9 +23,7 @@ export const generateModule = (
       case 'FunctionDeclaration':
         return generateFunctionDeclaration(a, statementBreadcrumbs, ctx);
       case 'EffectDeclaration': {
-        const effect = ctx.resolvedSymbols.get(
-          statementBreadcrumbs.join('.')
-        );
+        const effect = findInScope(a.id.name, statementBreadcrumbs, ctx.scopes);
         if (effect?.kind !== 'effect') {
           throw new Error(
             `I'm confused; I'm can't find the metadata for this effect declaration at ${statementBreadcrumbs.join(
@@ -184,64 +181,76 @@ const generateCallExpression = (
   breadcrumbs: Breadcrumbs,
   ctx: GeneratorContext
 ): jsAst.Expression => {
-  const type = ctx.resolvedSymbols.get([...breadcrumbs, 'callee'].join('.'));
-  if (!type) {
-    throw new Error(
-      `I'm confused. I'm trying to resolve this function call, but I don't know what it is. This probably isn't your fault! Here's the technical breadcrumb to the call in question: ${breadcrumbs.join(
-        '.'
-      )}`
-    );
-  }
-  if (type.kind === 'effect' || type.kind === 'type') {
-    if (node.parameters.length > 1) {
-      throw new Error('Effects and types can only have one parameter for now');
+  if (node.callee.type === 'Identifier') {
+    // TODO: this needs to be completely rethought when static types enter the picture
+    const calleeSymbol = findInScope(node.callee.name, breadcrumbs, ctx.scopes);
+    if (!calleeSymbol) {
+      throw new Error(
+        `I'm confused. I'm trying to resolve this function call, but I don't know what it is. This probably isn't your fault! Here's the technical breadcrumb to the call in question: ${breadcrumbs.join(
+          '.'
+        )}`
+      );
     }
-    return jsAst.objectExpression([
-      jsAst.objectProperty(
-        jsAst.identifier('type'),
-        generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx)
-      ),
-      ...(node.parameters.length
-        ? [
-            jsAst.objectProperty(
-              jsAst.identifier('value'),
-              generateExpression(
-                node.parameters[0],
-                [...breadcrumbs, 'parameters', 0],
-                ctx
-              )
-            ),
-          ]
-        : []),
-    ]);
-  } else if (type.kind === 'fn' || type.kind === 'namedValue') {
-    return jsAst.yieldExpression(
-      jsAst.callExpression(
+    if (calleeSymbol.kind === 'effect' || calleeSymbol.kind === 'type') {
+      if (node.parameters.length > 1) {
+        throw new Error(
+          'Effects and types can only have one parameter for now'
+        );
+      }
+      return jsAst.objectExpression([
+        jsAst.objectProperty(
+          jsAst.identifier('type'),
+          generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx)
+        ),
+        ...(node.parameters.length
+          ? [
+              jsAst.objectProperty(
+                jsAst.identifier('value'),
+                generateExpression(
+                  node.parameters[0],
+                  [...breadcrumbs, 'parameters', 0],
+                  ctx
+                )
+              ),
+            ]
+          : []),
+      ]);
+    } else if (
+      calleeSymbol.kind === 'fn' ||
+      calleeSymbol.kind === 'namedValue'
+    ) {
+      return jsAst.yieldExpression(
+        jsAst.callExpression(
+          generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
+          node.parameters.map((a, i) =>
+            generateExpression(a, [...breadcrumbs, 'parameters', i], ctx)
+          )
+        ),
+        true
+      );
+    } else if (calleeSymbol.kind === 'coreFn') {
+      return jsAst.callExpression(
         generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
         node.parameters.map((a, i) =>
           generateExpression(a, [...breadcrumbs, 'parameters', i], ctx)
         )
-      ),
-      true
-    );
-  } else if (type.kind === 'coreFn') {
-    return jsAst.callExpression(
-      generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
-      node.parameters.map((a, i) =>
-        generateExpression(a, [...breadcrumbs, 'parameters', i], ctx)
-      )
-    );
+      );
+    } else {
+      throw new Error(
+        `I don't know how to compile this kind of function call yet. The type of the callee is ${JSON.stringify(
+          calleeSymbol
+        )}`
+      );
+    }
   } else {
     throw new Error(
-      `I don't know how to compile this kind of function call yet. The type of the callee is ${JSON.stringify(
-        type
-      )}`
+      `Right now, I only know how to compile direct function calls - that is, where the function name is explicit`
     );
   }
 };
 function generateBlockExpressionStatements(
   node: ast.BlockExpression,
-  breadcrumbs: analyzer.Breadcrumbs,
+  breadcrumbs: Breadcrumbs,
   ctx: GeneratorContext
 ) {
   const cauStatements = node.body;

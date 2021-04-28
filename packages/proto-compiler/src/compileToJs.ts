@@ -2,12 +2,13 @@ import { cursorPosition, makeSourceStream } from './sourceStream';
 import * as parser from './parser';
 import * as analyzer from './analyzer';
 import * as generator from './generator';
+import * as context from './context';
 import CompilerError from './CompilerError';
 import coreLibrary from './coreLibrary';
 
 export default function compileToJs(
   source: string,
-  analyzerScope?: analyzer.Scope
+  analyzerScope?: context.Scope
 ) {
   let parsedAst;
   try {
@@ -26,13 +27,11 @@ export default function compileToJs(
   const analyzerContext = analyzer.analyzeModule(parsedAst, ['main'], {
     declarationSuffix: 'main',
     scope: { ...coreLibrary.analyzerScope, ...analyzerScope },
-    typesOfExpressions: new Map(),
-    resolvedSymbols: new Map(),
   });
 
   const outputSource = generator.generateModule(parsedAst, ['main'], {
     typesOfExpressions: analyzerContext.typesOfExpressions,
-    resolvedSymbols: analyzerContext.resolvedSymbols,
+    scopes: analyzerContext.scopes,
   });
 
   return outputSource;
