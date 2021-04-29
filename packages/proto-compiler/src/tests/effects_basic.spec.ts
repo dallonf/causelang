@@ -1,5 +1,5 @@
 import { PrintEffectID } from '../coreLibrary';
-import makeLibrary from '../makeLibrary';
+import makeLibrary from '../library';
 import { runMainSync } from './testRunner';
 
 it('Can intercept an effect', () => {
@@ -105,7 +105,7 @@ it('Provides access to the captured effect without a type', () => {
   expect(output).toEqual([]);
   expect(extract).toHaveBeenCalledTimes(1);
   expect(extract).toHaveBeenCalledWith({
-    type: library.ids.Extract,
+    type: library.types.Extract,
     value: {
       type: PrintEffectID,
       value: 'this should be extracted and not printed',

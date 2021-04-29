@@ -2,7 +2,7 @@ import { getAnalyzerScope } from '../analyzer';
 import compileAndInvoke from '../compileAndInvoke';
 import compileToJs from '../compileToJs';
 import { PrintEffectID } from '../coreLibrary';
-import { Library } from '../makeLibrary';
+import { Library } from '../library';
 import { CauseRuntime, EffectHandler } from '../runtime';
 
 function makePrintOverride() {

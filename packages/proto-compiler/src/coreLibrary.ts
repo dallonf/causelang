@@ -1,11 +1,27 @@
-import makeLibrary from './makeLibrary';
+import makeLibrary, { idFromLibrary } from './library';
 import { CauseError } from './runtime';
 
-const coreLibrary = makeLibrary(
+export const STRING_ID = 'core$String';
+export const INTEGER_ID = 'core$Integer';
+export const ACTION_ID = 'core$Action';
+export const NEVER_ID = 'core$NEVER';
+export const BOOLEAN_ID = 'core$Boolean';
+
+export const coreOperationsLibrary = makeLibrary(
   'core',
   {
     type: 'effect',
     name: 'Print',
+    params: {
+      value: {
+        kind: 'valueTypeReference',
+        id: STRING_ID,
+      },
+    },
+    returnType: {
+      kind: 'valueTypeReference',
+      id: ACTION_ID,
+    },
     handler(effect: any) {
       console.log(effect.value);
     },
@@ -13,23 +29,72 @@ const coreLibrary = makeLibrary(
   {
     type: 'effect',
     name: 'Panic',
+    params: {
+      message: {
+        kind: 'valueTypeReference',
+        id: STRING_ID,
+      },
+    },
+    returnType: {
+      kind: 'valueTypeReference',
+      id: NEVER_ID,
+    },
     handler(effect: any) {
       throw new CauseError('Error while running Cause file: ' + effect.value);
     },
+  },
+  {
+    type: 'coreFn',
+    name: 'append',
+    params: {
+      x: {
+        kind: 'valueTypeReference',
+        id: STRING_ID,
+      },
+      y: {
+        kind: 'valueTypeReference',
+        id: STRING_ID,
+      },
+    },
+    returnType: {
+      kind: 'valueTypeReference',
+      id: STRING_ID,
+    },
+    handler: (x: string, y: string) => {
+      return x + y;
+    },
+  },
+  {
+    type: 'coreFn',
+    name: 'equals',
+    params: {
+      // TODO: this might wind up needing to be generic!
+      x: {
+        kind: 'valueTypeReference',
+        id: STRING_ID,
+      },
+      y: {
+        kind: 'valueTypeReference',
+        id: STRING_ID,
+      },
+    },
+    returnType: {
+      kind: 'valueTypeReference',
+      id: BOOLEAN_ID,
+    },
+    handler: (x: string, y: string) => {
+      return x + y;
+    },
   }
 );
-export default coreLibrary;
 
-export const PrintEffectID = coreLibrary.ids['Print'];
-export const PanicEffectID = coreLibrary.ids['Panic'];
+export const allCoreLibraries = [coreOperationsLibrary];
 
-type CoreFnMap = { [name: string]: Function };
-
-export const coreFunctions: CoreFnMap = {
-  append: (x: string, y: string) => {
-    return x + y;
-  },
-  equals: (x: any, y: any) => {
-    return x === y;
-  },
-};
+/**
+ * @deprecated
+ */
+export const PrintEffectID = idFromLibrary('Print', coreOperationsLibrary);
+/**
+ * @deprecated
+ */
+export const PanicEffectID = idFromLibrary('Panic', coreOperationsLibrary);

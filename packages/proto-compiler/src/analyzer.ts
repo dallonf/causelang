@@ -1,39 +1,29 @@
 import * as ast from './ast';
 import {
   Breadcrumbs,
-  CoreFunctionScopeSymbol,
   EffectScopeSymbol,
   findInScope,
   findScope,
-  LibraryScopeSymbol,
   Scope,
   ScopeMap,
   ScopeSymbol,
   toKey,
-  ValueType,
 } from './context';
-import { coreFunctions } from './coreLibrary';
-import { Library } from './makeLibrary';
+import { Library } from './library';
+import { TypeReference } from './typeSystem';
 import { exhaustiveCheck } from './utils';
 
 export interface AnalyzerContext {
   declarationSuffix: string;
-  typesOfExpressions: Map<string, string>;
+  typesOfExpressions: Map<string, TypeReference>;
   scopes: ScopeMap;
 }
 
 export const getAnalyzerScope = (
   ...libraries: Library[]
-): Record<string, LibraryScopeSymbol> => {
+): Record<string, ScopeSymbol> => {
   return Object.fromEntries([
-    ...Object.entries(coreFunctions).map(([k, v]) => [
-      k,
-      {
-        kind: 'coreFn',
-        name: k,
-      } as CoreFunctionScopeSymbol,
-    ]),
-    ...libraries.flatMap((l) => Object.entries(l.analyzerScope)),
+    ...libraries.flatMap((l) => Object.entries(l.scope)),
   ]);
 };
 
@@ -189,19 +179,22 @@ const analyzeBlockExpression = (
       case 'NameDeclarationStatement': {
         analyzeExpression(a.value, [...statementBreadcrumbs, 'value'], ctx);
 
-        let type: ValueType;
+        let type: TypeReference;
         if (a.typeAnnotation) {
           const typeSymbol = scope[a.typeAnnotation.name];
           if (
             typeSymbol &&
-            (typeSymbol.kind === 'type' || typeSymbol.kind === 'effect')
+            (typeSymbol.kind === 'objectType' || typeSymbol.kind === 'effect')
           ) {
-            type = { kind: 'known', id: typeSymbol.id };
+            type = { kind: 'valueTypeReference', id: typeSymbol.id };
           } else {
-            type = { kind: 'failedToResolve', name: a.typeAnnotation.name };
+            type = {
+              kind: 'failedToResolveTypeReference',
+              name: a.typeAnnotation.name,
+            };
           }
         } else {
-          type = { kind: 'pendingInference' };
+          type = { kind: 'pendingInferenceTypeReference' };
         }
 
         const scopeSymbol: ScopeSymbol = {
@@ -262,7 +255,7 @@ const getPatternScope = (
   switch (node.type) {
     case 'NamePattern': {
       const name = node.name.name;
-      let valueType: ValueType;
+      let valueType: TypeReference;
 
       const typePattern: ast.TypePattern | undefined =
         node.valueType?.type === 'Identifier'
@@ -279,14 +272,14 @@ const getPatternScope = (
         );
         if (!typeInScope || !(typeInScope.kind === 'effect')) {
           valueType = {
-            kind: 'failedToResolve',
+            kind: 'failedToResolveTypeReference',
             name: typePattern.typeName.name,
           };
         } else {
-          valueType = { kind: 'known', id: typeInScope.id };
+          valueType = { kind: 'valueTypeReference', id: typeInScope.id };
         }
       } else {
-        valueType = { kind: 'pendingInference' };
+        valueType = { kind: 'pendingInferenceTypeReference' };
       }
 
       const symbolToAddToScope: ScopeSymbol = {
@@ -326,7 +319,6 @@ const analyzeCallExpression = (
   ctx: AnalyzerContext
 ) => {
   const { callee } = node;
-  let calleeSymbol: ScopeSymbol;
   switch (callee.type) {
     case 'Identifier': {
       const symbol: ScopeSymbol | undefined = findInScope(
@@ -334,12 +326,16 @@ const analyzeCallExpression = (
         breadcrumbs,
         ctx.scopes
       );
-      if (!symbol) {
+      if (symbol?.kind === 'effect' || symbol?.kind === 'objectType') {
+        ctx.typesOfExpressions.set(toKey([...breadcrumbs, 'callee']), {
+          kind: 'typeNameTypeReference',
+          id: symbol.id,
+        });
+      } else {
         throw new Error(
           `I was expecting "${callee.name}" to be a function or type in scope; maybe it's not spelled correctly.`
         );
       }
-      calleeSymbol = symbol;
       break;
     }
     default:

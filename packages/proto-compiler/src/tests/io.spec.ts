@@ -1,4 +1,4 @@
-import makeLibrary from '../makeLibrary';
+import makeLibrary from '../library';
 import { runMainSync } from './testRunner';
 
 it('can receive a value from an input effect and return it', () => {

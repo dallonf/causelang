@@ -1,13 +1,11 @@
 import * as vm from 'vm';
-import coreLibrary, { coreFunctions } from './coreLibrary';
+import { allCoreLibraries } from './coreLibrary';
 import * as runtimeFns from './runtimeFns';
-import { Library } from './makeLibrary';
+import { Library } from './library';
 
 export type EffectHandler = (
   effect: any
 ) => undefined | { handled: true; value?: Promise<any> | any };
-
-export type LibraryIDMap = Record<string, string>;
 
 export class CauseError extends Error {
   constructor(message?: string) {
@@ -133,7 +131,7 @@ interface RuntimeLibrary {
 }
 
 function makeRuntimeLibrary(...libraries: Library[]): RuntimeLibrary {
-  const nameSet = new Set<string>([coreLibrary.name]);
+  const nameSet = new Set<string>(allCoreLibraries.map((x) => x.name));
   for (const lib of libraries) {
     if (nameSet.has(lib.name)) {
       throw new Error(
@@ -142,13 +140,14 @@ function makeRuntimeLibrary(...libraries: Library[]): RuntimeLibrary {
     }
   }
 
-  const allLibraries = [coreLibrary, ...libraries];
+  const allLibraries = [...allCoreLibraries, ...libraries];
 
   return {
     runtimeScope: {
       ...runtimeFns,
-      ...coreFunctions,
-      ...Object.fromEntries(allLibraries.flatMap((a) => Object.entries(a.ids))),
+      ...Object.fromEntries(
+        allLibraries.flatMap((a) => Object.entries(a.scope))
+      ),
     },
     handleEffects: mergeEffectHandlers(
       ...allLibraries.map((l) => l.handleEffects)

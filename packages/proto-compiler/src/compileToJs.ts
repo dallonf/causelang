@@ -4,7 +4,7 @@ import * as analyzer from './analyzer';
 import * as generator from './generator';
 import * as context from './context';
 import CompilerError from './CompilerError';
-import coreLibrary from './coreLibrary';
+import { allCoreLibraries } from './coreLibrary';
 
 export default function compileToJs(
   source: string,
@@ -26,12 +26,19 @@ export default function compileToJs(
 
   const analyzerContext = analyzer.analyzeModule(parsedAst, ['main'], {
     declarationSuffix: 'main',
-    scope: { ...coreLibrary.analyzerScope, ...analyzerScope },
+    scope: {
+      ...Object.fromEntries(
+        allCoreLibraries.flatMap((x) => Object.entries(x.scope))
+      ),
+      ...analyzerScope,
+    },
   });
 
   const outputSource = generator.generateModule(parsedAst, ['main'], {
     typesOfExpressions: analyzerContext.typesOfExpressions,
     scopes: analyzerContext.scopes,
+    // TODO
+    types: new Map(),
   });
 
   return outputSource;

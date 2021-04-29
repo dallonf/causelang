@@ -1,6 +1,6 @@
 import * as analyzer from './analyzer';
 import compileToJs from './compileToJs';
-import { Library } from './makeLibrary';
+import { Library } from './library';
 import { CauseRuntime, CauseRuntimeOptions } from './runtime';
 
 export interface CompileAndInvokeOptions extends CauseRuntimeOptions {

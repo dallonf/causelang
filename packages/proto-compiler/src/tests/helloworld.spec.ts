@@ -1,4 +1,5 @@
-import makeLibrary from '../makeLibrary';
+import { STRING_ID } from '../coreLibrary';
+import makeLibrary, { idFromLibrary } from '../library';
 import { runMain, runMainSync } from './testRunner';
 
 describe('basic hello world', () => {
@@ -31,14 +32,17 @@ it('returns a hello world value', () => {
   `;
 
   const library = makeLibrary('test', {
-    type: 'type',
+    type: 'objectType',
     name: 'Greeting',
+    fields: {
+      message: { kind: 'valueTypeReference', id: STRING_ID },
+    },
   });
 
   const { result, output } = runMainSync(script, { libraries: [library] });
 
   expect(result).toEqual({
-    type: library.ids.Greeting,
+    type: idFromLibrary('Greeting', library),
     value: 'Hello World',
   });
   expect(output).toEqual([]);

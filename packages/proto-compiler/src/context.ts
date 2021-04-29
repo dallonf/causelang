@@ -1,18 +1,4 @@
-export type ValueType = PendingInferenceType | KnownType | FailedToResolveType;
-
-export interface PendingInferenceType {
-  kind: 'pendingInference';
-}
-
-export interface KnownType {
-  kind: 'known';
-  id: string;
-}
-
-export interface FailedToResolveType {
-  kind: 'failedToResolve';
-  name: string;
-}
+import { TypeReference } from './typeSystem';
 
 export type ScopeSymbol = DeclarationScopeSymbol | CoreFunctionScopeSymbol;
 
@@ -22,7 +8,10 @@ export type DeclarationScopeSymbol =
   | TypeScopeSymbol
   | NamedValueScopeSymbol;
 
-export type LibraryScopeSymbol = EffectScopeSymbol | TypeScopeSymbol;
+export type LibraryScopeSymbol =
+  | TypeScopeSymbol
+  | EffectScopeSymbol
+  | CoreFunctionScopeSymbol;
 
 export interface EffectScopeSymbol {
   kind: 'effect';
@@ -36,7 +25,7 @@ interface FunctionScopeSymbol {
 }
 
 export interface TypeScopeSymbol {
-  kind: 'type';
+  kind: 'objectType';
   name: string;
   id: string;
 }
@@ -44,13 +33,14 @@ export interface TypeScopeSymbol {
 export interface NamedValueScopeSymbol {
   kind: 'namedValue';
   name: string;
-  valueType: ValueType;
+  valueType: TypeReference;
   variable: boolean;
 }
 
 export interface CoreFunctionScopeSymbol {
   kind: 'coreFn';
   name: string;
+  id: string;
 }
 
 export type Scope = Record<string, ScopeSymbol>;

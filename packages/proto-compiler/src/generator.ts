@@ -1,13 +1,14 @@
 import generate from '@babel/generator';
 import * as jsAst from '@babel/types';
 import * as ast from './ast';
-import * as analyzer from './analyzer';
 import { Breadcrumbs, findInScope, ScopeMap, toKey } from './context';
 import { exhaustiveCheck } from './utils';
+import * as typeSystem from './typeSystem';
 
 interface GeneratorContext {
-  typesOfExpressions: Map<string, string>;
+  typesOfExpressions: Map<string, typeSystem.TypeReference>;
   scopes: ScopeMap;
+  types: typeSystem.TypeMap;
 }
 
 export const generateModule = (
@@ -181,44 +182,37 @@ const generateCallExpression = (
   breadcrumbs: Breadcrumbs,
   ctx: GeneratorContext
 ): jsAst.Expression => {
-  if (node.callee.type === 'Identifier') {
-    // TODO: this needs to be completely rethought when static types enter the picture
-    const calleeSymbol = findInScope(node.callee.name, breadcrumbs, ctx.scopes);
-    if (!calleeSymbol) {
-      throw new Error(
-        `I'm confused. I'm trying to resolve this function call, but I don't know what it is. This probably isn't your fault! Here's the technical breadcrumb to the call in question: ${breadcrumbs.join(
-          '.'
-        )}`
-      );
+  const calleeTypeReference = ctx.typesOfExpressions.get(
+    toKey([...breadcrumbs, 'callee'])
+  );
+  if (calleeTypeReference?.kind === 'typeNameTypeReference') {
+    if (node.parameters.length > 1) {
+      throw new Error('Effects and types can only have one parameter for now');
     }
-    if (calleeSymbol.kind === 'effect' || calleeSymbol.kind === 'type') {
-      if (node.parameters.length > 1) {
-        throw new Error(
-          'Effects and types can only have one parameter for now'
-        );
-      }
-      return jsAst.objectExpression([
-        jsAst.objectProperty(
-          jsAst.identifier('type'),
-          generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx)
-        ),
-        ...(node.parameters.length
-          ? [
-              jsAst.objectProperty(
-                jsAst.identifier('value'),
-                generateExpression(
-                  node.parameters[0],
-                  [...breadcrumbs, 'parameters', 0],
-                  ctx
-                )
-              ),
-            ]
-          : []),
-      ]);
-    } else if (
-      calleeSymbol.kind === 'fn' ||
-      calleeSymbol.kind === 'namedValue'
-    ) {
+    return jsAst.objectExpression([
+      jsAst.objectProperty(
+        jsAst.identifier('type'),
+        jsAst.memberExpression(
+          generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
+          jsAst.identifier('id')
+        )
+      ),
+      ...(node.parameters.length
+        ? [
+            jsAst.objectProperty(
+              jsAst.identifier('value'),
+              generateExpression(
+                node.parameters[0],
+                [...breadcrumbs, 'parameters', 0],
+                ctx
+              )
+            ),
+          ]
+        : []),
+    ]);
+  } else if (calleeTypeReference?.kind === 'valueTypeReference') {
+    const calleeType = ctx.types.get(calleeTypeReference.id)!;
+    if (calleeType.kind === 'functionType') {
       return jsAst.yieldExpression(
         jsAst.callExpression(
           generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
@@ -228,7 +222,7 @@ const generateCallExpression = (
         ),
         true
       );
-    } else if (calleeSymbol.kind === 'coreFn') {
+    } else if (calleeType.kind === 'coreFunctionType') {
       return jsAst.callExpression(
         generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
         node.parameters.map((a, i) =>
@@ -236,15 +230,26 @@ const generateCallExpression = (
         )
       );
     } else {
-      throw new Error(
-        `I don't know how to compile this kind of function call yet. The type of the callee is ${JSON.stringify(
-          calleeSymbol
-        )}`
+      // TODO: better runtime errors
+      return jsAst.callExpression(
+        jsAst.arrowFunctionExpression(
+          [],
+          jsAst.blockStatement([
+            jsAst.throwStatement(
+              jsAst.newExpression(jsAst.stringLiteral('Error'), [
+                jsAst.stringLiteral(`A ${calleeType.kind} is not callable`),
+              ])
+            ),
+          ])
+        ),
+        []
       );
     }
   } else {
     throw new Error(
-      `Right now, I only know how to compile direct function calls - that is, where the function name is explicit`
+      `I don't know how to compile this kind of function call yet. The type of the callee is ${JSON.stringify(
+        calleeTypeReference
+      )}`
     );
   }
 };
