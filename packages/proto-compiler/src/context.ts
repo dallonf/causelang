@@ -1,27 +1,14 @@
 import { TypeReference } from './typeSystem';
 
-export type ScopeSymbol = DeclarationScopeSymbol | CoreFunctionScopeSymbol;
-
-export type DeclarationScopeSymbol =
+export type ScopeSymbol =
   | EffectScopeSymbol
-  | FunctionScopeSymbol
   | TypeScopeSymbol
   | NamedValueScopeSymbol;
-
-export type LibraryScopeSymbol =
-  | TypeScopeSymbol
-  | EffectScopeSymbol
-  | CoreFunctionScopeSymbol;
 
 export interface EffectScopeSymbol {
   kind: 'effect';
   name: string;
   id: string;
-}
-
-interface FunctionScopeSymbol {
-  kind: 'fn';
-  name?: string;
 }
 
 export interface TypeScopeSymbol {
@@ -35,12 +22,6 @@ export interface NamedValueScopeSymbol {
   name: string;
   valueType: TypeReference;
   variable: boolean;
-}
-
-export interface CoreFunctionScopeSymbol {
-  kind: 'coreFn';
-  name: string;
-  id: string;
 }
 
 export type Scope = Record<string, ScopeSymbol>;

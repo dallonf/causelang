@@ -210,19 +210,19 @@ const generateCallExpression = (
           ]
         : []),
     ]);
+  } else if (calleeTypeReference?.kind === 'functionTypeReference') {
+    return jsAst.yieldExpression(
+      jsAst.callExpression(
+        generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
+        node.parameters.map((a, i) =>
+          generateExpression(a, [...breadcrumbs, 'parameters', i], ctx)
+        )
+      ),
+      true
+    );
   } else if (calleeTypeReference?.kind === 'valueTypeReference') {
     const calleeType = ctx.types.get(calleeTypeReference.id)!;
-    if (calleeType.kind === 'functionType') {
-      return jsAst.yieldExpression(
-        jsAst.callExpression(
-          generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
-          node.parameters.map((a, i) =>
-            generateExpression(a, [...breadcrumbs, 'parameters', i], ctx)
-          )
-        ),
-        true
-      );
-    } else if (calleeType.kind === 'coreFunctionType') {
+    if (calleeType.kind === 'coreFunctionType') {
       return jsAst.callExpression(
         generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
         node.parameters.map((a, i) =>
@@ -249,7 +249,7 @@ const generateCallExpression = (
     throw new Error(
       `I don't know how to compile this kind of function call yet. The type of the callee is ${JSON.stringify(
         calleeTypeReference
-      )}`
+      )} at ${breadcrumbs.join('.')}`
     );
   }
 };
@@ -361,7 +361,10 @@ function generatePatternHandlingStatements(
               matchingExpression,
               jsAst.identifier('type')
             ),
-            jsAst.identifier(node.typeName.name)
+            jsAst.memberExpression(
+              jsAst.identifier(node.typeName.name),
+              jsAst.identifier('id')
+            )
           ),
           jsAst.returnStatement()
         ),

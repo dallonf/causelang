@@ -9,49 +9,64 @@ import {
   ScopeSymbol,
   toKey,
 } from './context';
+import { allCoreLibraries } from './coreLibrary';
 import { Library } from './library';
-import { TypeReference } from './typeSystem';
+import { CoreFunctionType, TypeMap, TypeReference } from './typeSystem';
 import { exhaustiveCheck } from './utils';
 
 export interface AnalyzerContext {
   declarationSuffix: string;
   typesOfExpressions: Map<string, TypeReference>;
+  typeMap: TypeMap;
   scopes: ScopeMap;
 }
-
-export const getAnalyzerScope = (
-  ...libraries: Library[]
-): Record<string, ScopeSymbol> => {
-  return Object.fromEntries([
-    ...libraries.flatMap((l) => Object.entries(l.scope)),
-  ]);
-};
 
 export const analyzeModule = (
   module: ast.Module,
   breadcrumbs: Breadcrumbs,
+  libraries: Library[],
   opts: {
     declarationSuffix: string;
-    scope: Scope;
   }
 ): AnalyzerContext => {
+  const allLibraries = allCoreLibraries.concat(...libraries);
+  const typeMap = new Map(
+    allLibraries.flatMap((lib) => [...lib.types.entries()])
+  );
+  const scope = Object.fromEntries(
+    allLibraries.flatMap((lib) => Object.entries(lib.scope))
+  );
+
   const ctx: AnalyzerContext = {
     declarationSuffix: opts.declarationSuffix,
     scopes: new Map(),
     typesOfExpressions: new Map(),
+    typeMap,
   };
 
   // First, superficially check all the declarations to see what's hoisted
   // into scope
-  const newScope: Scope = { ...opts.scope };
+  const newScope: Scope = { ...scope };
   module.body.forEach((declaration, i) => {
     switch (declaration.type) {
-      case 'FunctionDeclaration':
+      case 'FunctionDeclaration': {
         newScope[declaration.id.name] = {
-          kind: 'fn',
+          kind: 'namedValue',
           name: declaration.id.name,
+          variable: false,
+          valueType: {
+            kind: 'functionTypeReference',
+            name: declaration.id.name,
+            // TODO
+            params: {},
+            // TODO: use scope
+            returnType: {
+              kind: 'pendingInferenceTypeReference',
+            },
+          },
         };
         break;
+      }
       case 'EffectDeclaration':
         const type: EffectScopeSymbol = {
           kind: 'effect',
@@ -189,8 +204,11 @@ const analyzeBlockExpression = (
             type = { kind: 'valueTypeReference', id: typeSymbol.id };
           } else {
             type = {
-              kind: 'failedToResolveTypeReference',
-              name: a.typeAnnotation.name,
+              kind: 'typeErrorTypeReference',
+              error: {
+                kind: 'failedToResolveTypeError',
+                name: a.typeAnnotation.name,
+              },
             };
           }
         } else {
@@ -272,8 +290,11 @@ const getPatternScope = (
         );
         if (!typeInScope || !(typeInScope.kind === 'effect')) {
           valueType = {
-            kind: 'failedToResolveTypeReference',
-            name: typePattern.typeName.name,
+            kind: 'typeErrorTypeReference',
+            error: {
+              kind: 'failedToResolveTypeError',
+              name: typePattern.typeName.name,
+            },
           };
         } else {
           valueType = { kind: 'valueTypeReference', id: typeInScope.id };
@@ -331,6 +352,59 @@ const analyzeCallExpression = (
           kind: 'typeNameTypeReference',
           id: symbol.id,
         });
+      } else if (symbol?.kind === 'namedValue') {
+        ctx.typesOfExpressions.set(
+          toKey([...breadcrumbs, 'callee']),
+          symbol.valueType
+        );
+
+        let returnType: TypeReference;
+        switch (symbol.valueType.kind) {
+          case 'pendingInferenceTypeReference':
+            returnType = {
+              kind: 'pendingInferenceTypeReference',
+            };
+            break;
+          case 'typeNameTypeReference':
+            throw new Error(
+              `TODO: handle indirect references to type names at ${breadcrumbs.join(
+                '.'
+              )}`
+            );
+          case 'typeErrorTypeReference':
+            returnType = {
+              kind: 'typeErrorTypeReference',
+              error: {
+                kind: 'referenceTypeError',
+                breadcrumbs: [...breadcrumbs, 'callee'],
+              },
+            };
+            break;
+          case 'valueTypeReference': {
+            const valueType = ctx.typeMap.get(symbol.valueType.id)!;
+            if (valueType.kind === 'coreFunctionType') {
+              returnType = valueType.returnType;
+            } else {
+              returnType = {
+                kind: 'typeErrorTypeReference',
+                error: {
+                  kind: 'notCallableTypeError',
+                },
+              };
+            }
+            break;
+          }
+          case 'functionTypeReference':
+            returnType = symbol.valueType.returnType;
+            break;
+          default:
+            return exhaustiveCheck(symbol.valueType);
+        }
+        ctx.typesOfExpressions.set(
+          toKey([...breadcrumbs, 'callee']),
+          symbol.valueType
+        );
+        ctx.typesOfExpressions.set(toKey(breadcrumbs), returnType);
       } else {
         throw new Error(
           `I was expecting "${callee.name}" to be a function or type in scope; maybe it's not spelled correctly.`

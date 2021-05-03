@@ -1,4 +1,3 @@
-import { getAnalyzerScope } from '../analyzer';
 import compileAndInvoke from '../compileAndInvoke';
 import compileToJs from '../compileToJs';
 import { PrintEffectID } from '../coreLibrary';
@@ -52,10 +51,7 @@ export function runMainSync(
 ) {
   const { printOverrideHandler, output } = makePrintOverride();
 
-  const jsSource = compileToJs(
-    script,
-    getAnalyzerScope(...(opts.libraries ?? []))
-  );
+  const jsSource = compileToJs(script, opts.libraries ?? []);
   if (opts.debugJsOutput) {
     console.log(jsSource);
   }

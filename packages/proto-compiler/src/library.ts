@@ -32,7 +32,7 @@ export type LibraryItem =
 export interface Library {
   name: string;
   types: TypeMap;
-  scope: Record<string, context.LibraryScopeSymbol>;
+  scope: Record<string, context.ScopeSymbol>;
   handleEffects: EffectHandler;
 }
 
@@ -83,7 +83,7 @@ export default function makeLibrary(
   const scope = Object.fromEntries(
     itemsAndIds.map(({ item, id }) => {
       const key = item.name;
-      let value: context.LibraryScopeSymbol;
+      let value: context.ScopeSymbol;
       if (item.type === 'objectType') {
         value = {
           kind: 'objectType',
@@ -98,8 +98,12 @@ export default function makeLibrary(
         };
       } else if (item.type === 'coreFn') {
         value = {
-          kind: 'coreFn',
-          id,
+          kind: 'namedValue',
+          variable: false,
+          valueType: {
+            kind: 'valueTypeReference',
+            id,
+          },
           name: item.name,
         };
       } else {
@@ -127,8 +131,11 @@ export default function makeLibrary(
 
 export const idFromLibrary = (name: string, library: Library): string => {
   const type = library.scope[name];
-  if (!type) {
-    throw new Error(`Couldn't find an ID for ${name} in ${library.name}`);
+  if (type?.kind === 'effect' || type?.kind === 'objectType') {
+    return type.id;
+  } else if (type?.kind === 'namedValue') {
+    return (type.valueType as ValueTypeReference).id;
   }
-  return type.id;
+
+  throw new Error(`Couldn't find an ID for ${name} in ${library.name}`);
 };

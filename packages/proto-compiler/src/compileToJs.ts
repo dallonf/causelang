@@ -2,14 +2,10 @@ import { cursorPosition, makeSourceStream } from './sourceStream';
 import * as parser from './parser';
 import * as analyzer from './analyzer';
 import * as generator from './generator';
-import * as context from './context';
 import CompilerError from './CompilerError';
-import { allCoreLibraries } from './coreLibrary';
+import { Library } from './library';
 
-export default function compileToJs(
-  source: string,
-  analyzerScope?: context.Scope
-) {
+export default function compileToJs(source: string, libraries: Library[]) {
   let parsedAst;
   try {
     parsedAst = parser.parseModule(makeSourceStream(source), {});
@@ -24,21 +20,19 @@ export default function compileToJs(
     }
   }
 
-  const analyzerContext = analyzer.analyzeModule(parsedAst, ['main'], {
-    declarationSuffix: 'main',
-    scope: {
-      ...Object.fromEntries(
-        allCoreLibraries.flatMap((x) => Object.entries(x.scope))
-      ),
-      ...analyzerScope,
-    },
-  });
+  const analyzerContext = analyzer.analyzeModule(
+    parsedAst,
+    ['main'],
+    libraries,
+    {
+      declarationSuffix: 'main',
+    }
+  );
 
   const outputSource = generator.generateModule(parsedAst, ['main'], {
     typesOfExpressions: analyzerContext.typesOfExpressions,
     scopes: analyzerContext.scopes,
-    // TODO
-    types: new Map(),
+    types: new Map(analyzerContext.typeMap.entries()),
   });
 
   return outputSource;

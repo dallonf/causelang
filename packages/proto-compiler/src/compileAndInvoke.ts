@@ -1,4 +1,3 @@
-import * as analyzer from './analyzer';
 import compileToJs from './compileToJs';
 import { Library } from './library';
 import { CauseRuntime, CauseRuntimeOptions } from './runtime';
@@ -13,10 +12,7 @@ export default async function compileAndInvoke(
   params: unknown[],
   opts = {} as CompileAndInvokeOptions
 ) {
-  const jsSource = compileToJs(
-    file.source,
-    analyzer.getAnalyzerScope(...(opts.libraries ?? []))
-  );
+  const jsSource = compileToJs(file.source, opts.libraries ?? []);
   const runtime = new CauseRuntime(
     jsSource,
     file.filename ?? '<inline script>',

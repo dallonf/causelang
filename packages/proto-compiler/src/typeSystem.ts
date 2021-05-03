@@ -1,21 +1,45 @@
+import { Breadcrumbs } from './context';
+
 export type TypeReference =
   | PendingInferenceTypeReference
+  | TypeErrorTypeReference
   | ValueTypeReference
-  | FailedToResolveTypeReference
+  | FunctionTypeReference
   | TypeNameTypeReference;
 
 export interface PendingInferenceTypeReference {
   kind: 'pendingInferenceTypeReference';
 }
 
-export interface FailedToResolveTypeReference {
-  kind: 'failedToResolveTypeReference';
+export interface TypeErrorTypeReference {
+  kind: 'typeErrorTypeReference';
+  error: FailedToResolveTypeError | ReferenceTypeError | NotCallableTypeError;
+}
+
+export interface FailedToResolveTypeError {
+  kind: 'failedToResolveTypeError';
   name: string;
+}
+
+export interface ReferenceTypeError {
+  kind: 'referenceTypeError';
+  breadcrumbs: Breadcrumbs;
+}
+
+export interface NotCallableTypeError {
+  kind: 'notCallableTypeError';
 }
 
 export interface ValueTypeReference {
   kind: 'valueTypeReference';
   id: string;
+}
+
+export interface FunctionTypeReference {
+  kind: 'functionTypeReference';
+  name?: string;
+  params: Record<string, TypeReference>;
+  returnType: TypeReference;
 }
 
 export interface TypeNameTypeReference {
@@ -27,7 +51,6 @@ export type CauseType =
   | PrimitiveType
   | ObjectType
   | EffectType
-  | FunctionType
   | CoreFunctionType;
 
 export interface PrimitiveType {
@@ -52,13 +75,6 @@ export interface ObjectType {
   kind: 'objectType';
   id: string;
   fields: Record<string, TypeReference>;
-}
-
-export interface FunctionType {
-  kind: 'functionType';
-  id: string;
-  parameters: Record<string, TypeReference>;
-  returnType: TypeReference;
 }
 
 export interface CoreFunctionType {

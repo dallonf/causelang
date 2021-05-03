@@ -1,5 +1,10 @@
-import { PrintEffectID } from '../coreLibrary';
-import makeLibrary from '../library';
+import {
+  coreOperationsLibrary,
+  ACTION_ID,
+  STRING_ID,
+  INTEGER_ID,
+} from '../coreLibrary';
+import makeLibrary, { idFromLibrary } from '../library';
 import { runMainSync } from './testRunner';
 
 it('Can intercept an effect', () => {
@@ -22,6 +27,11 @@ it('Can identify the type of effect', () => {
   const library = makeLibrary('test', {
     type: 'effect',
     name: 'InterceptThis',
+    params: {},
+    returnType: {
+      kind: 'valueTypeReference',
+      id: ACTION_ID,
+    },
     handler: () => {
       throw new Error('This effect should have been intercepted!');
     },
@@ -53,6 +63,16 @@ it('Provides access to the captured effects and its values', () => {
   const library = makeLibrary('test', {
     type: 'effect',
     name: 'Greet',
+    params: {
+      name: {
+        kind: 'valueTypeReference',
+        id: STRING_ID,
+      },
+    },
+    returnType: {
+      kind: 'valueTypeReference',
+      id: ACTION_ID,
+    },
     handler: () => {
       throw new Error('This effect should have been intercepted!');
     },
@@ -78,10 +98,22 @@ it('Provides access to the captured effects and its values', () => {
 });
 
 it('Provides access to the captured effect without a type', () => {
+  const Print = idFromLibrary('Print', coreOperationsLibrary);
+
   const extract = jest.fn();
   const library = makeLibrary('test', {
     type: 'effect',
     name: 'Extract',
+    params: {
+      value: {
+        kind: 'valueTypeReference',
+        id: Print,
+      },
+    },
+    returnType: {
+      kind: 'valueTypeReference',
+      id: ACTION_ID,
+    },
     handler: (e) => {
       extract(e);
     },
@@ -105,9 +137,9 @@ it('Provides access to the captured effect without a type', () => {
   expect(output).toEqual([]);
   expect(extract).toHaveBeenCalledTimes(1);
   expect(extract).toHaveBeenCalledWith({
-    type: library.types.Extract,
+    type: idFromLibrary('Extract', library),
     value: {
-      type: PrintEffectID,
+      type: Print,
       value: 'this should be extracted and not printed',
     },
   });
@@ -117,6 +149,16 @@ it('Can use effects to mutate from a closure', () => {
   const library = makeLibrary('test', {
     type: 'effect',
     name: 'SetX',
+    params: {
+      value: {
+        kind: 'valueTypeReference',
+        id: INTEGER_ID,
+      },
+    },
+    returnType: {
+      kind: 'valueTypeReference',
+      id: ACTION_ID,
+    },
     handler: () => {
       throw new Error('Should be handled');
     },
