@@ -1,4 +1,5 @@
-import makeLibrary from '../library';
+import { STRING_ID } from '../coreLibrary';
+import makeLibrary from '../runtimeLibrary';
 import { runMainSync } from './testRunner';
 
 it('can receive a value from an input effect and return it', () => {
@@ -12,6 +13,11 @@ it('can receive a value from an input effect and return it', () => {
   const library = makeLibrary('test', {
     type: 'effect',
     name: 'Prompt',
+    params: {},
+    returnType: {
+      kind: 'valueTypeReference',
+      id: STRING_ID,
+    },
     handler: (e) => 'Batman',
   });
 
@@ -34,6 +40,11 @@ it('can assign a received value to a name', () => {
   const library = makeLibrary('test', {
     type: 'effect',
     name: 'Prompt',
+    params: {},
+    returnType: {
+      kind: 'valueTypeReference',
+      id: STRING_ID,
+    },
     handler: (e) => 'Batman',
   });
 
@@ -59,6 +70,11 @@ it('can use an inline block expression to return a result', () => {
   const library = makeLibrary('test', {
     type: 'effect',
     name: 'Prompt',
+    params: {},
+    returnType: {
+      kind: 'valueTypeReference',
+      id: STRING_ID,
+    },
     handler: (e) => 'Superman',
   });
 
