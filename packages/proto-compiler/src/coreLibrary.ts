@@ -83,7 +83,7 @@ export const coreOperationsLibrary = makeLibrary(
       id: BOOLEAN_ID,
     },
     handler: (x: string, y: string) => {
-      return x + y;
+      return x === y;
     },
   }
 );

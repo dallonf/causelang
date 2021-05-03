@@ -12,6 +12,7 @@ import {
 import { allCoreLibraries, INTEGER_ID, STRING_ID } from './coreLibrary';
 import { Library } from './library';
 import {
+  ConcreteTypeReference,
   EffectType,
   isAssignableTo,
   TypeMap,
@@ -251,6 +252,7 @@ const analyzeExpression = (
     case 'BranchExpression':
       node.conditions.forEach((condition, i) => {
         if (condition.guard) {
+          // TODO: this needs to wind up being a boolean
           analyzeExpression(
             condition.guard,
             [...breadcrumbs, 'branch', 'conditions', i, 'guard'],
@@ -264,6 +266,42 @@ const analyzeExpression = (
           ctx
         );
       });
+
+      const firstType = getTypeOfExpression(
+        [...breadcrumbs, 'branch', 'conditions', 0, 'body'],
+        ctx
+      );
+      const mismatch = node.conditions
+        .map((condition, i) => {
+          const thisType = getTypeOfExpression(
+            [...breadcrumbs, 'branch', 'conditions', 0, 'body'],
+            ctx
+          );
+          if (
+            isAssignableTo(
+              thisType as ConcreteTypeReference,
+              firstType as ConcreteTypeReference,
+              ctx.typeMap
+            )
+          ) {
+            return thisType;
+          } else {
+            return null;
+          }
+        })
+        .find((x) => Boolean(x));
+      if (mismatch) {
+        setTypeOfExpression(ctx, breadcrumbs, {
+          kind: 'typeErrorTypeReference',
+          error: {
+            kind: 'mismatchedTypeError',
+            expectedType: firstType,
+            actualType: mismatch,
+          },
+        });
+      } else {
+        setTypeOfExpression(ctx, breadcrumbs, firstType);
+      }
       break;
     default:
       return exhaustiveCheck(node);
