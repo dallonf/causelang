@@ -1,5 +1,5 @@
 import { STRING_ID } from '../coreLibrary';
-import makeLibrary, { idFromLibrary } from '../library';
+import makeLibrary, { idFromLibrary } from '../runtimeLibrary';
 import { runMain, runMainSync } from './testRunner';
 
 describe('basic hello world', () => {

@@ -1,9 +1,9 @@
 import compileToJs from './compileToJs';
-import { Library } from './library';
 import { CauseRuntime, CauseRuntimeOptions } from './runtime';
+import { RuntimeLibrary } from './runtimeLibrary';
 
 export interface CompileAndInvokeOptions extends CauseRuntimeOptions {
-  libraries?: Library[];
+  libraries?: RuntimeLibrary[];
 }
 
 export default async function compileAndInvoke(
@@ -12,7 +12,10 @@ export default async function compileAndInvoke(
   params: unknown[],
   opts = {} as CompileAndInvokeOptions
 ) {
-  const jsSource = compileToJs(file.source, opts.libraries ?? []);
+  const jsSource = compileToJs(
+    file.source,
+    opts.libraries?.map((x) => x.libraryData) ?? []
+  );
   const runtime = new CauseRuntime(
     jsSource,
     file.filename ?? '<inline script>',

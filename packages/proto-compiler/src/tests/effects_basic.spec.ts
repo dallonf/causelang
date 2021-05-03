@@ -4,7 +4,7 @@ import {
   STRING_ID,
   INTEGER_ID,
 } from '../coreLibrary';
-import makeLibrary, { idFromLibrary } from '../library';
+import makeLibrary, { idFromLibrary } from '../runtimeLibrary';
 import { runMainSync } from './testRunner';
 
 it('Can intercept an effect', () => {

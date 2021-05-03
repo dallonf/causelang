@@ -222,29 +222,20 @@ const generateCallExpression = (
     );
   } else if (calleeTypeReference?.kind === 'valueTypeReference') {
     const calleeType = ctx.types.get(calleeTypeReference.id)!;
-    if (calleeType.kind === 'coreFunctionType') {
-      return jsAst.callExpression(
-        generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
-        node.parameters.map((a, i) =>
-          generateExpression(a, [...breadcrumbs, 'parameters', i], ctx)
-        )
-      );
-    } else {
-      // TODO: better runtime errors
-      return jsAst.callExpression(
-        jsAst.arrowFunctionExpression(
-          [],
-          jsAst.blockStatement([
-            jsAst.throwStatement(
-              jsAst.newExpression(jsAst.stringLiteral('Error'), [
-                jsAst.stringLiteral(`A ${calleeType.kind} is not callable`),
-              ])
-            ),
-          ])
-        ),
-        []
-      );
-    }
+    // TODO: better runtime errors
+    return jsAst.callExpression(
+      jsAst.arrowFunctionExpression(
+        [],
+        jsAst.blockStatement([
+          jsAst.throwStatement(
+            jsAst.newExpression(jsAst.stringLiteral('Error'), [
+              jsAst.stringLiteral(`A ${calleeType.kind} is not callable`),
+            ])
+          ),
+        ])
+      ),
+      []
+    );
   } else {
     throw new Error(
       `I don't know how to compile this kind of function call yet. The type of the callee is ${JSON.stringify(

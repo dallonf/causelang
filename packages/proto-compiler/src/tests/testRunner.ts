@@ -1,8 +1,8 @@
 import compileAndInvoke from '../compileAndInvoke';
 import compileToJs from '../compileToJs';
 import { PrintEffectID } from '../coreLibrary';
-import { Library } from '../library';
 import { CauseRuntime, EffectHandler } from '../runtime';
+import { RuntimeLibrary } from '../runtimeLibrary';
 
 function makePrintOverride() {
   const output: string[] = [];
@@ -19,7 +19,7 @@ function makePrintOverride() {
 export async function runMain(
   script: string,
   opts = {} as {
-    libraries?: Library[];
+    libraries?: RuntimeLibrary[];
   }
 ) {
   const { printOverrideHandler, output } = makePrintOverride();
@@ -45,13 +45,16 @@ export function runMainSync(
   script: string,
 
   opts = {} as {
-    libraries?: Library[];
+    libraries?: RuntimeLibrary[];
     debugJsOutput?: boolean;
   }
 ) {
   const { printOverrideHandler, output } = makePrintOverride();
 
-  const jsSource = compileToJs(script, opts.libraries ?? []);
+  const jsSource = compileToJs(
+    script,
+    opts.libraries?.map((x) => x.libraryData) ?? []
+  );
   if (opts.debugJsOutput) {
     console.log(jsSource);
   }

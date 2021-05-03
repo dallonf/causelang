@@ -50,8 +50,7 @@ export interface TypeNameTypeReference {
 export type CauseType =
   | PrimitiveType
   | ObjectType
-  | EffectType
-  | CoreFunctionType;
+  | EffectType;
 
 export interface PrimitiveType {
   kind: 'primitiveType';
@@ -61,12 +60,14 @@ export interface PrimitiveType {
 export interface ObjectType {
   kind: 'objectType';
   id: string;
+  name: string;
   fields: Record<string, TypeReference>;
 }
 
 export interface EffectType {
   kind: 'effectType';
   id: string;
+  name: string;
   parameters: Record<string, TypeReference>;
   returnType: TypeReference;
 }
@@ -75,13 +76,6 @@ export interface ObjectType {
   kind: 'objectType';
   id: string;
   fields: Record<string, TypeReference>;
-}
-
-export interface CoreFunctionType {
-  kind: 'coreFunctionType';
-  id: string;
-  parameters: Record<string, TypeReference>;
-  returnType: TypeReference;
 }
 
 export type TypeMap = Map<string, CauseType>;

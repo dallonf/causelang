@@ -1,10 +1,10 @@
-import makeLibrary, { idFromLibrary } from './library';
 import { CauseError } from './runtime';
+import makeLibrary, { idFromLibrary } from './runtimeLibrary';
 
 export const STRING_ID = 'core$String';
 export const INTEGER_ID = 'core$Integer';
 export const ACTION_ID = 'core$Action';
-export const NEVER_ID = 'core$NEVER';
+export const NEVER_ID = 'core$Never';
 export const BOOLEAN_ID = 'core$Boolean';
 
 export const coreOperationsLibrary = makeLibrary(
@@ -44,7 +44,7 @@ export const coreOperationsLibrary = makeLibrary(
     },
   },
   {
-    type: 'coreFn',
+    type: 'nativeFn',
     name: 'append',
     params: {
       x: {
@@ -65,7 +65,7 @@ export const coreOperationsLibrary = makeLibrary(
     },
   },
   {
-    type: 'coreFn',
+    type: 'nativeFn',
     name: 'equals',
     params: {
       // TODO: this might wind up needing to be generic!

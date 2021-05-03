@@ -1,7 +1,7 @@
 import * as vm from 'vm';
 import { allCoreLibraries } from './coreLibrary';
 import * as runtimeFns from './runtimeFns';
-import { Library } from './library';
+import { RuntimeLibrary } from './runtimeLibrary';
 
 export type EffectHandler = (
   effect: any
@@ -15,7 +15,7 @@ export class CauseError extends Error {
 }
 
 export interface CauseRuntimeOptions {
-  libraries?: Library[];
+  libraries?: RuntimeLibrary[];
   additionalEffectHandler?: EffectHandler;
 }
 
@@ -25,7 +25,7 @@ export interface CauseRuntimeInvokeOptions {
 
 export class CauseRuntime {
   script: vm.Script;
-  library: RuntimeLibrary;
+  libraryCtx: RuntimeLibraryContext;
   additionalEffectHandler?: EffectHandler;
 
   constructor(jsSource: string, filename: string, opts?: CauseRuntimeOptions) {
@@ -34,7 +34,7 @@ export class CauseRuntime {
     });
     this.additionalEffectHandler = opts?.additionalEffectHandler;
 
-    this.library = makeRuntimeLibrary(...(opts?.libraries ?? []));
+    this.libraryCtx = makeRuntimeLibraryContext(...(opts?.libraries ?? []));
   }
 
   async invokeFn(
@@ -75,7 +75,7 @@ export class CauseRuntime {
   }
 
   invokeFnAsGenerator(name: string, params: unknown[]): Generator {
-    const context = this.library.runtimeScope;
+    const context = this.libraryCtx.runtimeScope;
 
     this.script.runInNewContext(context, {
       breakOnSigint: true,
@@ -93,7 +93,7 @@ export class CauseRuntime {
   handleEffect(effect: any, extraHandler?: EffectHandler) {
     const compositeHandler = mergeEffectHandlers(
       ...([
-        this.library.handleEffects,
+        this.libraryCtx.handleEffects,
         this.additionalEffectHandler,
         extraHandler,
       ].filter((x) => x) as EffectHandler[])
@@ -125,17 +125,21 @@ export const mergeEffectHandlers = (
   };
 };
 
-interface RuntimeLibrary {
+interface RuntimeLibraryContext {
   runtimeScope: Record<string, string | Function>;
   handleEffects: EffectHandler;
 }
 
-function makeRuntimeLibrary(...libraries: Library[]): RuntimeLibrary {
-  const nameSet = new Set<string>(allCoreLibraries.map((x) => x.name));
+function makeRuntimeLibraryContext(
+  ...libraries: RuntimeLibrary[]
+): RuntimeLibraryContext {
+  const nameSet = new Set<string>(
+    allCoreLibraries.map((x) => x.libraryData.name)
+  );
   for (const lib of libraries) {
-    if (nameSet.has(lib.name)) {
+    if (nameSet.has(lib.libraryData.name)) {
       throw new Error(
-        `I can't include two libraries with the same name! The duplicate name is ${lib.name}`
+        `I can't include two libraries with the same name! The duplicate name is ${lib.libraryData.name}`
       );
     }
   }
@@ -146,7 +150,7 @@ function makeRuntimeLibrary(...libraries: Library[]): RuntimeLibrary {
     runtimeScope: {
       ...runtimeFns,
       ...Object.fromEntries(
-        allLibraries.flatMap((a) => Object.entries(a.scope))
+        allLibraries.flatMap((a) => Object.entries(a.scopeValues))
       ),
     },
     handleEffects: mergeEffectHandlers(

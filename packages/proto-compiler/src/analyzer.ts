@@ -11,7 +11,7 @@ import {
 } from './context';
 import { allCoreLibraries } from './coreLibrary';
 import { Library } from './library';
-import { CoreFunctionType, TypeMap, TypeReference } from './typeSystem';
+import { TypeMap, TypeReference } from './typeSystem';
 import { exhaustiveCheck } from './utils';
 
 export interface AnalyzerContext {
@@ -29,7 +29,9 @@ export const analyzeModule = (
     declarationSuffix: string;
   }
 ): AnalyzerContext => {
-  const allLibraries = allCoreLibraries.concat(...libraries);
+  const allLibraries = allCoreLibraries
+    .map((x) => x.libraryData)
+    .concat(...libraries);
   const typeMap = new Map(
     allLibraries.flatMap((lib) => [...lib.types.entries()])
   );
@@ -380,20 +382,14 @@ const analyzeCallExpression = (
               },
             };
             break;
-          case 'valueTypeReference': {
-            const valueType = ctx.typeMap.get(symbol.valueType.id)!;
-            if (valueType.kind === 'coreFunctionType') {
-              returnType = valueType.returnType;
-            } else {
-              returnType = {
-                kind: 'typeErrorTypeReference',
-                error: {
-                  kind: 'notCallableTypeError',
-                },
-              };
-            }
+          case 'valueTypeReference':
+            returnType = {
+              kind: 'typeErrorTypeReference',
+              error: {
+                kind: 'notCallableTypeError',
+              },
+            };
             break;
-          }
           case 'functionTypeReference':
             returnType = symbol.valueType.returnType;
             break;
