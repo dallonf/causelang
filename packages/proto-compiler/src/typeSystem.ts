@@ -1,8 +1,13 @@
+import { isEqual } from 'lodash';
 import { Breadcrumbs } from './context';
+import { exhaustiveCheck } from './utils';
 
 export type TypeReference =
   | PendingInferenceTypeReference
   | TypeErrorTypeReference
+  | ConcreteTypeReference;
+
+export type ConcreteTypeReference =
   | ValueTypeReference
   | FunctionTypeReference
   | TypeNameTypeReference;
@@ -13,7 +18,11 @@ export interface PendingInferenceTypeReference {
 
 export interface TypeErrorTypeReference {
   kind: 'typeErrorTypeReference';
-  error: FailedToResolveTypeError | ReferenceTypeError | NotCallableTypeError;
+  error:
+    | FailedToResolveTypeError
+    | ReferenceTypeError
+    | NotCallableTypeError
+    | MismatchedTypeError;
 }
 
 export interface FailedToResolveTypeError {
@@ -28,6 +37,12 @@ export interface ReferenceTypeError {
 
 export interface NotCallableTypeError {
   kind: 'notCallableTypeError';
+}
+
+export interface MismatchedTypeError {
+  kind: 'mismatchedTypeError';
+  expectedType?: TypeReference;
+  actualType: TypeReference;
 }
 
 export interface ValueTypeReference {
@@ -47,10 +62,7 @@ export interface TypeNameTypeReference {
   id: string;
 }
 
-export type CauseType =
-  | PrimitiveType
-  | ObjectType
-  | EffectType;
+export type CauseType = PrimitiveType | ObjectType | EffectType;
 
 export interface PrimitiveType {
   kind: 'primitiveType';
@@ -79,3 +91,27 @@ export interface ObjectType {
 }
 
 export type TypeMap = Map<string, CauseType>;
+
+export const isConcrete = (
+  type: TypeReference
+): type is ConcreteTypeReference => {
+  switch (type.kind) {
+    case 'pendingInferenceTypeReference':
+    case 'typeErrorTypeReference':
+      return false;
+    case 'valueTypeReference':
+    case 'typeNameTypeReference':
+    case 'functionTypeReference':
+      return true;
+    default:
+      return exhaustiveCheck(type);
+  }
+};
+
+export const isAssignableTo = (
+  actual: ConcreteTypeReference,
+  expecting: ConcreteTypeReference,
+  typeMap: TypeMap
+): boolean => {
+  return isEqual(actual, expecting);
+};

@@ -85,6 +85,10 @@ export default function makeLibrary(
     symbol: context.ScopeSymbol;
     value: unknown;
   };
+  const wrapNativeFn = (x: NativeFnLibraryItem['handler']) =>
+    function* (...args: any[]) {
+      return x(...args);
+    };
   const scope: Record<string, ScopeItem> = Object.fromEntries(
     ([...types.values()] as LibraryType[])
       .map((type): [string, ScopeItem] => {
@@ -143,7 +147,7 @@ export default function makeLibrary(
                     returnType: item.returnType,
                   },
                 },
-                value: item.handler,
+                value: wrapNativeFn(item.handler),
               },
             ];
           })

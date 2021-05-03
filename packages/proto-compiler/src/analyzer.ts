@@ -9,9 +9,14 @@ import {
   ScopeSymbol,
   toKey,
 } from './context';
-import { allCoreLibraries } from './coreLibrary';
+import { allCoreLibraries, INTEGER_ID, STRING_ID } from './coreLibrary';
 import { Library } from './library';
-import { TypeMap, TypeReference } from './typeSystem';
+import {
+  EffectType,
+  isAssignableTo,
+  TypeMap,
+  TypeReference,
+} from './typeSystem';
 import { exhaustiveCheck } from './utils';
 
 export interface AnalyzerContext {
@@ -69,14 +74,31 @@ export const analyzeModule = (
         };
         break;
       }
-      case 'EffectDeclaration':
-        const type: EffectScopeSymbol = {
+      case 'EffectDeclaration': {
+        const id = `${declaration.id.name}$${ctx.declarationSuffix}`;
+        const type: EffectType = {
+          kind: 'effectType',
+          id,
+          name: declaration.id.name,
+          parameters: Object.fromEntries(
+            declaration.parameters.map((param): [string, TypeReference] => [
+              param.name.name,
+              {
+                kind: 'pendingInferenceTypeReference',
+              },
+            ])
+          ),
+          returnType: { kind: 'pendingInferenceTypeReference' },
+        };
+        const symbol: EffectScopeSymbol = {
           kind: 'effect',
-          id: `${declaration.id.name}$${ctx.declarationSuffix}`,
+          id,
           name: declaration.id.name,
         };
-        newScope[declaration.id.name] = type;
+        newScope[declaration.id.name] = symbol;
+        ctx.typeMap.set(id, type);
         break;
+      }
       default:
         return exhaustiveCheck(declaration);
     }
@@ -117,25 +139,92 @@ const analyzeExpression = (
 ): void => {
   switch (node.type) {
     case 'IntLiteral':
+      ctx.typesOfExpressions.set(toKey(breadcrumbs), {
+        kind: 'valueTypeReference',
+        id: INTEGER_ID,
+      });
+      break;
     case 'StringLiteral':
+      ctx.typesOfExpressions.set(toKey(breadcrumbs), {
+        kind: 'valueTypeReference',
+        id: STRING_ID,
+      });
       break;
     case 'Identifier': {
-      const scope = findScope(breadcrumbs, ctx.scopes);
-      if (!scope[node.name]) {
-        throw new Error(
-          `I can't find anything called ${node.name} in the current scope.`
-        );
+      const item = findInScope(node.name, breadcrumbs, ctx.scopes);
+      if (!item) {
+        setTypeOfExpression(ctx, breadcrumbs, {
+          kind: 'typeErrorTypeReference',
+          error: {
+            kind: 'failedToResolveTypeError',
+            name: node.name,
+          },
+        });
+      } else {
+        let type: TypeReference;
+        switch (item.kind) {
+          case 'effect':
+          case 'objectType':
+            type = {
+              kind: 'typeNameTypeReference',
+              id: item.id,
+            };
+            break;
+          case 'namedValue':
+            type = item.valueType;
+            break;
+          default:
+            type = exhaustiveCheck(item);
+        }
+        setTypeOfExpression(ctx, breadcrumbs, type);
       }
       break;
     }
-    case 'MemberExpression':
+    case 'MemberExpression': {
       analyzeExpression(node.object, [...breadcrumbs, 'object'], ctx);
+      const parentType = getTypeOfExpression([...breadcrumbs, 'object'], ctx);
+      if (parentType.kind === 'valueTypeReference') {
+        const parentValueType = ctx.typeMap.get(parentType.id)!;
+        if (parentValueType.kind === 'objectType') {
+          const field = parentValueType.fields[node.property.name];
+          if (!field) {
+            setTypeOfExpression(ctx, breadcrumbs, {
+              kind: 'typeErrorTypeReference',
+              error: {
+                kind: 'failedToResolveTypeError',
+                name: node.property.name,
+              },
+            });
+          }
+          setTypeOfExpression(ctx, breadcrumbs, field);
+        } else {
+          setTypeOfExpression(ctx, breadcrumbs, {
+            kind: 'typeErrorTypeReference',
+            error: {
+              kind: 'mismatchedTypeError',
+              actualType: parentType,
+            },
+          });
+        }
+      } else {
+        setTypeOfExpression(ctx, breadcrumbs, {
+          kind: 'typeErrorTypeReference',
+          error: {
+            kind: 'mismatchedTypeError',
+            actualType: parentType,
+          },
+        });
+      }
       break;
+    }
     case 'CallExpression':
       analyzeCallExpression(node, breadcrumbs, ctx);
       break;
     case 'PrefixOperatorExpression': {
       analyzeExpression(node.expression, [...breadcrumbs, 'expression'], ctx);
+      if (node.operator.keyword === 'cause') {
+        analyzeCauseExpression(node, breadcrumbs, ctx);
+      }
       break;
     }
     case 'BlockExpression': {
@@ -151,6 +240,12 @@ const analyzeExpression = (
       );
       ctx.scopes.set(toKey(breadcrumbs), filteredScope);
       analyzeExpression(node.body, [...breadcrumbs, 'body'], ctx);
+
+      ctx.typesOfExpressions.set(toKey(breadcrumbs), {
+        kind: 'functionTypeReference',
+        params: {},
+        returnType: getTypeOfExpression([...breadcrumbs, 'body'], ctx),
+      });
       break;
     }
     case 'BranchExpression':
@@ -192,9 +287,17 @@ const analyzeBlockExpression = (
           [...statementBreadcrumbs, 'expression'],
           ctx
         );
+        ctx.typesOfExpressions.set(
+          toKey(statementBreadcrumbs),
+          getTypeOfExpression([...statementBreadcrumbs, 'expression'], ctx)
+        );
         break;
       case 'NameDeclarationStatement': {
         analyzeExpression(a.value, [...statementBreadcrumbs, 'value'], ctx);
+        const typeOfValue = getTypeOfExpression(
+          [...statementBreadcrumbs, 'value'],
+          ctx
+        );
 
         let type: TypeReference;
         if (a.typeAnnotation) {
@@ -203,7 +306,39 @@ const analyzeBlockExpression = (
             typeSymbol &&
             (typeSymbol.kind === 'objectType' || typeSymbol.kind === 'effect')
           ) {
-            type = { kind: 'valueTypeReference', id: typeSymbol.id };
+            const typeAnnotationReference = {
+              kind: 'valueTypeReference',
+              id: typeSymbol.id,
+            } as const;
+            if (typeOfValue.kind === 'typeErrorTypeReference') {
+              type = {
+                kind: 'typeErrorTypeReference',
+                error: {
+                  kind: 'referenceTypeError',
+                  breadcrumbs: [...statementBreadcrumbs, 'value'],
+                },
+              };
+            } else if (
+              typeOfValue.kind !== 'pendingInferenceTypeReference' &&
+              isAssignableTo(typeOfValue, typeAnnotationReference, ctx.typeMap)
+            ) {
+              type = { kind: 'valueTypeReference', id: typeSymbol.id };
+            } else {
+              type = {
+                kind: 'typeErrorTypeReference',
+                error: {
+                  kind: 'mismatchedTypeError',
+                  expectedType: {
+                    kind: 'valueTypeReference',
+                    id: typeSymbol.id,
+                  },
+                  actualType: {
+                    kind: 'valueTypeReference',
+                    id: typeAnnotationReference.id,
+                  },
+                },
+              };
+            }
           } else {
             type = {
               kind: 'typeErrorTypeReference',
@@ -214,7 +349,7 @@ const analyzeBlockExpression = (
             };
           }
         } else {
-          type = { kind: 'pendingInferenceTypeReference' };
+          type = typeOfValue;
         }
 
         const scopeSymbol: ScopeSymbol = {
@@ -237,12 +372,25 @@ const analyzeBlockExpression = (
             `${a.name.name} isn't a variable; it's just a name. You could try adding var to its declaration: "let var ${a.name.name}..."`
           );
         }
+        // TODO: check for mismatches here
+        analyzeExpression(a.value, [...statementBreadcrumbs, 'value'], ctx);
+        setTypeOfExpression(
+          ctx,
+          statementBreadcrumbs,
+          getTypeOfExpression([...statementBreadcrumbs, 'value'], ctx)
+        );
         break;
       }
       default:
         return exhaustiveCheck(a);
     }
   });
+
+  // return type is the last value
+  ctx.typesOfExpressions.set(
+    toKey(breadcrumbs),
+    getTypeOfExpression([...breadcrumbs, 'body', node.body.length - 1], ctx)
+  );
 
   node.handlers?.forEach((a, i) => {
     let patternScope;
@@ -350,8 +498,12 @@ const analyzeCallExpression = (
         ctx.scopes
       );
       if (symbol?.kind === 'effect' || symbol?.kind === 'objectType') {
-        ctx.typesOfExpressions.set(toKey([...breadcrumbs, 'callee']), {
+        setTypeOfExpression(ctx, [...breadcrumbs, 'callee'], {
           kind: 'typeNameTypeReference',
+          id: symbol.id,
+        });
+        setTypeOfExpression(ctx, breadcrumbs, {
+          kind: 'valueTypeReference',
           id: symbol.id,
         });
       } else if (symbol?.kind === 'namedValue') {
@@ -417,4 +569,57 @@ const analyzeCallExpression = (
   node.parameters.forEach((a, i) =>
     analyzeExpression(a, [...breadcrumbs, 'parameters', i], ctx)
   );
+};
+
+const analyzeCauseExpression = (
+  node: ast.PrefixOperatorExpression,
+  breadcrumbs: Breadcrumbs,
+  ctx: AnalyzerContext
+) => {
+  const valueType = getTypeOfExpression([...breadcrumbs, 'expression'], ctx);
+  if (valueType.kind !== 'valueTypeReference') {
+    setTypeOfExpression(ctx, breadcrumbs, {
+      kind: 'typeErrorTypeReference',
+      error: {
+        kind: 'mismatchedTypeError',
+        actualType: valueType,
+      },
+    });
+    return;
+  }
+
+  const effectType = ctx.typeMap.get(valueType.id)!;
+  if (effectType.kind !== 'effectType') {
+    setTypeOfExpression(ctx, breadcrumbs, {
+      kind: 'typeErrorTypeReference',
+      error: {
+        kind: 'mismatchedTypeError',
+        actualType: valueType,
+      },
+    });
+    return;
+  }
+
+  setTypeOfExpression(ctx, breadcrumbs, effectType.returnType);
+};
+
+const getTypeOfExpression = (
+  breadcrumbs: Breadcrumbs,
+  ctx: AnalyzerContext
+) => {
+  const result = ctx.typesOfExpressions.get(toKey(breadcrumbs));
+  if (!result) {
+    throw new Error(
+      `The expression at ${breadcrumbs.join('.')} hasn't been analyzed yet`
+    );
+  }
+  return result;
+};
+
+const setTypeOfExpression = (
+  ctx: AnalyzerContext,
+  breadcrumbs: Breadcrumbs,
+  type: TypeReference
+) => {
+  ctx.typesOfExpressions.set(toKey(breadcrumbs), type);
 };
