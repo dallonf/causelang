@@ -39,3 +39,20 @@ it('Can define a type and instantiate it', () => {
     ]
   `);
 });
+
+it('can retrieve values from a custom object', () => {
+  const script = `
+    type Card(
+      suit: String,
+      rank: Int,
+    )
+
+    fn main() {
+      let card = Card("spades", 7)
+      cause Print(card.suit)
+    }
+`;
+
+  const { output } = runMainSync(script);
+  expect(output).toEqual(['spades']);
+});
