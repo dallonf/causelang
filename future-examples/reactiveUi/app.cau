@@ -1,24 +1,22 @@
-import math.add
+import math.(add, multiply)
 import reactiveUi.(Component, e)
-import reactiveCore.(NewValue, NewComputed, Get, SetValue)
+import reactiveCore.(Value, Computed)
 
 let CounterApp = Component(
-    setup = fn() {
-        let counter = cause NewValue(0)
-        Object(
+    setup = fn(props) {
+        let counter = Value.new(0)
+        Object({
             counter,
-            counter2 = cause NewComputed(fn() {
-                multiply(cause Get(counter), 2)
-            })
-        )
+            counter2 = Computed.new(fn() multiply(counter.get(), 2))
+        })
     },
-    render = fn (props, state) {
+    render = fn(props, state) {
         let increment = fn() {
-            cause SetValue(state.counter, fn(prev): prev->add(1))
+            state.counter.set(fn(prev), prev->add(1))
         }
         e("div", Object(), List(
-            e("h1", Object(), format("Counter: {0}", cause Get(state.counter))),
-            e("h2", Object(), format("Counter x 2: {0}", cause Get(state.counter2))),
+            e("h1", Object(), format("Counter: {0}", state.counter.get())),
+            e("h2", Object(), format("Counter x 2: {0}", state.counter2.get())),
             e("button", Object(onClick = increment), "Increment")
         ))
     }
