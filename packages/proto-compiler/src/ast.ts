@@ -123,14 +123,28 @@ export interface EffectDeclaration {
   parameters: ParameterDescriptor[];
   returnType?: TypeReference;
 }
-
 export interface ParameterDescriptor {
   type: 'ParameterDescriptor';
   name: Identifier;
   valueType: TypeReference;
 }
 
-export type Declaration = FunctionDeclaration | EffectDeclaration;
+export interface TypeDeclaration {
+  type: 'TypeDeclaration';
+  id: Identifier;
+  fields: FieldDescriptor[];
+}
+
+export interface FieldDescriptor {
+  type: 'FieldDescriptor';
+  name: Identifier;
+  valueType: TypeReference;
+}
+
+export type Declaration =
+  | FunctionDeclaration
+  | EffectDeclaration
+  | TypeDeclaration;
 
 export interface Module {
   type: 'Module';

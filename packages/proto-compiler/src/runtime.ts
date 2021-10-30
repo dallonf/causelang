@@ -147,6 +147,8 @@ function makeRuntimeLibraryContext(
   const allLibraries = [...allCoreLibraries, ...libraries];
 
   return {
+    // TODO: RuntimeScope is supposed to be Record<string, string | Function>,
+    // but it seems to be getting TypeNameTypeReferences too
     runtimeScope: {
       ...runtimeFns,
       ...Object.fromEntries(

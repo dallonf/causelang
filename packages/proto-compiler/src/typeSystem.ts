@@ -84,12 +84,6 @@ export interface EffectType {
   returnType: TypeReference;
 }
 
-export interface ObjectType {
-  kind: 'objectType';
-  id: string;
-  fields: Record<string, TypeReference>;
-}
-
 export type TypeMap = Map<string, CauseType>;
 
 export const isConcrete = (

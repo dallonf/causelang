@@ -84,7 +84,7 @@ it('Provides access to the captured effects and its values', () => {
         cause Print("Don't handle this one")
         cause Greet("partner")
       } handle let e: Greet => {
-        cause Print(append("Howdy, ", e.value))
+        cause Print(append("Howdy, ", e.name))
       }
     }
   `;
@@ -139,8 +139,10 @@ it('Provides access to the captured effect without a type', () => {
   expect(extract).toHaveBeenCalledWith({
     type: idFromLibrary('Extract', library),
     value: {
-      type: Print,
-      value: 'this should be extracted and not printed',
+      value: {
+        type: Print,
+        value: { message: 'this should be extracted and not printed' },
+      },
     },
   });
 });
@@ -207,4 +209,23 @@ it('Can define your own effects', () => {
 
   expect(result).toBe(undefined);
   expect(output).toEqual(['Howdy, partner']);
+});
+
+it('correct filters custom effects', () => {
+  const script = `
+    effect TestEffect1(value: String): Action
+    effect TestEffect2(value: Int): Action
+
+    fn main() {
+      cause TestEffect1("hello")
+      cause TestEffect2(42)
+    } handle let e: TestEffect1 => {
+      cause Print(append("One ", e.value))
+    } handle let e: TestEffect2 => {
+      cause Print(append("Two ", e.value))
+    }
+  `;
+
+  const { output } = runMainSync(script);
+  expect(output).toEqual(['One hello', 'Two 42']);
 });

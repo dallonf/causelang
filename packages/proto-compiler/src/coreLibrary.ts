@@ -6,6 +6,7 @@ export const INTEGER_ID = 'core$Integer';
 export const ACTION_ID = 'core$Action';
 export const NEVER_ID = 'core$Never';
 export const BOOLEAN_ID = 'core$Boolean';
+export const UNKNOWN_ID = 'core$Unknown';
 
 export const coreOperationsLibrary = makeLibrary(
   'core',
@@ -13,7 +14,7 @@ export const coreOperationsLibrary = makeLibrary(
     type: 'effect',
     name: 'Print',
     params: {
-      value: {
+      message: {
         kind: 'valueTypeReference',
         id: STRING_ID,
       },
@@ -23,7 +24,24 @@ export const coreOperationsLibrary = makeLibrary(
       id: ACTION_ID,
     },
     handler(effect: any) {
-      console.log(effect.value);
+      console.log(effect.value.message);
+    },
+  },
+  {
+    type: 'effect',
+    name: 'Debug',
+    params: {
+      value: {
+        kind: 'valueTypeReference',
+        id: UNKNOWN_ID,
+      },
+    },
+    returnType: {
+      kind: 'valueTypeReference',
+      id: ACTION_ID,
+    },
+    handler(effect: any) {
+      console.dir(effect.value.value);
     },
   },
   {
@@ -40,7 +58,9 @@ export const coreOperationsLibrary = makeLibrary(
       id: NEVER_ID,
     },
     handler(effect: any) {
-      throw new CauseError('Error while running Cause file: ' + effect.value);
+      throw new CauseError(
+        'Error while running Cause file: ' + effect.value.message
+      );
     },
   },
   {
@@ -90,11 +110,6 @@ export const coreOperationsLibrary = makeLibrary(
 
 export const allCoreLibraries = [coreOperationsLibrary];
 
-/**
- * @deprecated
- */
 export const PrintEffectID = idFromLibrary('Print', coreOperationsLibrary);
-/**
- * @deprecated
- */
+export const DebugEffectID = idFromLibrary('Debug', coreOperationsLibrary);
 export const PanicEffectID = idFromLibrary('Panic', coreOperationsLibrary);

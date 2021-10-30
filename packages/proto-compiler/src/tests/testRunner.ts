@@ -1,14 +1,18 @@
 import compileAndInvoke from '../compileAndInvoke';
 import compileToJs from '../compileToJs';
-import { PrintEffectID } from '../coreLibrary';
+import { DebugEffectID, PrintEffectID } from '../coreLibrary';
 import { CauseRuntime, EffectHandler } from '../runtime';
 import { RuntimeLibrary } from '../runtimeLibrary';
 
-function makePrintOverride() {
-  const output: string[] = [];
+type Output = string | { type: 'debug'; value: any };
+function makeEffectOverrides() {
+  const output: Output[] = [];
   const printOverrideHandler: EffectHandler = (e) => {
     if (e.type === PrintEffectID) {
-      output.push(e.value);
+      output.push(e.value.message);
+      return { handled: true };
+    } else if (e.type === DebugEffectID) {
+      output.push({ type: 'debug', value: e.value.value });
       return { handled: true };
     }
   };
@@ -22,7 +26,7 @@ export async function runMain(
     libraries?: RuntimeLibrary[];
   }
 ) {
-  const { printOverrideHandler, output } = makePrintOverride();
+  const { printOverrideHandler, output } = makeEffectOverrides();
 
   const result = await compileAndInvoke(
     { source: script, filename: 'test.cau' },
@@ -49,7 +53,7 @@ export function runMainSync(
     debugJsOutput?: boolean;
   }
 ) {
-  const { printOverrideHandler, output } = makePrintOverride();
+  const { printOverrideHandler, output } = makeEffectOverrides();
 
   const jsSource = compileToJs(
     script,

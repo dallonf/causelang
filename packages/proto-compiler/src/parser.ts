@@ -67,6 +67,8 @@ const parseDeclaration = (
       return parseFunctionDeclaration(keyword.cursor, ctx);
     } else if (keyword.identifier === 'effect') {
       return parseEffectDeclaration(keyword.cursor, ctx);
+    } else if (keyword.identifier === 'type') {
+      return parseTypeDeclaration(keyword.cursor, ctx);
     }
   }
   return null;
@@ -214,23 +216,98 @@ const parseEffectDeclaration = (
       type: 'Identifier',
       name: idRead.identifier,
     },
-    parameters: [],
+    parameters,
     returnType,
   };
 
   return { result, cursor };
 };
 
-const parseExpression = (
+function parseTypeDeclaration(
   cursor: SourceStream,
   ctx: Context
+): { result: ast.TypeDeclaration; cursor: SourceStream } {
+  const idRead = readIdentifier(cursor);
+  if (!idRead) {
+    throw new CompilerError(
+      'I\'m looking for a type name after the "type" declaration, but I can\'t find one',
+      cursor
+    );
+  }
+  cursor = idRead.cursor;
+
+  cursor = expectCursor(
+    cursor,
+    consumeSequence(cursor, '('),
+    'The next part of a type declaration should be a "(" to list the fields.'
+  );
+
+  let fields: ast.FieldDescriptor[] = [];
+  let fieldName;
+  while (
+    ((cursor = skipWhitespace(cursor)),
+    (fieldName = parseIdentifier(cursor, ctx)),
+    fieldName)
+  ) {
+    cursor = skipWhitespace(fieldName.cursor);
+
+    cursor = expectCursor(
+      cursor,
+      consumeSequence(cursor, ':'),
+      'I\'m looking for a ":" to set the type of this field'
+    );
+
+    cursor = skipWhitespace(cursor);
+
+    const typeId = parseIdentifier(cursor, ctx);
+    assertCursor(cursor, typeId?.cursor, "I'm looking for a type name");
+    cursor = typeId.cursor;
+
+    fields.push({
+      type: 'FieldDescriptor',
+      name: fieldName.result,
+      valueType: typeId.result,
+    });
+
+    const comma = consumeSequence(cursor, ',');
+    if (!comma) {
+      break;
+    } else {
+      cursor = comma;
+    }
+  }
+
+  cursor = expectCursor(
+    cursor,
+    consumeSequence(cursor, ')'),
+    'The next part of a type declaration should be a ")" to close out the field list.'
+  );
+
+  const result: ast.TypeDeclaration = {
+    type: 'TypeDeclaration',
+    id: {
+      type: 'Identifier',
+      name: idRead.identifier,
+    },
+    fields,
+  };
+
+  return { result, cursor };
+}
+
+const parseExpression = (
+  cursor: SourceStream,
+  ctx: Context,
+  opts?: { allowHandlers?: boolean }
 ): null | { result: ast.Expression; cursor: SourceStream } => {
   cursor = skipWhitespace(cursor);
   const char = nextChar(cursor);
   if (!char) return null;
 
   if (char.char === '{') {
-    return parseBlockExpression(cursor, ctx);
+    return parseBlockExpression(cursor, ctx, {
+      allowHandlers: opts?.allowHandlers,
+    });
   } else {
     let initialExpression;
     let readAttempt;
@@ -473,7 +550,8 @@ const parseMemberExpression = (
 
 const parseBlockExpression = (
   cursor: SourceStream,
-  ctx: Context
+  ctx: Context,
+  opts?: { allowHandlers?: boolean }
 ): { result: ast.BlockExpression; cursor: SourceStream } => {
   cursor = skipWhitespace(cursor);
   const openBrace = nextChar(cursor);
@@ -516,41 +594,45 @@ const parseBlockExpression = (
 
   cursor = skipWhitespace(cursor, { stopAtNewline: true });
 
+  const allowHandlers = opts?.allowHandlers ?? true;
   const handlers: ast.HandlerBlockSuffix[] = [];
-  const handleSuffixKeywordCursor = consumeSequence(cursor, 'handle');
-  if (handleSuffixKeywordCursor) {
-    cursor = handleSuffixKeywordCursor;
-    cursor = skipWhitespace(cursor, { stopAtNewline: true });
+  if (allowHandlers) {
+    let handleSuffixKeywordCursor;
+    while ((handleSuffixKeywordCursor = consumeSequence(cursor, 'handle'))) {
+      cursor = handleSuffixKeywordCursor;
+      cursor = skipWhitespace(cursor, { stopAtNewline: true });
 
-    const pattern = parsePattern(cursor, ctx);
-    if (pattern) {
-      cursor = pattern.cursor;
+      const pattern = parsePattern(cursor, ctx);
+      if (pattern) {
+        cursor = pattern.cursor;
+      }
+
+      cursor = skipWhitespace(cursor, { stopAtNewline: true });
+      cursor = expectCursor(
+        cursor,
+        consumeSequence(cursor, '=>'),
+        pattern
+          ? 'I\'m looking for an arrow ("=>") to seperate the handler match pattern from the handler itself.'
+          : 'I\'m looking for a handler match pattern or an arrow ("=>")'
+      );
+      cursor = skipWhitespace(cursor);
+
+      const bodyExpression = parseExpression(cursor, ctx, {
+        allowHandlers: false,
+      });
+      assertCursor(
+        cursor,
+        bodyExpression?.cursor,
+        "I'm looking for an expression to handle the effect."
+      );
+      cursor = bodyExpression.cursor;
+      handlers.push({
+        type: 'HandlerBlockSuffix',
+        body: bodyExpression.result,
+        pattern: pattern?.result,
+      });
     }
-
-    cursor = skipWhitespace(cursor, { stopAtNewline: true });
-    cursor = expectCursor(
-      cursor,
-      consumeSequence(cursor, '=>'),
-      pattern
-        ? 'I\'m looking for an arrow ("=>") to seperate the handler match pattern from the handler itself.'
-        : 'I\'m looking for a handler match pattern or an arrow ("=>")'
-    );
-    cursor = skipWhitespace(cursor);
-
-    const bodyExpression = parseExpression(cursor, ctx);
-    assertCursor(
-      cursor,
-      bodyExpression?.cursor,
-      "I'm looking for an expression to handle the effect."
-    );
-    cursor = bodyExpression.cursor;
-    handlers.push({
-      type: 'HandlerBlockSuffix',
-      body: bodyExpression.result,
-      pattern: pattern?.result,
-    });
   }
-  // TODO: multiple handlers
 
   return {
     result: {

@@ -39,11 +39,13 @@ it('returns a hello world value', () => {
     },
   });
 
-  const { result, output } = runMainSync(script, { libraries: [library] });
+  const { result, output } = runMainSync(script, {
+    libraries: [library],
+  });
 
   expect(result).toEqual({
     type: idFromLibrary('Greeting', library),
-    value: 'Hello World',
+    value: { message: 'Hello World' },
   });
   expect(output).toEqual([]);
 });

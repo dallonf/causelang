@@ -33,10 +33,40 @@ export const generateModule = (
           );
         }
 
+        const typeReference: typeSystem.TypeNameTypeReference = {
+          kind: 'typeNameTypeReference',
+          id: effect.id,
+        };
+
         return jsAst.variableDeclaration('const', [
           jsAst.variableDeclarator(
             jsAst.identifier(a.id.name),
-            jsAst.stringLiteral(effect.id)
+            jsAst.valueToNode(typeReference)
+          ),
+        ]);
+      }
+      case 'TypeDeclaration': {
+        const objectType = findInScope(
+          a.id.name,
+          statementBreadcrumbs,
+          ctx.scopes
+        );
+        if (objectType?.kind !== 'objectType') {
+          throw new Error(
+            `I'm confused; I'm can't find the metadata for this type declaration at ${statementBreadcrumbs.join(
+              '.'
+            )}. This probably isn't your fault!`
+          );
+        }
+
+        const typeReference: typeSystem.TypeNameTypeReference = {
+          kind: 'typeNameTypeReference',
+          id: objectType.id,
+        };
+        return jsAst.variableDeclaration('const', [
+          jsAst.variableDeclarator(
+            jsAst.identifier(a.id.name),
+            jsAst.valueToNode(typeReference)
           ),
         ]);
       }
@@ -142,11 +172,48 @@ const generateExpression = (
           `I'm not sure how to compile a ${node.operator.keyword} operator here`
         );
       }
-    case 'MemberExpression':
-      return jsAst.memberExpression(
-        generateExpression(node.object, [...breadcrumbs, 'object'], ctx),
-        jsAst.identifier(node.property.name)
-      );
+    case 'MemberExpression': {
+      const objType = ctx.typesOfExpressions.get(
+        toKey([...breadcrumbs, 'object'])
+      )!;
+      switch (objType.kind) {
+        case 'functionTypeReference':
+          throw new Error(`Functions don't have properties`);
+        case 'typeErrorTypeReference':
+          return generateBakedError(
+            `Can't access members of this object: ${JSON.stringify(
+              objType.error
+            )}`,
+            [...breadcrumbs, 'object'],
+            ctx
+          );
+        case 'typeNameTypeReference':
+          return generateBakedError(
+            "Can't access members of a type",
+            [...breadcrumbs, 'object'],
+            ctx
+          );
+        case 'pendingInferenceTypeReference':
+          return generateBakedError(
+            "I don't know what type this is, so I can't get members from it",
+            [...breadcrumbs, 'object'],
+            ctx
+          );
+        case 'valueTypeReference': {
+          return jsAst.memberExpression(
+            jsAst.memberExpression(
+              generateExpression(node.object, [...breadcrumbs, 'object'], ctx),
+              jsAst.identifier('value'),
+            ),
+            jsAst.identifier(node.property.name)
+          );
+        }
+        default: {
+          const exhaustive: never = objType;
+          return exhaustive;
+        }
+      }
+    }
     case 'FunctionExpression': {
       let bodyStatements;
       if (node.body.type === 'BlockExpression' && !node.body.handlers) {
@@ -186,9 +253,50 @@ const generateCallExpression = (
     toKey([...breadcrumbs, 'callee'])
   );
   if (calleeTypeReference?.kind === 'typeNameTypeReference') {
-    if (node.parameters.length > 1) {
-      throw new Error('Effects and types can only have one parameter for now');
+    const type = ctx.types.get(calleeTypeReference.id);
+    if (!(type?.kind === 'effectType' || type?.kind === 'objectType')) {
+      throw new Error(
+        `I'm confused; I was expecting to find a type reference here that I could instantiate. This probably isn't your fault!`
+      );
     }
+    let argumentPairs: [string, jsAst.Expression][];
+    switch (type.kind) {
+      case 'effectType': {
+        const keys = Object.keys(type.parameters);
+        if (keys.length !== node.parameters.length) {
+          throw new Error(
+            `I was expecting a constructor of effect ${type.name} to have ${keys.length} parameters, but I see ${node.parameters.length}.`
+          );
+        }
+        argumentPairs = node.parameters.map((param, i) => {
+          return [
+            keys[i],
+            generateExpression(param, [...breadcrumbs, 'parameters', i], ctx),
+          ];
+        });
+        break;
+      }
+      case 'objectType': {
+        const keys = Object.keys(type.fields);
+        if (keys.length !== node.parameters.length) {
+          throw new Error(
+            `I was expecting a constructor of type ${type.name} to have ${keys.length} parameters, but I see ${node.parameters.length}.`
+          );
+        }
+        argumentPairs = node.parameters.map((param, i) => {
+          return [
+            keys[i],
+            generateExpression(param, [...breadcrumbs, 'parameters', i], ctx),
+          ];
+        });
+        break;
+      }
+      default: {
+        const exhaustive: never = type;
+        return exhaustive;
+      }
+    }
+
     return jsAst.objectExpression([
       jsAst.objectProperty(
         jsAst.identifier('type'),
@@ -197,14 +305,14 @@ const generateCallExpression = (
           jsAst.identifier('id')
         )
       ),
-      ...(node.parameters.length
+      ...(argumentPairs.length
         ? [
             jsAst.objectProperty(
               jsAst.identifier('value'),
-              generateExpression(
-                node.parameters[0],
-                [...breadcrumbs, 'parameters', 0],
-                ctx
+              jsAst.objectExpression(
+                argumentPairs.map(([name, value]) =>
+                  jsAst.objectProperty(jsAst.identifier(name), value)
+                )
               )
             ),
           ]
@@ -430,5 +538,25 @@ function generateHandlerFunction(
     node.pattern ? [jsAst.identifier('$effect')] : [],
     jsAst.blockStatement(statements),
     true
+  );
+}
+
+function generateBakedError(
+  message: string,
+  breadcrumbs: Breadcrumbs,
+  ctx: GeneratorContext
+) {
+  return jsAst.callExpression(
+    jsAst.arrowFunctionExpression(
+      [],
+      jsAst.blockStatement([
+        jsAst.throwStatement(
+          jsAst.newExpression(jsAst.identifier('Error'), [
+            jsAst.stringLiteral(`${toKey(breadcrumbs)}: ${message}`),
+          ])
+        ),
+      ])
+    ),
+    []
   );
 }

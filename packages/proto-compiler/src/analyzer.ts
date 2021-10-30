@@ -8,6 +8,7 @@ import {
   ScopeMap,
   ScopeSymbol,
   toKey,
+  TypeScopeSymbol,
 } from './context';
 import { allCoreLibraries, INTEGER_ID, STRING_ID } from './coreLibrary';
 import { Library } from './library';
@@ -15,6 +16,7 @@ import {
   ConcreteTypeReference,
   EffectType,
   isAssignableTo,
+  ObjectType,
   TypeMap,
   TypeReference,
 } from './typeSystem';
@@ -100,6 +102,30 @@ export const analyzeModule = (
         ctx.typeMap.set(id, type);
         break;
       }
+      case 'TypeDeclaration': {
+        const id = `${declaration.id.name}$${ctx.declarationSuffix}`;
+        const type: ObjectType = {
+          kind: 'objectType',
+          id,
+          name: declaration.id.name,
+          fields: Object.fromEntries(
+            declaration.fields.map((param): [string, TypeReference] => [
+              param.name.name,
+              {
+                kind: 'pendingInferenceTypeReference',
+              },
+            ])
+          ),
+        };
+        const symbol: TypeScopeSymbol = {
+          kind: 'objectType',
+          id,
+          name: declaration.id.name,
+        };
+        newScope[declaration.id.name] = symbol;
+        ctx.typeMap.set(id, type);
+        break;
+      }
       default:
         return exhaustiveCheck(declaration);
     }
@@ -116,6 +142,7 @@ export const analyzeModule = (
         );
         break;
       case 'EffectDeclaration':
+      case 'TypeDeclaration':
         break;
       default:
         return exhaustiveCheck(declaration);
@@ -431,11 +458,12 @@ const analyzeBlockExpression = (
   );
 
   node.handlers?.forEach((a, i) => {
+    const handlerBreadcrumbs = [...breadcrumbs, 'handlers', i];
     let patternScope;
     if (a.pattern) {
       patternScope = getPatternScope(
         a.pattern,
-        [...breadcrumbs, 'pattern'],
+        [...handlerBreadcrumbs, 'pattern'],
         ctx
       );
     } else {
@@ -443,9 +471,7 @@ const analyzeBlockExpression = (
     }
 
     const handlerExpressionBreadcrumbs = [
-      ...breadcrumbs,
-      'handlers',
-      i,
+      ...handlerBreadcrumbs,
       'body',
     ];
     ctx.scopes.set(toKey(handlerExpressionBreadcrumbs), patternScope);
