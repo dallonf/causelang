@@ -8,7 +8,8 @@ import {
   ScopeMap,
   ScopeSymbol,
   toKey,
-  TypeScopeSymbol,
+  ObjectTypeScopeSymbol,
+  SymbolScopeSymbol,
 } from './context';
 import { allCoreLibraries, INTEGER_ID, STRING_ID } from './coreLibrary';
 import { Library } from './library';
@@ -17,6 +18,7 @@ import {
   EffectType,
   isAssignableTo,
   ObjectType,
+  SymbolType,
   TypeMap,
   TypeReference,
 } from './typeSystem';
@@ -117,8 +119,24 @@ export const analyzeModule = (
             ])
           ),
         };
-        const symbol: TypeScopeSymbol = {
+        const symbol: ObjectTypeScopeSymbol = {
           kind: 'objectType',
+          id,
+          name: declaration.id.name,
+        };
+        newScope[declaration.id.name] = symbol;
+        ctx.typeMap.set(id, type);
+        break;
+      }
+      case 'SymbolDeclaration': {
+        const id = `${declaration.id.name}${ctx.declarationSuffix}`;
+        const type: SymbolType = {
+          kind: 'symbolType',
+          id,
+          name: declaration.id.name,
+        };
+        const symbol: SymbolScopeSymbol = {
+          kind: 'symbol',
           id,
           name: declaration.id.name,
         };
@@ -143,6 +161,7 @@ export const analyzeModule = (
         break;
       case 'EffectDeclaration':
       case 'TypeDeclaration':
+      case 'SymbolDeclaration':
         break;
       default:
         return exhaustiveCheck(declaration);
@@ -200,6 +219,12 @@ const analyzeExpression = (
             break;
           case 'namedValue':
             type = item.valueType;
+            break;
+          case 'symbol':
+            type = {
+              kind: 'valueTypeReference',
+              id: item.id,
+            };
             break;
           default:
             type = exhaustiveCheck(item);
@@ -470,10 +495,7 @@ const analyzeBlockExpression = (
       patternScope = parentScope;
     }
 
-    const handlerExpressionBreadcrumbs = [
-      ...handlerBreadcrumbs,
-      'body',
-    ];
+    const handlerExpressionBreadcrumbs = [...handlerBreadcrumbs, 'body'];
     ctx.scopes.set(toKey(handlerExpressionBreadcrumbs), patternScope);
     analyzeExpression(a.body, handlerExpressionBreadcrumbs, ctx);
   });

@@ -129,7 +129,7 @@ export interface ParameterDescriptor {
   valueType: TypeReference;
 }
 
-export interface TypeDeclaration {
+export interface ObjectTypeDeclaration {
   type: 'TypeDeclaration';
   id: Identifier;
   fields: FieldDescriptor[];
@@ -141,10 +141,16 @@ export interface FieldDescriptor {
   valueType: TypeReference;
 }
 
+export interface SymbolDeclaration {
+  type: 'SymbolDeclaration';
+  id: Identifier;
+}
+
 export type Declaration =
   | FunctionDeclaration
   | EffectDeclaration
-  | TypeDeclaration;
+  | ObjectTypeDeclaration
+  | SymbolDeclaration;
 
 export interface Module {
   type: 'Module';

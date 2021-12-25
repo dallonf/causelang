@@ -70,6 +70,18 @@ export const generateModule = (
           ),
         ]);
       }
+      case 'SymbolDeclaration': {
+        const symbolDefinition = {
+          type: '$symbol',
+          id: a.id.name,
+        };
+        return jsAst.variableDeclaration('const', [
+          jsAst.variableDeclarator(
+            jsAst.identifier(a.id.name),
+            jsAst.valueToNode(symbolDefinition)
+          ),
+        ]);
+      }
       default:
         return exhaustiveCheck(a);
     }
@@ -203,7 +215,7 @@ const generateExpression = (
           return jsAst.memberExpression(
             jsAst.memberExpression(
               generateExpression(node.object, [...breadcrumbs, 'object'], ctx),
-              jsAst.identifier('value'),
+              jsAst.identifier('value')
             ),
             jsAst.identifier(node.property.name)
           );

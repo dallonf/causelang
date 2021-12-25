@@ -62,7 +62,7 @@ export interface TypeNameTypeReference {
   id: string;
 }
 
-export type CauseType = PrimitiveType | ObjectType | EffectType;
+export type CauseType = PrimitiveType | ObjectType | EffectType | SymbolType;
 
 export interface PrimitiveType {
   kind: 'primitiveType';
@@ -82,6 +82,12 @@ export interface EffectType {
   name: string;
   parameters: Record<string, TypeReference>;
   returnType: TypeReference;
+}
+
+export interface SymbolType {
+  kind: 'symbolType';
+  id: string;
+  name: string;
 }
 
 export type TypeMap = Map<string, CauseType>;

@@ -68,7 +68,9 @@ const parseDeclaration = (
     } else if (keyword.identifier === 'effect') {
       return parseEffectDeclaration(keyword.cursor, ctx);
     } else if (keyword.identifier === 'type') {
-      return parseTypeDeclaration(keyword.cursor, ctx);
+      return parseObjectTypeDeclaration(keyword.cursor, ctx);
+    } else if (keyword.identifier === 'symbol') {
+      return parseSymbolDeclaration(keyword.cursor, ctx);
     }
   }
   return null;
@@ -223,10 +225,10 @@ const parseEffectDeclaration = (
   return { result, cursor };
 };
 
-function parseTypeDeclaration(
+function parseObjectTypeDeclaration(
   cursor: SourceStream,
   ctx: Context
-): { result: ast.TypeDeclaration; cursor: SourceStream } {
+): { result: ast.ObjectTypeDeclaration; cursor: SourceStream } {
   const idRead = readIdentifier(cursor);
   if (!idRead) {
     throw new CompilerError(
@@ -283,7 +285,7 @@ function parseTypeDeclaration(
     'The next part of a type declaration should be a ")" to close out the field list.'
   );
 
-  const result: ast.TypeDeclaration = {
+  const result: ast.ObjectTypeDeclaration = {
     type: 'TypeDeclaration',
     id: {
       type: 'Identifier',
@@ -293,6 +295,27 @@ function parseTypeDeclaration(
   };
 
   return { result, cursor };
+}
+
+function parseSymbolDeclaration(
+  cursor: SourceStream,
+  ctx: Context
+): { result: ast.SymbolDeclaration; cursor: SourceStream } {
+  const id = parseIdentifier(cursor, ctx);
+  if (!id) {
+    throw new CompilerError(
+      'I\'m looking for a symbol name after the "symbol" declaration, but I can\'t find one',
+      cursor
+    );
+  }
+
+  return {
+    cursor: id.cursor,
+    result: {
+      type: 'SymbolDeclaration',
+      id: id.result,
+    },
+  };
 }
 
 const parseExpression = (

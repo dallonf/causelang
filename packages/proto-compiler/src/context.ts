@@ -2,8 +2,9 @@ import { TypeReference } from './typeSystem';
 
 export type ScopeSymbol =
   | EffectScopeSymbol
-  | TypeScopeSymbol
-  | NamedValueScopeSymbol;
+  | ObjectTypeScopeSymbol
+  | NamedValueScopeSymbol
+  | SymbolScopeSymbol;
 
 export interface EffectScopeSymbol {
   kind: 'effect';
@@ -11,7 +12,7 @@ export interface EffectScopeSymbol {
   id: string;
 }
 
-export interface TypeScopeSymbol {
+export interface ObjectTypeScopeSymbol {
   kind: 'objectType';
   name: string;
   id: string;
@@ -22,6 +23,13 @@ export interface NamedValueScopeSymbol {
   name: string;
   valueType: TypeReference;
   variable: boolean;
+}
+
+/** not the best name lol */
+export interface SymbolScopeSymbol {
+  kind: 'symbol';
+  name: string;
+  id: string;
 }
 
 export type Scope = Record<string, ScopeSymbol>;
