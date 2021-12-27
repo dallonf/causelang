@@ -1,8 +1,21 @@
-const KEYWORDS = ['cause', 'fn'] as const;
+const KEYWORDS = [
+  'cause',
+  'effect',
+  'fn',
+  'type',
+  'option',
+  'let',
+  'var',
+  'symbol',
+] as const;
 export const keywordSet = new Set(KEYWORDS);
 export type KeywordValue = typeof KEYWORDS extends readonly (infer T)[]
   ? T
   : never;
+
+export function isKeyword(input: string): input is KeywordValue {
+  return (keywordSet as Set<string>).has(input);
+}
 
 export interface Keyword {
   type: 'Keyword';
@@ -146,11 +159,19 @@ export interface SymbolDeclaration {
   id: Identifier;
 }
 
-export type Declaration =
-  | FunctionDeclaration
+export interface OptionDeclaration {
+  type: 'OptionDeclaration';
+  name: Identifier;
+  options: (TypeReference | TypeDeclaration)[];
+}
+
+export type TypeDeclaration =
   | EffectDeclaration
   | ObjectTypeDeclaration
-  | SymbolDeclaration;
+  | SymbolDeclaration
+  | OptionDeclaration;
+
+export type Declaration = FunctionDeclaration | TypeDeclaration;
 
 export interface Module {
   type: 'Module';

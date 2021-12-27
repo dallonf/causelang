@@ -79,71 +79,12 @@ export const analyzeModule = (
         };
         break;
       }
-      case 'EffectDeclaration': {
-        const id = `${declaration.id.name}$${ctx.declarationSuffix}`;
-        const type: EffectType = {
-          kind: 'effectType',
-          id,
-          name: declaration.id.name,
-          parameters: Object.fromEntries(
-            declaration.parameters.map((param): [string, TypeReference] => [
-              param.name.name,
-              {
-                kind: 'pendingInferenceTypeReference',
-              },
-            ])
-          ),
-          returnType: { kind: 'pendingInferenceTypeReference' },
-        };
-        const symbol: EffectScopeSymbol = {
-          kind: 'effect',
-          id,
-          name: declaration.id.name,
-        };
-        newScope[declaration.id.name] = symbol;
-        ctx.typeMap.set(id, type);
+      case 'EffectDeclaration':
+      case 'TypeDeclaration':
+      case 'SymbolDeclaration':
+      case 'OptionDeclaration':
+        analyzeTypeDeclaration(declaration, [...breadcrumbs, 'body', i], ctx);
         break;
-      }
-      case 'TypeDeclaration': {
-        const id = `${declaration.id.name}$${ctx.declarationSuffix}`;
-        const type: ObjectType = {
-          kind: 'objectType',
-          id,
-          name: declaration.id.name,
-          fields: Object.fromEntries(
-            declaration.fields.map((param): [string, TypeReference] => [
-              param.name.name,
-              {
-                kind: 'pendingInferenceTypeReference',
-              },
-            ])
-          ),
-        };
-        const symbol: ObjectTypeScopeSymbol = {
-          kind: 'objectType',
-          id,
-          name: declaration.id.name,
-        };
-        newScope[declaration.id.name] = symbol;
-        ctx.typeMap.set(id, type);
-        break;
-      }
-      case 'SymbolDeclaration': {
-        const id = `${declaration.id.name}${ctx.declarationSuffix}`;
-        const type: SymbolType = {
-          kind: 'symbolType',
-          id,
-          name: declaration.id.name,
-        };
-        const symbol: SymbolScopeSymbol = {
-          kind: 'symbol',
-          id,
-          name: declaration.id.name,
-        };
-        newScope[declaration.id.name] = symbol;
-        ctx.typeMap.set(id, type);
-        break;
-      }
       default:
         return exhaustiveCheck(declaration);
     }
@@ -162,6 +103,7 @@ export const analyzeModule = (
       case 'EffectDeclaration':
       case 'TypeDeclaration':
       case 'SymbolDeclaration':
+      case 'OptionDeclaration':
         break;
       default:
         return exhaustiveCheck(declaration);
@@ -170,6 +112,88 @@ export const analyzeModule = (
 
   return ctx;
 };
+
+function analyzeTypeDeclaration(
+  node: ast.TypeDeclaration,
+  breadcrumbs: Breadcrumbs,
+  ctx: AnalyzerContext
+): void {
+  switch (node.type) {
+    case 'EffectDeclaration': {
+      const id = `${node.id.name}$${ctx.declarationSuffix}`;
+      const type: EffectType = {
+        kind: 'effectType',
+        id,
+        name: node.id.name,
+        parameters: Object.fromEntries(
+          node.parameters.map((param): [string, TypeReference] => [
+            param.name.name,
+            {
+              kind: 'pendingInferenceTypeReference',
+            },
+          ])
+        ),
+        returnType: { kind: 'pendingInferenceTypeReference' },
+      };
+      const symbol: EffectScopeSymbol = {
+        kind: 'effect',
+        id,
+        name: node.id.name,
+      };
+      newScope[node.id.name] = symbol;
+      ctx.typeMap.set(id, type);
+      break;
+    }
+    case 'TypeDeclaration': {
+      const id = `${node.id.name}$${ctx.declarationSuffix}`;
+      const type: ObjectType = {
+        kind: 'objectType',
+        id,
+        name: node.id.name,
+        fields: Object.fromEntries(
+          node.fields.map((param): [string, TypeReference] => [
+            param.name.name,
+            {
+              kind: 'pendingInferenceTypeReference',
+            },
+          ])
+        ),
+      };
+      const symbol: ObjectTypeScopeSymbol = {
+        kind: 'objectType',
+        id,
+        name: node.id.name,
+      };
+      newScope[node.id.name] = symbol;
+      ctx.typeMap.set(id, type);
+      break;
+    }
+    case 'SymbolDeclaration': {
+      const id = `${node.id.name}${ctx.declarationSuffix}`;
+      const type: SymbolType = {
+        kind: 'symbolType',
+        id,
+        name: node.id.name,
+      };
+      const symbol: SymbolScopeSymbol = {
+        kind: 'symbol',
+        id,
+        name: node.id.name,
+      };
+      newScope[node.id.name] = symbol;
+      ctx.typeMap.set(id, type);
+      break;
+    }
+    // TODO
+    // case 'OptionDeclaration': {
+    //   break;
+    // }
+    default: {
+      const exhaustive: never = node;
+      return exhaustive;
+    }
+  }
+}
 
 const analyzeFunctionDeclaration = (
   node: ast.FunctionDeclaration,

@@ -44,6 +44,7 @@ const parseIdentifier = (
   ctx: Context
 ): null | { result: ast.Identifier; cursor: SourceStream } => {
   const result = readIdentifier(cursor);
+  // TODO: probably should exclude keywords
   if (result) {
     return {
       cursor: result.cursor,
@@ -57,24 +58,87 @@ const parseIdentifier = (
   }
 };
 
+function parseKeyword(
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.Keyword; cursor: SourceStream } {
+  const result = readIdentifier(cursor);
+  if (result && ast.isKeyword(result.identifier)) {
+    return {
+      cursor: result.cursor,
+      result: {
+        type: 'Keyword',
+        keyword: result.identifier,
+      },
+    };
+  }
+
+  return null;
+}
+
+function parseKeywordOrIdentifier(
+  cursor: SourceStream,
+  ctx: Context
+): null | { result: ast.Keyword | ast.Identifier; cursor: SourceStream } {
+  const identifier = readIdentifier(cursor);
+  if (identifier) {
+    let result: ast.Keyword | ast.Identifier;
+    if (ast.isKeyword(identifier.identifier)) {
+      result = {
+        type: 'Keyword',
+        keyword: identifier.identifier,
+      };
+    } else {
+      result = {
+        type: 'Identifier',
+        name: identifier.identifier,
+      };
+    }
+    return {
+      cursor: identifier.cursor,
+      result,
+    };
+  }
+
+  return null;
+}
+
 const parseDeclaration = (
   cursor: SourceStream,
   ctx: Context
 ): null | { result: ast.Declaration; cursor: SourceStream } => {
-  const keyword = readIdentifier(cursor);
+  const keyword = parseKeyword(cursor, ctx);
   if (keyword) {
-    if (keyword.identifier === 'fn') {
+    if (keyword.result.keyword === 'fn') {
       return parseFunctionDeclaration(keyword.cursor, ctx);
-    } else if (keyword.identifier === 'effect') {
-      return parseEffectDeclaration(keyword.cursor, ctx);
-    } else if (keyword.identifier === 'type') {
-      return parseObjectTypeDeclaration(keyword.cursor, ctx);
-    } else if (keyword.identifier === 'symbol') {
-      return parseSymbolDeclaration(keyword.cursor, ctx);
+    } else {
+      return parseTypeDeclaration(keyword.result, keyword.cursor, ctx);
     }
   }
   return null;
 };
+
+function parseTypeDeclaration(
+  keyword: ast.Keyword,
+  cursor: SourceStream,
+  ctx: Context
+): { result: ast.TypeDeclaration; cursor: SourceStream } {
+  switch (keyword.keyword) {
+    case 'effect':
+      return parseEffectDeclaration(cursor, ctx);
+    case 'type':
+      return parseObjectTypeDeclaration(cursor, ctx);
+    case 'symbol':
+      return parseSymbolDeclaration(cursor, ctx);
+    case 'option':
+      return parseOptionTypeDeclaration(cursor, ctx);
+    default:
+      throw new CompilerError(
+        `I was expecting a type declaration here, but the keyword "${keyword.keyword}" isn't that.`,
+        cursor
+      );
+  }
+}
 
 const parseFunctionDeclaration = (
   cursor: SourceStream,
@@ -315,6 +379,78 @@ function parseSymbolDeclaration(
       type: 'SymbolDeclaration',
       id: id.result,
     },
+  };
+}
+
+function parseOptionTypeDeclaration(
+  cursor: SourceStream,
+  ctx: Context
+): { result: ast.OptionDeclaration; cursor: SourceStream } {
+  const id = parseIdentifier(cursor, ctx);
+  if (!id) {
+    throw new CompilerError(
+      'I\'m looking for an option name after the "option" keyword, but I can\'t find one.',
+      cursor
+    );
+  }
+  cursor = id.cursor;
+
+  cursor = expectCursor(
+    cursor,
+    consumeSequence(cursor, '('),
+    'I\'m looking for a "(" to start the option list.'
+  );
+
+  const options: ast.OptionDeclaration['options'] = [];
+  let endCursor: SourceStream | null = null;
+
+  do {
+    if (endCursor) {
+      cursor = endCursor;
+    }
+    cursor = skipWhitespace(cursor);
+
+    const keywordOrIdentifier = parseKeywordOrIdentifier(cursor, ctx);
+    if (!keywordOrIdentifier) {
+      throw new CompilerError(
+        "I'm looking for either a type name or a type declaration here.",
+        cursor
+      );
+    }
+    cursor = keywordOrIdentifier.cursor;
+    if (keywordOrIdentifier.result.type === 'Keyword') {
+      const declaration = parseTypeDeclaration(
+        keywordOrIdentifier.result,
+        keywordOrIdentifier.cursor,
+        ctx
+      );
+      cursor = declaration.cursor;
+      options.push(declaration.result);
+    } else {
+      options.push(keywordOrIdentifier.result);
+    }
+    cursor = skipWhitespace(cursor);
+  } while ((endCursor = consumeSequence(cursor, ',')));
+
+  if (endCursor) {
+    cursor = endCursor;
+  }
+
+  cursor = skipWhitespace(cursor);
+
+  cursor = expectCursor(
+    cursor,
+    consumeSequence(cursor, ')'),
+    'I\'m looking for a ")" to close the option list.'
+  );
+
+  return {
+    result: {
+      type: 'OptionDeclaration',
+      name: id.result,
+      options,
+    },
+    cursor,
   };
 }
 

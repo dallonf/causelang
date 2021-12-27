@@ -35,3 +35,44 @@ it('defines symbol types', () => {
     ]
   `);
 });
+
+it('defines option types', () => {
+  const script = `
+    symbol Hearts
+    symbol Diamonds
+    symbol Clubs
+    symbol Spades
+
+    option Suit(
+      Hearts,
+      Diamonds,
+      Clubs,
+      Spades
+    )
+
+    fn main() {
+      let cardSuit: Suit = Hearts
+      cardSuit
+    }
+  `;
+
+  const { result } = runMainSync(script);
+  expect(result).toMatchInlineSnapshot();
+});
+
+it.skip('defines option types with shorthand symbols/types', () => {
+  const script = `
+    option MaybeInt(
+      symbol None,
+      type Some(value: Int)
+    )
+
+    fn main() {
+      let value = MaybeInt.Some(4)
+      value
+    }
+  `;
+
+  const { result } = runMainSync(script);
+  expect(result).toMatchInlineSnapshot();
+});
