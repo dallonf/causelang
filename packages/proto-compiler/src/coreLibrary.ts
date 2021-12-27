@@ -1,5 +1,6 @@
 import { CauseError } from './runtime';
 import makeLibrary, { idFromLibrary } from './runtimeLibrary';
+import { typeNameTypeReference } from './typeSystem';
 
 export const STRING_ID = 'core$String';
 export const INTEGER_ID = 'core$Integer';
@@ -16,12 +17,12 @@ export const coreOperationsLibrary = makeLibrary(
     params: {
       message: {
         kind: 'valueTypeReference',
-        id: STRING_ID,
+        valueType: typeNameTypeReference(STRING_ID),
       },
     },
     returnType: {
       kind: 'valueTypeReference',
-      id: ACTION_ID,
+      valueType: typeNameTypeReference(ACTION_ID),
     },
     handler(effect: any) {
       console.log(effect.value.message);
@@ -33,12 +34,15 @@ export const coreOperationsLibrary = makeLibrary(
     params: {
       value: {
         kind: 'valueTypeReference',
-        id: UNKNOWN_ID,
+        valueType: typeNameTypeReference(UNKNOWN_ID),
       },
     },
     returnType: {
       kind: 'valueTypeReference',
-      id: ACTION_ID,
+      valueType: {
+        kind: 'typeNameTypeReference',
+        id: ACTION_ID,
+      },
     },
     handler(effect: any) {
       console.dir(effect.value.value);
@@ -50,12 +54,12 @@ export const coreOperationsLibrary = makeLibrary(
     params: {
       message: {
         kind: 'valueTypeReference',
-        id: STRING_ID,
+        valueType: typeNameTypeReference(STRING_ID),
       },
     },
     returnType: {
       kind: 'valueTypeReference',
-      id: NEVER_ID,
+      valueType: typeNameTypeReference(NEVER_ID),
     },
     handler(effect: any) {
       throw new CauseError(
@@ -69,16 +73,16 @@ export const coreOperationsLibrary = makeLibrary(
     params: {
       x: {
         kind: 'valueTypeReference',
-        id: STRING_ID,
+        valueType: typeNameTypeReference(STRING_ID),
       },
       y: {
         kind: 'valueTypeReference',
-        id: STRING_ID,
+        valueType: typeNameTypeReference(STRING_ID),
       },
     },
     returnType: {
       kind: 'valueTypeReference',
-      id: STRING_ID,
+      valueType: typeNameTypeReference(STRING_ID),
     },
     handler: (x: string, y: string) => {
       return x + y;
@@ -91,16 +95,16 @@ export const coreOperationsLibrary = makeLibrary(
       // TODO: this might wind up needing to be generic!
       x: {
         kind: 'valueTypeReference',
-        id: STRING_ID,
+        valueType: typeNameTypeReference(STRING_ID),
       },
       y: {
         kind: 'valueTypeReference',
-        id: STRING_ID,
+        valueType: typeNameTypeReference(STRING_ID),
       },
     },
     returnType: {
       kind: 'valueTypeReference',
-      id: BOOLEAN_ID,
+      valueType: typeNameTypeReference(BOOLEAN_ID),
     },
     handler: (x: string, y: string) => {
       return x === y;

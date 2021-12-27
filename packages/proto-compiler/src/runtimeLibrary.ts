@@ -1,8 +1,8 @@
 import { Library } from './library';
 import { EffectHandler } from './runtime';
 import {
-  CauseType,
   EffectType,
+  isConcrete,
   ObjectType,
   TypeMap,
   TypeReference,
@@ -98,9 +98,12 @@ export default function makeLibrary(
               type.name,
               {
                 symbol: {
-                  kind: 'effect',
-                  id: type.id,
+                  kind: 'typeReference',
                   name: type.name,
+                  type: {
+                    kind: 'typeNameTypeReference',
+                    id: type.id,
+                  },
                 },
                 value: {
                   kind: 'typeNameTypeReference',
@@ -113,9 +116,12 @@ export default function makeLibrary(
               type.name,
               {
                 symbol: {
-                  kind: 'objectType',
-                  id: type.id,
+                  kind: 'typeReference',
                   name: type.name,
+                  type: {
+                    kind: 'typeNameTypeReference',
+                    id: type.id,
+                  },
                 },
                 value: {
                   kind: 'typeNameTypeReference',
@@ -140,11 +146,14 @@ export default function makeLibrary(
                   kind: 'namedValue',
                   variable: false,
                   name: item.name,
-                  valueType: {
-                    kind: 'functionTypeReference',
-                    name: item.name,
-                    params: item.params,
-                    returnType: item.returnType,
+                  type: {
+                    kind: 'valueTypeReference',
+                    valueType: {
+                      kind: 'functionTypeReference',
+                      name: item.name,
+                      params: item.params,
+                      returnType: item.returnType,
+                    },
                   },
                 },
                 value: wrapNativeFn(item.handler),
@@ -198,10 +207,18 @@ export const idFromLibrary = (
 ): string => {
   const data = library.libraryData;
   const type = data.scope[name];
-  if (type?.kind === 'effect' || type?.kind === 'objectType') {
-    return type.id;
+  if (
+    type?.kind === 'typeReference' &&
+    type.type.kind === 'typeNameTypeReference'
+  ) {
+    return type.type.id;
   } else if (type?.kind === 'namedValue') {
-    return (type.valueType as ValueTypeReference).id;
+    const valueType = type.type.valueType;
+    if (valueType.kind === 'typeNameTypeReference') {
+      return valueType.id;
+    }
+  } else if (type?.kind === 'symbol') {
+    return type.id;
   }
 
   throw new Error(`Couldn't find an ID for ${name} in ${data.name}`);

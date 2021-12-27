@@ -23,50 +23,25 @@ export const generateModule = (
     switch (a.type) {
       case 'FunctionDeclaration':
         return generateFunctionDeclaration(a, statementBreadcrumbs, ctx);
-      case 'EffectDeclaration': {
-        const effect = findInScope(a.id.name, statementBreadcrumbs, ctx.scopes);
-        if (effect?.kind !== 'effect') {
-          throw new Error(
-            `I'm confused; I'm can't find the metadata for this effect declaration at ${statementBreadcrumbs.join(
-              '.'
-            )}. This probably isn't your fault!`
-          );
-        }
-
-        const typeReference: typeSystem.TypeNameTypeReference = {
-          kind: 'typeNameTypeReference',
-          id: effect.id,
-        };
-
-        return jsAst.variableDeclaration('const', [
-          jsAst.variableDeclarator(
-            jsAst.identifier(a.id.name),
-            jsAst.valueToNode(typeReference)
-          ),
-        ]);
-      }
+      case 'EffectDeclaration':
       case 'TypeDeclaration': {
-        const objectType = findInScope(
+        const typeScopeSymbol = findInScope(
           a.id.name,
           statementBreadcrumbs,
           ctx.scopes
         );
-        if (objectType?.kind !== 'objectType') {
+        if (typeScopeSymbol?.kind !== 'typeReference') {
           throw new Error(
-            `I'm confused; I'm can't find the metadata for this type declaration at ${statementBreadcrumbs.join(
+            `I'm confused; I'm can't find the metadata for this declaration at ${statementBreadcrumbs.join(
               '.'
             )}. This probably isn't your fault!`
           );
         }
 
-        const typeReference: typeSystem.TypeNameTypeReference = {
-          kind: 'typeNameTypeReference',
-          id: objectType.id,
-        };
         return jsAst.variableDeclaration('const', [
           jsAst.variableDeclarator(
             jsAst.identifier(a.id.name),
-            jsAst.valueToNode(typeReference)
+            jsAst.valueToNode(typeScopeSymbol.type)
           ),
         ]);
       }
@@ -82,6 +57,8 @@ export const generateModule = (
           ),
         ]);
       }
+      case 'OptionDeclaration':
+        throw new Error('TODO');
       default:
         return exhaustiveCheck(a);
     }
@@ -220,6 +197,13 @@ const generateExpression = (
             jsAst.identifier(node.property.name)
           );
         }
+        case 'optionTypeReference': {
+          return generateBakedError(
+            "Can't access members of an option",
+            [...breadcrumbs, 'object'],
+            ctx
+          );
+        }
         default: {
           const exhaustive: never = objType;
           return exhaustive;
@@ -341,7 +325,6 @@ const generateCallExpression = (
       true
     );
   } else if (calleeTypeReference?.kind === 'valueTypeReference') {
-    const calleeType = ctx.types.get(calleeTypeReference.id)!;
     // TODO: better runtime errors
     return jsAst.callExpression(
       jsAst.arrowFunctionExpression(
@@ -349,7 +332,7 @@ const generateCallExpression = (
         jsAst.blockStatement([
           jsAst.throwStatement(
             jsAst.newExpression(jsAst.stringLiteral('Error'), [
-              jsAst.stringLiteral(`A ${calleeType.kind} is not callable`),
+              jsAst.stringLiteral(`This is not callable`),
             ])
           ),
         ])

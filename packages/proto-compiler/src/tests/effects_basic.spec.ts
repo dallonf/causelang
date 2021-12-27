@@ -5,6 +5,7 @@ import {
   INTEGER_ID,
 } from '../coreLibrary';
 import makeLibrary, { idFromLibrary } from '../runtimeLibrary';
+import { valueOfTypeId } from '../typeSystem';
 import { runMainSync } from './testRunner';
 
 it('Can intercept an effect', () => {
@@ -28,10 +29,7 @@ it('Can identify the type of effect', () => {
     type: 'effect',
     name: 'InterceptThis',
     params: {},
-    returnType: {
-      kind: 'valueTypeReference',
-      id: ACTION_ID,
-    },
+    returnType: valueOfTypeId(ACTION_ID),
     handler: () => {
       throw new Error('This effect should have been intercepted!');
     },
@@ -64,15 +62,9 @@ it('Provides access to the captured effects and its values', () => {
     type: 'effect',
     name: 'Greet',
     params: {
-      name: {
-        kind: 'valueTypeReference',
-        id: STRING_ID,
-      },
+      name: valueOfTypeId(STRING_ID),
     },
-    returnType: {
-      kind: 'valueTypeReference',
-      id: ACTION_ID,
-    },
+    returnType: valueOfTypeId(ACTION_ID),
     handler: () => {
       throw new Error('This effect should have been intercepted!');
     },
@@ -105,15 +97,9 @@ it('Provides access to the captured effect without a type', () => {
     type: 'effect',
     name: 'Extract',
     params: {
-      value: {
-        kind: 'valueTypeReference',
-        id: Print,
-      },
+      value: valueOfTypeId(Print),
     },
-    returnType: {
-      kind: 'valueTypeReference',
-      id: ACTION_ID,
-    },
+    returnType: valueOfTypeId(ACTION_ID),
     handler: (e) => {
       extract(e);
     },
@@ -152,15 +138,9 @@ it('Can use effects to mutate from a closure', () => {
     type: 'effect',
     name: 'SetX',
     params: {
-      value: {
-        kind: 'valueTypeReference',
-        id: INTEGER_ID,
-      },
+      value: valueOfTypeId(INTEGER_ID),
     },
-    returnType: {
-      kind: 'valueTypeReference',
-      id: ACTION_ID,
-    },
+    returnType: valueOfTypeId(ACTION_ID),
     handler: () => {
       throw new Error('Should be handled');
     },

@@ -1,5 +1,6 @@
 import { STRING_ID } from '../coreLibrary';
 import makeLibrary, { idFromLibrary } from '../runtimeLibrary';
+import { valueOfTypeId } from '../typeSystem';
 import { runMain, runMainSync } from './testRunner';
 
 describe('basic hello world', () => {
@@ -35,7 +36,7 @@ it('returns a hello world value', () => {
     type: 'objectType',
     name: 'Greeting',
     fields: {
-      message: { kind: 'valueTypeReference', id: STRING_ID },
+      message: valueOfTypeId(STRING_ID),
     },
   });
 

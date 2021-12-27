@@ -1,28 +1,21 @@
-import { TypeReference } from './typeSystem';
+import { TypeReference, ValueTypeReference } from './typeSystem';
 
 export type ScopeSymbol =
-  | EffectScopeSymbol
-  | ObjectTypeScopeSymbol
+  | TypeReferenceScopeSymbol
   | NamedValueScopeSymbol
   | SymbolScopeSymbol;
-
-export interface EffectScopeSymbol {
-  kind: 'effect';
-  name: string;
-  id: string;
-}
-
-export interface ObjectTypeScopeSymbol {
-  kind: 'objectType';
-  name: string;
-  id: string;
-}
 
 export interface NamedValueScopeSymbol {
   kind: 'namedValue';
   name: string;
-  valueType: TypeReference;
+  type: ValueTypeReference;
   variable: boolean;
+}
+
+export interface TypeReferenceScopeSymbol {
+  kind: 'typeReference';
+  name?: string;
+  type: TypeReference;
 }
 
 /** not the best name lol */

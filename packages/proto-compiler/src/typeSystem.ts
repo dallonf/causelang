@@ -2,6 +2,16 @@ import { isEqual } from 'lodash';
 import { Breadcrumbs } from './context';
 import { exhaustiveCheck } from './utils';
 
+export const typeNameTypeReference = (id: string): TypeNameTypeReference => ({
+  kind: 'typeNameTypeReference',
+  id,
+});
+
+export const valueOfTypeId = (id: string): ValueTypeReference => ({
+  kind: 'valueTypeReference',
+  valueType: typeNameTypeReference(id),
+});
+
 export type TypeReference =
   | PendingInferenceTypeReference
   | TypeErrorTypeReference
@@ -10,7 +20,8 @@ export type TypeReference =
 export type ConcreteTypeReference =
   | ValueTypeReference
   | FunctionTypeReference
-  | TypeNameTypeReference;
+  | TypeNameTypeReference
+  | OptionTypeReference;
 
 export interface PendingInferenceTypeReference {
   kind: 'pendingInferenceTypeReference';
@@ -47,7 +58,7 @@ export interface MismatchedTypeError {
 
 export interface ValueTypeReference {
   kind: 'valueTypeReference';
-  id: string;
+  valueType: TypeReference;
 }
 
 export interface FunctionTypeReference {
@@ -62,7 +73,13 @@ export interface TypeNameTypeReference {
   id: string;
 }
 
-export type CauseType = PrimitiveType | ObjectType | EffectType | SymbolType;
+export interface OptionTypeReference {
+  kind: 'optionTypeReference';
+  name?: string;
+  options: TypeReference[];
+}
+
+export type NominalType = PrimitiveType | ObjectType | EffectType | SymbolType;
 
 export interface PrimitiveType {
   kind: 'primitiveType';
@@ -90,7 +107,7 @@ export interface SymbolType {
   name: string;
 }
 
-export type TypeMap = Map<string, CauseType>;
+export type TypeMap = Map<string, NominalType>;
 
 export const isConcrete = (
   type: TypeReference
@@ -102,6 +119,7 @@ export const isConcrete = (
     case 'valueTypeReference':
     case 'typeNameTypeReference':
     case 'functionTypeReference':
+    case 'optionTypeReference':
       return true;
     default:
       return exhaustiveCheck(type);

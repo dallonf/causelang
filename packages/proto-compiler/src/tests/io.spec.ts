@@ -1,5 +1,6 @@
 import { STRING_ID } from '../coreLibrary';
 import makeLibrary from '../runtimeLibrary';
+import { valueOfTypeId } from '../typeSystem';
 import { runMainSync } from './testRunner';
 
 it('can receive a value from an input effect and return it', () => {
@@ -14,10 +15,7 @@ it('can receive a value from an input effect and return it', () => {
     type: 'effect',
     name: 'Prompt',
     params: {},
-    returnType: {
-      kind: 'valueTypeReference',
-      id: STRING_ID,
-    },
+    returnType: valueOfTypeId(STRING_ID),
     handler: (e) => 'Batman',
   });
 
@@ -41,10 +39,7 @@ it('can assign a received value to a name', () => {
     type: 'effect',
     name: 'Prompt',
     params: {},
-    returnType: {
-      kind: 'valueTypeReference',
-      id: STRING_ID,
-    },
+    returnType: valueOfTypeId(STRING_ID),
     handler: (e) => 'Batman',
   });
 
@@ -71,10 +66,7 @@ it('can use an inline block expression to return a result', () => {
     type: 'effect',
     name: 'Prompt',
     params: {},
-    returnType: {
-      kind: 'valueTypeReference',
-      id: STRING_ID,
-    },
+    returnType: valueOfTypeId(STRING_ID),
     handler: (e) => 'Superman',
   });
 
