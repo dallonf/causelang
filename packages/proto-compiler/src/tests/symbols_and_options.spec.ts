@@ -57,7 +57,12 @@ it('defines option types', () => {
   `;
 
   const { result } = runMainSync(script);
-  expect(result).toMatchInlineSnapshot();
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "id": "Hearts",
+      "type": "$symbol",
+    }
+  `);
 });
 
 it.skip('defines option types with shorthand symbols/types', () => {

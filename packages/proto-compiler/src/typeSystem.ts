@@ -1,5 +1,5 @@
 import { isEqual } from 'lodash';
-import { Breadcrumbs } from './context';
+import { Breadcrumbs, Scope } from './context';
 import { exhaustiveCheck } from './utils';
 
 export const typeNameTypeReference = (id: string): TypeNameTypeReference => ({
@@ -77,6 +77,7 @@ export interface OptionTypeReference {
   kind: 'optionTypeReference';
   name?: string;
   options: TypeReference[];
+  children?: Scope;
 }
 
 export type NominalType = PrimitiveType | ObjectType | EffectType | SymbolType;

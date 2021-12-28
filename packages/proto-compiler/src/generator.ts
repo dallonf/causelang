@@ -58,7 +58,25 @@ export const generateModule = (
         ]);
       }
       case 'OptionDeclaration':
-        throw new Error('TODO');
+        const optionScopeItem = findInScope(
+          a.name.name,
+          statementBreadcrumbs,
+          ctx.scopes
+        );
+        if (optionScopeItem?.kind !== 'typeReference') {
+          throw new Error(
+            `I'm confused; I'm can't find the metadata for this declaration at ${statementBreadcrumbs.join(
+              '.'
+            )}. This probably isn't your fault!`
+          );
+        }
+
+        return jsAst.variableDeclaration('const', [
+          jsAst.variableDeclarator(
+            jsAst.identifier(a.name.name),
+            jsAst.valueToNode(optionScopeItem.type)
+          ),
+        ]);
       default:
         return exhaustiveCheck(a);
     }

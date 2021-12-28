@@ -18,6 +18,7 @@ import {
   isAssignableTo,
   isConcrete,
   ObjectType,
+  OptionTypeReference,
   SymbolType,
   TypeMap,
   TypeReference,
@@ -123,7 +124,7 @@ export const analyzeModule = (
 };
 
 interface TypeDeclarationResult {
-  scopeItem: ScopeItem;
+  scopeItem: TypeReferenceScopeItem | SymbolScopeItem;
   name: string;
 }
 
@@ -211,7 +212,65 @@ function analyzeTypeDeclaration(
       };
     }
     case 'OptionDeclaration': {
-      throw new Error('TODO');
+      interface ChildType {
+        name?: string;
+        scopeItem: TypeReferenceScopeItem | SymbolScopeItem;
+      }
+      const resolvedOptions = node.options.map(
+        (optionNode, i): ChildType => {
+          if (optionNode.type === 'Identifier') {
+            return {
+              scopeItem: {
+                kind: 'typeReference',
+                type: {
+                  kind: 'pendingInferenceTypeReference',
+                },
+              },
+            };
+          } else {
+            return analyzeTypeDeclaration(
+              optionNode,
+              [...breadcrumbs, 'options', i],
+              ctx
+            );
+          }
+        }
+      );
+      const children = Object.fromEntries(
+        resolvedOptions
+          .filter((it): it is ChildType & { name: string } => 'name' in it)
+          .map((it) => [it.name, it.scopeItem])
+      );
+      const optionTypes = resolvedOptions.map(
+        (it): TypeReference => {
+          switch (it.scopeItem.kind) {
+            case 'typeReference':
+              return it.scopeItem.type;
+            case 'symbol':
+              return {
+                kind: 'typeNameTypeReference',
+                id: it.scopeItem.id,
+              };
+            default: {
+              const exhaustive: never = it.scopeItem;
+              return exhaustive;
+            }
+          }
+        }
+      );
+      const type: OptionTypeReference = {
+        kind: 'optionTypeReference',
+        name: node.name.name,
+        options: optionTypes,
+        children,
+      };
+      return {
+        name: node.name.name,
+        scopeItem: {
+          kind: 'typeReference',
+          type,
+        },
+      };
     }
     default: {
       const exhaustive: never = node;
