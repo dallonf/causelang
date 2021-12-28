@@ -1,31 +1,30 @@
 import { TypeReference, ValueTypeReference } from './typeSystem';
 
-export type ScopeSymbol =
-  | TypeReferenceScopeSymbol
-  | NamedValueScopeSymbol
-  | SymbolScopeSymbol;
+export type ScopeItem =
+  | TypeReferenceScopeItem
+  | NamedValueScopeItem
+  | SymbolScopeItem;
 
-export interface NamedValueScopeSymbol {
+export interface NamedValueScopeItem {
   kind: 'namedValue';
   name: string;
   type: ValueTypeReference;
   variable: boolean;
 }
 
-export interface TypeReferenceScopeSymbol {
+export interface TypeReferenceScopeItem {
   kind: 'typeReference';
   name?: string;
   type: TypeReference;
 }
 
-/** not the best name lol */
-export interface SymbolScopeSymbol {
+export interface SymbolScopeItem {
   kind: 'symbol';
   name: string;
   id: string;
 }
 
-export type Scope = Record<string, ScopeSymbol>;
+export type Scope = Record<string, ScopeItem>;
 
 export type Breadcrumbs = (string | number)[];
 export type ScopeMap = Map<string, Readonly<Scope>>;
@@ -53,7 +52,7 @@ export const findInScope = (
   identifier: string,
   breadcrumbs: Breadcrumbs,
   scopeMap: ScopeMap
-): ScopeSymbol | undefined => {
+): ScopeItem | undefined => {
   const scope = findScope(breadcrumbs, scopeMap);
   return scope[identifier];
 };

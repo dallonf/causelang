@@ -5,10 +5,10 @@ import {
   findScope,
   Scope,
   ScopeMap,
-  ScopeSymbol,
-  SymbolScopeSymbol,
+  ScopeItem,
+  SymbolScopeItem,
   toKey,
-  TypeReferenceScopeSymbol,
+  TypeReferenceScopeItem,
 } from './context';
 import { allCoreLibraries, INTEGER_ID, STRING_ID } from './coreLibrary';
 import { Library } from './library';
@@ -91,7 +91,7 @@ export const analyzeModule = (
           [...breadcrumbs, 'body', i],
           ctx
         );
-        newScope[newType.name] = newType.symbol;
+        newScope[newType.name] = newType.scopeItem;
         break;
       }
       default:
@@ -123,7 +123,7 @@ export const analyzeModule = (
 };
 
 interface TypeDeclarationResult {
-  symbol: ScopeSymbol;
+  scopeItem: ScopeItem;
   name: string;
 }
 
@@ -149,7 +149,7 @@ function analyzeTypeDeclaration(
         ),
         returnType: { kind: 'pendingInferenceTypeReference' },
       };
-      const symbol: TypeReferenceScopeSymbol = {
+      const scopeItem: TypeReferenceScopeItem = {
         kind: 'typeReference',
         name: node.id.name,
         type: {
@@ -159,7 +159,7 @@ function analyzeTypeDeclaration(
       };
       ctx.typeMap.set(id, type);
       return {
-        symbol,
+        scopeItem: scopeItem,
         name: node.id.name,
       };
     }
@@ -178,7 +178,7 @@ function analyzeTypeDeclaration(
           ])
         ),
       };
-      const symbol: TypeReferenceScopeSymbol = {
+      const scopeItem: TypeReferenceScopeItem = {
         kind: 'typeReference',
         name: node.id.name,
         type: {
@@ -188,7 +188,7 @@ function analyzeTypeDeclaration(
       };
       ctx.typeMap.set(id, type);
       return {
-        symbol,
+        scopeItem: scopeItem,
         name: node.id.name,
       };
     }
@@ -199,14 +199,14 @@ function analyzeTypeDeclaration(
         id,
         name: node.id.name,
       };
-      const symbol: SymbolScopeSymbol = {
+      const scopeItem: SymbolScopeItem = {
         kind: 'symbol',
         id,
         name: node.id.name,
       };
       ctx.typeMap.set(id, type);
       return {
-        symbol,
+        scopeItem: scopeItem,
         name: node.id.name,
       };
     }
@@ -476,7 +476,7 @@ const analyzeBlockExpression = (
           type = typeOfValue;
         }
 
-        const scopeSymbol: ScopeSymbol = {
+        const scopeSymbol: ScopeItem = {
           kind: 'namedValue',
           name: a.name.name,
           variable: a.variable,
@@ -576,7 +576,7 @@ const getPatternScope = (
         valueType = { kind: 'pendingInferenceTypeReference' };
       }
 
-      const symbolToAddToScope: ScopeSymbol = {
+      const symbolToAddToScope: ScopeItem = {
         kind: 'namedValue',
         name,
         type: {
@@ -618,7 +618,7 @@ const analyzeCallExpression = (
   const { callee } = node;
   switch (callee.type) {
     case 'Identifier': {
-      const symbol: ScopeSymbol | undefined = findInScope(
+      const symbol: ScopeItem | undefined = findInScope(
         callee.name,
         breadcrumbs,
         ctx.scopes
@@ -710,7 +710,10 @@ const analyzeCauseExpression = (
     return;
   }
 
-  const effectType = valueType.valueType.kind === 'typeNameTypeReference' ? ctx.typeMap.get(valueType.valueType.id) : null;
+  const effectType =
+    valueType.valueType.kind === 'typeNameTypeReference'
+      ? ctx.typeMap.get(valueType.valueType.id)
+      : null;
   if (effectType?.kind !== 'effectType') {
     setTypeOfExpression(ctx, breadcrumbs, {
       kind: 'typeErrorTypeReference',

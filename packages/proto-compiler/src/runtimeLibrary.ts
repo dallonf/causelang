@@ -81,23 +81,23 @@ export default function makeLibrary(
       .map((x) => [x.id, x])
   );
 
-  type ScopeItem = {
-    symbol: context.ScopeSymbol;
+  type ScopeValue = {
+    item: context.ScopeItem;
     value: unknown;
   };
   const wrapNativeFn = (x: NativeFnLibraryItem['handler']) =>
     function* (...args: any[]) {
       return x(...args);
     };
-  const scope: Record<string, ScopeItem> = Object.fromEntries(
+  const scope: Record<string, ScopeValue> = Object.fromEntries(
     ([...types.values()] as LibraryType[])
-      .map((type): [string, ScopeItem] => {
+      .map((type): [string, ScopeValue] => {
         switch (type.kind) {
           case 'effectType':
             return [
               type.name,
               {
-                symbol: {
+                item: {
                   kind: 'typeReference',
                   name: type.name,
                   type: {
@@ -115,7 +115,7 @@ export default function makeLibrary(
             return [
               type.name,
               {
-                symbol: {
+                item: {
                   kind: 'typeReference',
                   name: type.name,
                   type: {
@@ -138,11 +138,11 @@ export default function makeLibrary(
           .filter(
             (item): item is NativeFnLibraryItem => item.type === 'nativeFn'
           )
-          .map((item): [string, ScopeItem] => {
+          .map((item): [string, ScopeValue] => {
             return [
               item.name,
               {
-                symbol: {
+                item: {
                   kind: 'namedValue',
                   variable: false,
                   name: item.name,
@@ -184,7 +184,7 @@ export default function makeLibrary(
   };
 
   const scopeSymbols = Object.fromEntries(
-    Object.entries(scope).map(([k, v]) => [k, v.symbol])
+    Object.entries(scope).map(([k, v]) => [k, v.item])
   );
   const scopeValues = Object.fromEntries(
     Object.entries(scope).map(([k, v]) => [k, v.value])
