@@ -514,11 +514,20 @@ const transformExpressionWithSuffixes = (
   cursor: SourceStream,
   ctx: Context
 ): { cursor: SourceStream; result: ast.Expression } => {
+  let extended;
   let suffixStart;
   if (((suffixStart = consumeSequence(cursor, '(')), suffixStart)) {
-    return parseCallExpression(initialExpression, cursor, ctx);
+    extended = parseCallExpression(initialExpression, cursor, ctx);
   } else if (((suffixStart = consumeSequence(cursor, '.')), suffixStart)) {
-    return parseMemberExpression(initialExpression, cursor, ctx);
+    extended = parseMemberExpression(initialExpression, cursor, ctx);
+  }
+
+  if (extended) {
+    return transformExpressionWithSuffixes(
+      extended.result,
+      extended.cursor,
+      ctx
+    );
   }
 
   return { result: initialExpression, cursor: cursor };

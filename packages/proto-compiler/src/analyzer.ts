@@ -194,7 +194,7 @@ function analyzeTypeDeclaration(
       };
     }
     case 'SymbolDeclaration': {
-      const id = `${node.id.name}${ctx.declarationSuffix}`;
+      const id = `${node.id.name}$${ctx.declarationSuffix}`;
       const type: SymbolType = {
         kind: 'symbolType',
         id,
@@ -353,6 +353,27 @@ const analyzeExpression = (
         setTypeOfExpression(ctx, breadcrumbs, {
           kind: 'pendingInferenceTypeReference',
         });
+      } else if (parentType.kind === 'optionTypeReference') {
+        const child = parentType.children?.[node.property.name];
+        if (child?.kind === 'typeReference') {
+          setTypeOfExpression(ctx, breadcrumbs, child.type);
+        } else if (child?.kind === 'symbol') {
+          setTypeOfExpression(ctx, breadcrumbs, {
+            kind: 'valueTypeReference',
+            valueType: {
+              kind: 'typeNameTypeReference',
+              id: child.id,
+            },
+          });
+        } else {
+          setTypeOfExpression(ctx, breadcrumbs, {
+            kind: 'typeErrorTypeReference',
+            error: {
+              kind: 'failedToResolveTypeError',
+              name: node.property.name,
+            },
+          });
+        }
       } else {
         setTypeOfExpression(ctx, breadcrumbs, {
           kind: 'typeErrorTypeReference',
@@ -674,77 +695,50 @@ const analyzeCallExpression = (
   breadcrumbs: Breadcrumbs,
   ctx: AnalyzerContext
 ) => {
-  const { callee } = node;
-  switch (callee.type) {
-    case 'Identifier': {
-      const symbol: ScopeItem | undefined = findInScope(
-        callee.name,
-        breadcrumbs,
-        ctx.scopes
-      );
-      if (symbol?.kind === 'typeReference') {
-        setTypeOfExpression(ctx, [...breadcrumbs, 'callee'], symbol.type);
-        setTypeOfExpression(ctx, breadcrumbs, symbol.type);
-      } else if (symbol?.kind === 'namedValue') {
-        ctx.typesOfExpressions.set(
-          toKey([...breadcrumbs, 'callee']),
-          symbol.type
-        );
-        const valueType = symbol.type.valueType;
+  analyzeExpression(node.callee, [...breadcrumbs, 'callee'], ctx);
+  const calleeType = ctx.typesOfExpressions.get(
+    toKey([...breadcrumbs, 'callee'])
+  );
 
-        let returnType: TypeReference;
-        switch (valueType.kind) {
-          case 'pendingInferenceTypeReference':
-            returnType = {
-              kind: 'pendingInferenceTypeReference',
-            };
-            break;
-          case 'typeNameTypeReference':
-            throw new Error(
-              `TODO: handle indirect references to type names at ${breadcrumbs.join(
-                '.'
-              )}`
-            );
-          case 'typeErrorTypeReference':
-            returnType = {
-              kind: 'typeErrorTypeReference',
-              error: {
-                kind: 'referenceTypeError',
-                breadcrumbs: [...breadcrumbs, 'callee'],
-              },
-            };
-            break;
-          case 'valueTypeReference':
-          case 'optionTypeReference':
-            returnType = {
-              kind: 'typeErrorTypeReference',
-              error: {
-                kind: 'notCallableTypeError',
-              },
-            };
-            break;
-          case 'functionTypeReference':
-            returnType = valueType.returnType;
-            break;
-          default:
-            return exhaustiveCheck(valueType);
-        }
-        ctx.typesOfExpressions.set(
-          toKey([...breadcrumbs, 'callee']),
-          valueType
-        );
-        ctx.typesOfExpressions.set(toKey(breadcrumbs), returnType);
-      } else {
-        throw new Error(
-          `I was expecting "${callee.name}" to be a function or type in scope; maybe it's not spelled correctly.`
-        );
-      }
-      break;
+  if (calleeType) {
+    let returnType: TypeReference;
+    switch (calleeType.kind) {
+      case 'pendingInferenceTypeReference':
+        returnType = {
+          kind: 'pendingInferenceTypeReference',
+        };
+        break;
+      case 'typeNameTypeReference':
+        returnType = calleeType;
+      case 'typeErrorTypeReference':
+        returnType = {
+          kind: 'typeErrorTypeReference',
+          error: {
+            kind: 'referenceTypeError',
+            breadcrumbs: [...breadcrumbs, 'callee'],
+          },
+        };
+        break;
+      case 'valueTypeReference':
+      case 'optionTypeReference':
+        returnType = {
+          kind: 'typeErrorTypeReference',
+          error: {
+            kind: 'notCallableTypeError',
+          },
+        };
+        break;
+      case 'functionTypeReference':
+        returnType = calleeType.returnType;
+        break;
+      default:
+        return exhaustiveCheck(calleeType);
     }
-    default:
-      throw new Error(
-        `I don't know how to analyze function calls like this yet. The technical name for this sort of callee is ${callee.type}`
-      );
+    ctx.typesOfExpressions.set(toKey(breadcrumbs), returnType);
+  } else {
+    throw new Error(
+      `I was expecting this to be a function or type in scope, since it's being called; maybe it's not spelled correctly.`
+    );
   }
 
   node.parameters.forEach((a, i) =>

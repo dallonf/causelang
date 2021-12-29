@@ -41,7 +41,7 @@ export const generateModule = (
         return jsAst.variableDeclaration('const', [
           jsAst.variableDeclarator(
             jsAst.identifier(a.id.name),
-            jsAst.valueToNode(typeScopeSymbol.type)
+            jsAst.valueToNode(typeScopeSymbol)
           ),
         ]);
       }
@@ -216,10 +216,12 @@ const generateExpression = (
           );
         }
         case 'optionTypeReference': {
-          return generateBakedError(
-            "Can't access members of an option",
-            [...breadcrumbs, 'object'],
-            ctx
+          return jsAst.memberExpression(
+            jsAst.memberExpression(
+              generateExpression(node.object, [...breadcrumbs, 'object'], ctx),
+              jsAst.identifier('children')
+            ),
+            jsAst.identifier(node.property.name)
           );
         }
         default: {
@@ -315,7 +317,10 @@ const generateCallExpression = (
       jsAst.objectProperty(
         jsAst.identifier('type'),
         jsAst.memberExpression(
-          generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
+          jsAst.memberExpression(
+            generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
+            jsAst.identifier('type')
+          ),
           jsAst.identifier('id')
         )
       ),
@@ -332,7 +337,10 @@ const generateCallExpression = (
           ]
         : []),
     ]);
-  } else if (calleeTypeReference?.kind === 'functionTypeReference') {
+  } else if (
+    calleeTypeReference?.kind === 'valueTypeReference' &&
+    calleeTypeReference.valueType.kind === 'functionTypeReference'
+  ) {
     return jsAst.yieldExpression(
       jsAst.callExpression(
         generateExpression(node.callee, [...breadcrumbs, 'callee'], ctx),
@@ -349,7 +357,7 @@ const generateCallExpression = (
         [],
         jsAst.blockStatement([
           jsAst.throwStatement(
-            jsAst.newExpression(jsAst.stringLiteral('Error'), [
+            jsAst.newExpression(jsAst.identifier('Error'), [
               jsAst.stringLiteral(`This is not callable`),
             ])
           ),

@@ -65,7 +65,7 @@ it('defines option types', () => {
   `);
 });
 
-it.skip('defines option types with shorthand symbols/types', () => {
+it('defines option types with shorthand symbols/types', () => {
   const script = `
     option MaybeInt(
       symbol None,
@@ -78,6 +78,13 @@ it.skip('defines option types with shorthand symbols/types', () => {
     }
   `;
 
-  const { result } = runMainSync(script);
-  expect(result).toMatchInlineSnapshot();
+  const { result } = runMainSync(script, { debugJsOutput: true });
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "type": "Some$main",
+      "value": Object {
+        "value": 4,
+      },
+    }
+  `);
 });
