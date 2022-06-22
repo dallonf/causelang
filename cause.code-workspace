@@ -12,6 +12,9 @@
     },
     {
       "path": "js-proto/packages/cause-cli"
+    },
+    {
+      "path": "rs-typeproto"
     }
   ]
 }
