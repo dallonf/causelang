@@ -1,5 +1,5 @@
 [package]
-name = "rs-typeproto"
+name = "rs_typeproto"
 version = "0.1.0"
 edition = "2021"
 
