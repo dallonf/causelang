@@ -1,4 +1,4 @@
-use rs_typeproto::ast::*;
+use cause_typeproto::ast::*;
 
 #[test]
 fn hello_world() {
@@ -23,7 +23,15 @@ fn hello_world() {
                         node: Identifier("main".to_string()),
                     },
                     return_type: None,
-                    statements: vec![],
+                    body: AstNode {
+                        position: DocumentRange::default(),
+                        breadcrumbs: Breadcrumbs(vec![
+                            BreadcrumbEntry::Name("declarations"),
+                            BreadcrumbEntry::Index(0),
+                            BreadcrumbEntry::Name("body"),
+                        ]),
+                        node: BodyNode::BlockBody(BlockBodyNode { statements: vec![] }),
+                    },
                 }),
             }],
         },

@@ -50,11 +50,20 @@ pub struct FunctionDeclarationNode {
     pub name: AstNode<Identifier>,
     // TODO: params
     pub return_type: Option<AstNode<TypeReferenceNode>>,
+    pub body: AstNode<BodyNode>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BodyNode {
+    BlockBody(BlockBodyNode),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlockBodyNode {
     pub statements: Vec<AstNode<StatementNode>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-
 pub enum StatementNode {
     ExpressionStatementNode(ExpressionStatementNode),
 }
@@ -66,9 +75,15 @@ pub struct ExpressionStatementNode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpressionNode {
+    IdentifierExpression(IdentifierExpression),
     CauseExpression(CauseExpressionNode),
     CallExpression(CallExpressionNode),
     StringLiteralExpression(StringLiteralExpressionNode),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IdentifierExpression {
+    pub identifier: AstNode<Identifier>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

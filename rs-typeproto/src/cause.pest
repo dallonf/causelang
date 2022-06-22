@@ -1,0 +1,43 @@
+WHITESPACE = _{ " " | NEWLINE | "\t" }
+
+identifier = @{ identifier_first_grapheme ~ identifier_grapheme* }
+  identifier_first_grapheme = @{ LETTER | SYMBOL }
+  identifier_grapheme = @{ identifier_first_grapheme | MARK | NUMBER }
+
+type_reference = { identifier }
+
+file = { SOI ~ declaration* ~ EOI }
+
+declaration = _{ function_declaration }
+
+function_declaration = { "fun" ~ identifier ~ "()" ~ structure_body }
+
+structure_body = _{ block_body }
+
+block_body = { "{" ~ (statement ~ (NEWLINE ~ statement)*)? ~ "}" }
+
+statement = _{ expression_statement }
+
+expression_statement = { expression }
+
+expression = {
+  (
+      string_literal_expression
+    | cause_expression
+    | identifier_expression
+  )
+  ~ expression_suffix?
+}
+
+string_literal_expression = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+
+cause_expression = { "cause" ~ WHITESPACE ~ expression }
+
+identifier_expression = { identifier }
+
+expression_suffix = _{ call_expression_suffix }
+
+call_expression_suffix = { "(" ~ (argument ~ ("," ~ argument)*)? ~ ")" }
+  argument = _{ named_argument | positional_argument }
+  named_argument = { identifier ~ "=" ~ expression }
+  positional_argument = { expression }
