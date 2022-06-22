@@ -19,6 +19,22 @@ pub enum BreadcrumbEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Breadcrumbs(pub Vec<BreadcrumbEntry>);
 
+impl Breadcrumbs {
+    pub fn append(&self, new_entry: BreadcrumbEntry) -> Self {
+        let mut new_vec = self.0.clone();
+        new_vec.push(new_entry);
+        Breadcrumbs(new_vec)
+    }
+
+    pub fn append_name(&self, name: &'static str) -> Self {
+        self.append(BreadcrumbEntry::Name(name))
+    }
+
+    pub fn append_index(&self, index: usize) -> Self {
+        self.append(BreadcrumbEntry::Index(index))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstNode<T> {
     pub position: DocumentRange,
