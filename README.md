@@ -24,7 +24,7 @@ I'm actually not sure. I'm not familiar enough with the academic principles of f
 
 ## What can it do so far?
 
-Not much. Here's a sample program, though:
+Not much. Here's a sample program that works in the JavaScript prototype, though:
 
 ```
 fn main() {
@@ -36,21 +36,17 @@ fn main() {
 
 ## What's up next?
 
-Adding more to the language so it can do obvious things that every programming language should be able to do. Flow control, custom types, stuff like that. Unfortunately it's hard to explore Effects and their implications without those!
+Prototyping the static type checker. Things got a little out of hand in the original prototype that compiled to JavaScript, so I'm starting over, and it probably won't have a runtime again for a little while.
 
 You can look at the `future-examples` directory for some ideas about where I think the language could go. It's mostly just sketches at this point, but I look to these - especially the Cheat game - as goals for the language to support in the future.
 
 ## Can I play with it?
 
-There's not much to play with yet, but you can check out the tests in `packages/proto-compiler/tests` to see some examples of how the language actually works so far.
+There's not much to play with yet, but you can check out the JavaScript prototype's tests in `js-proto/packages/proto-compiler/tests` to see some examples of how the language actually works so far.
 
-You can also run the CLI: `packages/cause-cli/bin/run run [filename]` (note the double "run" - if the CLI was installed locally, it would be `cause run`). Check out some of the examples in `packages/cause-cli/examples` that can be executed with that CLI.
+You can also run the CLI: `js-proto/packages/cause-cli/bin/run run [filename]` (note the double "run" - if the CLI was installed locally, it would be `cause run`). Check out some of the examples in `js-proto/packages/cause-cli/examples` that can be executed with that CLI.
 
-To install dependencies, just run `npm install` and `npx lerna init` in the root directory.
-
-## It compiles to JavaScript?
-
-At the moment, it does. I consider that an implementation detail, and I'm strongly considering moving to a lighter runtime for the purpose of a language that can be embedded in many other runtimes!
+To install dependencies, just run `npm install` and `npx lerna init` in the `js-proto` directory.
 
 ## This is, without a doubt, the worst compiler code I have ever seen.
 

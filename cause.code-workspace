@@ -8,10 +8,10 @@
       "path": "future-examples"
     },
     {
-      "path": "packages/proto-compiler"
+      "path": "js-proto/packages/proto-compiler"
     },
     {
-      "path": "packages/cause-cli"
+      "path": "js-proto/packages/cause-cli"
     }
   ]
 }
