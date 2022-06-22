@@ -46,7 +46,7 @@ There's not much to play with yet, but you can check out the JavaScript prototyp
 
 You can also run the CLI: `js-proto/packages/cause-cli/bin/run run [filename]` (note the double "run" - if the CLI was installed locally, it would be `cause run`). Check out some of the examples in `js-proto/packages/cause-cli/examples` that can be executed with that CLI.
 
-To install dependencies, just run `npm install` and `npx lerna init` in the `js-proto` directory.
+To install dependencies, just run `npm install` and `npx lerna bootstrap` in the `js-proto` directory.
 
 ## This is, without a doubt, the worst compiler code I have ever seen.
 
