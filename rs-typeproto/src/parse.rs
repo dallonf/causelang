@@ -27,6 +27,7 @@ impl From<pest::Position<'_>> for DocumentPosition {
 }
 
 type ParserError = String;
+type ParserResult<T> = Result<T, ParserError>;
 
 struct ParserContext {}
 
@@ -42,15 +43,14 @@ pub fn parse(source: &str) -> Result<AstNode<FileNode>, ParserError> {
         file_pair
             .into_inner()
             .enumerate()
-            .map(|(i, pair)| {
-                let breadcrumbs = breadcrumbs.append_index(i);
-                Ok(emit_ast_node(
-                    span.clone(),
-                    &breadcrumbs,
-                    parse_declaration(pair, &breadcrumbs, &ctx)?,
-                ))
+            .filter_map(|(i, pair)| {
+                if let Rule::EOI = pair.as_rule() {
+                    None
+                } else {
+                    Some(parse_declaration(pair, breadcrumbs.append_index(i), &ctx))
+                }
             })
-            .collect::<Result<Vec<_>, ParserError>>()?
+            .collect::<ParserResult<Vec<_>>>()?
     };
 
     let file_node = AstNode {
@@ -62,33 +62,60 @@ pub fn parse(source: &str) -> Result<AstNode<FileNode>, ParserError> {
     Ok(file_node)
 }
 
-fn emit_ast_node<T>(span: Span<'_>, breadcrumbs: &Breadcrumbs, node: T) -> AstNode<T> {
-    AstNode {
-        position: span.into(),
-        breadcrumbs: breadcrumbs.clone(),
-        node,
-    }
+fn parse_identifier(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    _ctx: &ParserContext,
+) -> ParserResult<AstNode<Identifier>> {
+    Ok(AstNode::new(
+        Identifier(pair.as_str().to_string()),
+        pair.as_span(),
+        breadcrumbs,
+    ))
 }
 
 fn parse_declaration(
     pair: Pair<Rule>,
-    breadcrumbs: &Breadcrumbs,
+    breadcrumbs: Breadcrumbs,
     ctx: &ParserContext,
-) -> Result<DeclarationNode, ParserError> {
+) -> ParserResult<AstNode<DeclarationNode>> {
     match pair.as_rule() {
-        Rule::function_declaration => Ok(DeclarationNode::Function(parse_function_declaration(
-            pair,
-            breadcrumbs,
-            ctx,
-        )?)),
-        _ => unreachable!(),
+        Rule::function_declaration => Ok(parse_function_declaration(pair, breadcrumbs, ctx)?
+            .map(|it| DeclarationNode::Function(it))),
+        other => unreachable!("unexpected rule: {:?}", other),
     }
 }
 
 fn parse_function_declaration(
     pair: Pair<Rule>,
-    breadcrumbs: &Breadcrumbs,
+    breadcrumbs: Breadcrumbs,
     ctx: &ParserContext,
-) -> Result<FunctionDeclarationNode, ParserError> {
-    todo!()
+) -> ParserResult<AstNode<FunctionDeclarationNode>> {
+    let span = pair.as_span();
+    let mut inner = pair.into_inner();
+
+    let name_pair = inner.next().unwrap();
+    let name = parse_identifier(name_pair, breadcrumbs.append_name("name"), ctx)?;
+
+    let body_pair = inner.next().unwrap();
+    let body = parse_body(body_pair, breadcrumbs.append_name("body"), ctx)?;
+
+    Ok(AstNode::new(
+        FunctionDeclarationNode { name, body },
+        span,
+        breadcrumbs,
+    ))
+}
+
+fn parse_body(
+    body_pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<BodyNode>> {
+    // TODO, just a placeholder
+    Ok(AstNode::new(
+        BodyNode::BlockBody(BlockBodyNode { statements: vec![] }),
+        body_pair.as_span(),
+        breadcrumbs,
+    ))
 }

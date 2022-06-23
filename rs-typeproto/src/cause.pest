@@ -1,4 +1,5 @@
 WHITESPACE = _{ " " | NEWLINE | "\t" }
+COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
 
 identifier = @{ identifier_first_grapheme ~ identifier_grapheme* }
   identifier_first_grapheme = @{ LETTER | SYMBOL }
@@ -10,7 +11,7 @@ file = { SOI ~ declaration* ~ EOI }
 
 declaration = _{ function_declaration }
 
-function_declaration = { "fun" ~ identifier ~ "()" ~ structure_body }
+function_declaration = { "fn" ~ identifier ~ "()" ~ structure_body }
 
 structure_body = _{ block_body }
 

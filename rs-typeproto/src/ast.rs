@@ -1,7 +1,17 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+use std::fmt::{Debug, Display, Pointer};
+
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct DocumentPosition {
     pub line: usize,
     pub col: usize,
+}
+
+impl Debug for DocumentPosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("DocumentPosition")
+            .field(&format!("{}:{}", self.line, self.col))
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -16,7 +26,7 @@ pub enum BreadcrumbEntry {
     Name(&'static str),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Breadcrumbs(pub Vec<BreadcrumbEntry>);
 
 impl Breadcrumbs {
@@ -35,11 +45,73 @@ impl Breadcrumbs {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl Debug for Breadcrumbs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Breadcrumbs")
+            .field(&self.to_string())
+            .finish()
+    }
+}
+
+impl Display for Breadcrumbs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let segments: Vec<String> = self
+            .0
+            .iter()
+            .map(|it| match it {
+                BreadcrumbEntry::Index(i) => i.to_string(),
+                BreadcrumbEntry::Name(name) => name.to_string(),
+            })
+            .collect();
+        write!(f, "{}", segments.join("."))
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
 pub struct AstNode<T> {
     pub position: DocumentRange,
     pub breadcrumbs: Breadcrumbs,
     pub node: T,
+}
+
+impl<T> AstNode<T> {
+    pub fn new(node: T, position: impl Into<DocumentRange>, breadcrumbs: Breadcrumbs) -> Self {
+        AstNode {
+            position: position.into(),
+            breadcrumbs,
+            node,
+        }
+    }
+
+    pub fn map<Other>(self, f: fn(it: T) -> Other) -> AstNode<Other> {
+        AstNode {
+            position: self.position,
+            breadcrumbs: self.breadcrumbs,
+            node: f(self.node),
+        }
+    }
+}
+
+impl<T: Debug> Debug for AstNode<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        struct MiniDocumentRange(DocumentRange);
+        impl Debug for MiniDocumentRange {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.debug_struct("DocumentRange")
+                    .field(
+                        "start",
+                        &format!("{}:{}", self.0.start.line, self.0.start.col),
+                    )
+                    .field("end", &format!("{}:{}", self.0.end.line, self.0.end.col))
+                    .finish()
+            }
+        }
+        f.debug_struct("AstNode")
+            .field("position", &MiniDocumentRange(self.position))
+            .field("breadcrumbs", &self.breadcrumbs.to_string())
+            .field("node", &self.node)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,7 +137,7 @@ pub enum DeclarationNode {
 pub struct FunctionDeclarationNode {
     pub name: AstNode<Identifier>,
     // TODO: params
-    pub return_type: Option<AstNode<TypeReferenceNode>>,
+    // TODO: return type
     pub body: AstNode<BodyNode>,
 }
 

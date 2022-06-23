@@ -1,4 +1,5 @@
 use cause_typeproto::ast::*;
+use cause_typeproto::parse;
 
 #[test]
 fn hello_world() {
@@ -22,7 +23,6 @@ fn hello_world() {
                         ]),
                         node: Identifier("main".to_string()),
                     },
-                    return_type: None,
                     body: AstNode {
                         position: DocumentRange::default(),
                         breadcrumbs: Breadcrumbs(vec![
@@ -37,4 +37,16 @@ fn hello_world() {
         },
     };
     println!("{:#?}", file_node);
+}
+
+#[test]
+fn parse_hello_world() {
+    let script = r#"
+    fn main() {
+        // cause Print("Hello World")
+      }
+    "#;
+
+    let result = parse::parse(script);
+    println!("{:#?}", result);
 }
