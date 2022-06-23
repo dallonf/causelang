@@ -1,4 +1,4 @@
-use pest::{iterators::Pair, Parser, Span};
+use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
 use crate::ast::*;
@@ -108,14 +108,244 @@ fn parse_function_declaration(
 }
 
 fn parse_body(
-    body_pair: Pair<Rule>,
+    pair: Pair<Rule>,
     breadcrumbs: Breadcrumbs,
     ctx: &ParserContext,
 ) -> ParserResult<AstNode<BodyNode>> {
-    // TODO, just a placeholder
+    match pair.as_rule() {
+        Rule::block_body => {
+            Ok(parse_block_body(pair, breadcrumbs, ctx)?.map(|it| BodyNode::BlockBody(it)))
+        }
+        _ => unreachable!(),
+    }
+}
+
+fn parse_block_body(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<BlockBodyNode>> {
+    let statement_breadcrumbs = breadcrumbs.append_name("statements");
+    let span = pair.as_span();
+    let statements = pair
+        .into_inner()
+        .enumerate()
+        .map(|(i, statement_pair)| {
+            parse_statement(statement_pair, statement_breadcrumbs.append_index(i), ctx)
+        })
+        .collect::<ParserResult<Vec<_>>>()?;
+
     Ok(AstNode::new(
-        BodyNode::BlockBody(BlockBodyNode { statements: vec![] }),
-        body_pair.as_span(),
+        BlockBodyNode { statements },
+        span,
+        breadcrumbs,
+    ))
+}
+
+fn parse_statement(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<StatementNode>> {
+    match pair.as_rule() {
+        Rule::expression_statement => Ok(parse_expression_statement(pair, breadcrumbs, ctx)?
+            .map(|it| StatementNode::ExpressionStatement(it))),
+        _ => unreachable!(),
+    }
+}
+
+fn parse_expression_statement(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<ExpressionStatementNode>> {
+    let span = pair.as_span();
+    let expression = parse_expression(
+        pair.into_inner().next().unwrap(),
+        breadcrumbs.append_name("expression"),
+        ctx,
+    )?;
+    Ok(AstNode::new(
+        ExpressionStatementNode { expression },
+        span,
+        breadcrumbs,
+    ))
+}
+
+// struct SuffixHandler(Box<dyn Fn(Breadcrumbs) -> ParserResult<AstNode<ExpressionNode>>>);
+
+fn parse_expression(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<ExpressionNode>> {
+    let mut inner = pair.into_inner();
+
+    let main_expression_pair = inner.next().unwrap().clone();
+    let main_expression = {
+        |breadcrumbs: Breadcrumbs| -> ParserResult<_> {
+            match main_expression_pair.as_rule() {
+                Rule::string_literal_expression => {
+                    Ok(
+                        parse_string_literal_expression(main_expression_pair, breadcrumbs, ctx)?
+                            .map(|it| ExpressionNode::StringLiteralExpression(it)),
+                    )
+                }
+                Rule::cause_expression => {
+                    Ok(
+                        parse_cause_expression(main_expression_pair, breadcrumbs, ctx)?
+                            .map(|it| ExpressionNode::CauseExpression(it)),
+                    )
+                }
+                Rule::identifier_expression => {
+                    Ok(
+                        parse_identifier_expression(main_expression_pair, breadcrumbs, ctx)?
+                            .map(|it| ExpressionNode::IdentifierExpression(it)),
+                    )
+                }
+                err => unreachable!("{:?}", err),
+            }
+        }
+    };
+
+    let suffix_pair = inner.next();
+    match suffix_pair.map(|it| (it.as_rule(), it)) {
+        Some((Rule::call_expression_suffix, suffix_pair)) => Ok(parse_call_expression_suffix(
+            suffix_pair,
+            breadcrumbs,
+            Box::new(main_expression),
+            ctx,
+        )?
+        .map(|it| ExpressionNode::CallExpression(it))),
+        None => main_expression(breadcrumbs),
+        _ => unreachable!(),
+    }
+}
+
+fn parse_string_literal_expression(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    _ctx: &ParserContext,
+) -> ParserResult<AstNode<StringLiteralExpressionNode>> {
+    let span = pair.as_span();
+    let inner = pair.into_inner().next().unwrap();
+
+    Ok(AstNode::new(
+        StringLiteralExpressionNode {
+            text_range: inner.as_span().into(),
+            text: inner.as_str().to_string(),
+        },
+        span,
+        breadcrumbs,
+    ))
+}
+
+fn parse_cause_expression(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<CauseExpressionNode>> {
+    let span = pair.as_span();
+    let argument_pair = pair.into_inner().next().unwrap();
+    let argument = parse_expression(argument_pair, breadcrumbs.append_name("argument"), ctx)?;
+    Ok(AstNode::new(
+        CauseExpressionNode {
+            argument: Box::new(argument),
+        },
+        span,
+        breadcrumbs,
+    ))
+}
+
+fn parse_identifier_expression(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<IdentifierExpressionNode>> {
+    let span = pair.as_span();
+    let identifier_pair = pair.into_inner().next().unwrap();
+    let identifier = parse_identifier(identifier_pair, breadcrumbs.append_name("identifier"), ctx)?;
+    Ok(AstNode::new(
+        IdentifierExpressionNode { identifier },
+        span,
+        breadcrumbs,
+    ))
+}
+
+fn parse_call_expression_suffix(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    main_expression: impl FnOnce(Breadcrumbs) -> ParserResult<AstNode<ExpressionNode>>,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<CallExpressionNode>> {
+    let span = pair.as_span();
+
+    let callee = main_expression(breadcrumbs.append_name("callee"))?;
+
+    let arguments_breadcrumbs = breadcrumbs.append_name("arguments");
+    let arguments = pair
+        .into_inner()
+        .enumerate()
+        .map(|(i, argument_pair)| match argument_pair.as_rule() {
+            Rule::positional_argument => {
+                parse_positional_argument(argument_pair, arguments_breadcrumbs.append_index(i), ctx)
+            }
+            Rule::named_argument => {
+                parse_named_argument(argument_pair, arguments_breadcrumbs.append_index(i), ctx)
+            }
+            _ => unreachable!(),
+        })
+        .collect::<ParserResult<Vec<_>>>()?;
+
+    Ok(AstNode::new(
+        CallExpressionNode {
+            callee: Box::new(callee),
+            arguments,
+        },
+        span,
+        breadcrumbs,
+    ))
+}
+
+fn parse_positional_argument(
+    argument_pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<CallExpressionArgumentNode>> {
+    let span = argument_pair.as_span();
+    let value = parse_expression(
+        argument_pair.into_inner().next().unwrap(),
+        breadcrumbs.append_name("value"),
+        ctx,
+    )?;
+
+    Ok(AstNode::new(
+        CallExpressionArgumentNode {
+            name: None,
+            value: value,
+        },
+        span,
+        breadcrumbs,
+    ))
+}
+
+fn parse_named_argument(
+    argument_pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<CallExpressionArgumentNode>> {
+    let span = argument_pair.as_span();
+    let mut inner = argument_pair.into_inner();
+
+    let name = parse_identifier(inner.next().unwrap(), breadcrumbs.append_name("name"), ctx)?;
+    let value = parse_expression(inner.next().unwrap(), breadcrumbs.append_name("value"), ctx)?;
+
+    Ok(AstNode::new(
+        CallExpressionArgumentNode {
+            name: Some(name),
+            value: value,
+        },
+        span,
         breadcrumbs,
     ))
 }

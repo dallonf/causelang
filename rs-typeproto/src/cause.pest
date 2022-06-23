@@ -1,5 +1,8 @@
-WHITESPACE = _{ " " | NEWLINE | "\t" }
+whitespace_no_newline = _{ " " | "\t" }
+WHITESPACE = _{ whitespace_no_newline | NEWLINE }
 COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
+
+whitespace_including_newline = _{ whitespace_no_newline* ~ NEWLINE ~ WHITESPACE* }
 
 identifier = @{ identifier_first_grapheme ~ identifier_grapheme* }
   identifier_first_grapheme = @{ LETTER | SYMBOL }
@@ -15,7 +18,7 @@ function_declaration = { "fn" ~ identifier ~ "()" ~ structure_body }
 
 structure_body = _{ block_body }
 
-block_body = { "{" ~ (statement ~ (NEWLINE ~ statement)*)? ~ "}" }
+block_body = ${ "{" ~ WHITESPACE* ~ (statement ~ (whitespace_including_newline ~ statement)*)? ~ WHITESPACE* ~ "}" }
 
 statement = _{ expression_statement }
 
@@ -30,9 +33,10 @@ expression = {
   ~ expression_suffix?
 }
 
-string_literal_expression = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+string_literal_expression = ${ "\"" ~ string_literal_expression_inner ~ "\"" }
+  string_literal_expression_inner = @{ (!"\"" ~ ANY)* }
 
-cause_expression = { "cause" ~ WHITESPACE ~ expression }
+cause_expression = ${ "cause" ~ WHITESPACE+ ~ expression }
 
 identifier_expression = { identifier }
 

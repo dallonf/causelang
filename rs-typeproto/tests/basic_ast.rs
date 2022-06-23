@@ -43,8 +43,8 @@ fn hello_world() {
 fn parse_hello_world() {
     let script = r#"
     fn main() {
-        // cause Print("Hello World")
-      }
+        cause Print("Hello World")
+    }
     "#;
 
     let result = parse::parse(script);

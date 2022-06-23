@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display, Pointer};
+use std::fmt::{Debug, Display};
 
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct DocumentPosition {
@@ -153,7 +153,7 @@ pub struct BlockBodyNode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StatementNode {
-    ExpressionStatementNode(ExpressionStatementNode),
+    ExpressionStatement(ExpressionStatementNode),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -163,37 +163,36 @@ pub struct ExpressionStatementNode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpressionNode {
-    IdentifierExpression(IdentifierExpression),
+    IdentifierExpression(IdentifierExpressionNode),
     CauseExpression(CauseExpressionNode),
     CallExpression(CallExpressionNode),
     StringLiteralExpression(StringLiteralExpressionNode),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IdentifierExpression {
+pub struct IdentifierExpressionNode {
     pub identifier: AstNode<Identifier>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CauseExpressionNode {
-    pub keyword: DocumentRange,
-    pub param: Box<AstNode<ExpressionNode>>,
+    pub argument: Box<AstNode<ExpressionNode>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CallExpressionNode {
-    callee: Box<AstNode<ExpressionNode>>,
-    arguments: Vec<CallExpressionArgumentNode>,
+    pub callee: Box<AstNode<ExpressionNode>>,
+    pub arguments: Vec<AstNode<CallExpressionArgumentNode>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CallExpressionArgumentNode {
-    name: Option<AstNode<Identifier>>,
-    value: AstNode<ExpressionNode>,
+    pub name: Option<AstNode<Identifier>>,
+    pub value: AstNode<ExpressionNode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StringLiteralExpressionNode {
-    text_range: DocumentRange,
-    text: String,
+    pub text_range: DocumentRange,
+    pub text: String,
 }
