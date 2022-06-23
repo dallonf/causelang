@@ -36,7 +36,7 @@ pub fn parse(source: &str) -> Result<AstNode<FileNode>, ParserError> {
     let file_pair = parse_result.next().unwrap();
     let span = file_pair.as_span();
 
-    let breadcrumbs = Breadcrumbs(vec![]);
+    let breadcrumbs = Breadcrumbs::empty();
     let ctx = ParserContext {};
     let declarations: Vec<AstNode<DeclarationNode>> = {
         let breadcrumbs = breadcrumbs.append_name("declarations");
@@ -171,8 +171,6 @@ fn parse_expression_statement(
         breadcrumbs,
     ))
 }
-
-// struct SuffixHandler(Box<dyn Fn(Breadcrumbs) -> ParserResult<AstNode<ExpressionNode>>>);
 
 fn parse_expression(
     pair: Pair<Rule>,

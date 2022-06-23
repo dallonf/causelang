@@ -30,6 +30,10 @@ pub enum BreadcrumbEntry {
 pub struct Breadcrumbs(pub Vec<BreadcrumbEntry>);
 
 impl Breadcrumbs {
+    pub fn empty() -> Breadcrumbs {
+        Breadcrumbs(vec![])
+    }
+
     pub fn append(&self, new_entry: BreadcrumbEntry) -> Self {
         let mut new_vec = self.0.clone();
         new_vec.push(new_entry);
@@ -42,6 +46,16 @@ impl Breadcrumbs {
 
     pub fn append_index(&self, index: usize) -> Self {
         self.append(BreadcrumbEntry::Index(index))
+    }
+
+    pub fn up(&self) -> Self {
+        let mut new_vec = self.0.clone();
+        new_vec.pop();
+        Breadcrumbs(new_vec)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.len() == 0
     }
 }
 
@@ -83,11 +97,19 @@ impl<T> AstNode<T> {
         }
     }
 
-    pub fn map<Other>(self, f: fn(it: T) -> Other) -> AstNode<Other> {
+    pub fn map<Other>(self, f: impl Fn(T) -> Other) -> AstNode<Other> {
         AstNode {
             position: self.position,
             breadcrumbs: self.breadcrumbs,
             node: f(self.node),
+        }
+    }
+
+    pub fn with_node<Other>(&self, other: Other) -> AstNode<Other> {
+        AstNode {
+            position: self.position,
+            breadcrumbs: self.breadcrumbs.clone(),
+            node: other,
         }
     }
 }
