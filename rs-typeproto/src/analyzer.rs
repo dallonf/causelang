@@ -161,7 +161,7 @@ fn analyze_declaration(
 
 fn analyze_import_declaration(
     ast_node: &AstNode<ast::ImportDeclarationNode>,
-    ctx: &mut AnalyzerContext,
+    _ctx: &mut AnalyzerContext,
 ) -> AnalyzedNode {
     let mut result = AnalyzedNode::default();
 
