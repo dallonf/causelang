@@ -30,7 +30,8 @@ enum ResolvedTypeReference {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum TypeError {
     NotInScope,
-    InferenceFailed { caused_by: SourcePosition },
+    ProxyError { caused_by: SourcePosition },
+    NotCallable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -101,6 +102,7 @@ impl AnalyzerContext<'_> {
 }
 
 pub fn analyze_file(ast_node: &AstNode<ast::FileNode>, path: impl Into<String>) {
+    let path = path.into();
     // declarations in the file root scope are hoisted
     let mut root_scope = Scope::new();
     for declaration in ast_node.node.declarations.iter() {
@@ -119,15 +121,96 @@ pub fn analyze_file(ast_node: &AstNode<ast::FileNode>, path: impl Into<String>) 
     let mut ctx = AnalyzerContext {
         current_scope: root_scope,
         type_resolutions: &mut type_resolutions,
-        file_path: &path.into(),
+        file_path: &path,
     };
 
-    // now let's try to resolve all types
+    // now let's establish a mapping of types
     for declaration in ast_node.node.declarations.iter() {
         analyze_declaration(declaration, &mut ctx)
     }
 
-    println!("type resolutions: {:#?}", ctx.type_resolutions);
+    // infer until stable
+    fn count_pending(type_resolutions: &HashMap<Breadcrumbs, TypeReference>) -> (usize, usize) {
+        type_resolutions.iter().fold(
+            (0, 0),
+            |(prev_pending, prev_resolved), (_, next)| match next {
+                TypeReference::Pending { .. } => (prev_pending + 1, prev_resolved),
+                TypeReference::Resolved(_) | TypeReference::Error(_) => {
+                    (prev_pending, prev_resolved + 1)
+                }
+            },
+        )
+    }
+
+    let mut pending_count = count_pending(&type_resolutions);
+    while pending_count.0 > 0 {
+        let pending_references = type_resolutions.iter().filter_map(|it| match it.1 {
+            TypeReference::Pending {
+                waiting_on_position,
+                pending_type,
+            } => Some((it.0, waiting_on_position, pending_type)),
+            _ => None,
+        });
+
+        let mut iteration_resolved_references = Vec::<(Breadcrumbs, TypeReference)>::new();
+        for (breadcrumbs, waiting_on_position, pending_type) in pending_references {
+            if waiting_on_position.file != path {
+                // only support intra-file inference, for now
+                break;
+            }
+
+            match type_resolutions.get(&waiting_on_position.breadcrumbs) {
+                Some(TypeReference::Pending { .. }) => (),
+                Some(TypeReference::Resolved(resolved_type_reference)) => match pending_type {
+                    PendingType::Verbatim => {
+                        iteration_resolved_references.push((
+                            breadcrumbs.clone(),
+                            TypeReference::Resolved(resolved_type_reference.clone()),
+                        ));
+                    }
+                    PendingType::Call => match resolved_type_reference {
+                        ResolvedTypeReference::Function(function_type) => {
+                            iteration_resolved_references.push((
+                                breadcrumbs.clone(),
+                                function_type.return_type.as_ref().clone(),
+                            ));
+                        }
+                        _ => iteration_resolved_references.push((
+                            breadcrumbs.clone(),
+                            TypeReference::Error(TypeError::NotCallable),
+                        )),
+                    },
+                },
+                Some(TypeReference::Error(_)) => {
+                    iteration_resolved_references.push((
+                        breadcrumbs.clone(),
+                        TypeReference::Error(TypeError::ProxyError {
+                            caused_by: SourcePosition {
+                                file: path.to_string(),
+                                breadcrumbs: waiting_on_position.breadcrumbs.clone(),
+                            },
+                        }),
+                    ));
+                }
+                None => (),
+            }
+        }
+
+        let resolved_len = iteration_resolved_references.len();
+        for (breadcrumbs, new_reference) in iteration_resolved_references.into_iter() {
+            type_resolutions.insert(breadcrumbs, new_reference);
+        }
+
+        let new_count = count_pending(&type_resolutions);
+        if new_count == pending_count && resolved_len == 0 {
+            // we haven't gotten anywhere this iteration
+            break;
+        } else {
+            pending_count = new_count;
+        }
+    }
+
+    println!("type resolutions: {:#?}", type_resolutions);
 }
 
 fn analyze_declaration(ast_node: &AstNode<ast::DeclarationNode>, ctx: &mut AnalyzerContext) {
