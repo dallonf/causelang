@@ -151,16 +151,31 @@ pub struct FileNode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeclarationNode {
+    Import(ImportDeclarationNode),
     Function(FunctionDeclarationNode),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-
 pub struct FunctionDeclarationNode {
     pub name: AstNode<Identifier>,
     // TODO: params
     // TODO: return type
     pub body: AstNode<BodyNode>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportDeclarationNode {
+    pub path: AstNode<ImportPathNode>,
+    pub mappings: Vec<AstNode<ImportMappingNode>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportPathNode(pub String);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportMappingNode {
+    pub source_name: AstNode<Identifier>,
+    pub rename: Option<AstNode<Identifier>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

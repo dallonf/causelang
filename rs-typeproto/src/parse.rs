@@ -80,10 +80,76 @@ fn parse_declaration(
     ctx: &ParserContext,
 ) -> ParserResult<AstNode<DeclarationNode>> {
     match pair.as_rule() {
+        Rule::import_declaration => {
+            Ok(parse_import_declaration(pair, breadcrumbs, ctx)?
+                .map(|it| DeclarationNode::Import(it)))
+        }
         Rule::function_declaration => Ok(parse_function_declaration(pair, breadcrumbs, ctx)?
             .map(|it| DeclarationNode::Function(it))),
         other => unreachable!("unexpected rule: {:?}", other),
     }
+}
+
+fn parse_import_declaration(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<ImportDeclarationNode>> {
+    let span = pair.as_span();
+    let mut inner = pair.into_inner();
+
+    let path = inner.next().unwrap();
+
+    let mappings = inner
+        .enumerate()
+        .map(|(i, mapping_pair)| {
+            let span = mapping_pair.as_span();
+            let mut inner = mapping_pair.into_inner();
+
+            let source_pair = inner.next().unwrap();
+            let rename_pair = inner.next();
+
+            let mapping_breadcrumbs = breadcrumbs.append_name("mappings").append_index(i);
+            Ok(AstNode::new(
+                ImportMappingNode {
+                    source_name: parse_identifier(
+                        source_pair,
+                        mapping_breadcrumbs.append_name("source_name"),
+                        ctx,
+                    )?,
+                    rename: {
+                        let optionally_parsed = rename_pair.map(|rename_pair| {
+                            parse_identifier(
+                                rename_pair,
+                                mapping_breadcrumbs.append_name("rename"),
+                                ctx,
+                            )
+                        });
+                        match optionally_parsed {
+                            Some(Err(err)) => Err(err),
+                            Some(Ok(it)) => Ok(Some(it)),
+                            None => Ok(None),
+                        }
+                    }?,
+                },
+                span,
+                mapping_breadcrumbs,
+            ))
+        })
+        .collect::<ParserResult<Vec<_>>>()?;
+
+    Ok(AstNode::new(
+        ImportDeclarationNode {
+            path: AstNode::new(
+                ImportPathNode(path.as_str().to_string()),
+                path.as_span(),
+                breadcrumbs.append_name("path"),
+            ),
+            mappings,
+        },
+        span,
+        breadcrumbs,
+    ))
 }
 
 fn parse_function_declaration(

@@ -107,12 +107,22 @@ pub fn analyze_file(ast_node: &AstNode<ast::FileNode>, path: impl Into<String>) 
     let mut root_scope = Scope::new();
     for declaration in ast_node.node.declarations.iter() {
         match &declaration.node {
-            ast::DeclarationNode::Function(function_node) => root_scope.0.insert(
-                function_node.name.node.0.clone(),
-                ScopeItem {
-                    origin: declaration.breadcrumbs.clone(),
-                },
-            ),
+            ast::DeclarationNode::Function(function_node) => {
+                root_scope.0.insert(
+                    function_node.name.node.0.clone(),
+                    ScopeItem {
+                        origin: declaration.breadcrumbs.clone(),
+                    },
+                );
+            }
+            ast::DeclarationNode::Import(import_node) => {
+                let filepath = &import_node.path.node.0;
+                for mapping in import_node.mappings.iter() {
+                    let source_name = &mapping.node.source_name.node.0;
+                    let rename = mapping.node.rename.as_ref().map(|it| &it.node.0);
+                    todo!()
+                }
+            }
         };
     }
 
@@ -216,34 +226,53 @@ pub fn analyze_file(ast_node: &AstNode<ast::FileNode>, path: impl Into<String>) 
 fn analyze_declaration(ast_node: &AstNode<ast::DeclarationNode>, ctx: &mut AnalyzerContext) {
     match &ast_node.node {
         ast::DeclarationNode::Function(function_declaration_node) => {
-            ctx.with_new_scope(|ctx| {
-                ctx.current_scope.0.insert(
-                    function_declaration_node.name.node.0.clone(),
-                    ScopeItem {
-                        origin: ast_node.breadcrumbs.clone(),
-                    },
-                );
-
-                ctx.type_resolutions.insert(
-                    ast_node.breadcrumbs.clone(),
-                    TypeReference::Resolved(ResolvedTypeReference::Function(
-                        FunctionTypeReference {
-                            name: Some(function_declaration_node.name.node.0.clone()),
-                            return_type: Box::new(TypeReference::Pending {
-                                waiting_on_position: SourcePosition {
-                                    file: ctx.file_path.to_string(),
-                                    breadcrumbs: ast_node.breadcrumbs.append_name("body"),
-                                },
-                                pending_type: PendingType::Verbatim,
-                            }),
-                        },
-                    )),
-                );
-
-                analyze_body(&function_declaration_node.body, ctx);
-            });
+            analze_function_declaration(
+                &ast_node.with_node(function_declaration_node.clone()),
+                ctx,
+            );
+        }
+        ast::DeclarationNode::Import(import_declaration_node) => {
+            analyze_import_declaration(&ast_node.with_node(import_declaration_node.clone()), ctx)
         }
     }
+}
+
+fn analyze_import_declaration(
+    ast_node: &AstNode<ast::ImportDeclarationNode>,
+    ctx: &mut AnalyzerContext,
+) {
+    // not much to do here, actually
+    // most of this is handled during hoisting
+}
+
+fn analze_function_declaration(
+    ast_node: &AstNode<ast::FunctionDeclarationNode>,
+    ctx: &mut AnalyzerContext,
+) {
+    ctx.with_new_scope(|ctx| {
+        ctx.current_scope.0.insert(
+            ast_node.node.name.node.0.clone(),
+            ScopeItem {
+                origin: ast_node.breadcrumbs.clone(),
+            },
+        );
+
+        ctx.type_resolutions.insert(
+            ast_node.breadcrumbs.clone(),
+            TypeReference::Resolved(ResolvedTypeReference::Function(FunctionTypeReference {
+                name: Some(ast_node.node.name.node.0.clone()),
+                return_type: Box::new(TypeReference::Pending {
+                    waiting_on_position: SourcePosition {
+                        file: ctx.file_path.to_string(),
+                        breadcrumbs: ast_node.breadcrumbs.append_name("body"),
+                    },
+                    pending_type: PendingType::Verbatim,
+                }),
+            })),
+        );
+
+        analyze_body(&ast_node.node.body, ctx);
+    });
 }
 
 fn analyze_body(ast_node: &AstNode<ast::BodyNode>, ctx: &mut AnalyzerContext) {
@@ -362,6 +391,8 @@ mod test {
     #[test]
     fn hello_world() {
         let script = r#"
+          // import langtest/effects { Print }
+
           fn main() {
               cause Print("Hello World")
           }

@@ -1,8 +1,8 @@
 whitespace_no_newline = _{ " " | "\t" }
-WHITESPACE = _{ whitespace_no_newline | NEWLINE }
+whitespace = _{ whitespace_no_newline | NEWLINE }
+whitespace_including_newline = _{ whitespace_no_newline* ~ NEWLINE ~ whitespace* }
 COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
 
-whitespace_including_newline = _{ whitespace_no_newline* ~ NEWLINE ~ WHITESPACE* }
 
 identifier = @{ identifier_first_grapheme ~ identifier_grapheme* }
   identifier_first_grapheme = @{ LETTER | SYMBOL }
@@ -10,15 +10,22 @@ identifier = @{ identifier_first_grapheme ~ identifier_grapheme* }
 
 type_reference = { identifier }
 
-file = { SOI ~ declaration* ~ EOI }
+file = { SOI ~ whitespace* ~ (declaration ~ whitespace*)* ~ EOI }
 
-declaration = _{ function_declaration }
+declaration = _{ import_declaration | function_declaration }
 
-function_declaration = { "fn" ~ identifier ~ "()" ~ structure_body }
+path_segment = _{ ASCII_ALPHANUMERIC+ }
+import_declaration = { "import" ~ whitespace+ ~ import_path ~ whitespace* ~ "{" ~ whitespace* ~ import_mappings? ~ whitespace* ~ "}" ~ whitespace_including_newline }
+  import_path = @{ path_segment ~ ("/" ~ path_segment)* }
+  import_mappings = _{ import_mapping ~ whitespace* ~ ("," ~ whitespace* ~ import_mapping ~ whitespace*)* ~ whitespace* ~ ","? }
+  import_mapping = { identifier ~ ( whitespace+ ~ "as" ~ whitespace+ ~ identifier)? }
+
+
+function_declaration = { "fn" ~ whitespace+ ~ identifier ~ whitespace* ~ "()" ~ whitespace* ~ structure_body }
 
 structure_body = _{ block_body }
 
-block_body = ${ "{" ~ WHITESPACE* ~ (statement ~ (whitespace_including_newline ~ statement)*)? ~ WHITESPACE* ~ "}" }
+block_body = { "{" ~ whitespace* ~ (statement ~ (whitespace_including_newline ~ statement)*)? ~ whitespace* ~ "}" }
 
 statement = _{ expression_statement }
 
@@ -30,19 +37,20 @@ expression = {
     | cause_expression
     | identifier_expression
   )
+  ~ whitespace_no_newline?
   ~ expression_suffix?
 }
 
-string_literal_expression = ${ "\"" ~ string_literal_expression_inner ~ "\"" }
+string_literal_expression = { "\"" ~ string_literal_expression_inner ~ "\"" }
   string_literal_expression_inner = @{ (!"\"" ~ ANY)* }
 
-cause_expression = ${ "cause" ~ WHITESPACE+ ~ expression }
+cause_expression = ${ "cause" ~ whitespace+ ~ expression }
 
 identifier_expression = { identifier }
 
 expression_suffix = _{ call_expression_suffix }
 
-call_expression_suffix = { "(" ~ (argument ~ ("," ~ argument)*)? ~ ")" }
+call_expression_suffix = { "(" ~ whitespace* ~ (argument ~ whitespace* ~ ("," ~ whitespace* ~ argument ~ whitespace*)*)? ~ ")" }
   argument = _{ named_argument | positional_argument }
-  named_argument = { identifier ~ "=" ~ expression }
+  named_argument = { identifier ~ whitespace* ~ "=" ~ whitespace* ~ expression }
   positional_argument = { expression }
