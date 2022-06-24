@@ -299,6 +299,14 @@ fn analyze_expression(
             );
             result
         }
+        ast::ExpressionNode::IntegerLiteralExpression(_) => {
+            let mut result = AnalyzedNode::default();
+            result.add_tag(
+                ast_node.breadcrumbs.to_owned(),
+                NodeTag::IsPrimitiveValue(PrimitiveLangType::Integer),
+            );
+            result
+        }
     };
     result.add_tag(ast_node.breadcrumbs.to_owned(), NodeTag::Expression);
     result

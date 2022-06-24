@@ -204,6 +204,7 @@ pub enum ExpressionNode {
     CauseExpression(CauseExpressionNode),
     CallExpression(CallExpressionNode),
     StringLiteralExpression(StringLiteralExpressionNode),
+    IntegerLiteralExpression(IntegerLiteralExpressionNode),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -232,4 +233,9 @@ pub struct CallExpressionArgumentNode {
 pub struct StringLiteralExpressionNode {
     pub text_range: DocumentRange,
     pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IntegerLiteralExpressionNode {
+    pub value: i64,
 }

@@ -299,7 +299,7 @@ mod test {
           import langtest/signals { Print }
 
           fn main() {
-              cause Print("Hello World")
+              cause Print(15)
           }
         "#;
 

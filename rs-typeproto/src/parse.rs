@@ -255,6 +255,12 @@ fn parse_expression(
                             .map(|it| ExpressionNode::StringLiteralExpression(it)),
                     )
                 }
+                Rule::integer_literal_expression => {
+                    Ok(
+                        parse_integer_literal_expression(main_expression_pair, breadcrumbs, ctx)?
+                            .map(|it| ExpressionNode::IntegerLiteralExpression(it)),
+                    )
+                }
                 Rule::cause_expression => {
                     Ok(
                         parse_cause_expression(main_expression_pair, breadcrumbs, ctx)?
@@ -300,6 +306,24 @@ fn parse_string_literal_expression(
             text: inner.as_str().to_string(),
         },
         span,
+        breadcrumbs,
+    ))
+}
+
+fn parse_integer_literal_expression(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    _ctx: &ParserContext,
+) -> ParserResult<AstNode<IntegerLiteralExpressionNode>> {
+    let text = pair.as_str();
+
+    let number: Result<i64, _> = text.replace("_", "").parse();
+
+    Ok(AstNode::new(
+        IntegerLiteralExpressionNode {
+            value: number.unwrap(),
+        },
+        pair.as_span(),
         breadcrumbs,
     ))
 }

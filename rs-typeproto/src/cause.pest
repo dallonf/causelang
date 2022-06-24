@@ -34,6 +34,7 @@ expression_statement = { expression }
 expression = {
   (
       string_literal_expression
+    | integer_literal_expression
     | cause_expression
     | identifier_expression
   )
@@ -43,6 +44,8 @@ expression = {
 
 string_literal_expression = { "\"" ~ string_literal_expression_inner ~ "\"" }
   string_literal_expression_inner = @{ (!"\"" ~ ANY)* }
+
+integer_literal_expression = @{ ASCII_DIGIT ~ (ASCII_DIGIT ~ "_"?)* }
 
 cause_expression = ${ "cause" ~ whitespace+ ~ expression }
 
