@@ -59,6 +59,7 @@ pub struct SignalCanonicalLangType {
     pub id: CanonicalLangTypeId,
     pub name: String,
     pub params: Vec<LangParameter>,
+    pub result: Box<ValueLangType>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,6 +82,7 @@ pub enum LangTypeError {
     ExportNotFound,
     ProxyError { caused_by: ErrorSourcePosition },
     NotCallable,
+    NotCausable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

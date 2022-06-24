@@ -39,6 +39,14 @@ pub fn resolve_for_file(input: FileResolverInput) {
         }
     }
 
+    macro_rules! get_type {
+        ( $x:expr ) => {
+            known_canonical_types
+                .get($x)
+                .expect("If a reference exists, the type should be known")
+        };
+    }
+
     loop {
         let mut iteration_resolved_references = Vec::<(Breadcrumbs, ValueLangType)>::new();
 
@@ -87,9 +95,7 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                 Some(ValueLangType::Resolved(
                                     ResolvedValueLangType::Reference(type_id),
                                 )) => {
-                                    let lang_type = known_canonical_types
-                                        .get(type_id)
-                                        .expect("If a reference exists, the type should be known");
+                                    let lang_type = get_type!(type_id);
 
                                     match lang_type {
                                         CanonicalLangType::Signal(signal) => {
@@ -124,6 +130,42 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                     .push((calls.to_owned(), ValueLangType::Pending)),
                             };
                         }
+
+                        NodeTag::Causes(causes) => match resolved_types.get(causes) {
+                            Some(ValueLangType::Pending) => (),
+                            Some(ValueLangType::Resolved(ResolvedValueLangType::Instance(
+                                type_id,
+                            ))) => {
+                                let instance_type = get_type!(type_id);
+                                match instance_type {
+                                    CanonicalLangType::Signal(signal) => {
+                                        iteration_resolved_references.push((
+                                            pending.to_owned(),
+                                            signal.result.as_ref().to_owned(),
+                                        ))
+                                    }
+                                }
+                            }
+                            Some(ValueLangType::Resolved(_)) => {
+                                iteration_resolved_references.push((
+                                    pending.to_owned(),
+                                    ValueLangType::Error(LangTypeError::NotCausable),
+                                ))
+                            }
+                            Some(ValueLangType::Error(_)) => {
+                                iteration_resolved_references.push((
+                                    pending.to_owned(),
+                                    ValueLangType::Error(LangTypeError::ProxyError {
+                                        caused_by: ErrorSourcePosition::SameFile {
+                                            path: path.to_owned(),
+                                            breadcrumbs: causes.to_owned(),
+                                        },
+                                    }),
+                                ));
+                            }
+                            None => iteration_resolved_references
+                                .push((causes.to_owned(), ValueLangType::Pending)),
+                        },
 
                         NodeTag::IsPrimitiveValue(primitive) => {
                             iteration_resolved_references.push((
@@ -169,9 +211,11 @@ pub fn resolve_for_file(input: FileResolverInput) {
 
         let resolved = iteration_resolved_references.len();
         for (breadcrumbs, new_reference) in iteration_resolved_references {
-            if let Some(ValueLangType::Resolved(old_type)) = resolved_types.get(&breadcrumbs) {
-                panic!("Accidentally clobbered a resolved reference ({breadcrumbs:?} = {old_type:?}) with {new_reference:?}");
-            }
+            match resolved_types.get(&breadcrumbs) {
+              Some(ValueLangType::Resolved(old_type)) => panic!("Accidentally clobbered a resolved reference ({breadcrumbs:?} = {old_type:?}) with {new_reference:?}"),
+              Some(ValueLangType::Error(old_error)) => panic!("Accidentally clobbered an errored reference ({breadcrumbs:?} = {old_error:?}) with {new_reference:?}"),
+              _ => {},
+            };
             match new_reference {
                 ValueLangType::Resolved(ResolvedValueLangType::Canonical(canonical)) => {
                     let id = canonical.id();
@@ -236,6 +280,9 @@ mod test {
                                     ResolvedValueLangType::Primitive(PrimitiveLangType::String),
                                 ),
                             }],
+                            result: Box::new(ValueLangType::Resolved(
+                                ResolvedValueLangType::Primitive(PrimitiveLangType::Action),
+                            )),
                         }),
                     )),
                 )]),

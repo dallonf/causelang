@@ -330,7 +330,7 @@ fn analyze_cause_expression(
         NodeTag::CausedBy(ast_node.breadcrumbs.to_owned()),
     );
 
-    analyze_expression(&ast_node.node.argument, ctx)
+    result.merge(&analyze_expression(&ast_node.node.argument, ctx))
 }
 
 fn analyze_call_expression(
