@@ -2,7 +2,7 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 
 use crate::ast::{self, AstNode, Breadcrumbs};
-use crate::types::LangPrimitiveType;
+use crate::types::PrimitiveLangType;
 
 #[derive(Debug, Default, Clone)]
 pub struct AnalyzedNode {
@@ -58,7 +58,7 @@ pub enum NodeTag {
     ValueGoesTo(Breadcrumbs),
     Calls(Breadcrumbs),
     CalledBy(Breadcrumbs),
-    IsPrimitiveValue(LangPrimitiveType),
+    IsPrimitiveValue(PrimitiveLangType),
     FunctionCanReturnTypeOf(Breadcrumbs),
     ReferenceNotInScope,
     TopLevelDeclaration,
@@ -222,7 +222,7 @@ fn analyze_body(ast_node: &AstNode<ast::BodyNode>, ctx: &mut AnalyzerContext) ->
                 // avoids issues with `statements.len() - 1` below
                 result.add_tag(
                     ast_node.breadcrumbs.to_owned(),
-                    NodeTag::IsPrimitiveValue(LangPrimitiveType::Action),
+                    NodeTag::IsPrimitiveValue(PrimitiveLangType::Action),
                 );
             } else {
                 // a block's return type is the last expression... or the type of any returns? hmmmmmm
@@ -278,7 +278,7 @@ fn analyze_expression(
             let mut result = AnalyzedNode::default();
             result.add_tag(
                 ast_node.breadcrumbs.to_owned(),
-                NodeTag::IsPrimitiveValue(LangPrimitiveType::String),
+                NodeTag::IsPrimitiveValue(PrimitiveLangType::String),
             );
             result
         }
