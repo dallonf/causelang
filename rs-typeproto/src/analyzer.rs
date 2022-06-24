@@ -13,12 +13,16 @@ pub struct AnalyzedNode {
 impl AnalyzedNode {
     fn merge(&self, other: &AnalyzedNode) -> Self {
         let mut new = self.clone();
-        new.node_tags.extend(
-            other
-                .node_tags
-                .iter()
-                .map(|(breadcrumbs, node_tag)| (breadcrumbs.to_owned(), node_tag.to_owned())),
-        );
+        for (breadcrumbs, tags) in other.node_tags.iter() {
+            match new.node_tags.entry(breadcrumbs.to_owned()) {
+                Entry::Occupied(mut entry) => {
+                    entry.get_mut().extend(tags.iter().cloned());
+                }
+                Entry::Vacant(entry) => {
+                    entry.insert(tags.to_owned());
+                }
+            }
+        }
         new.files_referenced
             .extend(other.files_referenced.iter().cloned());
         new
@@ -58,6 +62,8 @@ pub enum NodeTag {
     ValueGoesTo(Breadcrumbs),
     Calls(Breadcrumbs),
     CalledBy(Breadcrumbs),
+    Causes(Breadcrumbs),
+    CausedBy(Breadcrumbs),
     IsPrimitiveValue(PrimitiveLangType),
     FunctionCanReturnTypeOf(Breadcrumbs),
     ReferenceNotInScope,
@@ -178,7 +184,7 @@ fn analyze_import_declaration(
     for mapping_node in ast_node.node.mappings.iter() {
         let source_name = mapping_node.node.source_name.node.0.to_owned();
         result.add_tag(
-            ast_node.breadcrumbs.to_owned(),
+            mapping_node.breadcrumbs.to_owned(),
             NodeTag::ReferencesFile {
                 path: path.to_owned(),
                 export_name: Some(source_name),
@@ -313,8 +319,16 @@ fn analyze_cause_expression(
     ast_node: &AstNode<ast::CauseExpressionNode>,
     ctx: &mut AnalyzerContext,
 ) -> AnalyzedNode {
-    // TODO: somehow need to resolve the type of this
-    // probably will be similar to tagging function return values
+    let mut result = AnalyzedNode::default();
+
+    result.add_tag(
+        ast_node.breadcrumbs.to_owned(),
+        NodeTag::Causes(ast_node.node.argument.breadcrumbs.to_owned()),
+    );
+    result.add_tag(
+        ast_node.node.argument.breadcrumbs.to_owned(),
+        NodeTag::CausedBy(ast_node.breadcrumbs.to_owned()),
+    );
 
     analyze_expression(&ast_node.node.argument, ctx)
 }

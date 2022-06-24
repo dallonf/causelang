@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::Hash;
 
 use crate::analyzer::{AnalyzedNode, NodeTag};
 use crate::ast::{AstNode, Breadcrumbs, FileNode};
@@ -26,6 +27,7 @@ pub fn resolve_for_file(input: FileResolverInput) {
     let AnalyzedNode { node_tags, .. } = analyzed;
 
     let mut resolved_types = HashMap::<Breadcrumbs, ValueLangType>::new();
+    let mut known_canonical_types = HashMap::<CanonicalLangTypeId, CanonicalLangType>::new();
 
     // start by resolving all expressions and top-level declarations
     for (breadcrumbs, tags) in node_tags.iter() {
@@ -82,6 +84,26 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                     pending.to_owned(),
                                     function.return_type.as_ref().to_owned(),
                                 )),
+                                Some(ValueLangType::Resolved(
+                                    ResolvedValueLangType::Reference(type_id),
+                                )) => {
+                                    let lang_type = known_canonical_types
+                                        .get(type_id)
+                                        .expect("If a reference exists, the type should be known");
+
+                                    match lang_type {
+                                        CanonicalLangType::Signal(signal) => {
+                                            iteration_resolved_references.push((
+                                                pending.to_owned(),
+                                                ValueLangType::Resolved(
+                                                    ResolvedValueLangType::Instance(
+                                                        signal.id.to_owned(),
+                                                    ),
+                                                ),
+                                            ));
+                                        }
+                                    }
+                                }
                                 Some(ValueLangType::Resolved(_)) => iteration_resolved_references
                                     .push((
                                         pending.to_owned(),
@@ -112,6 +134,28 @@ pub fn resolve_for_file(input: FileResolverInput) {
                             ))
                         }
 
+                        NodeTag::ReferencesFile {
+                            path,
+                            export_name: Some(export_name),
+                        } => {
+                            if let Some(file) = other_files.get(path) {
+                                if let Some(export) = file.exports.get(export_name) {
+                                    iteration_resolved_references
+                                        .push((pending.to_owned(), export.to_owned()))
+                                } else {
+                                    iteration_resolved_references.push((
+                                        pending.to_owned(),
+                                        ValueLangType::Error(LangTypeError::ExportNotFound),
+                                    ));
+                                }
+                            } else {
+                                iteration_resolved_references.push((
+                                    pending.to_owned(),
+                                    ValueLangType::Error(LangTypeError::FileNotFound),
+                                ));
+                            }
+                        }
+
                         NodeTag::ReferenceNotInScope => iteration_resolved_references.push((
                             pending.to_owned(),
                             ValueLangType::Error(LangTypeError::NotInScope),
@@ -128,7 +172,19 @@ pub fn resolve_for_file(input: FileResolverInput) {
             if let Some(ValueLangType::Resolved(old_type)) = resolved_types.get(&breadcrumbs) {
                 panic!("Accidentally clobbered a resolved reference ({breadcrumbs:?} = {old_type:?}) with {new_reference:?}");
             }
-            resolved_types.insert(breadcrumbs, new_reference);
+            match new_reference {
+                ValueLangType::Resolved(ResolvedValueLangType::Canonical(canonical)) => {
+                    let id = canonical.id();
+                    known_canonical_types.insert(id.to_owned(), canonical.to_owned());
+                    resolved_types.insert(
+                        breadcrumbs,
+                        ValueLangType::Resolved(ResolvedValueLangType::Reference(id.to_owned())),
+                    );
+                }
+                _ => {
+                    resolved_types.insert(breadcrumbs, new_reference);
+                }
+            }
         }
         if resolved == 0 {
             break;
@@ -157,6 +213,8 @@ mod test {
 
         let ast_node = parse::parse(script).unwrap();
         let analyzed_file = analyzer::analyze_file(&ast_node);
+
+        println!("node tags: {:#?}", analyzed_file.node_tags);
 
         let other_files = HashMap::from_iter(vec![(
             "langtest/signals".to_string(),
