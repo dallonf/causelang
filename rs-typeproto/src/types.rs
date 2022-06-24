@@ -75,6 +75,19 @@ pub enum ValueLangType {
     Error(LangTypeError),
 }
 
+impl ValueLangType {
+    pub fn is_pending(&self) -> bool {
+        match self {
+            ValueLangType::Pending => true,
+            ValueLangType::Resolved(ResolvedValueLangType::Function(function)) => {
+                function.return_type.is_pending()
+            }
+            ValueLangType::Resolved(_) => false,
+            ValueLangType::Error(_) => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LangTypeError {
     NotInScope,
@@ -83,6 +96,7 @@ pub enum LangTypeError {
     ProxyError { caused_by: ErrorSourcePosition },
     NotCallable,
     NotCausable,
+    ImplementationTodo { description: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

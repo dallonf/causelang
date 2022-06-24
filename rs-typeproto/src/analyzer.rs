@@ -65,6 +65,9 @@ pub enum NodeTag {
     Causes(Breadcrumbs),
     CausedBy(Breadcrumbs),
     IsPrimitiveValue(PrimitiveLangType),
+    IsFunction {
+        name: Option<String>,
+    },
     FunctionCanReturnTypeOf(Breadcrumbs),
     ReferenceNotInScope,
     TopLevelDeclaration,
@@ -202,10 +205,18 @@ fn analyze_function_declaration(
     let mut result = AnalyzedNode::default();
 
     ctx.with_new_scope(|ctx| {
+        let name = &ast_node.node.name.node.0;
         ctx.current_scope.0.insert(
-            ast_node.node.name.node.0.clone(),
+            name.clone(),
             ScopeItem {
                 origin: ast_node.breadcrumbs.to_owned(),
+            },
+        );
+
+        result.add_tag(
+            ast_node.breadcrumbs.to_owned(),
+            NodeTag::IsFunction {
+                name: Some(name.to_owned()),
             },
         );
 

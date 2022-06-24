@@ -50,13 +50,13 @@ pub fn resolve_for_file(input: FileResolverInput) {
     loop {
         let mut iteration_resolved_references = Vec::<(Breadcrumbs, ValueLangType)>::new();
 
-        let pending_references = resolved_types.iter().filter_map(|it| match it.1 {
-            ValueLangType::Pending => Some(it.0),
-            _ => None,
-        });
+        let pending_references =
+            resolved_types
+                .iter()
+                .filter_map(|it| if it.1.is_pending() { Some(it.0) } else { None });
         for pending in pending_references {
-            if let Some(tags) = node_tags.get(pending) {
-                for tag in tags {
+            if let Some(pending_tags) = node_tags.get(pending) {
+                for tag in pending_tags {
                     match tag {
                         NodeTag::ValueComesFrom(comes_from) => {
                             match resolved_types.get(comes_from) {
@@ -176,6 +176,50 @@ pub fn resolve_for_file(input: FileResolverInput) {
                             ))
                         }
 
+                        NodeTag::IsFunction { name } => {
+                            let can_return = pending_tags
+                                .iter()
+                                .filter_map(|it| {
+                                    if let NodeTag::FunctionCanReturnTypeOf(return_breadcrumbs) = it
+                                    {
+                                        Some(return_breadcrumbs)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>();
+
+                            let return_type = match can_return.len() {
+                                0 => ValueLangType::Pending,
+                                1 => {
+                                    let return_type_breadcrumbs: &Breadcrumbs =
+                                        *can_return.get(0).unwrap();
+                                    if let Some(return_type) =
+                                        resolved_types.get(return_type_breadcrumbs)
+                                    {
+                                        return_type.to_owned()
+                                    } else {
+                                        iteration_resolved_references.push((
+                                            return_type_breadcrumbs.to_owned(),
+                                            ValueLangType::Pending,
+                                        ));
+                                        ValueLangType::Pending
+                                    }
+                                }
+                                _ => ValueLangType::Error(LangTypeError::ImplementationTodo { description: "Can't infer a function that can return from multiple locations".into() })
+                            };
+
+                            iteration_resolved_references.push((
+                                pending.to_owned(),
+                                ValueLangType::Resolved(ResolvedValueLangType::Function(
+                                    FunctionValueLangType {
+                                        name: name.to_owned(),
+                                        return_type: Box::new(return_type),
+                                    },
+                                )),
+                            ))
+                        }
+
                         NodeTag::ReferencesFile {
                             path,
                             export_name: Some(export_name),
@@ -210,13 +254,17 @@ pub fn resolve_for_file(input: FileResolverInput) {
         }
 
         let resolved = iteration_resolved_references.len();
-        for (breadcrumbs, new_reference) in iteration_resolved_references {
-            match resolved_types.get(&breadcrumbs) {
-              Some(ValueLangType::Resolved(old_type)) => panic!("Accidentally clobbered a resolved reference ({breadcrumbs:?} = {old_type:?}) with {new_reference:?}"),
-              Some(ValueLangType::Error(old_error)) => panic!("Accidentally clobbered an errored reference ({breadcrumbs:?} = {old_error:?}) with {new_reference:?}"),
-              _ => {},
-            };
-            match new_reference {
+        for (breadcrumbs, new_type) in iteration_resolved_references {
+            if let Some(old_resolved_type) = resolved_types.get(&breadcrumbs).and_then(|it| {
+                if it.is_pending() {
+                    None
+                } else {
+                    Some(it)
+                }
+            }) {
+                panic!("Accidentally clobbered a resolved reference ({breadcrumbs:?} = {old_resolved_type:?}) with {new_type:?}")
+            }
+            match new_type {
                 ValueLangType::Resolved(ResolvedValueLangType::Canonical(canonical)) => {
                     let id = canonical.id();
                     known_canonical_types.insert(id.to_owned(), canonical.to_owned());
@@ -226,7 +274,7 @@ pub fn resolve_for_file(input: FileResolverInput) {
                     );
                 }
                 _ => {
-                    resolved_types.insert(breadcrumbs, new_reference);
+                    resolved_types.insert(breadcrumbs, new_type);
                 }
             }
         }
