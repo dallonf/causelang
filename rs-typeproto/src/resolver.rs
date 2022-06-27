@@ -31,23 +31,37 @@ pub fn resolve_for_file(input: FileResolverInput) {
 
     let AnalyzedNode { node_tags, .. } = analyzed;
 
-    let mut resolved_types = HashMap::<Breadcrumbs, ValueLangType>::new();
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    enum ResolutionType {
+        Inferred,
+        Constraint,
+    }
+
+    let mut resolved_types = HashMap::<(ResolutionType, Breadcrumbs), ValueLangType>::new();
     let mut known_canonical_types = HashMap::<CanonicalLangTypeId, CanonicalLangType>::new();
 
-    // start by resolving all expressions and top-level declarations
-    for (breadcrumbs, tags) in node_tags.iter() {
-        if tags.iter().any(|it| match it {
-            NodeTag::Expression => true,
-            _ => false,
-        }) {
-            resolved_types.insert(breadcrumbs.to_owned(), ValueLangType::Pending);
+    // start by resolving all expressions, top-level declarations, and constraints
+    for (node_breadcrumbs, tags) in node_tags.iter() {
+        for tag in tags.iter() {
+            match tag {
+                NodeTag::Expression => {
+                    resolved_types.insert(
+                        (ResolutionType::Inferred, node_breadcrumbs.to_owned()),
+                        ValueLangType::Pending,
+                    );
+                }
+                _ => {}
+            }
         }
     }
     if let Some(file_tags) = node_tags.get(&file_node.breadcrumbs) {
         for file_tag in file_tags.iter() {
             match file_tag {
                 NodeTag::ScopeContainsDeclaration(declaration) => {
-                    resolved_types.insert(declaration.to_owned(), ValueLangType::Pending);
+                    resolved_types.insert(
+                        (ResolutionType::Inferred, declaration.to_owned()),
+                        ValueLangType::Pending,
+                    );
                 }
                 _ => {}
             }
@@ -63,28 +77,49 @@ pub fn resolve_for_file(input: FileResolverInput) {
     }
 
     loop {
-        let mut iteration_resolved_references = Vec::<(Breadcrumbs, ValueLangType)>::new();
+        let mut iteration_resolved_references =
+            Vec::<((ResolutionType, Breadcrumbs), ValueLangType)>::new();
+
+        macro_rules! get_resolved_type_of {
+            ( $x:expr ) => {{
+                let found = resolved_types
+                    .get(&(ResolutionType::Constraint, $x.to_owned()))
+                    .or_else(|| resolved_types.get(&(ResolutionType::Inferred, $x.to_owned())));
+
+                if let None = found {
+                    iteration_resolved_references.push((
+                        (ResolutionType::Inferred, $x.to_owned()),
+                        ValueLangType::Pending,
+                    ));
+                }
+                found
+            }};
+        }
 
         let pending_references =
             resolved_types
                 .iter()
                 .filter_map(|it| if it.1.is_pending() { Some(it.0) } else { None });
-        for pending in pending_references {
-            if let Some(pending_tags) = node_tags.get(pending) {
+        for pending_key in pending_references {
+            let resolve_with = |value_type: ValueLangType| {
+                iteration_resolved_references.push((pending_key.to_owned(), value_type));
+            };
+
+            if let Some(pending_tags) = node_tags.get(&pending_key.1) {
                 for tag in pending_tags {
                     match tag {
                         NodeTag::ValueComesFrom(comes_from) => {
-                            match resolved_types.get(comes_from) {
+                            match get_resolved_type_of!(comes_from) {
                                 Some(ValueLangType::Pending) => (),
                                 Some(ValueLangType::Resolved(resolved_with)) => {
                                     iteration_resolved_references.push((
-                                        pending.to_owned(),
+                                        pending_key.to_owned(),
                                         ValueLangType::Resolved(resolved_with.to_owned()),
                                     ));
                                 }
                                 Some(ValueLangType::Error(_)) => {
                                     iteration_resolved_references.push((
-                                        pending.to_owned(),
+                                        pending_key.to_owned(),
                                         ValueLangType::Error(LangTypeError::ProxyError {
                                             caused_by: ErrorSourcePosition::SameFile {
                                                 path: path.to_owned(),
@@ -93,18 +128,17 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                         }),
                                     ));
                                 }
-                                None => iteration_resolved_references
-                                    .push((comes_from.to_owned(), ValueLangType::Pending)),
+                                None => {}
                             }
                         }
 
                         NodeTag::Calls(calls) => {
-                            match resolved_types.get(calls) {
+                            match get_resolved_type_of!(calls) {
                                 Some(ValueLangType::Pending) => (),
                                 Some(ValueLangType::Resolved(ResolvedValueLangType::Function(
                                     function,
                                 ))) => iteration_resolved_references.push((
-                                    pending.to_owned(),
+                                    pending_key.to_owned(),
                                     function.return_type.as_ref().to_owned(),
                                 )),
                                 Some(ValueLangType::Resolved(
@@ -115,7 +149,7 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                     match lang_type {
                                         CanonicalLangType::Signal(signal) => {
                                             iteration_resolved_references.push((
-                                                pending.to_owned(),
+                                                pending_key.to_owned(),
                                                 ValueLangType::Resolved(
                                                     ResolvedValueLangType::Instance(
                                                         signal.id.to_owned(),
@@ -127,12 +161,12 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                 }
                                 Some(ValueLangType::Resolved(_)) => iteration_resolved_references
                                     .push((
-                                        pending.to_owned(),
+                                        pending_key.to_owned(),
                                         ValueLangType::Error(LangTypeError::NotCallable),
                                     )),
                                 Some(ValueLangType::Error(_)) => {
                                     iteration_resolved_references.push((
-                                        pending.to_owned(),
+                                        pending_key.to_owned(),
                                         ValueLangType::Error(LangTypeError::ProxyError {
                                             caused_by: ErrorSourcePosition::SameFile {
                                                 path: path.to_owned(),
@@ -141,12 +175,11 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                         }),
                                     ));
                                 }
-                                None => iteration_resolved_references
-                                    .push((calls.to_owned(), ValueLangType::Pending)),
+                                None => {}
                             };
                         }
 
-                        NodeTag::Causes(causes) => match resolved_types.get(causes) {
+                        NodeTag::Causes(causes) => match get_resolved_type_of!(causes) {
                             Some(ValueLangType::Pending) => (),
                             Some(ValueLangType::Resolved(ResolvedValueLangType::Instance(
                                 type_id,
@@ -155,7 +188,7 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                 match instance_type {
                                     CanonicalLangType::Signal(signal) => {
                                         iteration_resolved_references.push((
-                                            pending.to_owned(),
+                                            pending_key.to_owned(),
                                             signal.result.as_ref().to_owned(),
                                         ))
                                     }
@@ -163,13 +196,13 @@ pub fn resolve_for_file(input: FileResolverInput) {
                             }
                             Some(ValueLangType::Resolved(_)) => {
                                 iteration_resolved_references.push((
-                                    pending.to_owned(),
+                                    pending_key.to_owned(),
                                     ValueLangType::Error(LangTypeError::NotCausable),
                                 ))
                             }
                             Some(ValueLangType::Error(_)) => {
                                 iteration_resolved_references.push((
-                                    pending.to_owned(),
+                                    pending_key.to_owned(),
                                     ValueLangType::Error(LangTypeError::ProxyError {
                                         caused_by: ErrorSourcePosition::SameFile {
                                             path: path.to_owned(),
@@ -178,8 +211,7 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                     }),
                                 ));
                             }
-                            None => iteration_resolved_references
-                                .push((causes.to_owned(), ValueLangType::Pending)),
+                            None => {}
                         },
 
                         NodeTag::NamedValue {
@@ -188,14 +220,14 @@ pub fn resolve_for_file(input: FileResolverInput) {
                             ..
                         } => {
                             if let Some(type_declaration_breadcrumbs) = type_declaration {
-                                match resolved_types.get(type_declaration_breadcrumbs) {
+                                match get_resolved_type_of!(type_declaration_breadcrumbs) {
                                     Some(ValueLangType::Pending) => (),
                                     Some(ValueLangType::Resolved(resolved_with)) => {
                                         match resolved_with {
                                             ResolvedValueLangType::FunctionType(_) => todo!(),
                                             ResolvedValueLangType::PrimitiveType(primitive) => {
                                                 iteration_resolved_references.push((
-                                                    pending.to_owned(),
+                                                    pending_key.to_owned(),
                                                     ValueLangType::Resolved(
                                                         ResolvedValueLangType::Primitive(
                                                             *primitive,
@@ -209,7 +241,7 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                             | ResolvedValueLangType::Primitive(_)
                                             | ResolvedValueLangType::Instance(_) => {
                                                 iteration_resolved_references.push((
-                                                    pending.to_owned(),
+                                                    pending_key.to_owned(),
                                                     ValueLangType::Error(
                                                         LangTypeError::NotATypeReference,
                                                     ),
@@ -219,7 +251,7 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                     }
                                     Some(ValueLangType::Error(_)) => iteration_resolved_references
                                         .push((
-                                            pending.to_owned(),
+                                            pending_key.to_owned(),
                                             ValueLangType::Error(LangTypeError::ProxyError {
                                                 caused_by: ErrorSourcePosition::SameFile {
                                                     path: path.to_owned(),
@@ -228,23 +260,20 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                                 },
                                             }),
                                         )),
-                                    None => iteration_resolved_references.push((
-                                        type_declaration_breadcrumbs.to_owned(),
-                                        ValueLangType::Pending,
-                                    )),
+                                    None => {}
                                 }
                             } else {
-                                match resolved_types.get(value) {
+                                match get_resolved_type_of!(value) {
                                     Some(ValueLangType::Pending) => (),
                                     Some(ValueLangType::Resolved(resolved_with)) => {
                                         iteration_resolved_references.push((
-                                            pending.to_owned(),
+                                            pending_key.to_owned(),
                                             ValueLangType::Resolved(resolved_with.to_owned()),
                                         ));
                                     }
                                     Some(ValueLangType::Error(_)) => {
                                         iteration_resolved_references.push((
-                                            pending.to_owned(),
+                                            pending_key.to_owned(),
                                             ValueLangType::Error(LangTypeError::ProxyError {
                                                 caused_by: ErrorSourcePosition::SameFile {
                                                     path: path.to_owned(),
@@ -253,15 +282,14 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                             }),
                                         ));
                                     }
-                                    None => iteration_resolved_references
-                                        .push((value.to_owned(), ValueLangType::Pending)),
+                                    None => {}
                                 }
                             }
                         }
 
                         NodeTag::IsPrimitiveValue(primitive) => {
                             iteration_resolved_references.push((
-                                pending.to_owned(),
+                                pending_key.to_owned(),
                                 ValueLangType::Resolved(ResolvedValueLangType::Primitive(
                                     primitive.to_owned(),
                                 )),
@@ -287,14 +315,10 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                     let return_type_breadcrumbs: &Breadcrumbs =
                                         *can_return.get(0).unwrap();
                                     if let Some(return_type) =
-                                        resolved_types.get(return_type_breadcrumbs)
+                                        get_resolved_type_of!(return_type_breadcrumbs)
                                     {
                                         return_type.to_owned()
                                     } else {
-                                        iteration_resolved_references.push((
-                                            return_type_breadcrumbs.to_owned(),
-                                            ValueLangType::Pending,
-                                        ));
                                         ValueLangType::Pending
                                     }
                                 }
@@ -302,7 +326,7 @@ pub fn resolve_for_file(input: FileResolverInput) {
                             };
 
                             iteration_resolved_references.push((
-                                pending.to_owned(),
+                                pending_key.to_owned(),
                                 ValueLangType::Resolved(ResolvedValueLangType::Function(
                                     FunctionValueLangType {
                                         name: name.to_owned(),
@@ -319,23 +343,23 @@ pub fn resolve_for_file(input: FileResolverInput) {
                             if let Some(file) = other_files.get(path) {
                                 if let Some(export) = file.exports.get(export_name) {
                                     iteration_resolved_references
-                                        .push((pending.to_owned(), export.to_owned()))
+                                        .push((pending_key.to_owned(), export.to_owned()))
                                 } else {
                                     iteration_resolved_references.push((
-                                        pending.to_owned(),
+                                        pending_key.to_owned(),
                                         ValueLangType::Error(LangTypeError::ExportNotFound),
                                     ));
                                 }
                             } else {
                                 iteration_resolved_references.push((
-                                    pending.to_owned(),
+                                    pending_key.to_owned(),
                                     ValueLangType::Error(LangTypeError::FileNotFound),
                                 ));
                             }
                         }
 
                         NodeTag::ReferenceNotInScope => iteration_resolved_references.push((
-                            pending.to_owned(),
+                            pending_key.to_owned(),
                             ValueLangType::Error(LangTypeError::NotInScope),
                         )),
 
