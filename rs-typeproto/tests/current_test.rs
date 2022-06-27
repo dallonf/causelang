@@ -3,23 +3,18 @@ use std::collections::HashMap;
 use cause_typeproto::analyzer;
 use cause_typeproto::parse;
 use cause_typeproto::resolver::{resolve_for_file, ExternalFileDescriptor};
-use cause_typeproto::types::LangParameter;
-use cause_typeproto::types::PrimitiveLangType;
-use cause_typeproto::types::{
-    CanonicalLangType, ResolvedValueLangType, SignalCanonicalLangType, ValueLangType,
-};
+use cause_typeproto::types::*;
 use cause_typeproto::{resolver::FileResolverInput, types::CanonicalLangTypeId};
 
 #[test]
 fn hello_world() {
     let script = r#"
-      let val: Integer = "howdy"
-      // import langtest/signals { Print }
+      import langtest/signals { Print }
 
-      // fn main() {
-      //     let val: Integer = "howdy"
-      //     cause Print(val)
-      // }
+      fn main() {
+          let val: Integer = "howdy"
+          cause Print(val)
+      }
     "#;
 
     let ast_node = parse::parse(script).unwrap();

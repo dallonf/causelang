@@ -150,7 +150,7 @@ impl Scope {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct AnalyzerContext {
     current_scope: Scope,
     current_scope_position: Breadcrumbs,
@@ -425,6 +425,10 @@ fn analyze_body(ast_node: &AstNode<ast::BodyNode>, ctx: &mut AnalyzerContext) ->
                 );
             }
 
+            let mut current_ctx = ctx.clone();
+            current_ctx.current_scope = current_ctx.current_scope.extend();
+            current_ctx.current_scope_position = ast_node.breadcrumbs.to_owned();
+
             for statement_node in block_body_node.statements.iter() {
                 match &statement_node.node {
                     ast::StatementNode::ExpressionStatement(expression_statement_node) => {
@@ -435,10 +439,24 @@ fn analyze_body(ast_node: &AstNode<ast::BodyNode>, ctx: &mut AnalyzerContext) ->
 
                         result = result.merge(&analyze_expression(
                             &expression_statement_node.expression,
-                            ctx,
+                            &mut current_ctx,
                         ));
                     }
-                    ast::StatementNode::DeclarationStatement(declaration_statement_node) => todo!(),
+                    ast::StatementNode::DeclarationStatement(declaration_statement_node) => {
+                        let mut new_scope = current_ctx.current_scope.extend();
+                        if add_declaration_to_scope(
+                            &declaration_statement_node.declaration,
+                            &mut new_scope,
+                        ) {
+                            current_ctx = current_ctx.clone();
+                            current_ctx.current_scope = new_scope;
+                        }
+
+                        result = result.merge(&analyze_declaration(
+                            &declaration_statement_node.declaration,
+                            &mut current_ctx,
+                        ));
+                    }
                 }
             }
 
