@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
@@ -74,6 +76,22 @@ fn parse_identifier(
     ))
 }
 
+fn parse_type_reference(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<TypeReferenceNode>> {
+    let node = pair.into_inner().next().unwrap();
+
+    match node.as_rule() {
+        Rule::identifier => {
+            Ok(parse_identifier(node, breadcrumbs, ctx)?
+                .map(|it| TypeReferenceNode::Identifier(it)))
+        }
+        _ => unreachable!(),
+    }
+}
+
 fn parse_declaration(
     pair: Pair<Rule>,
     breadcrumbs: Breadcrumbs,
@@ -86,6 +104,8 @@ fn parse_declaration(
         }
         Rule::function_declaration => Ok(parse_function_declaration(pair, breadcrumbs, ctx)?
             .map(|it| DeclarationNode::Function(it))),
+        Rule::named_value_declaration => Ok(parse_named_value_declaration(pair, breadcrumbs, ctx)?
+            .map(|it| DeclarationNode::NamedValue(it))),
         other => unreachable!("unexpected rule: {:?}", other),
     }
 }
@@ -173,6 +193,47 @@ fn parse_function_declaration(
     ))
 }
 
+fn parse_named_value_declaration(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<NamedValueDeclarationNode>> {
+    let span = pair.as_span();
+    let mut inner = pair.into_inner();
+
+    let name_pair = inner.next().unwrap();
+    let name = parse_identifier(name_pair, breadcrumbs.append_name("name"), ctx)?;
+
+    let type_annotation_maybe_pair = inner.next().unwrap();
+    let mut value_pair = Cow::Borrowed(&type_annotation_maybe_pair);
+    let type_annotation = if let Rule::type_reference = type_annotation_maybe_pair.as_rule() {
+        value_pair = Cow::Owned(inner.next().unwrap());
+        Some(parse_type_reference(
+            type_annotation_maybe_pair.to_owned(),
+            breadcrumbs.append_name("type_annotation"),
+            ctx,
+        )?)
+    } else {
+        None
+    };
+
+    let value = parse_expression(
+        value_pair.into_owned(),
+        breadcrumbs.append_name("value"),
+        ctx,
+    )?;
+
+    let named_value = NamedValueDeclarationNode {
+        name,
+        type_annotation,
+        value,
+    };
+
+    let ast_node = AstNode::new(named_value, span, breadcrumbs);
+
+    Ok(ast_node)
+}
+
 fn parse_body(
     pair: Pair<Rule>,
     breadcrumbs: Breadcrumbs,
@@ -216,8 +277,28 @@ fn parse_statement(
     match pair.as_rule() {
         Rule::expression_statement => Ok(parse_expression_statement(pair, breadcrumbs, ctx)?
             .map(|it| StatementNode::ExpressionStatement(it))),
+        Rule::declaration_statement => Ok(parse_declaration_statement(pair, breadcrumbs, ctx)?
+            .map(|it| StatementNode::DeclarationStatement(it))),
         _ => unreachable!(),
     }
+}
+
+fn parse_declaration_statement(
+    pair: Pair<Rule>,
+    breadcrumbs: Breadcrumbs,
+    ctx: &ParserContext,
+) -> ParserResult<AstNode<DeclarationStatementNode>> {
+    let span = pair.as_span();
+    let declaration = parse_declaration(
+        pair.into_inner().next().unwrap(),
+        breadcrumbs.append_name("declaration"),
+        ctx,
+    )?;
+    Ok(AstNode::new(
+        DeclarationStatementNode { declaration },
+        span,
+        breadcrumbs,
+    ))
 }
 
 fn parse_expression_statement(

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::hash::Hash;
 
 use crate::analyzer::{AnalyzedNode, NodeTag};
 use crate::ast::{AstNode, Breadcrumbs, FileNode};
@@ -12,10 +11,10 @@ pub struct ExternalFileDescriptor {
 
 #[derive(Debug, Clone)]
 pub struct FileResolverInput {
-    path: String,
-    file_node: AstNode<FileNode>,
-    analyzed: AnalyzedNode,
-    other_files: HashMap<String, ExternalFileDescriptor>,
+    pub path: String,
+    pub file_node: AstNode<FileNode>,
+    pub analyzed: AnalyzedNode,
+    pub other_files: HashMap<String, ExternalFileDescriptor>,
 }
 pub fn resolve_for_file(input: FileResolverInput) {
     let FileResolverInput {
@@ -32,10 +31,20 @@ pub fn resolve_for_file(input: FileResolverInput) {
     // start by resolving all expressions and top-level declarations
     for (breadcrumbs, tags) in node_tags.iter() {
         if tags.iter().any(|it| match it {
-            NodeTag::TopLevelDeclaration | NodeTag::Expression => true,
+            NodeTag::Expression => true,
             _ => false,
         }) {
             resolved_types.insert(breadcrumbs.to_owned(), ValueLangType::Pending);
+        }
+    }
+    if let Some(file_tags) = node_tags.get(&file_node.breadcrumbs) {
+        for file_tag in file_tags.iter() {
+            match file_tag {
+                NodeTag::ScopeContainsDeclaration(declaration) => {
+                    resolved_types.insert(declaration.to_owned(), ValueLangType::Pending);
+                }
+                _ => {}
+            }
         }
     }
 
@@ -166,6 +175,83 @@ pub fn resolve_for_file(input: FileResolverInput) {
                             None => iteration_resolved_references
                                 .push((causes.to_owned(), ValueLangType::Pending)),
                         },
+
+                        NodeTag::NamedValue {
+                            type_declaration,
+                            value,
+                            ..
+                        } => {
+                            if let Some(type_declaration_breadcrumbs) = type_declaration {
+                                match resolved_types.get(type_declaration_breadcrumbs) {
+                                    Some(ValueLangType::Pending) => (),
+                                    Some(ValueLangType::Resolved(resolved_with)) => {
+                                        match resolved_with {
+                                            ResolvedValueLangType::FunctionType(_) => todo!(),
+                                            ResolvedValueLangType::PrimitiveType(primitive) => {
+                                                iteration_resolved_references.push((
+                                                    pending.to_owned(),
+                                                    ValueLangType::Resolved(
+                                                        ResolvedValueLangType::Primitive(
+                                                            *primitive,
+                                                        ),
+                                                    ),
+                                                ))
+                                            }
+                                            ResolvedValueLangType::Reference(_) => todo!(),
+                                            ResolvedValueLangType::Canonical(_) => todo!(),
+                                            ResolvedValueLangType::Function(_)
+                                            | ResolvedValueLangType::Primitive(_)
+                                            | ResolvedValueLangType::Instance(_) => {
+                                                iteration_resolved_references.push((
+                                                    pending.to_owned(),
+                                                    ValueLangType::Error(
+                                                        LangTypeError::NotATypeReference,
+                                                    ),
+                                                ))
+                                            }
+                                        }
+                                    }
+                                    Some(ValueLangType::Error(_)) => iteration_resolved_references
+                                        .push((
+                                            pending.to_owned(),
+                                            ValueLangType::Error(LangTypeError::ProxyError {
+                                                caused_by: ErrorSourcePosition::SameFile {
+                                                    path: path.to_owned(),
+                                                    breadcrumbs: type_declaration_breadcrumbs
+                                                        .to_owned(),
+                                                },
+                                            }),
+                                        )),
+                                    None => iteration_resolved_references.push((
+                                        type_declaration_breadcrumbs.to_owned(),
+                                        ValueLangType::Pending,
+                                    )),
+                                }
+                            } else {
+                                match resolved_types.get(value) {
+                                    Some(ValueLangType::Pending) => (),
+                                    Some(ValueLangType::Resolved(resolved_with)) => {
+                                        iteration_resolved_references.push((
+                                            pending.to_owned(),
+                                            ValueLangType::Resolved(resolved_with.to_owned()),
+                                        ));
+                                    }
+                                    Some(ValueLangType::Error(_)) => {
+                                        iteration_resolved_references.push((
+                                            pending.to_owned(),
+                                            ValueLangType::Error(LangTypeError::ProxyError {
+                                                caused_by: ErrorSourcePosition::SameFile {
+                                                    path: path.to_owned(),
+                                                    breadcrumbs: value.to_owned(),
+                                                },
+                                            }),
+                                        ));
+                                    }
+                                    None => iteration_resolved_references
+                                        .push((value.to_owned(), ValueLangType::Pending)),
+                                }
+                            }
+                        }
 
                         NodeTag::IsPrimitiveValue(primitive) => {
                             iteration_resolved_references.push((

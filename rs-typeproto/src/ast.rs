@@ -153,6 +153,7 @@ pub struct FileNode {
 pub enum DeclarationNode {
     Import(ImportDeclarationNode),
     Function(FunctionDeclarationNode),
+    NamedValue(NamedValueDeclarationNode),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -167,6 +168,13 @@ pub struct FunctionDeclarationNode {
 pub struct ImportDeclarationNode {
     pub path: AstNode<ImportPathNode>,
     pub mappings: Vec<AstNode<ImportMappingNode>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NamedValueDeclarationNode {
+    pub name: AstNode<Identifier>,
+    pub type_annotation: Option<AstNode<TypeReferenceNode>>,
+    pub value: AstNode<ExpressionNode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -191,11 +199,17 @@ pub struct BlockBodyNode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StatementNode {
     ExpressionStatement(ExpressionStatementNode),
+    DeclarationStatement(DeclarationStatementNode),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExpressionStatementNode {
     pub expression: AstNode<ExpressionNode>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeclarationStatementNode {
+    pub declaration: AstNode<DeclarationNode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

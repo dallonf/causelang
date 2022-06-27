@@ -1,6 +1,6 @@
 whitespace_no_newline = _{ " " | "\t" }
 whitespace = _{ whitespace_no_newline | NEWLINE }
-whitespace_including_newline = _{ whitespace_no_newline* ~ NEWLINE ~ whitespace* }
+whitespace_including_newline = _{ whitespace_no_newline* ~ (NEWLINE) ~ whitespace* }
 COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
 
 
@@ -12,10 +12,10 @@ type_reference = { identifier }
 
 file = { SOI ~ whitespace* ~ (declaration ~ whitespace*)* ~ EOI }
 
-declaration = _{ import_declaration | function_declaration }
+declaration = _{ import_declaration | function_declaration | named_value_declaration }
 
 path_segment = _{ ASCII_ALPHANUMERIC+ }
-import_declaration = { "import" ~ whitespace+ ~ import_path ~ whitespace* ~ "{" ~ whitespace* ~ import_mappings? ~ whitespace* ~ "}" ~ whitespace_including_newline }
+import_declaration = { "import" ~ whitespace+ ~ import_path ~ whitespace* ~ "{" ~ whitespace* ~ import_mappings? ~ whitespace* ~ "}" }
   import_path = @{ path_segment ~ ("/" ~ path_segment)* }
   import_mappings = _{ import_mapping ~ whitespace* ~ ("," ~ whitespace* ~ import_mapping ~ whitespace*)* ~ whitespace* ~ ","? }
   import_mapping = { identifier ~ ( whitespace+ ~ "as" ~ whitespace+ ~ identifier)? }
@@ -23,13 +23,17 @@ import_declaration = { "import" ~ whitespace+ ~ import_path ~ whitespace* ~ "{" 
 
 function_declaration = { "fn" ~ whitespace+ ~ identifier ~ whitespace* ~ "()" ~ whitespace* ~ structure_body }
 
+named_value_declaration = { "let" ~ whitespace+ ~ identifier ~ whitespace* ~ (":" ~ whitespace* ~ type_reference ~ whitespace*)? ~ "=" ~ whitespace* ~ expression }
+
 structure_body = _{ block_body }
 
 block_body = { "{" ~ whitespace* ~ (statement ~ (whitespace_including_newline ~ statement)*)? ~ whitespace* ~ "}" }
 
-statement = _{ expression_statement }
+statement = _{ declaration_statement | expression_statement }
 
 expression_statement = { expression }
+
+declaration_statement = { declaration }
 
 expression = {
   (

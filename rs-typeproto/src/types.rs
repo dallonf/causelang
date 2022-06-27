@@ -97,6 +97,7 @@ pub enum LangTypeError {
     NotCallable,
     NotCausable,
     ImplementationTodo { description: String },
+    NotATypeReference,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -111,10 +112,14 @@ pub enum ErrorSourcePosition {
     },
 }
 
+// TODO: more distinction between values and types?
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResolvedValueLangType {
     Function(FunctionValueLangType),
+    FunctionType(FunctionValueLangType),
     Primitive(PrimitiveLangType),
+    PrimitiveType(PrimitiveLangType),
     Reference(CanonicalLangTypeId),
     Instance(CanonicalLangTypeId),
     Canonical(CanonicalLangType),
