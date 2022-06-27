@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
-use crate::ast::*;
+use crate::{ast::*, core_globals::core_global_file};
 
 #[derive(Parser)]
 #[grammar = "cause.pest"]
@@ -42,17 +42,28 @@ pub fn parse(source: &str) -> Result<AstNode<FileNode>, ParserError> {
     let ctx = ParserContext {};
     let declarations: Vec<AstNode<DeclarationNode>> = {
         let breadcrumbs = breadcrumbs.append_name("declarations");
-        file_pair
+        let mut declarations =
+            vec![
+                generate_core_globals_import(breadcrumbs.append_index(0).to_owned())
+                    .map(|it| DeclarationNode::Import(it)),
+            ];
+        let mut parsed_declarations = file_pair
             .into_inner()
             .enumerate()
             .filter_map(|(i, pair)| {
                 if let Rule::EOI = pair.as_rule() {
                     None
                 } else {
-                    Some(parse_declaration(pair, breadcrumbs.append_index(i), &ctx))
+                    Some(parse_declaration(
+                        pair,
+                        breadcrumbs.append_index(i + 1),
+                        &ctx,
+                    ))
                 }
             })
-            .collect::<ParserResult<Vec<_>>>()?
+            .collect::<ParserResult<Vec<_>>>()?;
+        declarations.append(&mut parsed_declarations);
+        declarations
     };
 
     let file_node = AstNode {
@@ -74,6 +85,43 @@ fn parse_identifier(
         pair.as_span(),
         breadcrumbs,
     ))
+}
+
+fn generate_core_globals_import(breadcrumbs: Breadcrumbs) -> AstNode<ImportDeclarationNode> {
+    let core_global_file = core_global_file();
+    let core_global_ids: Vec<_> = core_global_file.1.exports.iter().map(|it| it.0).collect();
+    AstNode::new(
+        ImportDeclarationNode {
+            path: AstNode::new(
+                ImportPathNode(core_global_file.0.to_owned()),
+                DocumentRange::default(),
+                breadcrumbs.append_name("path"),
+            ),
+            mappings: core_global_ids
+                .into_iter()
+                .enumerate()
+                .map(|(index, id)| {
+                    AstNode::new(
+                        ImportMappingNode {
+                            source_name: AstNode::new(
+                                Identifier(id.to_owned()),
+                                DocumentRange::default(),
+                                breadcrumbs
+                                    .append_name("mappings")
+                                    .append_index(index)
+                                    .append_name("source_name"),
+                            ),
+                            rename: None,
+                        },
+                        DocumentRange::default(),
+                        breadcrumbs.append_name("mappings").append_index(index),
+                    )
+                })
+                .collect(),
+        },
+        DocumentRange::default(),
+        breadcrumbs,
+    )
 }
 
 fn parse_type_reference(

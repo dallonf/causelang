@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::analyzer::{AnalyzedNode, NodeTag};
 use crate::ast::{AstNode, Breadcrumbs, FileNode};
+use crate::core_globals::core_global_file;
 use crate::types::*;
 
 #[derive(Debug, Clone)]
@@ -23,6 +24,11 @@ pub fn resolve_for_file(input: FileResolverInput) {
         analyzed,
         other_files,
     } = input;
+
+    let mut other_files = other_files.clone();
+    let core_global_file = core_global_file();
+    other_files.insert(core_global_file.0, core_global_file.1);
+
     let AnalyzedNode { node_tags, .. } = analyzed;
 
     let mut resolved_types = HashMap::<Breadcrumbs, ValueLangType>::new();
