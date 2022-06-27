@@ -82,6 +82,9 @@ pub enum NodeTag {
         type_declaration: Option<Breadcrumbs>,
         value: Breadcrumbs,
     },
+    BasicConstraint {
+        type_annotation: Breadcrumbs,
+    },
 }
 
 impl NodeTag {
@@ -124,6 +127,7 @@ impl NodeTag {
             )),
             NodeTag::Expression => None,
             NodeTag::NamedValue { .. } => None,
+            NodeTag::BasicConstraint { .. } => None,
         }
     }
 }
@@ -387,6 +391,12 @@ fn analyze_named_value_declaration(
 
     if let Some(type_annotation) = &ast_node.node.type_annotation {
         result = result.merge(&analyze_type_reference(&type_annotation, ctx));
+        result.add_tag(
+            ast_node.node.value.breadcrumbs.to_owned(),
+            NodeTag::BasicConstraint {
+                type_annotation: type_annotation.breadcrumbs.to_owned(),
+            },
+        )
     }
 
     result

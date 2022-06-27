@@ -93,11 +93,21 @@ pub enum LangTypeError {
     NotInScope,
     FileNotFound,
     ExportNotFound,
-    ProxyError { caused_by: ErrorSourcePosition },
+    ProxyError {
+        caused_by: ErrorSourcePosition,
+    },
     NotCallable,
     NotCausable,
-    ImplementationTodo { description: String },
-    NotATypeReference,
+    ImplementationTodo {
+        description: String,
+    },
+    NotATypeReference {
+        actual: ResolvedValueLangType,
+    },
+    MismatchedType {
+        expected: ResolvedValueLangType,
+        actual: ResolvedValueLangType,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -123,6 +133,31 @@ pub enum ResolvedValueLangType {
     Reference(CanonicalLangTypeId),
     Instance(CanonicalLangTypeId),
     Canonical(CanonicalLangType),
+}
+
+impl ResolvedValueLangType {
+    pub fn get_instance_type(&self) -> Result<ResolvedValueLangType, String> {
+        match self {
+            ResolvedValueLangType::Function(_) => Err("Already a function value type".to_owned()),
+            ResolvedValueLangType::FunctionType(function) => {
+                Ok(ResolvedValueLangType::Function(function.to_owned()))
+            }
+            ResolvedValueLangType::Primitive(_) => Err("Already a primitive value type".to_owned()),
+            ResolvedValueLangType::PrimitiveType(primitive) => {
+                Ok(ResolvedValueLangType::Primitive(*primitive))
+            }
+            ResolvedValueLangType::Instance(_) => Err("Already an instance type".to_owned()),
+            ResolvedValueLangType::Reference(id) => {
+                Ok(ResolvedValueLangType::Instance(id.to_owned()))
+            }
+            ResolvedValueLangType::Canonical(canonical_type) => {
+                let id = match canonical_type {
+                    CanonicalLangType::Signal(SignalCanonicalLangType { id, .. }) => id,
+                };
+                Ok(ResolvedValueLangType::Instance(id.to_owned()))
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
