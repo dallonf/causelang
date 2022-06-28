@@ -1,10 +1,11 @@
 // Added some syntax sugar
 
-import collection { map, flatMap, Set }
-import http
-import htmlParse
+import core/collection { map, flatMap, Set }
+import shell/http
+import shell/console
+import lib/htmlParse
 
-effect CrawlerCacheCheck(url: String): (alreadyCrawled: Bool)
+signal CrawlerCacheCheck(url: String): (alreadyCrawled: Bool)
 
 fn main(args: console.Args) {
     let crawlUrl = "http://meanwhilegames.dallonf.com"
@@ -16,7 +17,7 @@ fn main(args: console.Args) {
     // how about `with let e = file`? I like that
     let links = with http.Handler {
        crawl(crawlUrl)
-    } handle CrawlerCacheCheck url {
+    } effect CrawlerCacheCheck url {
         // this is roughly equivalent to `alreadyCrawledSet->Set.contains(url)` or `Set.contains(url, alreadyCrawledSet)`
         // We'll need to go into struct definitions and find out how it can know what "methods" a struct has access to
         let alreadyCrawled = alreadyCrawledSet.contains(url)

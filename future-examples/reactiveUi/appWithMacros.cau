@@ -1,6 +1,6 @@
-import math.add
-import reactiveUi.(Component, template!)
-import reactiveCore.(Value, Computed)
+import core/math { add }
+import lib/reactiveUi {Component, template!}
+import lib/reactiveCore {Value, Computed}
 
 let CounterApp = Component.new!(
     setup({

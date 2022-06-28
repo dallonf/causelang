@@ -1,13 +1,13 @@
-type Card: Obj(
+object Card(
   suit: Suit,
   rank: Rank,
 )
 
-type Suit: Variant(
-  type Hearts,
-  type Clubs,
-  type Diamonds,
-  type Spades,
+option Suit(
+  symbol Hearts,
+  symbol Clubs,
+  symbol Diamonds,
+  symbol Spades,
 )
 
 let Suit.all = List(

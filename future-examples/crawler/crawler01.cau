@@ -1,8 +1,8 @@
-import collection.{ map, flatMap, Set }
-import http
-import htmlParse
+import core/collection { map, flatMap, Set }
+import shell/http
+import lib/htmlParse
 
-effect CrawlerCacheCheck(url: String): Obj(alreadyCrawled: Bool)
+signal CrawlerCacheCheck(url: String): Obj(alreadyCrawled: Bool)
 
 fn main() {
     let crawlUrl = "http://meanwhilegames.dallonf.com"
@@ -10,11 +10,11 @@ fn main() {
 
     let links = {
        crawl(crawlUrl)
-    } handle http.Effect e {
+    } effect http.Signal(let e) {
         http.handler(e)
-    } handle http.Error e {
+    } effect http.Error(let e) {
         cause Panic(e)
-    } handle CrawlerCacheCheck url {
+    } effect CrawlerCacheCheck(let url) {
         let alreadyCrawled = alreadyCrawledSet->Set.contains(url)
         if !alreadyCrawled {
             alreadyCrawledSet = alreadyCrawledSet->Set.add(url)
@@ -31,7 +31,7 @@ fn crawl(url: String) {
     let result = cause http.request("GET", crawlUrl)
     cause Assertion.Equal("text/html", result->http.header("Content-Type"))
     let body = result.body
-    let links = htmlParse.parse(body) ...
+    let links = htmlParse.parse(body)
         ->htmlParse.find("a")
         ->map(htmlParse.attr("href"))
 

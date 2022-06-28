@@ -1,10 +1,10 @@
-import collection.{flatMap, map, shuffle}
-import ./cards.{$, Card}
+import core/collection { flatMap, map }
+import ./cards as cards and {Card}
 
 fn standard(): List<Card> {
-  cards.Suit.all -> flatMap(fn(suit) {
-    cards.Rank.all -> map(fn(rank) {
+  cards.Suit.all->flatMap(fn(suit) {
+    cards.Rank.all->map(fn(rank) {
       Card(rank=rank, suit=suit)
     })
-  }) -> Deck($)
+  })
 }

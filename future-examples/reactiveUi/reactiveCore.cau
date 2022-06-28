@@ -1,19 +1,19 @@
-protected type ObservableTag<T>(protected tag: Tag)
-protected type SubscriptionTag<T>(protected tag: Tag, observableTag: ObservableTag<T>)
+protected object ObservableTag<T>(protected tag: Tag)
+protected object SubscriptionTag<T>(protected tag: Tag, observableTag: ObservableTag<T>)
 
-protected effect NewObservable<T>(initial: T): ObservableTag<T>
+protected signal NewObservable<T>(initial: T): ObservableTag<T>
 
-type Subscriber<T> = fn(new: T, previous: T): Action
-effect Subscribe<T>(observableTag: ObservableTag<T>, subscriber: Subscriber<T>): Object(
+object Subscriber<T> = fn(new: T, previous: T): Action
+signal Subscribe<T>(observableTag: ObservableTag<T>, subscriber: Subscriber<T>): Object(
     currentValue: T,
     subscription: SubscriptionTag<T>,
 )
-effect Unsubscribe<T>(subscription: SubscriptionTag<T>): Action
+signal Unsubscribe<T>(subscription: SubscriptionTag<T>): Action
 
-effect Get<T>(observable: supports ObservableTag<T>): T
-protected effect SetObservableValue<T>(observable: ObservableTag<T>, newValue: Variant(T, Setter<T>)): Action
+signal Get<T>(observable: supports ObservableTag<T>): T
+protected signal SetObservableValue<T>(observable: ObservableTag<T>, newValue: Variant(T, Setter<T>)): Action
 
-protected type Observable<T>(
+protected object Observable<T>(
     currentValue: T,
     subscribers: TagMap<Subscriber<T>>,
 )
@@ -29,7 +29,7 @@ support ToObservableTag<T> on ObservableTag<T> {
 handler ReactiveHandler() {
     let var observables = TagMap<Observable<Dynamic>>()
 
-    handle {
+    effects {
         NewObservable(let initial) => {
             let tag = cause NewTag()
             observables = .add(tag, Observable(initial, List()))
@@ -78,7 +78,7 @@ handler ReactiveHandler() {
         }
     }
 
-    handle {
+    effects {
         ValueHandler()
         ComputedHandler()
     }
@@ -86,16 +86,16 @@ handler ReactiveHandler() {
 
 // Value
 
-protected type ValueTag<T>(protected tag: ObservableTag<T>)
+protected object ValueTag<T>(protected tag: ObservableTag<T>)
 
 support ToObservableTag<T> on ValueTag<T> {
     fn toObservableTag(this) => this.tag
 }
 
-effect NewValue<T>(initial: T): ValueTag<T>
-effect SetValue<T>(value: ValueTag<T>, newValue: Variant(T, Setter<T>)): Action
+signal NewValue<T>(initial: T): ValueTag<T>
+signal SetValue<T>(value: ValueTag<T>, newValue: Variant(T, Setter<T>)): Action
 
-handler ValueHandler() => handle {
+handler ValueHandler() => effect {
     NewValue(let initial) => {
         let observableTag = cause NewObservable(initial)
         ValueTag(observableTag)
@@ -105,16 +105,16 @@ handler ValueHandler() => handle {
 
 // Computed
 
-protected type ComputedTag<T>(protected tag: Tag)
-type ComputedFn<T>(): T causes GetValue<Dynamic>
+protected object ComputedTag<T>(protected tag: Tag)
+object ComputedFn<T>(): T causes GetValue<Dynamic>
 
 support ToObservableTag<T> on ComputedTag<T> {
     fn toObservableTag(this) => cause GetObservableTagForComputedTag(this)
 }
 
-effect NewComputed<T>(fn: ComputedFn<T>): Computed
+signal NewComputed<T>(fn: ComputedFn<T>): Computed
 
-type Computed<T> {
+object Computed<T> {
     observableTag: ObservableTag<T>
     fn: ComputedFn<T>
     subscriptions: SubscriptionTag[]
@@ -132,13 +132,13 @@ protected fn computeWithDependencies<T>(fn: ComputedFn<T>): Object(value: T, dep
     Object(result, dependencies.toList())
 }
 
-protected effect Recompute(computedTag: ComputedTag): Action
-protected effect GetObservableTagForComputedTag<T>(computed: ComputedTag<T>): ObservableTag<T>
+protected signal Recompute(computedTag: ComputedTag): Action
+protected signal GetObservableTagForComputedTag<T>(computed: ComputedTag<T>): ObservableTag<T>
 
 handler ComputedHandler() {
     let var computedMap = TagMap<Computed<Dynamic>>.new()
 
-    handle {
+    effects {
         NewComputed<T>(let fn) => {
             match Object(let value, let dependencies) = computeWithDependencies(fn)
             let tag = cause NewTag()

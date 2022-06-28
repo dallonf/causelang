@@ -17,13 +17,13 @@ fn main() {
 }
 
 //probably part of the standard library
-effect BreakLoop<T>(value: T): Never
+signal BreakLoop<T>(value: T): Never
 
 fn loop<T>(startValue: T, loopFn: fn(value: T): T): T  {
   {
     fn innerLoop(value: T) innerLoop(loopFn(value))
     innerLoop(startValue)
-  } handle BreakLoop(let value) {
+  } effect BreakLoop(let value) {
     break value
   }
 }

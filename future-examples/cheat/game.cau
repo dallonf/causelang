@@ -1,33 +1,33 @@
-import math
-import collection
+import core/math
+import core/collection
 import ./deck
-import ./cards.{Card, Rank}
+import ./cards {Card, Rank}
 
-effect GameUpdate(playerHands: List<List<Card>>, discardPileSize: Int)
-// TODO: at one point I was thinking that the naming convention for effects
-// would not be verbs, but descriptions of a verbs
+signal GameUpdate(playerHands: List<List<Card>>, discardPileSize: Int)
+// TODO: at one point I was thinking that the naming convention for signals
+// would not be verbs, but descriptions of a verb
 // maybe WaitingForPlay
-effect WaitForPlay(playerId: Int): Obj(cards: List<Card>)
-effect WaitForResponse(playerId: Int, previousPlay: HistoricalPlay): Response
-effect Penalty(
-  reason: Union(type CaughtCheating, type BadAccusation),
+signal WaitForPlay(playerId: Int): object (cards: List<Card>)
+signal WaitForResponse(playerId: Int, previousPlay: HistoricalPlay): Response
+signal Penalty(
+  reason: option (symbol CaughtCheating, symbol BadAccusation),
   playerId: Int,
   discardPile: List<Card>,
 )
 
-type Play: Obj(
+object Play(
   cards: List<Card>
 )
-type Cheat: Obj(
+object Cheat(
   fromPlayerId: Int
 )
 
-type Response: Union(
+option Response(
   Play,
   Cheat,
 )
 
-type HistoricalPlay: Obj(
+object HistoricalPlay(
   // This effectively extends the Play type
   params(Play),
   playerId: Int,
@@ -64,15 +64,14 @@ fn cheatGame(numPlayers: Int) causes GameUpdate, WaitForPlay, WaitForResponse {
     let var receivingPlayer = 0
     loop match Some(let card) = drawPile->collection.head() {
       // x =-> is syntax sugar for `x = x->`
-      drawPile =->newPile->collection.tail()
-      // unit types automatically "inherit" methods from their base
+      drawPile =-> newPile->collection.tail()
       // `x =.` is likewise sugar for `x = x.`
-      playerHands =.update(receivingPlayer, fn(a) a.append(card))
+      playerHands =. update(receivingPlayer, fn(a) a.append(card))
       receivingPlayer =->add(1)->math.mod(numPlayers)
     }
   }
 
-  effect MakePlay(play: Play): HistoricalPlay
+  signal MakePlay(play: Play): HistoricalPlay
 
   {
     cause GameUpdate(playerHands, discardPile->length())
@@ -109,12 +108,12 @@ fn cheatGame(numPlayers: Int) causes GameUpdate, WaitForPlay, WaitForResponse {
         return Obj(winner=winner, playerHands)
       }
     }
-  } handle MakePlay(let play) {
+  } effect MakePlay(let play) {
     playerHands =.update(currentPlayer, fn(a) a->collection.difference(play.cards))
     discardPile =.append(params(play.cards))
     currentPlayer =->add(1)->math.mod(numPlayers)
     HistoricalPlay(params(play), playerId=currentPlayer, rank=currentRank)
-  } handle let e: Penalty {
+  } effect let e: Penalty {
     playerHands =.update(e.playerId, fn(a) a->.append(params e.discardPile))
     discardPile = List()
     // Bubble it back up for the caller to use

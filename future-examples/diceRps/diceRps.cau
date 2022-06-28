@@ -1,17 +1,17 @@
-import collection.{ map, firstSome }
+import collection { map, firstSome }
 
-export type DiceSide: Variant(
-    type Rock,
-    type Paper,
-    type Scissors,
-    type Dynamite,
-    type Strawman,
-    type Shield,
+option DiceSide(
+    symbol Rock,
+    symbol Paper,
+    symbol Scissors,
+    symbol Dynamite,
+    symbol Strawman,
+    symbol Shield,
 )
 
-export type RollOffWinner: Variant(type LeftWin, type RightWin, type Tie)
+option RollOffWinner(symbol LeftWin, symbol RightWin, symbol Tie)
 
-export type RollOffResult: {
+object RollOffResult {
     winner: RollOffWinner
     leftExtras: List<String>
     rightExtras: List<String>
@@ -25,7 +25,7 @@ fn RollOffResult.withWinner(winner: RollOffWinner) {
     )
 }
 
-type RuleFn: Fn(leftDie: DiceSide, rightDie: DiceSide): Option<RollOffResult>
+type RuleFn = Fn(leftDie: DiceSide, rightDie: DiceSide): Option<RollOffResult>
 
 // Explicit function output annotations are allowed but not required
 fn beatsRule(winner: DiceSide, loser: DiceSide): RuleFn {
@@ -35,7 +35,7 @@ fn beatsRule(winner: DiceSide, loser: DiceSide): RuleFn {
     // not providing parameter types here would be an error
     fn(left, right) {
         // Like Go's `switch`, not providing any value matches "true"
-        match {
+        branch {
             both(left->equals(winner), right->equals(loser)) {
                 Some(RollOffResult.withWinner(RollOffWinner.LeftWin))
             }
@@ -47,7 +47,7 @@ fn beatsRule(winner: DiceSide, loser: DiceSide): RuleFn {
     }
 }
 
-export fn rollOff(leftDie: DiceSide, rightDie: DiceSide) => RollOffResult {
+export fn rollOff(leftDie: DiceSide, rightDie: DiceSide): RollOffResult {
     let rules = List<RuleFn>(
         // Shield causes a tie and adds a "shield" extra
         fn(left, right) {
@@ -73,7 +73,7 @@ export fn rollOff(leftDie: DiceSide, rightDie: DiceSide) => RollOffResult {
         },
         // Strawman loses to all
         fn(left, right) {
-            match {
+            branch {
                 left->equals(DiceSide.Strawman) {
                     Some(RollOffResult.withWinner(RollOffWinner.RightWin))
                 }
@@ -85,7 +85,7 @@ export fn rollOff(leftDie: DiceSide, rightDie: DiceSide) => RollOffResult {
         },
         // Dynamite beats all
         fn(left, right) {
-            match {
+            branch {
                 left->equals(DiceSide.Dynamite) {
                     Some(RollOffResult.withWinner(RollOffWinner.LeftWin))
                 }
@@ -101,11 +101,11 @@ export fn rollOff(leftDie: DiceSide, rightDie: DiceSide) => RollOffResult {
         beatsRule(winner=DiceSide.Paper, loser=DiceSide.Rock)
     )
 
-    return rules ...
+    return rules
         -> map(fn(a) a(leftDie, rightDie))
         -> firstSome()
         -> fn(a)
-            match a {
+            branch a {
                 Some(let result) { result }
                 None { Some(RollOffResult.withWinner(RollOffWinner.Tie)) }
             }

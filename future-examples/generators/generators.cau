@@ -3,8 +3,8 @@
 // they're capable of implementing features like generators
 // That's how I'll know the model is robust enough to do everything I need
 
-effect YieldIncrement(amountSoFar: Int): Option<Int>
-effect Forbidden(): String
+signal YieldIncrement(amountSoFar: Int): Option<Int>
+signal Forbidden(): String
 
 // This is a "generator" function
 // The return/causes type descriptor should probably be inferred

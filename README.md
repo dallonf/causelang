@@ -36,7 +36,7 @@ fn main() {
 
 ## What's up next?
 
-Prototyping the static type checker. Things got a little out of hand in the original prototype that compiled to JavaScript, so I'm starting over, and it probably won't have a runtime again for a little while.
+Prototyping an embeddable runtime in the Rust version. Probably will focus on WebAssembly as a host target for now, but I'd also love to get it into Godot or Unity!
 
 You can look at the `future-examples` directory for some ideas about where I think the language could go. It's mostly just sketches at this point, but I look to these - especially the Cheat game - as goals for the language to support in the future.
 
@@ -47,6 +47,8 @@ There's not much to play with yet, but you can check out the JavaScript prototyp
 You can also run the CLI: `js-proto/packages/cause-cli/bin/run run [filename]` (note the double "run" - if the CLI was installed locally, it would be `cause run`). Check out some of the examples in `js-proto/packages/cause-cli/examples` that can be executed with that CLI.
 
 To install dependencies, just run `npm install` and `npx lerna bootstrap` in the `js-proto` directory.
+
+You can also look at a prototype of the typechecker in the `rs-typeproto` directory by running `cargo test -- --show-output`.
 
 ## This is, without a doubt, the worst compiler code I have ever seen.
 
