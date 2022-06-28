@@ -3,6 +3,7 @@ pub mod ast;
 pub mod parse;
 pub mod types;
 pub mod resolver;
+pub mod breadcrumb_walk;
 mod core_globals;
 
 #[cfg(test)]

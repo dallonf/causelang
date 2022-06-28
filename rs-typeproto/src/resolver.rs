@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::analyzer::{AnalyzedNode, NodeTag};
 use crate::ast::{AstNode, Breadcrumbs, FileNode};
+use crate::breadcrumb_walk::BreadcrumbWalk;
 use crate::core_globals::core_global_file;
 use crate::types::*;
 
@@ -13,6 +14,7 @@ pub struct ExternalFileDescriptor {
 #[derive(Debug, Clone)]
 pub struct FileResolverInput {
     pub path: String,
+    pub source: String,
     pub file_node: AstNode<FileNode>,
     pub analyzed: AnalyzedNode,
     pub other_files: HashMap<String, ExternalFileDescriptor>,
@@ -20,6 +22,7 @@ pub struct FileResolverInput {
 pub fn resolve_for_file(input: FileResolverInput) {
     let FileResolverInput {
         path,
+        source,
         file_node,
         analyzed,
         other_files,
@@ -486,7 +489,39 @@ pub fn resolve_for_file(input: FileResolverInput) {
         resolved_types.insert(modified.0, modified.1);
     }
 
-    println!("{resolved_types:#?}");
+    println!("resolved types: {resolved_types:#?}");
+
+    println!("type errors:");
+    let errors = resolved_types.iter().filter(|it| match it {
+        ((_, _), ValueLangType::Error(_) | ValueLangType::Pending) => true,
+        _ => false,
+    });
+    for ((_, error_breadcrumbs), error_type) in errors {
+        println!("{error_type:#?} at");
+
+        let node = file_node.node.find_node(error_breadcrumbs);
+        let line = node.position.start.line;
+        let start_line = {
+            if line > 2 {
+                line - 2
+            } else {
+                0
+            }
+        };
+
+        for line in source.lines().skip(start_line).take(line - start_line) {
+            println!("{line}");
+        }
+        let col = node.position.start.col;
+        let prefix_length = if col > 1 { col - 1 } else { 0 };
+        let prefix: String = (0..prefix_length).map(|_| '-').collect();
+        println!("{prefix}^ line {}, col {}", line, col);
+        for line in source.lines().skip(line).take(2) {
+            println!("{line}");
+        }
+
+        println!();
+    }
 }
 
 #[cfg(test)]
@@ -543,6 +578,7 @@ mod test {
         resolve_for_file(FileResolverInput {
             path: "test.cau".into(),
             file_node: ast_node,
+            source: script.to_owned(),
             analyzed: analyzed_file,
             other_files,
         });

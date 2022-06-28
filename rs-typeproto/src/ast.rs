@@ -57,6 +57,11 @@ impl Breadcrumbs {
     pub fn is_empty(&self) -> bool {
         self.0.len() == 0
     }
+
+    pub fn pop_start(&self) -> (&BreadcrumbEntry, Self) {
+        let new_vec: Vec<BreadcrumbEntry> = self.0[1..].into_iter().copied().collect();
+        (&self.0[0], Breadcrumbs(new_vec))
+    }
 }
 
 impl Debug for Breadcrumbs {
@@ -133,6 +138,80 @@ impl<T: Debug> Debug for AstNode<T> {
             .field("breadcrumbs", &self.breadcrumbs.to_string())
             .field("node", &self.node)
             .finish()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AnyNode {
+    Identifier(Identifier),
+    TypeReference(TypeReferenceNode),
+    File(FileNode),
+    Declaration(DeclarationNode),
+    Body(BodyNode),
+    Statement(StatementNode),
+    Expression(ExpressionNode),
+    ImportPath(ImportPathNode),
+    ImportMapping(ImportMappingNode),
+    CallExpressionArgument(CallExpressionArgumentNode),
+}
+
+impl<Owned> From<&Owned> for AnyNode
+where
+    Owned: Into<AnyNode>,
+{
+    fn from(it: &Owned) -> Self {
+        it.to_owned().into()
+    }
+}
+
+impl From<Identifier> for AnyNode {
+    fn from(it: Identifier) -> Self {
+        AnyNode::Identifier(it)
+    }
+}
+impl From<TypeReferenceNode> for AnyNode {
+    fn from(it: TypeReferenceNode) -> Self {
+        AnyNode::TypeReference(it)
+    }
+}
+impl From<FileNode> for AnyNode {
+    fn from(it: FileNode) -> Self {
+        AnyNode::File(it)
+    }
+}
+impl From<DeclarationNode> for AnyNode {
+    fn from(it: DeclarationNode) -> Self {
+        AnyNode::Declaration(it)
+    }
+}
+impl From<ExpressionNode> for AnyNode {
+    fn from(it: ExpressionNode) -> Self {
+        AnyNode::Expression(it)
+    }
+}
+impl From<BodyNode> for AnyNode {
+    fn from(it: BodyNode) -> Self {
+        AnyNode::Body(it)
+    }
+}
+impl From<StatementNode> for AnyNode {
+    fn from(it: StatementNode) -> Self {
+        AnyNode::Statement(it)
+    }
+}
+impl From<ImportPathNode> for AnyNode {
+    fn from(it: ImportPathNode) -> Self {
+        AnyNode::ImportPath(it)
+    }
+}
+impl From<ImportMappingNode> for AnyNode {
+    fn from(it: ImportMappingNode) -> Self {
+        AnyNode::ImportMapping(it)
+    }
+}
+impl From<CallExpressionArgumentNode> for AnyNode {
+    fn from(it: CallExpressionArgumentNode) -> Self {
+        AnyNode::CallExpressionArgument(it)
     }
 }
 

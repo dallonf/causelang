@@ -54,6 +54,7 @@ fn hello_world() {
     resolve_for_file(FileResolverInput {
         path: "test.cau".into(),
         file_node: ast_node,
+        source: script.to_owned(),
         analyzed: analyzed_file,
         other_files,
     });
