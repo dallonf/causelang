@@ -316,7 +316,7 @@ fn analyze_import_declaration(
     let path = ast_node.node.path.node.0.to_owned();
     result.add_file_reference(path.to_owned());
     result.add_tag_without_inverse(
-        ast_node.node.path.breadcrumbs.to_owned(),
+        ast_node.breadcrumbs.to_owned(),
         NodeTag::ReferencesFile {
             path: path.to_owned(),
             export_name: None,

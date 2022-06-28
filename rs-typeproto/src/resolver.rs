@@ -376,6 +376,17 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                 }
                             }
 
+                            NodeTag::ReferencesFile {
+                                path: _path,
+                                export_name: None,
+                            } => {
+                                // TODO: I guess eventually we'll probably want to import whole files,
+                                // but we don't really have a "file reference" type yet so meh
+                                resolve_with!(ValueLangType::Resolved(
+                                    ResolvedValueLangType::Primitive(PrimitiveLangType::Action)
+                                ))
+                            }
+
                             NodeTag::ReferenceNotInScope => iteration_resolved_references.push((
                                 pending_key.to_owned(),
                                 ValueLangType::Error(LangTypeError::NotInScope),
