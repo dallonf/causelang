@@ -66,6 +66,8 @@ pub enum NodeTag {
     ValueGoesTo(Breadcrumbs),
     Calls(Breadcrumbs),
     CalledBy(Breadcrumbs),
+    CallsWithArgument((Breadcrumbs, ArgumentTag)),
+    ArgumentForCall((Breadcrumbs, ArgumentTag)),
     Causes(Breadcrumbs),
     CausedBy(Breadcrumbs),
     IsPrimitiveValue(PrimitiveLangType),
@@ -102,6 +104,14 @@ impl NodeTag {
             NodeTag::Calls(calls) => {
                 Some((calls.to_owned(), NodeTag::CalledBy(breadcrumbs.to_owned())))
             }
+            NodeTag::CallsWithArgument((argument_breadcrumbs, argument)) => Some((
+                argument_breadcrumbs.to_owned(),
+                NodeTag::ArgumentForCall((breadcrumbs.to_owned(), argument.to_owned())),
+            )),
+            NodeTag::ArgumentForCall((call_breadcrumbs, argument)) => Some((
+                call_breadcrumbs.to_owned(),
+                NodeTag::CallsWithArgument((breadcrumbs.to_owned(), argument.to_owned())),
+            )),
             NodeTag::CalledBy(called_by) => Some((
                 called_by.to_owned(),
                 NodeTag::CalledBy(breadcrumbs.to_owned()),
@@ -130,6 +140,12 @@ impl NodeTag {
             NodeTag::BasicConstraint { .. } => None,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ArgumentTag {
+    Positional(usize),
+    Named(String),
 }
 
 #[derive(Debug, Clone)]
@@ -548,8 +564,16 @@ fn analyze_call_expression(
     ctx: &mut AnalyzerContext,
 ) -> AnalyzedNode {
     let mut result = AnalyzedNode::default();
-    for argument in ast_node.node.arguments.iter() {
+    for (i, argument) in ast_node.node.arguments.iter().enumerate() {
         result = result.merge(&analyze_expression(&argument.node.value, ctx));
+        result.add_tag(
+            argument.breadcrumbs.to_owned(),
+            NodeTag::ValueComesFrom(argument.breadcrumbs.append_name("value")),
+        );
+        result.add_tag(
+            argument.breadcrumbs.to_owned(),
+            NodeTag::ArgumentForCall((ast_node.breadcrumbs.to_owned(), ArgumentTag::Positional(i))),
+        );
     }
 
     result = result.merge(&analyze_expression(&ast_node.node.callee, ctx));

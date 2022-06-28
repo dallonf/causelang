@@ -108,6 +108,11 @@ pub enum LangTypeError {
         expected: ResolvedValueLangType,
         actual: ResolvedValueLangType,
     },
+    MissingArguments(Vec<String>),
+    ExcessArgument {
+        expected: usize,
+    },
+    UnknownArgument,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -164,5 +169,5 @@ impl ResolvedValueLangType {
 pub struct FunctionValueLangType {
     pub name: Option<String>,
     pub return_type: Box<ValueLangType>,
-    // TODO: params
+    pub params: Vec<LangParameter>,
 }

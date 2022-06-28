@@ -13,7 +13,8 @@ fn hello_world() {
 
       fn main() {
           let val: Integer = "howdy"
-          cause Print(val)
+          let excess = "oh no"
+          cause Print(val, excess)
       }
     "#;
 
