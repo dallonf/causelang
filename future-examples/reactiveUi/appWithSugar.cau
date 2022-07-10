@@ -2,26 +2,26 @@ import core/math { add, multiply }
 import lib/reactiveUi { Component, e }
 import lib/reactiveCore { ObservableObject, Computed, reactiveScope }
 
-// enable certain auto-conversions within lexical scope
-// these "use xScope" things might be useful for more sugar
+// enable certain auto-conversions within lexical scope.
+// these "use xScope" things might be useful for more kinds of sugar,
+// but that's all I have in mind right now
 use reactiveScope
 
 let CounterApp = Component(
     // `fn setup(...)` is equivalent to `setup = fn(...)`.
     // `factory {}` forms a block expression which returns an object,
     // and the object contains a field for each `export`ed name in the block
-    fn setup(props) ObservableObject.new(factory {
+    fn setup(props) => ObservableObject.new(factory {
         export let counter = 0
-        // parentheses are optional for inline functions without arguments
-        // TODO: can we get away with this? Or is it too grammatically ambiguous?
-        export let counter2 = Computed.new(fn multiply(counter, 2))
+        // `cb` is an unnamed "callback" function; parentheses are optional
+        export let counter2 = Computed.new(cb multiply(counter, 2))
     }),
 
     fn render(props, state) {
-        let increment = fn {
+        let increment = cb {
             // if parentheses are not provided and a single argument is passed,
             // it will be called `it`, like in Kotlin
-            state.counter.set(fn it->add(1))
+            state.counter.set(cb it->add(1))
         }
 
         // `[]` is an object or list constructor that infers its type
