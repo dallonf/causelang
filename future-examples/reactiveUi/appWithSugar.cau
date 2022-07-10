@@ -1,0 +1,34 @@
+import core/math { add, multiply }
+import lib/reactiveUi { Component, e }
+import lib/reactiveCore { ObservableObject, Computed, reactiveScope }
+
+// enable certain auto-conversions within lexical scope
+// these "use xScope" things might be useful for more sugar
+use reactiveScope
+
+let CounterApp = Component(
+    // `fn setup(...)` is equivalent to `setup = fn(...)`.
+    // `factory {}` forms a block expression which returns an object,
+    // and the object contains a field for each `export`ed name in the block
+    fn setup(props) ObservableObject.new(factory {
+        export let counter = 0
+        // parentheses are optional for inline functions without arguments
+        // TODO: can we get away with this? Or is it too grammatically ambiguous?
+        export let counter2 = Computed.new(fn multiply(counter, 2))
+    }),
+
+    fn render(props, state) {
+        let increment = fn {
+            // if parentheses are not provided and a single argument is passed,
+            // it will be called `it`, like in Kotlin
+            state.counter.set(fn it->add(1))
+        }
+
+        // `[]` is an object or list constructor that infers its type
+        ["div", [], [
+            ["h1", [], format("Counter: {{state.counter}}")],
+            ["h2", [], format("Counter x 2: {{state.counter2}}")],
+            ["button", [onClick = increment], "Increment"]
+        ]]
+    },
+)
