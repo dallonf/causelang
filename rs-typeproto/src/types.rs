@@ -1,8 +1,10 @@
 use std::fmt::Display;
 
+use serde::{Deserialize, Serialize};
+
 use crate::ast::Breadcrumbs;
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CanonicalLangTypeId {
     pub path: String,
     pub parent_name: Option<String>,
@@ -33,7 +35,7 @@ impl std::fmt::Debug for CanonicalLangTypeId {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PrimitiveLangType {
     String,
     Integer,
@@ -41,7 +43,7 @@ pub enum PrimitiveLangType {
     Action,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CanonicalLangType {
     Signal(SignalCanonicalLangType),
 }
@@ -54,7 +56,7 @@ impl CanonicalLangType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignalCanonicalLangType {
     pub id: CanonicalLangTypeId,
     pub name: String,
@@ -62,13 +64,13 @@ pub struct SignalCanonicalLangType {
     pub result: Box<ValueLangType>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LangParameter {
     pub name: String,
     pub value_type: ValueLangType,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValueLangType {
     Pending,
     Resolved(ResolvedValueLangType),
@@ -113,6 +115,27 @@ pub enum LangTypeError {
         expected: usize,
     },
     UnknownArgument,
+    /// This detailed information is only for the compiler;
+    /// once it gets to the VM it's no longer necessary
+    Compiled,
+}
+
+impl Serialize for LangTypeError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_unit()
+    }
+}
+
+impl<'de> Deserialize<'de> for LangTypeError {
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(LangTypeError::Compiled)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -129,7 +152,7 @@ pub enum ErrorSourcePosition {
 
 // TODO: more distinction between values and types?
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ResolvedValueLangType {
     Function(FunctionValueLangType),
     FunctionType(FunctionValueLangType),
@@ -165,7 +188,7 @@ impl ResolvedValueLangType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FunctionValueLangType {
     pub name: Option<String>,
     pub return_type: Box<ValueLangType>,

@@ -5,3 +5,6 @@ mod core_globals;
 pub mod parse;
 pub mod resolver;
 pub mod types;
+pub mod instructions;
+pub mod compiled_file;
+pub mod vm;
