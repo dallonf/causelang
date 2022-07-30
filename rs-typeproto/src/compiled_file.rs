@@ -9,7 +9,7 @@ use crate::types::CanonicalLangType;
 pub struct CompiledFile {
     pub path: String,
     pub types: HashMap<String, CanonicalLangType>,
-    pub chunks: HashMap<String, InstructionChunk>,
+    pub chunks: Vec<InstructionChunk>,
     pub exports: HashMap<String, CompiledExport>,
 }
 
@@ -22,13 +22,13 @@ pub struct InstructionChunk {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CompiledConstant {
     String(String),
-    Integer(usize),
+    Integer(isize),
     Float(f64),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CompiledExport {
     Type(String),
-    Chunk(String),
+    Chunk(usize),
     Constant(CompiledConstant),
 }
