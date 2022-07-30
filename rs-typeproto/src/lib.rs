@@ -2,6 +2,7 @@ pub mod analyzer;
 pub mod ast;
 pub mod breadcrumb_walk;
 mod core_globals;
+mod core_runtime;
 pub mod parse;
 pub mod resolver;
 pub mod types;

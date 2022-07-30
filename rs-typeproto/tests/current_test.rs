@@ -9,7 +9,7 @@ use cause_typeproto::parse;
 use cause_typeproto::resolver::{resolve_for_file, ExternalFileDescriptor, FileResolverInput};
 use cause_typeproto::types::CanonicalLangTypeId;
 use cause_typeproto::types::*;
-use cause_typeproto::vm::LangVm;
+use cause_typeproto::vm::{LangVm, RuntimeValue};
 
 #[test]
 fn hello_world() {
@@ -97,5 +97,7 @@ fn hello_vm() {
 
     let result = vm.execute_function("project/test.cau".into(), "main".into());
 
-    println!("{result:?}");
+    println!("caused signal: {result:?}");
+
+    // let result = vm.resume_execution(RuntimeValue::Action);
 }
