@@ -99,5 +99,7 @@ fn hello_vm() {
 
     println!("caused signal: {result:?}");
 
-    // let result = vm.resume_execution(RuntimeValue::Action);
+    let result = vm.resume_execution(RuntimeValue::Action);
+
+    println!("result: {result:?}");
 }

@@ -2,6 +2,7 @@ use std::any::Any;
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
+use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -9,8 +10,8 @@ use crate::compiled_file::{CompiledConstant, CompiledExport, CompiledFile, Instr
 use crate::core_globals::core_global_file;
 use crate::core_runtime::get_core_export;
 use crate::instructions::Instruction;
-use crate::types::ResolvedValueLangType;
 use crate::types::SignalCanonicalLangType;
+use crate::types::{ResolvedValueLangType, ValueLangType};
 
 type WrappedCallFrame = Rc<RefCell<CallFrame>>;
 
@@ -39,6 +40,13 @@ pub enum RuntimeValue {
     TypeReference(Arc<RuntimeTypeReference>),
 }
 
+impl RuntimeValue {
+    pub fn is_assignable_to(&self, lang_type: &ValueLangType) -> bool {
+        // TODO: implement this!
+        true
+    }
+}
+
 #[derive(Clone)]
 pub enum RuntimeTypeReference {
     Signal(SignalCanonicalLangType),
@@ -54,8 +62,9 @@ impl Debug for RuntimeTypeReference {
 
 #[derive(Debug)]
 pub struct RuntimeObject {
-    type_descriptor: Arc<RuntimeTypeReference>,
-    values: Vec<RuntimeValue>,
+    // TODO: probably want to be a little stricter on making these
+    pub type_descriptor: Arc<RuntimeTypeReference>,
+    pub values: Vec<RuntimeValue>,
 }
 
 #[derive(Debug)]
@@ -112,6 +121,33 @@ impl LangVm {
         self.call_frame = Some(RefCell::new(call_frame).into());
 
         self.execute()
+    }
+
+    pub fn resume_execution(&mut self, value: RuntimeValue) -> Result<RunResult, String> {
+        const STATE_ERROR: &'static str =
+            "I'm not currently waiting for a signal, so I can't resume execution.";
+        let mut call_frame = self
+            .call_frame
+            .as_ref()
+            .map(|it| it.borrow_mut())
+            .ok_or(STATE_ERROR)?;
+        let pending_signal = call_frame.pending_signal.clone().ok_or(STATE_ERROR)?;
+        let pending_signal = match pending_signal.type_descriptor.as_ref() {
+            RuntimeTypeReference::Signal(signal) => signal,
+        };
+
+        if value.is_assignable_to(pending_signal.result.as_ref()) {
+            call_frame.pending_signal = None;
+            self.stack.push_back(value);
+            drop(call_frame);
+
+            self.execute()
+        } else {
+            Err(format!(
+                "I need to resolve a {} signal with a {:?}, but {:?} isn't a {:?}.",
+                pending_signal.name, pending_signal.result, value, pending_signal.name
+            ))
+        }
     }
 
     fn execute(&mut self) -> Result<RunResult, String> {
@@ -245,7 +281,15 @@ impl LangVm {
                     call_frame.instruction += 1;
                     return Ok(RunResult::Cause(signal));
                 }
-                &Instruction::Return => todo!(),
+                &Instruction::Return => {
+                    let value = self
+                        .stack
+                        .pop_back()
+                        .ok_or("Stack is empty. {COMPILE_ERROR_ASSURANCE}")?;
+
+                    // TODO: handle popping a call frame and returning to a calling function
+                    return Ok(RunResult::Return(value));
+                }
             }
 
             call_frame.instruction += 1;
