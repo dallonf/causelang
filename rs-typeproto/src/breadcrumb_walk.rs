@@ -101,7 +101,6 @@ impl BreadcrumbWalk for AnyNode {
                     ]
                 }
                 DeclarationNode::NamedValue(named_value) => {
-                    // name, type_annotation, value
                     let mut result = vec![
                         (
                             BreadcrumbEntry::Name("name"),
@@ -205,95 +204,3 @@ impl BreadcrumbWalk for FileNode {
         )]
     }
 }
-
-// impl<'a, ListType, NodeType> From<ListType> for BreadcrumbWalkChild
-// where
-//     ListType: IntoIterator<Item = &'a AstNode<NodeType>>,
-//     NodeType: Into<AnyNode> + 'a + Clone,
-// {
-//     fn from(list: ListType) -> Self {
-//         BreadcrumbWalkChild::List(
-//             list.into_iter()
-//                 .map(|list_item| list_item.to_owned().map(|it| it.into()))
-//                 .collect(),
-//         )
-//     }
-// }
-
-// impl<NodeType> From<AstNode<NodeType>> for BreadcrumbWalkChild
-// where
-//     NodeType: Into<AnyNode>,
-// {
-//     fn from(node: AstNode<NodeType>) -> Self {
-//         BreadcrumbWalkChild::Node(node.map(|it| it.into()))
-//     }
-// }
-// impl<NodeType> From<&AstNode<NodeType>> for BreadcrumbWalkChild
-// where
-//     NodeType: Into<AnyNode>,
-// {
-//     fn from(node: &AstNode<NodeType>) -> Self {
-//         node.to_owned().into()
-//     }
-// }
-
-// impl BreadcrumbWalk for AnyNode {
-//     fn child_nodes(&self) -> Vec<(BreadcrumbEntry, BreadcrumbWalkChild)> {
-//         match self {
-//             AnyNode::Identifier(identifier) => identifier.child_nodes(),
-//             AnyNode::TypeReference(type_reference) => type_reference.child_nodes(),
-//             AnyNode::File(file) => file.child_nodes(),
-//             AnyNode::Declaration(declaration) => declaration.child_nodes(),
-//             AnyNode::ImportPathNode(import_path) => import_path.child_nodes(),
-//             AnyNode::ImportMappingNode(import_mapping) => import_mapping.child_nodes(),
-//         }
-//     }
-// }
-
-// impl BreadcrumbWalk for Identifier {
-//     fn child_nodes(&self) -> Vec<(BreadcrumbEntry, BreadcrumbWalkChild)> {
-//         vec![]
-//     }
-// }
-
-// impl BreadcrumbWalk for TypeReferenceNode {
-//     fn child_nodes(&self) -> Vec<(BreadcrumbEntry, BreadcrumbWalkChild)> {
-//         match self {
-//             TypeReferenceNode::Identifier(identifier) => identifier.child_nodes(),
-//         }
-//     }
-// }
-
-// impl BreadcrumbWalk for FileNode {
-//     fn child_nodes(&self) -> Vec<(BreadcrumbEntry, BreadcrumbWalkChild)> {
-//         vec![(
-//             BreadcrumbEntry::Name("declarations"),
-//             self.declarations.as_slice().into(),
-//         )]
-//     }
-// }
-
-// impl BreadcrumbWalk for DeclarationNode {
-//     fn child_nodes(&self) -> Vec<(BreadcrumbEntry, BreadcrumbWalkChild)> {
-//         match self {
-//             DeclarationNode::Import(import) => import.child_nodes(),
-//             DeclarationNode::Function(function) => function.child_nodes(),
-//             DeclarationNode::NamedValue(value) => value.child_nodes(),
-//         }
-//     }
-// }
-
-// impl BreadcrumbWalk for ImportDeclarationNode {
-//     fn child_nodes(&self) -> Vec<(BreadcrumbEntry, BreadcrumbWalkChild)> {
-//         vec![
-//             (BreadcrumbEntry::Name("mappings"), self.mappings.into()),
-//             (BreadcrumbEntry::Name("path"), self.path.into()),
-//         ]
-//     }
-// }
-
-// impl BreadcrumbWalk for ImportMappingNode {
-//     fn child_nodes(&self) -> Vec<(BreadcrumbEntry, BreadcrumbWalkChild)> {
-//         todo!()
-//     }
-// }
