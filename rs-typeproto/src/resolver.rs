@@ -13,14 +13,27 @@ pub struct ExternalFileDescriptor {
 }
 
 #[derive(Debug, Clone)]
-pub struct FileResolverInput {
+pub struct FileResolverInput<'a> {
     pub path: String,
     pub source: String,
-    pub file_node: AstNode<FileNode>,
-    pub analyzed: AnalyzedNode,
+    pub file_node: &'a AstNode<FileNode>,
+    pub analyzed: &'a AnalyzedNode,
     pub other_files: HashMap<String, ExternalFileDescriptor>,
 }
-pub fn resolve_for_file(input: FileResolverInput) {
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ResolutionType {
+    Inferred,
+    Constraint,
+}
+
+pub struct ResolvedFile {
+    pub path: String,
+    pub resolved_types: HashMap<(ResolutionType, Breadcrumbs), ValueLangType>,
+    pub canonical_types: HashMap<CanonicalLangTypeId, CanonicalLangType>,
+}
+
+pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
     let FileResolverInput {
         path,
         source,
@@ -34,12 +47,6 @@ pub fn resolve_for_file(input: FileResolverInput) {
     other_files.insert(core_global_file.0, core_global_file.1);
 
     let AnalyzedNode { node_tags, .. } = analyzed;
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    enum ResolutionType {
-        Inferred,
-        Constraint,
-    }
 
     let mut resolved_types = HashMap::<(ResolutionType, Breadcrumbs), ValueLangType>::new();
     let mut known_canonical_types = HashMap::<CanonicalLangTypeId, CanonicalLangType>::new();
@@ -171,9 +178,9 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                         pending_key.to_owned(),
                                         function.return_type.as_ref().to_owned(),
                                     )),
-                                    ValueLangType::Resolved(ResolvedValueLangType::Reference(
-                                        type_id,
-                                    )) => {
+                                    ValueLangType::Resolved(
+                                        ResolvedValueLangType::TypeReference(type_id),
+                                    ) => {
                                         let lang_type = get_type!(&type_id);
 
                                         match lang_type {
@@ -316,7 +323,7 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                                         ),
                                                     ))
                                                 }
-                                                ResolvedValueLangType::Reference(_) => todo!(),
+                                                ResolvedValueLangType::TypeReference(_) => todo!(),
                                                 ResolvedValueLangType::Canonical(_) => todo!(),
                                                 ResolvedValueLangType::Function(_)
                                                 | ResolvedValueLangType::Primitive(_)
@@ -499,7 +506,7 @@ pub fn resolve_for_file(input: FileResolverInput) {
                                     ValueLangType::Resolved(call_type) => {
                                         let params = match call_type {
                                             ResolvedValueLangType::Function(function) => function.params,
-                                            ResolvedValueLangType::Reference(id) => {
+                                            ResolvedValueLangType::TypeReference(id) => {
                                                 match get_type!(&id) {
                                                     CanonicalLangType::Signal(signal) => signal.params.to_owned(),
                                                 }
@@ -567,7 +574,9 @@ pub fn resolve_for_file(input: FileResolverInput) {
                     known_canonical_types.insert(id.to_owned(), canonical.to_owned());
                     resolved_types.insert(
                         breadcrumbs,
-                        ValueLangType::Resolved(ResolvedValueLangType::Reference(id.to_owned())),
+                        ValueLangType::Resolved(ResolvedValueLangType::TypeReference(
+                            id.to_owned(),
+                        )),
                     );
                 }
                 _ => {
@@ -655,6 +664,12 @@ pub fn resolve_for_file(input: FileResolverInput) {
 
         println!();
     }
+
+    ResolvedFile {
+        path: path,
+        resolved_types,
+        canonical_types: known_canonical_types,
+    }
 }
 
 #[cfg(test)]
@@ -710,9 +725,9 @@ mod test {
 
         resolve_for_file(FileResolverInput {
             path: "test.cau".into(),
-            file_node: ast_node,
+            file_node: &ast_node,
             source: script.to_owned(),
-            analyzed: analyzed_file,
+            analyzed: &analyzed_file,
             other_files,
         });
     }

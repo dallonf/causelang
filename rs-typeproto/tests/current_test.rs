@@ -4,6 +4,7 @@ use cause_typeproto::analyzer;
 use cause_typeproto::compiled_file::{
     CompiledConstant, CompiledExport, CompiledFile, InstructionChunk,
 };
+use cause_typeproto::compiler::{compile, CompilerInput};
 use cause_typeproto::instructions::Instruction;
 use cause_typeproto::parse;
 use cause_typeproto::resolver::{resolve_for_file, ExternalFileDescriptor, FileResolverInput};
@@ -59,9 +60,9 @@ fn hello_world() {
 
     resolve_for_file(FileResolverInput {
         path: "test.cau".into(),
-        file_node: ast_node,
+        file_node: &ast_node,
         source: script.to_owned(),
-        analyzed: analyzed_file,
+        analyzed: &analyzed_file,
         other_files,
     });
 }
@@ -75,7 +76,7 @@ fn hello_vm() {
             CompiledConstant::String("Debug".into()),
         ],
         instructions: vec![
-            Instruction::Constant(0),
+            Instruction::Literal(0),
             Instruction::Import {
                 file_path_constant: 1,
                 export_name_constant: 2,
@@ -101,5 +102,40 @@ fn hello_vm() {
 
     let result = vm.resume_execution(RuntimeValue::Action);
 
+    println!("result: {result:?}");
+}
+
+#[test]
+fn hello_e2e() {
+    let script = r#"
+      fn main() {
+          cause Debug("Hello world!")
+      }
+    "#;
+
+    let ast_node = parse::parse(script).unwrap();
+    let analyzed_file = analyzer::analyze_file(&ast_node);
+
+    let resolved_file = resolve_for_file(FileResolverInput {
+        path: "project/test.cau".into(),
+        file_node: &ast_node,
+        source: script.to_owned(),
+        analyzed: &analyzed_file,
+        other_files: HashMap::new(),
+    });
+
+    let compiled_file = compile(CompilerInput {
+        file_node: &ast_node,
+        analyzed: &analyzed_file,
+        resolved: &resolved_file,
+    });
+
+    println!("{:#?}", compiled_file);
+
+    let mut vm = LangVm::new();
+    vm.add_compiled_file(compiled_file);
+    let result = vm.execute_function("project/test.cau".into(), "main".into());
+    println!("caused signal: {result:?}");
+    let result = vm.resume_execution(RuntimeValue::Action);
     println!("result: {result:?}");
 }

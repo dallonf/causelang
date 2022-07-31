@@ -158,7 +158,7 @@ pub enum ResolvedValueLangType {
     FunctionType(FunctionValueLangType),
     Primitive(PrimitiveLangType),
     PrimitiveType(PrimitiveLangType),
-    Reference(CanonicalLangTypeId),
+    TypeReference(CanonicalLangTypeId),
     Instance(CanonicalLangTypeId),
     Canonical(CanonicalLangType),
 }
@@ -175,7 +175,7 @@ impl ResolvedValueLangType {
                 Ok(ResolvedValueLangType::Primitive(*primitive))
             }
             ResolvedValueLangType::Instance(_) => Err("Already an instance type".to_owned()),
-            ResolvedValueLangType::Reference(id) => {
+            ResolvedValueLangType::TypeReference(id) => {
                 Ok(ResolvedValueLangType::Instance(id.to_owned()))
             }
             ResolvedValueLangType::Canonical(canonical_type) => {

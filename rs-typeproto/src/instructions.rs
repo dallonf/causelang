@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub enum Instruction {
     Pop,
     PushAction,
-    Constant(usize),
+    Literal(usize),
     Import {
       file_path_constant: usize,
       export_name_constant: usize,

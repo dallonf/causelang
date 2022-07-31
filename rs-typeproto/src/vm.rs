@@ -178,7 +178,7 @@ impl LangVm {
                     self.stack.pop_front();
                 }
                 &Instruction::PushAction => todo!(),
-                &Instruction::Constant(constant_id) => {
+                &Instruction::Literal(constant_id) => {
                     let new_value = match get_constant!(constant_id) {
                         CompiledConstant::String(str_value) => {
                             RuntimeValue::String(str_value.to_owned().into())
@@ -271,7 +271,7 @@ impl LangVm {
                     let signal = self
                         .stack
                         .pop_back()
-                        .ok_or("Stack is empty. {COMPILE_ERROR_ASSURANCE}")?;
+                        .ok_or(format!("Stack is empty. {COMPILE_ERROR_ASSURANCE}"))?;
                     let signal = match signal {
                         RuntimeValue::Object(it) => it,
                         unexpected => return Err(format!("I was told to cause a {unexpected:?}, but it's not a signal, or even an object."))

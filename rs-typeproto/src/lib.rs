@@ -9,3 +9,4 @@ pub mod types;
 pub mod instructions;
 pub mod compiled_file;
 pub mod vm;
+pub mod compiler;
