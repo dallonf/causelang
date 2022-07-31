@@ -318,7 +318,6 @@ pub struct CallExpressionNode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CallExpressionArgumentNode {
-    pub name: Option<AstNode<Identifier>>,
     pub value: AstNode<ExpressionNode>,
 }
 

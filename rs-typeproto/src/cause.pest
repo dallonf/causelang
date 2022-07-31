@@ -21,7 +21,7 @@ import_declaration = { "import" ~ whitespace+ ~ import_path ~ whitespace* ~ "{" 
   import_mapping = { identifier ~ ( whitespace+ ~ "as" ~ whitespace+ ~ identifier)? }
 
 
-function_declaration = { "fn" ~ whitespace+ ~ identifier ~ whitespace* ~ "()" ~ whitespace* ~ structure_body }
+function_declaration = { "function" ~ whitespace+ ~ identifier ~ whitespace* ~ "()" ~ whitespace* ~ structure_body }
 
 named_value_declaration = { "let" ~ whitespace+ ~ identifier ~ whitespace* ~ (":" ~ whitespace* ~ type_reference ~ whitespace*)? ~ "=" ~ whitespace* ~ expression }
 
@@ -58,6 +58,5 @@ identifier_expression = { identifier }
 expression_suffix = _{ call_expression_suffix }
 
 call_expression_suffix = { "(" ~ whitespace* ~ (argument ~ whitespace* ~ ("," ~ whitespace* ~ argument ~ whitespace*)*)? ~ ")" }
-  argument = _{ named_argument | positional_argument }
-  named_argument = { identifier ~ whitespace* ~ "=" ~ whitespace* ~ expression }
+  argument = _{ positional_argument }
   positional_argument = { expression }

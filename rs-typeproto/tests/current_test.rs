@@ -17,7 +17,7 @@ fn hello_world() {
     let script = r#"
       import langtest/signals { Print }
 
-      fn main() {
+      function main() {
           let val: Integer = "howdy"
           let excess = "oh no"
           cause Print(val, excess)
@@ -108,7 +108,7 @@ fn hello_vm() {
 #[test]
 fn hello_e2e() {
     let script = r#"
-      fn main() {
+      function main() {
           cause Debug("Hello world!")
       }
     "#;

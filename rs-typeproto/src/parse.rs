@@ -507,9 +507,6 @@ fn parse_call_expression_suffix(
             Rule::positional_argument => {
                 parse_positional_argument(argument_pair, arguments_breadcrumbs.append_index(i), ctx)
             }
-            Rule::named_argument => {
-                parse_named_argument(argument_pair, arguments_breadcrumbs.append_index(i), ctx)
-            }
             _ => unreachable!(),
         })
         .collect::<ParserResult<Vec<_>>>()?;
@@ -537,31 +534,7 @@ fn parse_positional_argument(
     )?;
 
     Ok(AstNode::new(
-        CallExpressionArgumentNode {
-            name: None,
-            value: value,
-        },
-        span,
-        breadcrumbs,
-    ))
-}
-
-fn parse_named_argument(
-    argument_pair: Pair<Rule>,
-    breadcrumbs: Breadcrumbs,
-    ctx: &ParserContext,
-) -> ParserResult<AstNode<CallExpressionArgumentNode>> {
-    let span = argument_pair.as_span();
-    let mut inner = argument_pair.into_inner();
-
-    let name = parse_identifier(inner.next().unwrap(), breadcrumbs.append_name("name"), ctx)?;
-    let value = parse_expression(inner.next().unwrap(), breadcrumbs.append_name("value"), ctx)?;
-
-    Ok(AstNode::new(
-        CallExpressionArgumentNode {
-            name: Some(name),
-            value: value,
-        },
+        CallExpressionArgumentNode { value: value },
         span,
         breadcrumbs,
     ))

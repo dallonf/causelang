@@ -214,7 +214,6 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
                                                                     args[*i] = Some(argument_type);
                                                                 }
                                                             }
-                                                            ArgumentTag::Named(name) => todo!(),
                                                         }
                                                     }
                                                 }
@@ -527,17 +526,6 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
                                                     resolve_with!(param.value_type.to_owned());
                                                 }
                                             }
-                                            ArgumentTag::Named(name) => {
-                                                let param =
-                                                    params.iter().find(|it| &it.name == name);
-                                                if let Some(param) = param {
-                                                    resolve_with!(param.value_type.to_owned());
-                                                } else {
-                                                    resolve_with!(ValueLangType::Error(
-                                                        LangTypeError::UnknownArgument
-                                                    ))
-                                                }
-                                            }
                                         }
                                     }
                                     ValueLangType::Error(_) => resolve_with!(ValueLangType::Error(
@@ -684,7 +672,7 @@ mod test {
         let script = r#"
           import langtest/signals { Print }
 
-          fn main() {
+          function main() {
               cause Print(15)
           }
         "#;

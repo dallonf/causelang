@@ -145,7 +145,6 @@ impl NodeTag {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ArgumentTag {
     Positional(usize),
-    Named(String),
 }
 
 #[derive(Debug, Clone)]
@@ -600,7 +599,7 @@ mod test {
         let script = r#"
           import langtest/effects { Print }
 
-          fn main() {
+          function main() {
               cause Print("Hello World")
           }
         "#;

@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use crate::analyzer::{AnalyzedNode, NodeTag};
+use crate::ast::*;
 use crate::compiled_file::{CompiledConstant, CompiledExport, CompiledFile, InstructionChunk};
 use crate::instructions::Instruction;
 use crate::resolver::{ResolutionType, ResolvedFile};
 use crate::types::{CanonicalLangType, ResolvedValueLangType, ValueLangType};
-use crate::{ast::*, instructions};
 
 pub struct CompilerInput<'a> {
     pub file_node: &'a AstNode<FileNode>,

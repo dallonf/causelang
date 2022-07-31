@@ -183,14 +183,10 @@ impl BreadcrumbWalk for AnyNode {
             AnyNode::ImportPath(_) => vec![],
 
             AnyNode::CallExpressionArgument(call_argument) => {
-                let mut result = vec![(
+                vec![(
                     BreadcrumbEntry::Name("value"),
                     to_breadcrumb_walk_node(&call_argument.value),
-                )];
-                if let Some(name) = &call_argument.name {
-                    result.push((BreadcrumbEntry::Name("name"), to_breadcrumb_walk_node(name)));
-                }
-                result
+                )]
             }
         }
     }
