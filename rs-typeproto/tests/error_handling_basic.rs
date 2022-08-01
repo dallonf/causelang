@@ -1,4 +1,7 @@
-use cause_typeproto::{types::LangTypeError, vm::LangVm};
+use cause_typeproto::{
+    types::LangTypeError,
+    vm::{LangVm, RuntimeValue},
+};
 
 #[test]
 fn no_arguments_for_signal() {
@@ -25,5 +28,13 @@ fn no_arguments_for_signal() {
         .unwrap()
         .expect_caused();
 
-    println!("{result:?}");
+    assert_eq!(
+        result.type_descriptor.type_id(),
+        &vm.get_type_id("core/builtin", "TypeError").unwrap()
+    );
+    assert!(result.values.len() == 1);
+    assert!(match &result.values[0] {
+        RuntimeValue::BadValue(_) => true,
+        _ => false,
+    });
 }

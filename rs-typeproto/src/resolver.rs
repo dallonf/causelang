@@ -338,6 +338,16 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
                                                         ),
                                                     ))
                                                 }
+                                                ResolvedValueLangType::BadValue => {
+                                                    resolve_with!(ValueLangType::Resolved(
+                                                        ResolvedValueLangType::BadValue
+                                                    ))
+                                                }
+                                                ResolvedValueLangType::NeverContinues => {
+                                                    resolve_with!(ValueLangType::Resolved(
+                                                        ResolvedValueLangType::NeverContinues
+                                                    ))
+                                                }
                                             }
                                         }
                                         ValueLangType::Error(_) => iteration_resolved_references
@@ -462,6 +472,7 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
 
                             _ => (),
                         },
+
                         ResolutionType::Constraint => match tag {
                             NodeTag::BasicConstraint { type_annotation } => {
                                 match get_resolved_type_of!(type_annotation) {

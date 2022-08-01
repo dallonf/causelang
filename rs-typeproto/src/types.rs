@@ -149,6 +149,8 @@ pub enum ResolvedValueLangType {
     TypeReference(CanonicalLangTypeId),
     Instance(CanonicalLangTypeId),
     Canonical(CanonicalLangType),
+    BadValue,
+    NeverContinues,
 }
 
 impl ResolvedValueLangType {
@@ -171,6 +173,10 @@ impl ResolvedValueLangType {
                     CanonicalLangType::Signal(SignalCanonicalLangType { id, .. }) => id,
                 };
                 Ok(ResolvedValueLangType::Instance(id.to_owned()))
+            }
+            ResolvedValueLangType::BadValue => Err("Already a (bad) value type".to_owned()),
+            ResolvedValueLangType::NeverContinues => {
+                Err("Already an NeverContinues type".to_owned())
             }
         }
     }

@@ -54,6 +54,27 @@ pub fn core_builtin_file() -> (String, ExternalFileDescriptor) {
                     }),
                 )),
             ),
+            (
+                "TypeError".to_owned(),
+                ValueLangType::Resolved(ResolvedValueLangType::Canonical(
+                    CanonicalLangType::Signal(SignalCanonicalLangType {
+                        id: CanonicalLangTypeId {
+                            path: "core/builtin".to_owned(),
+                            parent_name: None,
+                            name: Some("TypeError".to_owned()),
+                            number: 0,
+                        },
+                        name: "TypeError".to_owned(),
+                        params: vec![LangParameter {
+                            name: "error".to_owned(),
+                            value_type: ValueLangType::Resolved(ResolvedValueLangType::BadValue),
+                        }],
+                        result: Box::new(ValueLangType::Resolved(
+                            ResolvedValueLangType::NeverContinues,
+                        )),
+                    }),
+                )),
+            ),
         ]),
     };
     (filename.to_owned(), descriptor)

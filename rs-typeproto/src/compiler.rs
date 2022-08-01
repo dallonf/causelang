@@ -134,6 +134,21 @@ fn compile_expression(
         }
         ExpressionNode::IntegerLiteralExpression(_) => todo!(),
     }
+
+    let expression_type = ctx
+        .compiler_input
+        .resolved
+        .resolved_types
+        .get(&(ResolutionType::Inferred, expression.breadcrumbs.to_owned()))
+        .expect("unknown type of expression");
+
+    if let Some(_) = expression_type.get_error() {
+        chunk.write_instruction(Instruction::Pop);
+        chunk.write_literal(CompiledConstant::Error(RuntimeBadValue {
+            file_path: ctx.compiler_input.resolved.path.to_owned(),
+            breadcrumbs: expression.breadcrumbs.to_owned(),
+        }));
+    }
 }
 
 fn compile_identifier_expression(
@@ -188,8 +203,35 @@ fn compile_cause_expression(
 ) {
     compile_expression(&cause_expression.node.argument, chunk, ctx);
 
-    // TODO: assuming the argument is a signal
-    chunk.write_instruction(Instruction::Cause);
+    if let Some(_error) = ctx
+        .compiler_input
+        .resolved
+        .resolved_types
+        .get(&(
+            ResolutionType::Inferred,
+            cause_expression.breadcrumbs.to_owned(),
+        ))
+        .expect("missing type for expression")
+        .get_error()
+    {
+        chunk.write_instruction(Instruction::Pop);
+        chunk.write_literal(CompiledConstant::Error(RuntimeBadValue {
+            file_path: ctx.compiler_input.resolved.path.to_owned(),
+            breadcrumbs: cause_expression.breadcrumbs.to_owned(),
+        }));
+        let file_path_constant =
+            chunk.add_constant(CompiledConstant::String("core/builtin".to_owned()));
+        let export_name_constant =
+            chunk.add_constant(CompiledConstant::String("TypeError".to_owned()));
+        chunk.write_instruction(Instruction::Import {
+            file_path_constant,
+            export_name_constant,
+        });
+        chunk.write_instruction(Instruction::Construct);
+        chunk.write_instruction(Instruction::Cause);
+    } else {
+        chunk.write_instruction(Instruction::Cause);
+    }
 }
 
 fn compile_call_expression(
