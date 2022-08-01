@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
-use crate::{ast::*, core_globals::core_global_file};
+use crate::{ast::*, core_builtin::core_builtin_file};
 
 #[derive(Parser)]
 #[grammar = "cause.pest"]
@@ -88,7 +88,7 @@ fn parse_identifier(
 }
 
 fn generate_core_globals_import(breadcrumbs: Breadcrumbs) -> AstNode<ImportDeclarationNode> {
-    let core_global_file = core_global_file();
+    let core_global_file = core_builtin_file();
     let core_global_ids: Vec<_> = core_global_file.1.exports.iter().map(|it| it.0).collect();
     AstNode::new(
         ImportDeclarationNode {

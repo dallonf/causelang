@@ -4,7 +4,7 @@ use std::iter;
 use crate::analyzer::{AnalyzedNode, ArgumentTag, NodeTag};
 use crate::ast::{AstNode, Breadcrumbs, FileNode};
 use crate::breadcrumb_walk::BreadcrumbWalk;
-use crate::core_globals::core_global_file;
+use crate::core_builtin::core_builtin_file;
 use crate::types::*;
 
 #[derive(Debug, Clone)]
@@ -43,7 +43,7 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
     } = input;
 
     let mut other_files = other_files.clone();
-    let core_global_file = core_global_file();
+    let core_global_file = core_builtin_file();
     other_files.insert(core_global_file.0, core_global_file.1);
 
     let AnalyzedNode { node_tags, .. } = analyzed;

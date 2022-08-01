@@ -72,7 +72,7 @@ fn hello_vm() {
     let chunk = InstructionChunk {
         constant_table: vec![
             CompiledConstant::String("Hello world!".into()),
-            CompiledConstant::String("core/$globals".into()),
+            CompiledConstant::String("core/builtin".into()),
             CompiledConstant::String("Debug".into()),
         ],
         instructions: vec![
@@ -96,7 +96,7 @@ fn hello_vm() {
     let mut vm = LangVm::new();
     vm.add_compiled_file(compiled_file);
 
-    let result = vm.execute_function("project/test.cau".into(), "main".into());
+    let result = vm.execute_function("project/test.cau", "main", &vec![]);
 
     println!("caused signal: {result:?}");
 
@@ -134,7 +134,7 @@ fn hello_e2e() {
 
     let mut vm = LangVm::new();
     vm.add_compiled_file(compiled_file);
-    let result = vm.execute_function("project/test.cau".into(), "main".into());
+    let result = vm.execute_function("project/test.cau", "main", &vec![]);
     println!("caused signal: {result:?}");
     let result = vm.resume_execution(RuntimeValue::Action);
     println!("result: {result:?}");

@@ -1,7 +1,4 @@
-use cause_typeproto::{
-    types::CanonicalLangTypeId,
-    vm::{LangVm, RunResult, RuntimeTypeReference, RuntimeValue},
-};
+use cause_typeproto::vm::{LangVm, RuntimeValue};
 
 #[test]
 fn hello_world() {
@@ -20,12 +17,7 @@ fn hello_world() {
         .expect_caused();
     assert_eq!(
         result.type_descriptor.type_id(),
-        &CanonicalLangTypeId {
-            path: "core/$globals".to_owned(),
-            parent_name: None,
-            name: Some("Debug".to_owned()),
-            number: 0,
-        }
+        &vm.get_type_id("core/builtin", "Debug").unwrap()
     );
     assert_eq!(
         result.values,
@@ -37,5 +29,4 @@ fn hello_world() {
         .unwrap()
         .expect_returned();
     assert_eq!(result, RuntimeValue::Action);
-    
 }

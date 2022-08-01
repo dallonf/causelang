@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::resolver::ExternalFileDescriptor;
 use crate::types::*;
 
-pub fn core_global_file() -> (String, ExternalFileDescriptor) {
-    let filename = "core/$globals";
+pub fn core_builtin_file() -> (String, ExternalFileDescriptor) {
+    let filename = "core/builtin";
     let descriptor = ExternalFileDescriptor {
         exports: HashMap::from_iter(vec![
             (
@@ -36,7 +36,7 @@ pub fn core_global_file() -> (String, ExternalFileDescriptor) {
                 ValueLangType::Resolved(ResolvedValueLangType::Canonical(
                     CanonicalLangType::Signal(SignalCanonicalLangType {
                         id: CanonicalLangTypeId {
-                            path: "core/$globals".to_owned(),
+                            path: "core/builtin".to_owned(),
                             parent_name: None,
                             name: Some("Debug".to_owned()),
                             number: 0,

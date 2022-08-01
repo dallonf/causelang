@@ -4,15 +4,15 @@ use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::analyzer;
 use crate::compiled_file::{CompiledConstant, CompiledExport, CompiledFile};
 use crate::compiler::{compile, CompilerInput};
 use crate::core_runtime::get_core_export;
 use crate::instructions::Instruction;
 use crate::parse;
 use crate::resolver::{resolve_for_file, FileResolverInput};
-use crate::types::ValueLangType;
 use crate::types::{CanonicalLangTypeId, SignalCanonicalLangType};
+use crate::types::{ResolvedValueLangType, ValueLangType};
+use crate::{analyzer, core_builtin};
 
 type WrappedCallFrame = Rc<RefCell<CallFrame>>;
 
@@ -136,6 +136,27 @@ impl LangVm {
         });
 
         self.add_compiled_file(compiled_file);
+    }
+
+    pub fn get_type_id(&self, file_path: &str, name: &str) -> Result<CanonicalLangTypeId, String> {
+        if file_path == "core/builtin" {
+            let (_, builtin) = core_builtin::core_builtin_file();
+            let found = builtin
+                .exports
+                .get(name)
+                .ok_or_else(|| format!("No export named {name}"))?;
+            match found {
+                ValueLangType::Resolved(ResolvedValueLangType::Canonical(canonical)) => {
+                    Ok(canonical.id().to_owned())
+                }
+                ValueLangType::Resolved(ResolvedValueLangType::TypeReference(reference)) => {
+                    Ok(reference.to_owned())
+                }
+                _ => Err(format!("{name} is not a type.")),
+            }
+        } else {
+            Err("I don't support getting types from custom files yet.".into())
+        }
     }
 
     pub fn execute_function(
