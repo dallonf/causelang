@@ -11,8 +11,8 @@ use crate::core_runtime::get_core_export;
 use crate::instructions::Instruction;
 use crate::parse;
 use crate::resolver::{resolve_for_file, FileResolverInput};
-use crate::types::SignalCanonicalLangType;
 use crate::types::ValueLangType;
+use crate::types::{CanonicalLangTypeId, SignalCanonicalLangType};
 
 type WrappedCallFrame = Rc<RefCell<CallFrame>>;
 
@@ -61,6 +61,14 @@ impl Debug for RuntimeTypeReference {
     }
 }
 
+impl RuntimeTypeReference {
+    pub fn type_id(&self) -> &CanonicalLangTypeId {
+        match self {
+            RuntimeTypeReference::Signal(signal) => &signal.id,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct RuntimeObject {
     // TODO: probably want to be a little stricter on making these
@@ -70,8 +78,26 @@ pub struct RuntimeObject {
 
 #[derive(Debug)]
 pub enum RunResult {
-    Return(RuntimeValue),
-    Cause(Arc<RuntimeObject>),
+    Returned(RuntimeValue),
+    Caused(Arc<RuntimeObject>),
+}
+
+impl RunResult {
+    pub fn expect_caused(self) -> Arc<RuntimeObject> {
+        if let RunResult::Caused(signal) = self {
+            signal
+        } else {
+            panic!("I expected {:?} to be a caused result.", self);
+        }
+    }
+
+    pub fn expect_returned(self) -> RuntimeValue {
+        if let RunResult::Returned(result) = self {
+            result
+        } else {
+            panic!("I expected {:?} to be a returned result.", self);
+        }
+    }
 }
 
 const COMPILE_ERROR_ASSURANCE: &'static str =
@@ -114,15 +140,16 @@ impl LangVm {
 
     pub fn execute_function(
         &mut self,
-        file_path: String,
-        function_name: String,
+        file_path: &str,
+        function_name: &str,
+        arguments: &[RuntimeValue],
     ) -> Result<RunResult, String> {
         let file = self
             .files
-            .get(&file_path)
+            .get(file_path)
             .ok_or_else(|| format!("I don't know about any file at {file_path}."))?;
 
-        let export = file.exports.get(&function_name).ok_or_else(|| format!("The file at {file_path} doesn't contain anything (at least that's not private) called {function_name}."))?;
+        let export = file.exports.get(function_name).ok_or_else(|| format!("The file at {file_path} doesn't contain anything (at least that's not private) called {function_name}."))?;
 
         let chunk_id = if let CompiledExport::Chunk(chunk_id) = export {
             Ok(*chunk_id)
@@ -131,6 +158,10 @@ impl LangVm {
                 "{function_name} isn't a function, so I can't execute it."
             ))
         }?;
+
+        if arguments.len() != 0 {
+            return Err("I don't support executing a function with arguments right now.".into());
+        }
 
         self.stack.clear();
         let call_frame = CallFrame {
@@ -302,7 +333,7 @@ impl LangVm {
 
                     call_frame.pending_signal = Some(signal.clone());
                     call_frame.instruction += 1;
-                    return Ok(RunResult::Cause(signal));
+                    return Ok(RunResult::Caused(signal));
                 }
                 &Instruction::Return => {
                     let value = self
@@ -311,7 +342,7 @@ impl LangVm {
                         .ok_or("Stack is empty. {COMPILE_ERROR_ASSURANCE}")?;
 
                     // TODO: handle popping a call frame and returning to a calling function
-                    return Ok(RunResult::Return(value));
+                    return Ok(RunResult::Returned(value));
                 }
             }
 
