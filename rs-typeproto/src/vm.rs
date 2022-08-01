@@ -35,7 +35,7 @@ struct CallFrame {
     parent: Option<WrappedCallFrame>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum RuntimeValue {
     BadValue(RuntimeBadValue),
     Action,
@@ -53,7 +53,7 @@ impl RuntimeValue {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Serialize)]
 pub enum RuntimeTypeReference {
     Signal(SignalCanonicalLangType),
 }
@@ -74,7 +74,7 @@ impl RuntimeTypeReference {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct RuntimeObject {
     // TODO: probably want to be a little stricter on making these
     pub type_descriptor: Arc<RuntimeTypeReference>,
@@ -87,7 +87,7 @@ pub struct RuntimeBadValue {
     pub breadcrumbs: Breadcrumbs,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum RunResult {
     Returned(RuntimeValue),
     Caused(Arc<RuntimeObject>),
@@ -136,7 +136,6 @@ impl LangVm {
         let resolved_file = resolve_for_file(FileResolverInput {
             path: file_path.into(),
             file_node: &ast_node,
-            source: source.to_owned(),
             analyzed: &analyzed_file,
             // TODO: need to include the other files in the VM
             other_files: HashMap::new(),

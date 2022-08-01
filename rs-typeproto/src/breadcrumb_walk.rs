@@ -79,11 +79,11 @@ impl BreadcrumbWalk for AnyNode {
                 DeclarationNode::Import(import) => {
                     vec![
                         (
-                            BreadcrumbEntry::Name("path"),
+                            BreadcrumbEntry::with_name("path"),
                             to_breadcrumb_walk_node(&import.path),
                         ),
                         (
-                            BreadcrumbEntry::Name("mappings"),
+                            BreadcrumbEntry::with_name("mappings"),
                             to_any_node_list(&import.mappings),
                         ),
                     ]
@@ -91,11 +91,11 @@ impl BreadcrumbWalk for AnyNode {
                 DeclarationNode::Function(function) => {
                     vec![
                         (
-                            BreadcrumbEntry::Name("body"),
+                            BreadcrumbEntry::with_name("body"),
                             to_breadcrumb_walk_node(&function.body),
                         ),
                         (
-                            BreadcrumbEntry::Name("name"),
+                            BreadcrumbEntry::with_name("name"),
                             to_breadcrumb_walk_node(&function.name),
                         ),
                     ]
@@ -103,17 +103,17 @@ impl BreadcrumbWalk for AnyNode {
                 DeclarationNode::NamedValue(named_value) => {
                     let mut result = vec![
                         (
-                            BreadcrumbEntry::Name("name"),
+                            BreadcrumbEntry::with_name("name"),
                             to_breadcrumb_walk_node(&named_value.name),
                         ),
                         (
-                            BreadcrumbEntry::Name("value"),
+                            BreadcrumbEntry::with_name("value"),
                             to_breadcrumb_walk_node(&named_value.value),
                         ),
                     ];
                     if let Some(type_annotation) = &named_value.type_annotation {
                         result.push((
-                            BreadcrumbEntry::Name("type_annotation"),
+                            BreadcrumbEntry::with_name("type_annotation"),
                             to_breadcrumb_walk_node(type_annotation),
                         ));
                     }
@@ -123,31 +123,31 @@ impl BreadcrumbWalk for AnyNode {
             AnyNode::Body(body) => match body {
                 BodyNode::BlockBody(block) => {
                     vec![(
-                        BreadcrumbEntry::Name("statements"),
+                        BreadcrumbEntry::with_name("statements"),
                         to_any_node_list(&block.statements),
                     )]
                 }
             },
             AnyNode::Statement(statement) => match statement {
                 StatementNode::ExpressionStatement(expression) => vec![(
-                    BreadcrumbEntry::Name("expression"),
+                    BreadcrumbEntry::with_name("expression"),
                     to_breadcrumb_walk_node(&expression.expression),
                 )],
                 StatementNode::DeclarationStatement(declaration) => vec![(
-                    BreadcrumbEntry::Name("declaration"),
+                    BreadcrumbEntry::with_name("declaration"),
                     to_breadcrumb_walk_node(&declaration.declaration),
                 )],
             },
             AnyNode::Expression(expression) => match expression {
                 ExpressionNode::IdentifierExpression(identifier) => {
                     vec![(
-                        BreadcrumbEntry::Name("identifier"),
+                        BreadcrumbEntry::with_name("identifier"),
                         to_breadcrumb_walk_node(&identifier.identifier),
                     )]
                 }
                 ExpressionNode::CauseExpression(cause) => {
                     vec![(
-                        BreadcrumbEntry::Name("argument"),
+                        BreadcrumbEntry::with_name("argument"),
                         to_breadcrumb_walk_node(&cause.argument),
                     )]
                 }
@@ -155,11 +155,11 @@ impl BreadcrumbWalk for AnyNode {
                     // arguments, callee
                     vec![
                         (
-                            BreadcrumbEntry::Name("arguments"),
+                            BreadcrumbEntry::with_name("arguments"),
                             to_any_node_list(&call.arguments),
                         ),
                         (
-                            BreadcrumbEntry::Name("callee"),
+                            BreadcrumbEntry::with_name("callee"),
                             to_breadcrumb_walk_node(&call.callee),
                         ),
                     ]
@@ -169,12 +169,12 @@ impl BreadcrumbWalk for AnyNode {
             },
             AnyNode::ImportMapping(mapping) => {
                 let mut result = vec![(
-                    BreadcrumbEntry::Name("source_name"),
+                    BreadcrumbEntry::with_name("source_name"),
                     to_breadcrumb_walk_node(&mapping.source_name),
                 )];
                 if let Some(rename) = &mapping.rename {
                     result.push((
-                        BreadcrumbEntry::Name("rename"),
+                        BreadcrumbEntry::with_name("rename"),
                         to_breadcrumb_walk_node(rename),
                     ));
                 }
@@ -184,7 +184,7 @@ impl BreadcrumbWalk for AnyNode {
 
             AnyNode::CallExpressionArgument(call_argument) => {
                 vec![(
-                    BreadcrumbEntry::Name("value"),
+                    BreadcrumbEntry::with_name("value"),
                     to_breadcrumb_walk_node(&call_argument.value),
                 )]
             }
@@ -195,7 +195,7 @@ impl BreadcrumbWalk for AnyNode {
 impl BreadcrumbWalk for FileNode {
     fn child_nodes(&self) -> Vec<(BreadcrumbEntry, BreadcrumbWalkChild)> {
         vec![(
-            BreadcrumbEntry::Name("declarations"),
+            BreadcrumbEntry::with_name("declarations"),
             to_any_node_list(&self.declarations),
         )]
     }

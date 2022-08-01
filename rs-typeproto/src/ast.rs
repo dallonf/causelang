@@ -1,4 +1,5 @@
 use std::fmt::{Debug, Display};
+use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
@@ -22,27 +23,15 @@ pub struct DocumentRange {
     pub end: DocumentPosition,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BreadcrumbEntry {
     Index(usize),
-    Name(&'static str),
+    Name(Rc<str>),
 }
 
-impl Serialize for BreadcrumbEntry {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        todo!()
-    }
-}
-
-impl<'de> Deserialize<'de> for BreadcrumbEntry {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        todo!()
+impl BreadcrumbEntry {
+    pub fn with_name(name: &str) -> Self {
+        BreadcrumbEntry::Name(name.into())
     }
 }
 
@@ -61,7 +50,7 @@ impl Breadcrumbs {
     }
 
     pub fn append_name(&self, name: &'static str) -> Self {
-        self.append(BreadcrumbEntry::Name(name))
+        self.append(BreadcrumbEntry::Name(name.into()))
     }
 
     pub fn append_index(&self, index: usize) -> Self {
@@ -79,7 +68,7 @@ impl Breadcrumbs {
     }
 
     pub fn pop_start(&self) -> (&BreadcrumbEntry, Self) {
-        let new_vec: Vec<BreadcrumbEntry> = self.0[1..].into_iter().copied().collect();
+        let new_vec: Vec<BreadcrumbEntry> = self.0[1..].into_iter().cloned().collect();
         (&self.0[0], Breadcrumbs(new_vec))
     }
 }

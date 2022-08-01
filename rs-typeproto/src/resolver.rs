@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::fmt::Write;
-use std::fs::File;
 use std::iter;
+
+use serde::Serialize;
 
 use crate::analyzer::{AnalyzedNode, ArgumentTag, NodeTag};
 use crate::ast::{AstNode, Breadcrumbs, FileNode};
@@ -16,8 +17,7 @@ pub struct ExternalFileDescriptor {
 
 #[derive(Debug, Clone)]
 pub struct FileResolverInput<'a> {
-    pub path: String,
-    pub source: String,
+    pub path: &'a str,
     pub file_node: &'a AstNode<FileNode>,
     pub analyzed: &'a AnalyzedNode,
     pub other_files: HashMap<String, ExternalFileDescriptor>,
@@ -38,7 +38,6 @@ pub struct ResolvedFile {
 pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
     let FileResolverInput {
         path,
-        source,
         file_node,
         analyzed,
         other_files,
@@ -447,8 +446,8 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
                                 path,
                                 export_name: Some(export_name),
                             } => {
-                                if let Some(file) = other_files.get(path) {
-                                    if let Some(export) = file.exports.get(export_name) {
+                                if let Some(file) = other_files.get(path.as_str()) {
+                                    if let Some(export) = file.exports.get(export_name.as_str()) {
                                         iteration_resolved_references
                                             .push((pending_key.to_owned(), export.to_owned()))
                                     } else {
@@ -515,7 +514,7 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
 
                             NodeTag::ArgumentForCall((call, argument_tag)) => {
                                 let call_type = node_tags
-                                    .get(call)
+                                    .get(&call)
                                     .expect("Missing tags for call expression")
                                     .iter()
                                     .find_map(|call_tag| match call_tag {
@@ -643,13 +642,13 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
     }
 
     ResolvedFile {
-        path: path,
+        path: path.into(),
         resolved_types,
         canonical_types: known_canonical_types,
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ResolverError {
     pub file_path: String,
     pub location: Breadcrumbs,
@@ -766,7 +765,6 @@ mod test {
         resolve_for_file(FileResolverInput {
             path: "test.cau".into(),
             file_node: &ast_node,
-            source: script.to_owned(),
             analyzed: &analyzed_file,
             other_files,
         });

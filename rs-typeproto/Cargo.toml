@@ -11,4 +11,7 @@ vm_play_by_play = []
 [dependencies]
 pest = "2.0"
 pest_derive = "2.0"
-serde = { version = "1.0.140", features = ["derive"] }
+serde = { version = "1.0.140", features = ["derive", "rc"] }
+
+[dev-dependencies]
+insta = "1.17.1"
