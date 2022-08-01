@@ -6,6 +6,7 @@ use crate::compiled_file::{CompiledConstant, CompiledExport, CompiledFile, Instr
 use crate::instructions::Instruction;
 use crate::resolver::{ResolutionType, ResolvedFile};
 use crate::types::{CanonicalLangType, ResolvedValueLangType, ValueLangType};
+use crate::vm::RuntimeBadValue;
 
 pub struct CompilerInput<'a> {
     pub file_node: &'a AstNode<FileNode>,
@@ -203,33 +204,55 @@ fn compile_call_expression(
 
     compile_expression(&call_expression.node.callee, chunk, ctx);
 
-    let callee_type = ctx
+    let result_type = ctx
         .compiler_input
         .resolved
         .resolved_types
         .get(&(
             ResolutionType::Inferred,
-            call_expression.node.callee.breadcrumbs.to_owned(),
+            call_expression.breadcrumbs.to_owned(),
         ))
-        .expect("callee type unknown");
+        .expect("result type unknown");
 
-    match callee_type {
-        ValueLangType::Pending => todo!(),
-        ValueLangType::Resolved(ResolvedValueLangType::TypeReference(type_id)) => {
-            let canonical = ctx
-                .compiler_input
-                .resolved
-                .canonical_types
-                .get(type_id)
-                .expect(format!("Missing type: {type_id}").as_str());
+    if let Some(_) = result_type.get_error() {
+        // Don't call; pop all the arguments and the callee off the stack and then push an error
+        for _ in 0..(call_expression.node.arguments.len() + 1) {
+            chunk.write_instruction(Instruction::Pop);
+        }
 
-            match canonical {
-                CanonicalLangType::Signal(signal_type) => {
-                    chunk.write_instruction(Instruction::Construct);
+        chunk.write_literal(CompiledConstant::Error(RuntimeBadValue {
+            file_path: ctx.compiler_input.resolved.path.to_owned(),
+            breadcrumbs: call_expression.breadcrumbs.to_owned(),
+        }));
+    } else {
+        let callee_type = ctx
+            .compiler_input
+            .resolved
+            .resolved_types
+            .get(&(
+                ResolutionType::Inferred,
+                call_expression.node.callee.breadcrumbs.to_owned(),
+            ))
+            .expect("callee type unknown");
+
+        match callee_type {
+            ValueLangType::Resolved(ResolvedValueLangType::TypeReference(type_id)) => {
+                let canonical = ctx
+                    .compiler_input
+                    .resolved
+                    .canonical_types
+                    .get(type_id)
+                    .expect(format!("Missing type: {type_id}").as_str());
+
+                match canonical {
+                    CanonicalLangType::Signal(_) => {
+                        chunk.write_instruction(Instruction::Construct);
+                    }
                 }
             }
+            ValueLangType::Resolved(_) => todo!(),
+            ValueLangType::Pending => unimplemented!(),
+            ValueLangType::Error(_) => unimplemented!(),
         }
-        ValueLangType::Resolved(_) => todo!(),
-        ValueLangType::Error(_) => todo!(),
     }
 }

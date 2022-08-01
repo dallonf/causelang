@@ -88,9 +88,17 @@ impl ValueLangType {
             ValueLangType::Error(_) => false,
         }
     }
+
+    pub fn get_error(&self) -> Option<LangTypeError> {
+        match self {
+            ValueLangType::Resolved(_) => None,
+            ValueLangType::Pending => Some(LangTypeError::NeverResolved),
+            ValueLangType::Error(err) => Some(err.to_owned()),
+        }
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LangTypeError {
     NeverResolved,
     NotInScope,
@@ -116,30 +124,9 @@ pub enum LangTypeError {
         expected: usize,
     },
     UnknownArgument,
-    /// This detailed information is only for the compiler;
-    /// once it gets to the VM it's no longer necessary
-    Compiled,
 }
 
-impl Serialize for LangTypeError {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_unit()
-    }
-}
-
-impl<'de> Deserialize<'de> for LangTypeError {
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Ok(LangTypeError::Compiled)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ErrorSourcePosition {
     SameFile {
         path: String,

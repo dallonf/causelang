@@ -2,8 +2,10 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::ast::Breadcrumbs;
 use crate::instructions::Instruction;
 use crate::types::CanonicalLangType;
+use crate::vm::RuntimeBadValue;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompiledFile {
@@ -44,6 +46,11 @@ impl InstructionChunk {
     pub fn write_instruction(&mut self, instruction: Instruction) {
         self.instructions.push(instruction);
     }
+
+    pub fn write_literal(&mut self, constant: CompiledConstant) {
+        let index = self.add_constant(constant);
+        self.write_instruction(Instruction::Literal(index));
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -51,6 +58,7 @@ pub enum CompiledConstant {
     String(String),
     Integer(isize),
     Float(f64),
+    Error(RuntimeBadValue),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

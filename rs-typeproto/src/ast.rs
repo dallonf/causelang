@@ -1,5 +1,7 @@
 use std::fmt::{Debug, Display};
 
+use serde::{Deserialize, Serialize};
+
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct DocumentPosition {
     pub line: usize,
@@ -26,7 +28,25 @@ pub enum BreadcrumbEntry {
     Name(&'static str),
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+impl Serialize for BreadcrumbEntry {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
+    }
+}
+
+impl<'de> Deserialize<'de> for BreadcrumbEntry {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        todo!()
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Breadcrumbs(pub Vec<BreadcrumbEntry>);
 
 impl Breadcrumbs {

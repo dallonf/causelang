@@ -4,6 +4,9 @@ use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+
+use crate::ast::Breadcrumbs;
 use crate::compiled_file::{CompiledConstant, CompiledExport, CompiledFile};
 use crate::compiler::{compile, CompilerInput};
 use crate::core_runtime::get_core_export;
@@ -34,6 +37,7 @@ struct CallFrame {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RuntimeValue {
+    BadValue(RuntimeBadValue),
     Action,
     String(Arc<String>),
     Integer(isize),
@@ -75,6 +79,12 @@ pub struct RuntimeObject {
     // TODO: probably want to be a little stricter on making these
     pub type_descriptor: Arc<RuntimeTypeReference>,
     pub values: Vec<RuntimeValue>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RuntimeBadValue {
+    pub file_path: String,
+    pub breadcrumbs: Breadcrumbs,
 }
 
 #[derive(Debug)]
@@ -269,6 +279,7 @@ impl LangVm {
                         }
                         CompiledConstant::Integer(int_value) => RuntimeValue::Integer(*int_value),
                         CompiledConstant::Float(float_value) => RuntimeValue::Float(*float_value),
+                        CompiledConstant::Error(err) => RuntimeValue::BadValue(err.to_owned()),
                     };
 
                     self.stack.push_back(new_value);
