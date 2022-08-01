@@ -90,6 +90,7 @@ fn hello_vm() {
         types: HashMap::new(),
         chunks: vec![chunk],
         exports: HashMap::from_iter(vec![("main".into(), CompiledExport::Chunk(0))]),
+        resolved: None,
     };
 
     let mut vm = LangVm::new();

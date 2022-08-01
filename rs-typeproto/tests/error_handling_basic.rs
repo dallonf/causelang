@@ -1,4 +1,3 @@
-use cause_typeproto::types::{LangTypeError, PrimitiveLangType, ResolvedValueLangType};
 use cause_typeproto::vm::LangVm;
 
 use crate::common::expect_type_error;
@@ -16,38 +15,44 @@ fn no_arguments_for_signal() {
     let mut vm = LangVm::new();
     vm.add_file("project/hello.cau", script);
 
-    insta::assert_yaml_snapshot!(vm.get_compile_errors(), @r###"
-    ---
-    - file_path: project/hello.cau
-      location:
-        - Name: declarations
-        - Index: 1
-        - Name: body
-        - Name: statements
-        - Index: 0
-        - Name: expression
-        - Name: argument
-      error:
-        MissingArguments:
-          - message
+    insta::assert_debug_snapshot!(vm.get_compile_errors(), @r###"
+    [
+        ResolverError {
+            file_path: "project/hello.cau",
+            location: Breadcrumbs(
+                "declarations.1.body.statements.0.expression.argument",
+            ),
+            error: MissingArguments(
+                [
+                    "message",
+                ],
+            ),
+        },
+    ]
     "###);
 
     let result = vm
         .execute_function("project/hello.cau", "main", &vec![])
         .unwrap();
 
-    expect_type_error(&result, &vm);
-    insta::assert_yaml_snapshot!(&result.expect_caused().values, @r###"
-    ---
-    - BadValue:
-        file_path: project/hello.cau
-        breadcrumbs:
-          - Name: declarations
-          - Index: 1
-          - Name: body
-          - Name: statements
-          - Index: 0
-          - Name: expression
+    let bad_value = expect_type_error(&result, &vm);
+    insta::assert_debug_snapshot!(vm.get_error_from_bad_value(&bad_value).unwrap(), @r###"
+    ErrorTrace {
+        file_path: "project/hello.cau",
+        breadcrumbs: Breadcrumbs(
+            "declarations.1.body.statements.0.expression.argument",
+        ),
+        error: MissingArguments(
+            [
+                "message",
+            ],
+        ),
+        proxy_chain: [
+            Breadcrumbs(
+                "declarations.1.body.statements.0.expression",
+            ),
+        ],
+    }
     "###);
 }
 
@@ -62,31 +67,30 @@ fn mistyped_argument() {
     let mut vm = LangVm::new();
     vm.add_file("project/hello.cau", script);
 
-    insta::assert_yaml_snapshot!(vm.get_compile_errors(), @r###"
-    ---
-    - file_path: project/hello.cau
-      location:
-        - Name: declarations
-        - Index: 1
-        - Name: body
-        - Name: statements
-        - Index: 0
-        - Name: expression
-        - Name: argument
-        - Name: arguments
-        - Index: 0
-      error:
-        MismatchedType:
-          expected:
-            Primitive: String
-          actual:
-            Primitive: Integer
+    insta::assert_debug_snapshot!(vm.get_compile_errors(), @r###"
+    [
+        ResolverError {
+            file_path: "project/hello.cau",
+            location: Breadcrumbs(
+                "declarations.1.body.statements.0.expression.argument.arguments.0",
+            ),
+            error: MismatchedType {
+                expected: Primitive(
+                    String,
+                ),
+                actual: Primitive(
+                    Integer,
+                ),
+            },
+        },
+    ]
     "###);
 
     let result = vm
         .execute_function("project/hello.cau", "main", &vec![])
         .unwrap();
-    expect_type_error(&result, &vm);
+    let bad_value = expect_type_error(&result, &vm);
+    insta::assert_debug_snapshot!(vm.get_error_from_bad_value(&bad_value).unwrap(), @"");
 }
 
 #[test]
@@ -100,23 +104,32 @@ fn cause_non_signal() {
     let mut vm = LangVm::new();
     vm.add_file("project/hello.cau", script);
 
-    insta::assert_yaml_snapshot!(vm.get_compile_errors(), @r###"
-    ---
-    - file_path: project/hello.cau
-      location:
-        - Name: declarations
-        - Index: 1
-        - Name: body
-        - Name: statements
-        - Index: 0
-        - Name: expression
-      error: NotCausable
+    insta::assert_debug_snapshot!(vm.get_compile_errors(), @r###"
+    [
+        ResolverError {
+            file_path: "project/hello.cau",
+            location: Breadcrumbs(
+                "declarations.1.body.statements.0.expression",
+            ),
+            error: NotCausable,
+        },
+    ]
     "###);
 
     let result = vm
         .execute_function("project/hello.cau", "main", &vec![])
         .unwrap();
-    expect_type_error(&result, &vm);
+    let bad_value = expect_type_error(&result, &vm);
+    insta::assert_debug_snapshot!(vm.get_error_from_bad_value(&bad_value).unwrap(), @r###"
+    ErrorTrace {
+        file_path: "project/hello.cau",
+        breadcrumbs: Breadcrumbs(
+            "declarations.1.body.statements.0.expression",
+        ),
+        error: NotCausable,
+        proxy_chain: [],
+    }
+    "###);
 }
 
 #[test]
@@ -130,10 +143,11 @@ fn non_existent_signal() {
     let mut vm = LangVm::new();
     vm.add_file("project/hello.cau", script);
 
-    insta::assert_yaml_snapshot!(vm.get_compile_errors(), @"");
+    insta::assert_debug_snapshot!(vm.get_compile_errors(), @"");
 
     let result = vm
         .execute_function("project/hello.cau", "main", &vec![])
         .unwrap();
-    expect_type_error(&result, &vm);
+    let bad_value = expect_type_error(&result, &vm);
+    insta::assert_debug_snapshot!(vm.get_error_from_bad_value(&bad_value).unwrap(), @"");
 }

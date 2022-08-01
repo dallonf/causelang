@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::iter;
 
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 use crate::analyzer::{AnalyzedNode, ArgumentTag, NodeTag};
 use crate::ast::{AstNode, Breadcrumbs, FileNode};
@@ -23,12 +23,13 @@ pub struct FileResolverInput<'a> {
     pub other_files: HashMap<String, ExternalFileDescriptor>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ResolutionType {
     Inferred,
     Constraint,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResolvedFile {
     pub path: String,
     pub resolved_types: HashMap<(ResolutionType, Breadcrumbs), ValueLangType>,

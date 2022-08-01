@@ -1,6 +1,6 @@
-use cause_typeproto::vm::{LangVm, RunResult, RuntimeValue};
+use cause_typeproto::vm::{LangVm, RunResult, RuntimeBadValue, RuntimeValue};
 
-pub fn expect_type_error(result: &RunResult, vm: &LangVm) {
+pub fn expect_type_error(result: &RunResult, vm: &LangVm) -> RuntimeBadValue {
     let result = match result {
         RunResult::Returned(_) => panic!("Expected a signal"),
         RunResult::Caused(signal) => signal,
@@ -11,8 +11,8 @@ pub fn expect_type_error(result: &RunResult, vm: &LangVm) {
         &vm.get_type_id("core/builtin", "TypeError").unwrap()
     );
     assert!(result.values.len() == 1);
-    assert!(match &result.values[0] {
-        RuntimeValue::BadValue(_) => true,
-        _ => false,
-    });
+    match &result.values[0] {
+        RuntimeValue::BadValue(bad_value) => bad_value.to_owned(),
+        it => panic!("{:?} should be a BadValue", it),
+    }
 }

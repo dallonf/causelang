@@ -35,6 +35,7 @@ pub fn compile(input: CompilerInput) -> CompiledFile {
         types: HashMap::new(),
         chunks: vec![],
         exports: HashMap::new(),
+        resolved: Some(input.resolved.clone()),
     };
 
     for declaration in &input.file_node.node.declarations {

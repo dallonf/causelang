@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ast::Breadcrumbs;
 use crate::instructions::Instruction;
+use crate::resolver::ResolvedFile;
 use crate::types::CanonicalLangType;
 use crate::vm::RuntimeBadValue;
 
@@ -13,6 +14,8 @@ pub struct CompiledFile {
     pub types: HashMap<String, CanonicalLangType>,
     pub chunks: Vec<InstructionChunk>,
     pub exports: HashMap<String, CompiledExport>,
+
+    pub resolved: Option<ResolvedFile>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

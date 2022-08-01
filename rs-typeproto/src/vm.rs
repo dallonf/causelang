@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
@@ -12,8 +13,12 @@ use crate::compiler::{compile, CompilerInput};
 use crate::core_runtime::get_core_export;
 use crate::instructions::Instruction;
 use crate::parse;
-use crate::resolver::{resolve_for_file, FileResolverInput, ResolverError};
-use crate::types::{CanonicalLangTypeId, SignalCanonicalLangType};
+use crate::resolver::{
+    resolve_for_file, FileResolverInput, ResolutionType, ResolvedFile, ResolverError,
+};
+use crate::types::{
+    CanonicalLangTypeId, ErrorSourcePosition, LangTypeError, SignalCanonicalLangType,
+};
 use crate::types::{ResolvedValueLangType, ValueLangType};
 use crate::{analyzer, core_builtin};
 
@@ -87,6 +92,14 @@ pub struct RuntimeBadValue {
     pub breadcrumbs: Breadcrumbs,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ErrorTrace {
+    pub file_path: String,
+    pub breadcrumbs: Breadcrumbs,
+    pub error: LangTypeError,
+    pub proxy_chain: Vec<Breadcrumbs>,
+}
+
 #[derive(Debug, Serialize)]
 pub enum RunResult {
     Returned(RuntimeValue),
@@ -152,6 +165,69 @@ impl LangVm {
 
     pub fn get_compile_errors(&self) -> &[ResolverError] {
         &self.compile_errors
+    }
+
+    pub fn get_error_from_bad_value(
+        &self,
+        bad_value: &RuntimeBadValue,
+    ) -> Result<ErrorTrace, String> {
+        let mut proxy_chain = vec![];
+
+        let mut breadcrumbs: Cow<Breadcrumbs> = Cow::Borrowed(&bad_value.breadcrumbs);
+        let file: &CompiledFile = self
+            .files
+            .get(&bad_value.file_path)
+            .ok_or_else(|| {
+                format!(
+                    "This error comes from {}, but I don't know that file.",
+                    bad_value.file_path
+                )
+            })?
+            .as_ref();
+        let resolved_file: &ResolvedFile = file.resolved.as_ref().ok_or_else(|| {
+            format!(
+                "I don't have detailed error reporting for {}",
+                bad_value.file_path
+            )
+        })?;
+
+        let found_error = loop {
+            let found_error = resolved_file
+                .resolved_types
+                .get(&(
+                    ResolutionType::Inferred,
+                    breadcrumbs.to_owned().into_owned(),
+                ))
+                .ok_or("Invalid breadcrumb")?;
+
+            match found_error {
+                ValueLangType::Pending => break LangTypeError::NeverResolved,
+                ValueLangType::Resolved(value) => {
+                    return Err(format!(
+                        "This points to a value that isn't an error: {:?}",
+                        value
+                    ))
+                }
+                ValueLangType::Error(LangTypeError::ProxyError {
+                    caused_by:
+                        ErrorSourcePosition::SameFile {
+                            path: _path,
+                            breadcrumbs: new_breadcrumbs,
+                        },
+                }) => {
+                    proxy_chain.push(breadcrumbs.into_owned());
+                    breadcrumbs = Cow::Owned(new_breadcrumbs.to_owned())
+                }
+                ValueLangType::Error(err) => break err.to_owned(),
+            }
+        };
+
+        Ok(ErrorTrace {
+            file_path: bad_value.file_path.to_owned(),
+            breadcrumbs: breadcrumbs.into_owned(),
+            error: found_error,
+            proxy_chain,
+        })
     }
 
     pub fn get_type_id(&self, file_path: &str, name: &str) -> Result<CanonicalLangTypeId, String> {
