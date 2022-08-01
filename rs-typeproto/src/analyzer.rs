@@ -84,9 +84,8 @@ pub enum NodeTag {
         type_declaration: Option<Breadcrumbs>,
         value: Breadcrumbs,
     },
-    BasicConstraint {
-        type_annotation: Breadcrumbs,
-    },
+    TypeAnnotated(Breadcrumbs),
+    AnnotatesTypeFor(Breadcrumbs),
 }
 
 impl NodeTag {
@@ -137,7 +136,14 @@ impl NodeTag {
             )),
             NodeTag::Expression => None,
             NodeTag::NamedValue { .. } => None,
-            NodeTag::BasicConstraint { .. } => None,
+            NodeTag::TypeAnnotated(annotation) => Some((
+                annotation.to_owned(),
+                NodeTag::AnnotatesTypeFor(breadcrumbs.to_owned()),
+            )),
+            NodeTag::AnnotatesTypeFor(value) => Some((
+                value.to_owned(),
+                NodeTag::TypeAnnotated(breadcrumbs.to_owned()),
+            )),
         }
     }
 }
@@ -408,9 +414,7 @@ fn analyze_named_value_declaration(
         result = result.merge(&analyze_type_reference(&type_annotation, ctx));
         result.add_tag(
             ast_node.node.value.breadcrumbs.to_owned(),
-            NodeTag::BasicConstraint {
-                type_annotation: type_annotation.breadcrumbs.to_owned(),
-            },
+            NodeTag::TypeAnnotated(type_annotation.breadcrumbs.to_owned()),
         )
     }
 

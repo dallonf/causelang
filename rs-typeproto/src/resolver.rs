@@ -26,7 +26,7 @@ pub struct FileResolverInput<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ResolutionType {
     Inferred,
-    Constraint,
+    Expected,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,7 +53,7 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
     let mut resolved_types = HashMap::<(ResolutionType, Breadcrumbs), ValueLangType>::new();
     let mut known_canonical_types = HashMap::<CanonicalLangTypeId, CanonicalLangType>::new();
 
-    // start by resolving all expressions, top-level declarations, and constraints
+    // start by resolving all expressions, top-level declarations, and explicit type declarations
     for (node_breadcrumbs, tags) in node_tags.iter() {
         for tag in tags.iter() {
             match tag {
@@ -63,9 +63,9 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
                         ValueLangType::Pending,
                     );
                 }
-                NodeTag::BasicConstraint { .. } => {
+                NodeTag::TypeAnnotated(_) => {
                     resolved_types.insert(
-                        (ResolutionType::Constraint, node_breadcrumbs.to_owned()),
+                        (ResolutionType::Expected, node_breadcrumbs.to_owned()),
                         ValueLangType::Pending,
                     );
                     resolved_types.insert(
@@ -75,7 +75,7 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
                 }
                 NodeTag::ArgumentForCall(_) => {
                     resolved_types.insert(
-                        (ResolutionType::Constraint, node_breadcrumbs.to_owned()),
+                        (ResolutionType::Expected, node_breadcrumbs.to_owned()),
                         ValueLangType::Pending,
                     );
                     resolved_types.insert(
@@ -110,7 +110,6 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
     }
 
     // try to resolve all references
-
     loop {
         let mut iteration_resolved_references =
             Vec::<((ResolutionType, Breadcrumbs), ValueLangType)>::new();
@@ -118,7 +117,7 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
         macro_rules! get_resolved_type_of {
             ( $x:expr ) => {{
                 let found = resolved_types
-                    .get(&(ResolutionType::Constraint, $x.to_owned()))
+                    .get(&(ResolutionType::Expected, $x.to_owned()))
                     .or_else(|| resolved_types.get(&(ResolutionType::Inferred, $x.to_owned())));
 
                 if let Some(found) = found {
@@ -484,8 +483,8 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
                             _ => (),
                         },
 
-                        ResolutionType::Constraint => match tag {
-                            NodeTag::BasicConstraint { type_annotation } => {
+                        ResolutionType::Expected => match tag {
+                            NodeTag::TypeAnnotated(type_annotation) => {
                                 match get_resolved_type_of!(type_annotation) {
                                     ValueLangType::Pending => {}
                                     ValueLangType::Resolved(type_annotation) => {
@@ -600,48 +599,7 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
             break;
         }
     }
-
-    // handle constraints
-    let mut constraint_modified_references =
-        Vec::<((ResolutionType, Breadcrumbs), ValueLangType)>::new();
-
-    let constraints = resolved_types.iter().filter(|it| match it {
-        ((ResolutionType::Constraint, _), _) => true,
-        _ => false,
-    });
-    for constraint in constraints {
-        let ((_, constrained_breadcrumbs), expected_type_reference) = constraint;
-
-        let expected_type = match expected_type_reference {
-            ValueLangType::Resolved(expected_type_reference) => Some(expected_type_reference),
-            ValueLangType::Pending => None,
-            ValueLangType::Error(_) => None,
-        };
-
-        let actual_type = match resolved_types
-            .get(&(ResolutionType::Inferred, constrained_breadcrumbs.to_owned()))
-        {
-            Some(ValueLangType::Resolved(resolved)) => Some(resolved.to_owned()),
-            Some(_) => None,
-            None => None,
-        };
-
-        if let (Some(expected_type), Some(actual_type)) = (expected_type, actual_type) {
-            if expected_type != &actual_type {
-                constraint_modified_references.push((
-                    (ResolutionType::Inferred, constrained_breadcrumbs.to_owned()),
-                    ValueLangType::Error(LangTypeError::MismatchedType {
-                        expected: expected_type.to_owned(),
-                        actual: actual_type,
-                    }),
-                ))
-            }
-        }
-    }
-    for modified in constraint_modified_references {
-        resolved_types.insert(modified.0, modified.1);
-    }
-
+    
     ResolvedFile {
         path: path.into(),
         resolved_types,
