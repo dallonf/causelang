@@ -92,6 +92,7 @@ impl ValueLangType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LangTypeError {
+    NeverResolved,
     NotInScope,
     FileNotFound,
     ExportNotFound,

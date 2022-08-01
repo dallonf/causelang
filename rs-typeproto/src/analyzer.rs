@@ -587,26 +587,3 @@ fn analyze_call_expression(
 
     result
 }
-
-#[cfg(test)]
-mod test {
-    use crate::parse;
-
-    use super::*;
-
-    #[test]
-    fn hello_world() {
-        let script = r#"
-          import langtest/effects { Print }
-
-          function main() {
-              cause Print("Hello World")
-          }
-        "#;
-
-        let ast_node = parse::parse(script).unwrap();
-        let result = analyze_file(&ast_node);
-
-        println!("{result:#?}");
-    }
-}

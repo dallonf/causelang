@@ -9,7 +9,7 @@ use crate::compiler::{compile, CompilerInput};
 use crate::core_runtime::get_core_export;
 use crate::instructions::Instruction;
 use crate::parse;
-use crate::resolver::{resolve_for_file, FileResolverInput};
+use crate::resolver::{resolve_for_file, FileResolverInput, ResolverError};
 use crate::types::{CanonicalLangTypeId, SignalCanonicalLangType};
 use crate::types::{ResolvedValueLangType, ValueLangType};
 use crate::{analyzer, core_builtin};
@@ -18,6 +18,7 @@ type WrappedCallFrame = Rc<RefCell<CallFrame>>;
 
 pub struct LangVm {
     files: HashMap<String, Arc<CompiledFile>>,
+    compile_errors: Vec<ResolverError>,
     call_frame: Option<WrappedCallFrame>,
     stack: VecDeque<RuntimeValue>,
 }
@@ -107,6 +108,7 @@ impl LangVm {
     pub fn new() -> LangVm {
         LangVm {
             files: HashMap::new(),
+            compile_errors: Vec::new(),
             call_frame: None,
             stack: VecDeque::new(),
         }
@@ -129,6 +131,7 @@ impl LangVm {
             // TODO: need to include the other files in the VM
             other_files: HashMap::new(),
         });
+        self.compile_errors.append(&mut resolved_file.get_errors());
         let compiled_file = compile(CompilerInput {
             file_node: &ast_node,
             analyzed: &analyzed_file,
@@ -136,6 +139,10 @@ impl LangVm {
         });
 
         self.add_compiled_file(compiled_file);
+    }
+
+    pub fn get_compile_errors(&self) -> &[ResolverError] {
+        &self.compile_errors
     }
 
     pub fn get_type_id(&self, file_path: &str, name: &str) -> Result<CanonicalLangTypeId, String> {
@@ -245,8 +252,10 @@ impl LangVm {
                 };
             }
 
-            println!("stack: {:?}", self.stack);
-            println!("instruction: {instruction:?}");
+            if cfg!(feature = "vm_play_by_play") {
+                println!("stack: {:?}", self.stack);
+                println!("instruction: {instruction:?}");
+            }
 
             match instruction {
                 &Instruction::Pop => {

@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fmt::Write;
+use std::fs::File;
 use std::iter;
 
 use crate::analyzer::{AnalyzedNode, ArgumentTag, NodeTag};
@@ -618,18 +620,52 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
         resolved_types.insert(modified.0, modified.1);
     }
 
-    println!("resolved types: {resolved_types:#?}");
+    ResolvedFile {
+        path: path,
+        resolved_types,
+        canonical_types: known_canonical_types,
+    }
+}
 
-    println!("type errors:");
-    let errors = resolved_types.iter().filter(|it| match it {
-        ((_, _), ValueLangType::Error(LangTypeError::ProxyError { .. })) => false,
-        ((_, _), ValueLangType::Error(_) | ValueLangType::Pending) => true,
-        _ => false,
-    });
-    for ((_, error_breadcrumbs), error_type) in errors {
-        println!("{error_type:#?} at");
+#[derive(Debug, Clone)]
+pub struct ResolverError {
+    pub file_path: String,
+    pub location: Breadcrumbs,
+    pub error: LangTypeError,
+}
 
-        let node = file_node.node.find_node(error_breadcrumbs);
+impl ResolvedFile {
+    pub fn get_errors(&self) -> Vec<ResolverError> {
+        self.resolved_types
+            .iter()
+            .filter_map(|((_, breadcrumbs), resolved_type)| match resolved_type {
+                ValueLangType::Resolved(_) => None,
+                ValueLangType::Error(LangTypeError::ProxyError { .. }) => None,
+                ValueLangType::Error(error) => Some(ResolverError {
+                    file_path: self.path.to_owned(),
+                    location: breadcrumbs.to_owned(),
+                    error: error.to_owned(),
+                }),
+                ValueLangType::Pending => Some(ResolverError {
+                    file_path: self.path.to_owned(),
+                    location: breadcrumbs.to_owned(),
+                    error: LangTypeError::NeverResolved,
+                }),
+            })
+            .collect()
+    }
+}
+
+impl ResolverError {
+    pub fn format_error(
+        &self,
+        source: &str,
+        ast: &AstNode<FileNode>,
+        destination: &mut impl Write,
+    ) -> Result<(), std::fmt::Error> {
+        writeln!(destination, "{:#?} at", self.error)?;
+
+        let node = ast.node.find_node(&self.location);
         let line = node.position.start.line;
         let start_line = {
             if line > 2 {
@@ -640,23 +676,17 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
         };
 
         for line in source.lines().skip(start_line).take(line - start_line) {
-            println!("{line}");
+            writeln!(destination, "{line}")?;
         }
         let col = node.position.start.col;
         let prefix_length = if col > 1 { col - 1 } else { 0 };
         let prefix: String = (0..prefix_length).map(|_| '-').collect();
-        println!("{prefix}^ line {}, col {}", line, col);
+        writeln!(destination, "{prefix}^ line {}, col {}", line, col)?;
         for line in source.lines().skip(line).take(2) {
-            println!("{line}");
+            writeln!(destination, "{line}")?;
         }
 
-        println!();
-    }
-
-    ResolvedFile {
-        path: path,
-        resolved_types,
-        canonical_types: known_canonical_types,
+        Ok(())
     }
 }
 
