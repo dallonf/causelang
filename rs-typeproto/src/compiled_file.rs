@@ -56,7 +56,7 @@ impl InstructionChunk {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CompiledConstant {
     String(String),
-    Integer(isize),
+    Integer(i64),
     Float(f64),
     Error(RuntimeBadValue),
 }

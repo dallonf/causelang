@@ -89,10 +89,18 @@ impl ValueLangType {
         }
     }
 
-    pub fn get_error(&self) -> Option<LangTypeError> {
+    pub fn get_runtime_error(&self) -> Option<LangTypeError> {
         match self {
             ValueLangType::Resolved(_) => None,
             ValueLangType::Pending => Some(LangTypeError::NeverResolved),
+            ValueLangType::Error(err) => Some(err.to_owned()),
+        }
+    }
+
+    pub fn get_error(&self) -> Option<LangTypeError> {
+        match self {
+            ValueLangType::Resolved(_) => None,
+            ValueLangType::Pending => None,
             ValueLangType::Error(err) => Some(err.to_owned()),
         }
     }

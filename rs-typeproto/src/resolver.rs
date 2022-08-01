@@ -145,7 +145,7 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
             }
 
             if let Some(pending_tags) = node_tags.get(&pending_key.1) {
-                for tag in pending_tags {
+                'each_tag: for tag in pending_tags {
                     match &pending_key.0 {
                         ResolutionType::Inferred => match tag {
                             NodeTag::ValueComesFrom(comes_from) => {
@@ -204,12 +204,23 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
                                                             .collect()
                                                     });
                                                 if let Some(argument_tags) = argument_tags {
-                                                    let arguments = argument_tags.into_iter().map(
-                                                        |(argument_breadcrumbs, argument_tag)|
-                                                        ((get_resolved_type_of!(argument_breadcrumbs), argument_tag))
-                                                    ).collect::<Vec<_>>();
-
-                                                    for (argument_type, argument_tag) in arguments {
+                                                    for (argument_breadcrumbs, argument_tag) in
+                                                        argument_tags
+                                                    {
+                                                        let argument_type = get_resolved_type_of!(
+                                                            argument_breadcrumbs
+                                                        );
+                                                        if let Some(_) = argument_type.get_error() {
+                                                            resolve_with!(ValueLangType::Error(
+                                                                LangTypeError::ProxyError {
+                                                                    caused_by: ErrorSourcePosition::SameFile { 
+                                                                        path: path.to_owned(),
+                                                                        breadcrumbs: argument_breadcrumbs.to_owned() 
+                                                                    }
+                                                                }
+                                                            ));
+                                                            continue 'each_tag;
+                                                        }
                                                         match argument_tag {
                                                             ArgumentTag::Positional(i) => {
                                                                 if *i < args.len() {

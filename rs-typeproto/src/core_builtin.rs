@@ -45,11 +45,11 @@ pub fn core_builtin_file() -> (String, ExternalFileDescriptor) {
                         params: vec![LangParameter {
                             name: "message".to_owned(),
                             value_type: ValueLangType::Resolved(
-                                ResolvedValueLangType::PrimitiveType(PrimitiveLangType::String),
+                                ResolvedValueLangType::Primitive(PrimitiveLangType::String),
                             ),
                         }],
                         result: Box::new(ValueLangType::Resolved(
-                            ResolvedValueLangType::PrimitiveType(PrimitiveLangType::Action),
+                            ResolvedValueLangType::Primitive(PrimitiveLangType::Action),
                         )),
                     }),
                 )),

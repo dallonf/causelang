@@ -128,11 +128,11 @@ fn compile_expression(
             );
         }
         ExpressionNode::StringLiteralExpression(string_literal) => {
-            let constant =
-                chunk.add_constant(CompiledConstant::String(string_literal.text.to_owned()));
-            chunk.write_instruction(Instruction::Literal(constant));
+            chunk.write_literal(CompiledConstant::String(string_literal.text.to_owned()));
         }
-        ExpressionNode::IntegerLiteralExpression(_) => todo!(),
+        ExpressionNode::IntegerLiteralExpression(int_literal) => {
+            chunk.write_literal(CompiledConstant::Integer(int_literal.value))
+        }
     }
 
     let expression_type = ctx
@@ -142,7 +142,7 @@ fn compile_expression(
         .get(&(ResolutionType::Inferred, expression.breadcrumbs.to_owned()))
         .expect("unknown type of expression");
 
-    if let Some(_) = expression_type.get_error() {
+    if let Some(_) = expression_type.get_runtime_error() {
         chunk.write_instruction(Instruction::Pop);
         chunk.write_literal(CompiledConstant::Error(RuntimeBadValue {
             file_path: ctx.compiler_input.resolved.path.to_owned(),
@@ -212,7 +212,7 @@ fn compile_cause_expression(
             cause_expression.breadcrumbs.to_owned(),
         ))
         .expect("missing type for expression")
-        .get_error()
+        .get_runtime_error()
     {
         chunk.write_instruction(Instruction::Pop);
         chunk.write_literal(CompiledConstant::Error(RuntimeBadValue {
@@ -239,7 +239,6 @@ fn compile_call_expression(
     chunk: &mut InstructionChunk,
     ctx: &CompilerContext,
 ) {
-    // TODO: assuming all arguments are positional, and arity is correct
     for argument in &call_expression.node.arguments {
         compile_expression(&argument.node.value, chunk, ctx);
     }
@@ -256,7 +255,7 @@ fn compile_call_expression(
         ))
         .expect("result type unknown");
 
-    if let Some(_) = result_type.get_error() {
+    if let Some(_) = result_type.get_runtime_error() {
         // Don't call; pop all the arguments and the callee off the stack and then push an error
         for _ in 0..(call_expression.node.arguments.len() + 1) {
             chunk.write_instruction(Instruction::Pop);

@@ -40,7 +40,7 @@ pub enum RuntimeValue {
     BadValue(RuntimeBadValue),
     Action,
     String(Arc<String>),
-    Integer(isize),
+    Integer(i64),
     Float(f64),
     Object(Arc<RuntimeObject>),
     TypeReference(Arc<RuntimeTypeReference>),
