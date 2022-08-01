@@ -13,7 +13,7 @@ use cause_typeproto::types::*;
 use cause_typeproto::vm::{LangVm, RuntimeValue};
 
 #[test]
-fn hello_world() {
+fn analyze_hello_world() {
     let script = r#"
       import langtest/signals { Print }
 

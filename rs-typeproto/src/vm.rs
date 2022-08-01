@@ -4,9 +4,13 @@ use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use crate::analyzer;
 use crate::compiled_file::{CompiledConstant, CompiledExport, CompiledFile};
+use crate::compiler::{compile, CompilerInput};
 use crate::core_runtime::get_core_export;
 use crate::instructions::Instruction;
+use crate::parse;
+use crate::resolver::{resolve_for_file, FileResolverInput};
 use crate::types::SignalCanonicalLangType;
 use crate::types::ValueLangType;
 
@@ -27,7 +31,7 @@ struct CallFrame {
     parent: Option<WrappedCallFrame>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RuntimeValue {
     Action,
     String(Arc<String>),
@@ -44,7 +48,7 @@ impl RuntimeValue {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum RuntimeTypeReference {
     Signal(SignalCanonicalLangType),
 }
@@ -57,7 +61,7 @@ impl Debug for RuntimeTypeReference {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RuntimeObject {
     // TODO: probably want to be a little stricter on making these
     pub type_descriptor: Arc<RuntimeTypeReference>,
@@ -84,6 +88,28 @@ impl LangVm {
 
     pub fn add_compiled_file(&mut self, file: CompiledFile) {
         self.files.insert(file.path.to_owned(), file.into());
+    }
+
+    pub fn add_file(&mut self, file_path: &str, source: &str) {
+        let ast_node = parse::parse(source).unwrap();
+        let analyzed_file = analyzer::analyze_file(&ast_node);
+        // TODO: need a step between here and compilation to allow for loading other files
+
+        let resolved_file = resolve_for_file(FileResolverInput {
+            path: file_path.into(),
+            file_node: &ast_node,
+            source: source.to_owned(),
+            analyzed: &analyzed_file,
+            // TODO: need to include the other files in the VM
+            other_files: HashMap::new(),
+        });
+        let compiled_file = compile(CompilerInput {
+            file_node: &ast_node,
+            analyzed: &analyzed_file,
+            resolved: &resolved_file,
+        });
+
+        self.add_compiled_file(compiled_file);
     }
 
     pub fn execute_function(
@@ -200,12 +226,12 @@ impl LangVm {
                     };
 
                     if file_path.starts_with("core/") {
-                        let value = get_core_export(file_path, export_name);
+                        let value = get_core_export(&file_path, &export_name);
                         self.stack.push_back(value?);
                     } else {
                         let file = self
                             .files
-                            .get(file_path)
+                            .get(file_path.as_str())
                             .ok_or_else(|| format!("I couldn't find the file: {}.", file_path))?;
 
                         let export = file.exports.get(export_name).ok_or_else(|| {

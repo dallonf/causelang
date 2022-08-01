@@ -75,6 +75,7 @@ fn compile_function(
                     i == block_body.statements.len() - 1,
                 );
             }
+            // TODO: make sure this is the right type to return
             chunk.write_instruction(Instruction::Return);
         }
     }
