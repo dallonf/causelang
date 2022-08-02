@@ -599,7 +599,51 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
             break;
         }
     }
+
     
+    // compare expected to inferred types
+    {
+        let mut modified_resolutions =
+            Vec::<((ResolutionType, Breadcrumbs), ValueLangType)>::new();
+
+        let expected_types = resolved_types.iter().filter(|it| match it {
+            ((ResolutionType::Expected, _), _) => true,
+            _ => false,
+        });
+        for expected in expected_types {
+            let ((_, breadcrumbs_of_expected_type), expected_type_reference) = expected;
+
+            let expected_type = match expected_type_reference {
+                ValueLangType::Resolved(expected_type_reference) => Some(expected_type_reference),
+                ValueLangType::Pending => None,
+                ValueLangType::Error(_) => None,
+            };
+
+            let actual_type = match resolved_types
+                .get(&(ResolutionType::Inferred, breadcrumbs_of_expected_type.to_owned()))
+            {
+                Some(ValueLangType::Resolved(resolved)) => Some(resolved.to_owned()),
+                Some(_) => None,
+                None => None,
+            };
+
+            if let (Some(expected_type), Some(actual_type)) = (expected_type, actual_type) {
+                if expected_type != &actual_type {
+                    modified_resolutions.push((
+                        (ResolutionType::Inferred, breadcrumbs_of_expected_type.to_owned()),
+                        ValueLangType::Error(LangTypeError::MismatchedType {
+                            expected: expected_type.to_owned(),
+                            actual: actual_type,
+                        }),
+                    ))
+                }
+            }
+        }
+        for modified in modified_resolutions {
+            resolved_types.insert(modified.0, modified.1);
+        }
+    }
+
     ResolvedFile {
         path: path.into(),
         resolved_types,
