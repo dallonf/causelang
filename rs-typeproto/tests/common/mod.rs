@@ -16,3 +16,14 @@ pub fn expect_type_error(result: &RunResult, vm: &LangVm) -> RuntimeBadValue {
         it => panic!("{:?} should be a BadValue", it),
     }
 }
+
+pub fn expect_invalid_cause(result: &RunResult) -> RuntimeBadValue {
+    let result = match result {
+        RunResult::Returned(_) => panic!("Expected a signal"),
+        RunResult::Caused(signal) => signal,
+    };
+
+    let validated = result.as_ref().to_owned().validate();
+
+    validated.as_bad_value().expect("Expected a bad value")
+}

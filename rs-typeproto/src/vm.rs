@@ -56,6 +56,37 @@ impl RuntimeValue {
         // TODO: implement this!
         true
     }
+
+    pub fn as_bad_value(self) -> Option<RuntimeBadValue> {
+        match self {
+            RuntimeValue::BadValue(bad_value) => Some(bad_value),
+            _ => None,
+        }
+    }
+
+    pub fn validate(self) -> RuntimeValue {
+        match self {
+            it @ RuntimeValue::BadValue(_)
+            | it @ RuntimeValue::Action
+            | it @ RuntimeValue::String(_)
+            | it @ RuntimeValue::Integer(_)
+            | it @ RuntimeValue::Float(_)
+            | it @ RuntimeValue::TypeReference(_) => it,
+            RuntimeValue::Object(_) => todo!(),
+        }
+    }
+
+    pub fn is_valid(&self) -> bool {
+        match self {
+            RuntimeValue::BadValue(_) => false,
+            RuntimeValue::Action
+            | RuntimeValue::String(_)
+            | RuntimeValue::Integer(_)
+            | RuntimeValue::Float(_)
+            | RuntimeValue::TypeReference(_) => true,
+            RuntimeValue::Object(obj) => obj.is_valid(),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize)]
@@ -79,11 +110,37 @@ impl RuntimeTypeReference {
     }
 }
 
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RuntimeObject {
     // TODO: probably want to be a little stricter on making these
     pub type_descriptor: Arc<RuntimeTypeReference>,
     pub values: Vec<RuntimeValue>,
+}
+
+impl RuntimeObject {
+    pub fn validate(self) -> RuntimeValue {
+        // TODO: we shouldn't make a brand new object if it's all valid
+        let mut new_values = vec![];
+        for value in self.values.into_iter() {
+            let validated_value = value.validate();
+            match validated_value {
+                bad_value @ RuntimeValue::BadValue(_) => return bad_value,
+                good_value => new_values.push(good_value),
+            }
+        }
+
+        RuntimeValue::Object(
+            RuntimeObject {
+                values: new_values,
+                ..self
+            }
+            .into(),
+        )
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.values.iter().all(|it| it.is_valid())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -250,6 +250,10 @@ fn compile_call_expression(
 ) {
     for argument in &call_expression.node.arguments {
         compile_expression(&argument.node.value, chunk, ctx);
+        if let Some(_) = ctx.compiler_input.resolved.check_for_runtime_errors(&argument.breadcrumbs) {
+            chunk.write_instruction(Instruction::Pop);
+            compile_bad_value(argument, chunk, ctx);
+        }
     }
 
     compile_expression(&call_expression.node.callee, chunk, ctx);
