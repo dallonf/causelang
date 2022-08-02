@@ -36,6 +36,18 @@ pub struct ResolvedFile {
     pub canonical_types: HashMap<CanonicalLangTypeId, CanonicalLangType>,
 }
 
+impl ResolvedFile {
+    pub fn check_for_runtime_errors(&self, breadcrumbs: &Breadcrumbs) -> Option<LangTypeError> {
+        let expected = self.resolved_types.get(&(ResolutionType::Expected, breadcrumbs.to_owned())).and_then(|it| it.get_runtime_error());
+
+        expected.or_else(|| 
+            self.resolved_types.get(&(ResolutionType::Inferred, breadcrumbs.to_owned()))
+            .expect("should have an inferred type")
+            .get_runtime_error()
+        )
+    }
+}
+
 pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
     let FileResolverInput {
         path,

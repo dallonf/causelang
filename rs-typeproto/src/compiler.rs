@@ -85,6 +85,13 @@ fn compile_function(
     chunk
 }
 
+fn compile_bad_value<T>(node: &AstNode<T>, chunk: &mut InstructionChunk, ctx: &CompilerContext) {
+    chunk.write_literal(CompiledConstant::Error(RuntimeBadValue {
+        file_path: ctx.compiler_input.resolved.path.to_owned(),
+        breadcrumbs: node.breadcrumbs.to_owned(),
+    }));
+}
+
 fn compile_statement(
     statement: &AstNode<StatementNode>,
     chunk: &mut InstructionChunk,
@@ -136,19 +143,15 @@ fn compile_expression(
         }
     }
 
+    // TODO: this can be redundant since sometimes there's already a BadValue on the stack
     let expression_type = ctx
         .compiler_input
         .resolved
-        .resolved_types
-        .get(&(ResolutionType::Inferred, expression.breadcrumbs.to_owned()))
-        .expect("unknown type of expression");
+        .check_for_runtime_errors(&expression.breadcrumbs);
 
-    if let Some(_) = expression_type.get_runtime_error() {
+    if let Some(_) = expression_type {
         chunk.write_instruction(Instruction::Pop);
-        chunk.write_literal(CompiledConstant::Error(RuntimeBadValue {
-            file_path: ctx.compiler_input.resolved.path.to_owned(),
-            breadcrumbs: expression.breadcrumbs.to_owned(),
-        }));
+        compile_bad_value(expression, chunk, ctx);
     }
 }
 
@@ -157,8 +160,16 @@ fn compile_identifier_expression(
     chunk: &mut InstructionChunk,
     ctx: &CompilerContext,
 ) {
-    let tags = ctx.get_tags(&identifier.breadcrumbs);
+    if let Some(_) = ctx
+        .compiler_input
+        .resolved
+        .check_for_runtime_errors(&identifier.breadcrumbs)
+    {
+        compile_bad_value(identifier, chunk, ctx);
+        return;
+    }
 
+    let tags = ctx.get_tags(&identifier.breadcrumbs);
     let comes_from = tags
         .iter()
         .find_map(|it| {
@@ -216,10 +227,7 @@ fn compile_cause_expression(
         .get_runtime_error()
     {
         chunk.write_instruction(Instruction::Pop);
-        chunk.write_literal(CompiledConstant::Error(RuntimeBadValue {
-            file_path: ctx.compiler_input.resolved.path.to_owned(),
-            breadcrumbs: cause_expression.breadcrumbs.to_owned(),
-        }));
+        compile_bad_value(cause_expression, chunk, ctx);
         let file_path_constant =
             chunk.add_constant(CompiledConstant::String("core/builtin".to_owned()));
         let export_name_constant =
@@ -262,10 +270,7 @@ fn compile_call_expression(
             chunk.write_instruction(Instruction::Pop);
         }
 
-        chunk.write_literal(CompiledConstant::Error(RuntimeBadValue {
-            file_path: ctx.compiler_input.resolved.path.to_owned(),
-            breadcrumbs: call_expression.breadcrumbs.to_owned(),
-        }));
+        compile_bad_value(call_expression, chunk, ctx);
     } else {
         let callee_type = ctx
             .compiler_input

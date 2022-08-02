@@ -143,11 +143,37 @@ fn non_existent_signal() {
     let mut vm = LangVm::new();
     vm.add_file("project/hello.cau", script);
 
-    insta::assert_debug_snapshot!(vm.get_compile_errors(), @"");
+    insta::assert_debug_snapshot!(vm.get_compile_errors(), @r###"
+    [
+        ResolverError {
+            file_path: "project/hello.cau",
+            location: Breadcrumbs(
+                "declarations.1.body.statements.0.expression.argument.callee",
+            ),
+            error: NotInScope,
+        },
+    ]
+    "###);
 
     let result = vm
         .execute_function("project/hello.cau", "main", &vec![])
         .unwrap();
     let bad_value = expect_type_error(&result, &vm);
-    insta::assert_debug_snapshot!(vm.get_error_from_bad_value(&bad_value).unwrap(), @"");
+    insta::assert_debug_snapshot!(vm.get_error_from_bad_value(&bad_value).unwrap(), @r###"
+    ErrorTrace {
+        file_path: "project/hello.cau",
+        breadcrumbs: Breadcrumbs(
+            "declarations.1.body.statements.0.expression.argument.callee",
+        ),
+        error: NotInScope,
+        proxy_chain: [
+            Breadcrumbs(
+                "declarations.1.body.statements.0.expression",
+            ),
+            Breadcrumbs(
+                "declarations.1.body.statements.0.expression.argument",
+            ),
+        ],
+    }
+    "###);
 }
