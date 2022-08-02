@@ -18,7 +18,7 @@ fn hello_world() {
         .expect_caused();
     assert_eq!(
         result.type_descriptor.type_id(),
-        &vm.get_type_id("core/builtin", "Debug").unwrap()
+        &vm.get_type_id("core/builtin.cau", "Debug").unwrap()
     );
     assert_eq!(
         result.values,

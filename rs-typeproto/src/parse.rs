@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 
-use crate::{ast::*, core_builtin::core_builtin_file};
+use crate::{ast::*, core_descriptors::core_builtin_file};
 
 #[derive(Parser)]
 #[grammar = "cause.pest"]

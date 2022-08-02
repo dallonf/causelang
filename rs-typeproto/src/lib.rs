@@ -1,7 +1,7 @@
 pub mod analyzer;
 pub mod ast;
 pub mod breadcrumb_walk;
-mod core_builtin;
+mod core_descriptors;
 mod core_runtime;
 pub mod parse;
 pub mod resolver;

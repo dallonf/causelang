@@ -20,7 +20,7 @@ pub fn expect_type_error(result: &RunResult, vm: &LangVm) -> RuntimeBadValue {
 
     assert_eq!(
         result.type_descriptor.type_id(),
-        &vm.get_type_id("core/builtin", "TypeError").unwrap()
+        &vm.get_type_id("core/builtin.cau", "TypeError").unwrap()
     );
     assert!(result.values.len() == 1);
     match &result.values[0] {

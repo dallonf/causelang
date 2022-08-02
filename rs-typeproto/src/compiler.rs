@@ -229,7 +229,7 @@ fn compile_cause_expression(
         chunk.write_instruction(Instruction::Pop);
         compile_bad_value(cause_expression, chunk, ctx);
         let file_path_constant =
-            chunk.add_constant(CompiledConstant::String("core/builtin".to_owned()));
+            chunk.add_constant(CompiledConstant::String("core/builtin.cau".to_owned()));
         let export_name_constant =
             chunk.add_constant(CompiledConstant::String("TypeError".to_owned()));
         chunk.write_instruction(Instruction::Import {
@@ -250,7 +250,11 @@ fn compile_call_expression(
 ) {
     for argument in &call_expression.node.arguments {
         compile_expression(&argument.node.value, chunk, ctx);
-        if let Some(_) = ctx.compiler_input.resolved.check_for_runtime_errors(&argument.breadcrumbs) {
+        if let Some(_) = ctx
+            .compiler_input
+            .resolved
+            .check_for_runtime_errors(&argument.breadcrumbs)
+        {
             chunk.write_instruction(Instruction::Pop);
             compile_bad_value(argument, chunk, ctx);
         }
@@ -261,14 +265,9 @@ fn compile_call_expression(
     let result_type = ctx
         .compiler_input
         .resolved
-        .resolved_types
-        .get(&(
-            ResolutionType::Inferred,
-            call_expression.breadcrumbs.to_owned(),
-        ))
-        .expect("result type unknown");
+        .check_for_runtime_errors(&call_expression.breadcrumbs);
 
-    if let Some(_) = result_type.get_runtime_error() {
+    if let Some(_) = result_type {
         // Don't call; pop all the arguments and the callee off the stack and then push an error
         for _ in 0..(call_expression.node.arguments.len() + 1) {
             chunk.write_instruction(Instruction::Pop);
@@ -287,21 +286,13 @@ fn compile_call_expression(
             .expect("callee type unknown");
 
         match callee_type {
-            ValueLangType::Resolved(ResolvedValueLangType::TypeReference(type_id)) => {
-                let canonical = ctx
-                    .compiler_input
-                    .resolved
-                    .canonical_types
-                    .get(type_id)
-                    .expect(format!("Missing type: {type_id}").as_str());
-
-                match canonical {
-                    CanonicalLangType::Signal(_) => {
-                        chunk.write_instruction(Instruction::Construct);
-                    }
-                }
+            ValueLangType::Resolved(ResolvedValueLangType::TypeReference(_type_id)) => {
+                chunk.write_instruction(Instruction::Construct);
             }
-            ValueLangType::Resolved(_) => todo!(),
+            ValueLangType::Resolved(ResolvedValueLangType::Function(_function)) => {
+                chunk.write_instruction(Instruction::CallFunction);
+            }
+            ValueLangType::Resolved(_) => unimplemented!(),
             ValueLangType::Pending => unimplemented!(),
             ValueLangType::Error(_) => unimplemented!(),
         }

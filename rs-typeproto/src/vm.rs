@@ -14,13 +14,15 @@ use crate::core_runtime::get_core_export;
 use crate::instructions::Instruction;
 use crate::parse;
 use crate::resolver::{
-    resolve_for_file, FileResolverInput, ResolutionType, ResolvedFile, ResolverError,
+    resolve_for_file, ExternalFileDescriptor, FileResolverInput, ResolutionType, ResolvedFile,
+    ResolverError,
 };
 use crate::types::{
-    CanonicalLangTypeId, ErrorSourcePosition, LangTypeError, SignalCanonicalLangType,
+    CanonicalLangType, CanonicalLangTypeId, ErrorSourcePosition, LangTypeError,
+    SignalCanonicalLangType,
 };
 use crate::types::{ResolvedValueLangType, ValueLangType};
-use crate::{analyzer, core_builtin};
+use crate::{analyzer, core_descriptors};
 
 type WrappedCallFrame = Rc<RefCell<CallFrame>>;
 
@@ -301,23 +303,39 @@ impl LangVm {
     }
 
     pub fn get_type_id(&self, file_path: &str, name: &str) -> Result<CanonicalLangTypeId, String> {
-        if file_path == "core/builtin" {
-            let (_, builtin) = core_builtin::core_builtin_file();
-            let found = builtin
-                .exports
-                .get(name)
-                .ok_or_else(|| format!("No export named {name}"))?;
-            match found {
-                ValueLangType::Resolved(ResolvedValueLangType::Canonical(canonical)) => {
-                    Ok(canonical.id().to_owned())
-                }
-                ValueLangType::Resolved(ResolvedValueLangType::TypeReference(reference)) => {
-                    Ok(reference.to_owned())
-                }
-                _ => Err(format!("{name} is not a type.")),
+        let descriptor = if file_path == "core/builtin.cau" {
+            let (_, builtin) = core_descriptors::core_builtin_file();
+            builtin
+        } else if file_path.starts_with("core/") {
+            let file = core_descriptors::core_files()
+                .into_iter()
+                .find(|it| it.0 == file_path);
+            if let Some((_, file)) = file {
+                file
+            } else {
+                return Err(format!("I couldn't find a file called {file_path}"));
             }
         } else {
-            Err("I don't support getting types from custom files yet.".into())
+            let compiled_file = self.files.get(file_path);
+            if let Some(compiled_file) = compiled_file {
+                ExternalFileDescriptor::from(compiled_file.as_ref())
+            } else {
+                return Err(format!("I couldn't find a file called {file_path}"));
+            }
+        };
+
+        let found = descriptor
+            .exports
+            .get(name)
+            .ok_or_else(|| format!("No export named {name}"))?;
+        match found {
+            ValueLangType::Resolved(ResolvedValueLangType::Canonical(canonical)) => {
+                Ok(canonical.id().to_owned())
+            }
+            ValueLangType::Resolved(ResolvedValueLangType::TypeReference(reference)) => {
+                Ok(reference.to_owned())
+            }
+            _ => Err(format!("{name} is not a type.")),
         }
     }
 
@@ -459,7 +477,23 @@ impl LangVm {
                         })?;
 
                         let value: RuntimeValue = match export {
-                            CompiledExport::Type(_) => todo!(),
+                            CompiledExport::Type(type_id) => {
+                                let canonical_type: &CanonicalLangType =
+                                    file.types.get(type_id).ok_or_else(|| {
+                                        format!(
+                                        "The file {} exports a type of {} but doesn't define it",
+                                        file_path, type_id,
+                                    )
+                                    })?;
+
+                                let type_reference = match canonical_type {
+                                    CanonicalLangType::Signal(signal) => {
+                                        RuntimeTypeReference::Signal(signal.to_owned())
+                                    }
+                                };
+
+                                RuntimeValue::TypeReference(Arc::new(type_reference))
+                            }
                             CompiledExport::Chunk(_) => todo!(),
                             CompiledExport::Constant(_) => todo!(),
                         };

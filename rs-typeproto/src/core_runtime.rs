@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use crate::{
-    core_builtin::core_builtin_file,
+    core_descriptors::core_builtin_file,
     types::{CanonicalLangType, ResolvedValueLangType, ValueLangType},
     vm::{RuntimeTypeReference, RuntimeValue},
 };
 
-const BUILTINS_FILE: &'static str = "core/builtin";
+const BUILTINS_FILE: &'static str = "core/builtin.cau";
 
 pub fn get_core_export(file_name: &str, export_name: &str) -> Result<RuntimeValue, String> {
     match (file_name, export_name) {

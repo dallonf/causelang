@@ -7,7 +7,7 @@ use serde::{Serialize, Deserialize};
 use crate::analyzer::{AnalyzedNode, ArgumentTag, NodeTag};
 use crate::ast::{AstNode, Breadcrumbs, FileNode};
 use crate::breadcrumb_walk::BreadcrumbWalk;
-use crate::core_builtin::core_builtin_file;
+use crate::core_descriptors::{core_builtin_file, core_files};
 use crate::types::*;
 
 #[derive(Debug, Clone)]
@@ -59,6 +59,9 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
     let mut other_files = other_files.clone();
     let core_global_file = core_builtin_file();
     other_files.insert(core_global_file.0, core_global_file.1);
+    for (name, descriptor) in core_files() {
+        other_files.insert(name, descriptor);
+    }
 
     let AnalyzedNode { node_tags, .. } = analyzed;
 

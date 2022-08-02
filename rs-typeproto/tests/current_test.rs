@@ -71,7 +71,7 @@ fn hello_vm() {
     let chunk = InstructionChunk {
         constant_table: vec![
             CompiledConstant::String("Hello world!".into()),
-            CompiledConstant::String("core/builtin".into()),
+            CompiledConstant::String("core/builtin.cau".into()),
             CompiledConstant::String("Debug".into()),
         ],
         instructions: vec![
