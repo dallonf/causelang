@@ -106,6 +106,18 @@ impl ValueLangType {
     }
 }
 
+impl From<ResolvedValueLangType> for ValueLangType {
+    fn from(resolved: ResolvedValueLangType) -> Self {
+        Self::Resolved(resolved)
+    }
+}
+
+impl From<LangTypeError> for ValueLangType {
+    fn from(error: LangTypeError) -> Self {
+        Self::Error(error)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LangTypeError {
     NeverResolved,

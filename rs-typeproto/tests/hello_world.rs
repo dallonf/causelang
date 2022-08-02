@@ -2,14 +2,15 @@ use cause_typeproto::vm::{LangVm, RuntimeValue};
 
 #[test]
 fn hello_world() {
-    let script = r#"
-      function main() {
-          cause Debug("Hello world!")
-      }
-    "#;
-
     let mut vm = LangVm::new();
-    vm.add_file("project/hello.cau", script);
+    vm.add_file(
+        "project/hello.cau",
+        r#"
+            function main() {
+                cause Debug("Hello world!")
+            }
+        "#,
+    );
 
     let result = vm
         .execute_function("project/hello.cau", "main", &vec![])

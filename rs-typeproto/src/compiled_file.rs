@@ -2,20 +2,44 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::ast::Breadcrumbs;
 use crate::instructions::Instruction;
-use crate::resolver::ResolvedFile;
-use crate::types::CanonicalLangType;
+use crate::resolver::{ExternalFileDescriptor, ResolvedFile};
+use crate::types::{CanonicalLangType, CanonicalLangTypeId, ResolvedValueLangType};
 use crate::vm::RuntimeBadValue;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompiledFile {
     pub path: String,
-    pub types: HashMap<String, CanonicalLangType>,
+    pub types: HashMap<CanonicalLangTypeId, CanonicalLangType>,
     pub chunks: Vec<InstructionChunk>,
     pub exports: HashMap<String, CompiledExport>,
 
     pub resolved: Option<ResolvedFile>,
+}
+
+impl From<&CompiledFile> for ExternalFileDescriptor {
+    fn from(compiled: &CompiledFile) -> Self {
+        let mut exports = HashMap::new();
+
+        for (export_name, export) in compiled.exports.iter() {
+            match export {
+                CompiledExport::Type(type_id) => {
+                    let canonical_type = compiled.types.get(type_id).expect(&format!(
+                        "{} exports a type ({}) but doesn't describe it",
+                        compiled.path, type_id
+                    ));
+                    exports.insert(
+                        export_name.to_owned(),
+                        ResolvedValueLangType::Canonical(canonical_type.to_owned()).into(),
+                    );
+                }
+                CompiledExport::Chunk(_) => todo!(),
+                CompiledExport::Constant(_) => todo!(),
+            }
+        }
+
+        ExternalFileDescriptor { exports }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -66,7 +90,7 @@ pub enum CompiledConstant {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CompiledExport {
-    Type(String),
+    Type(CanonicalLangTypeId),
     Chunk(usize),
     Constant(CompiledConstant),
 }

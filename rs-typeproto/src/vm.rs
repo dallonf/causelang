@@ -210,12 +210,18 @@ impl LangVm {
         let analyzed_file = analyzer::analyze_file(&ast_node);
         // TODO: need a step between here and compilation to allow for loading other files
 
+        let other_files = self
+            .files
+            .iter()
+            .map(|(key, compiled)| (key.to_owned(), compiled.as_ref().into()))
+            .collect();
+
         let resolved_file = resolve_for_file(FileResolverInput {
             path: file_path.into(),
             file_node: &ast_node,
             analyzed: &analyzed_file,
             // TODO: need to include the other files in the VM
-            other_files: HashMap::new(),
+            other_files,
         });
         self.compile_errors.append(&mut resolved_file.get_errors());
         let compiled_file = compile(CompilerInput {

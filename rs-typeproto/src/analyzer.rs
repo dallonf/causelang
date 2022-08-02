@@ -334,7 +334,11 @@ fn analyze_import_declaration(
 ) -> AnalyzedNode {
     let mut result = AnalyzedNode::default();
 
-    let path = ast_node.node.path.node.0.to_owned();
+    let mut path = ast_node.node.path.node.0.to_owned();
+    if !path.ends_with(".cau") {
+        path = path + ".cau";
+    }
+    
     result.add_file_reference(path.to_owned());
     result.add_tag_without_inverse(
         ast_node.breadcrumbs.to_owned(),
