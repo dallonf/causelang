@@ -87,7 +87,7 @@ fn mistyped_argument() {
     let result = vm
         .execute_function("project/hello.cau", "main", &vec![])
         .unwrap();
-    let result = common::expect_invalid_cause(&result);
+    let result = common::expect_invalid_caused(&result);
     insta::assert_debug_snapshot!(vm.get_error_from_bad_value(&result).unwrap(), @r###"
     ErrorTrace {
         file_path: "project/hello.cau",

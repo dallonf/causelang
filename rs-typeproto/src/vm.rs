@@ -64,6 +64,13 @@ impl RuntimeValue {
         }
     }
 
+    pub fn as_object(self) -> Option<Arc<RuntimeObject>> {
+        match self {
+            RuntimeValue::Object(obj) => Some(obj),
+            _ => None,
+        }
+    }
+
     pub fn validate(self) -> RuntimeValue {
         match self {
             it @ RuntimeValue::BadValue(_)
@@ -157,7 +164,7 @@ pub struct ErrorTrace {
     pub proxy_chain: Vec<Breadcrumbs>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub enum RunResult {
     Returned(RuntimeValue),
     Caused(Arc<RuntimeObject>),
