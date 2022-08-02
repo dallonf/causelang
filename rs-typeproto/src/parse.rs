@@ -44,7 +44,7 @@ pub fn parse(source: &str) -> Result<AstNode<FileNode>, ParserError> {
         let breadcrumbs = breadcrumbs.append_name("declarations");
         let mut declarations =
             vec![
-                generate_core_globals_import(breadcrumbs.append_index(0).to_owned())
+                generate_core_builtins_import(breadcrumbs.append_index(0).to_owned())
                     .map(|it| DeclarationNode::Import(it)),
             ];
         let mut parsed_declarations = file_pair
@@ -87,17 +87,17 @@ fn parse_identifier(
     ))
 }
 
-fn generate_core_globals_import(breadcrumbs: Breadcrumbs) -> AstNode<ImportDeclarationNode> {
-    let core_global_file = core_builtin_file();
-    let core_global_ids: Vec<_> = core_global_file.1.exports.iter().map(|it| it.0).collect();
+fn generate_core_builtins_import(breadcrumbs: Breadcrumbs) -> AstNode<ImportDeclarationNode> {
+    let core_builtin_file = core_builtin_file();
+    let core_builtin_ids: Vec<_> = core_builtin_file.1.exports.iter().map(|it| it.0).collect();
     AstNode::new(
         ImportDeclarationNode {
             path: AstNode::new(
-                ImportPathNode(core_global_file.0.to_owned()),
+                ImportPathNode(core_builtin_file.0.to_owned()),
                 DocumentRange::default(),
                 breadcrumbs.append_name("path"),
             ),
-            mappings: core_global_ids
+            mappings: core_builtin_ids
                 .into_iter()
                 .enumerate()
                 .map(|(index, id)| {

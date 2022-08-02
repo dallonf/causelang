@@ -75,6 +75,27 @@ pub fn core_builtin_file() -> (String, ExternalFileDescriptor) {
                     }),
                 )),
             ),
+            (
+                "AssumptionBroken".to_owned(),
+                ValueLangType::Resolved(ResolvedValueLangType::Canonical(
+                    CanonicalLangType::Signal(SignalCanonicalLangType {
+                        id: CanonicalLangTypeId {
+                            path: "core/builtin.cau".to_owned(),
+                            parent_name: None,
+                            name: Some("AssumptionBroken".to_owned()),
+                            number: 0,
+                        },
+                        name: "AssumptionBroken".to_owned(),
+                        params: vec![LangParameter {
+                            name: "message".to_owned(),
+                            value_type: ValueLangType::Resolved(ResolvedValueLangType::Primitive(PrimitiveLangType::String)),
+                        }],
+                        result: Box::new(ValueLangType::Resolved(
+                            ResolvedValueLangType::NeverContinues,
+                        )),
+                    }),
+                )),
+            ),
         ]),
     };
     (filename.to_owned(), descriptor)

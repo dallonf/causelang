@@ -6,12 +6,16 @@ pub enum Instruction {
     PushAction,
     Literal(usize),
     Import {
-      file_path_constant: usize,
-      export_name_constant: usize,
+        file_path_constant: usize,
+        export_name_constant: usize,
     },
     ReadLocal(usize),
-    Construct,
-    CallFunction,
+    Construct {
+        arity: usize,
+    },
+    CallFunction {
+        arity: usize,
+    },
     Cause,
     Return,
 }

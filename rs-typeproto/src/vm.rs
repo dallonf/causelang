@@ -42,7 +42,7 @@ struct CallFrame {
     parent: Option<WrappedCallFrame>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RuntimeValue {
     BadValue(RuntimeBadValue),
     Action,
@@ -51,6 +51,27 @@ pub enum RuntimeValue {
     Float(f64),
     Object(Arc<RuntimeObject>),
     TypeReference(Arc<RuntimeTypeReference>),
+    NativeFunction(RuntimeNativeFunction),
+}
+
+#[derive(Clone)]
+pub struct RuntimeNativeFunction {
+    pub name: Rc<String>,
+    pub function: fn(&[RuntimeValue]) -> Result<RuntimeValue, String>,
+}
+
+impl Debug for RuntimeNativeFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("RuntimeNativeFunction")
+            .field(&self.name)
+            .finish()
+    }
+}
+
+impl PartialEq for RuntimeNativeFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
 }
 
 impl RuntimeValue {
@@ -80,7 +101,8 @@ impl RuntimeValue {
             | it @ RuntimeValue::String(_)
             | it @ RuntimeValue::Integer(_)
             | it @ RuntimeValue::Float(_)
-            | it @ RuntimeValue::TypeReference(_) => it,
+            | it @ RuntimeValue::TypeReference(_)
+            | it @ RuntimeValue::NativeFunction(_) => it,
             RuntimeValue::Object(_) => todo!(),
         }
     }
@@ -92,7 +114,8 @@ impl RuntimeValue {
             | RuntimeValue::String(_)
             | RuntimeValue::Integer(_)
             | RuntimeValue::Float(_)
-            | RuntimeValue::TypeReference(_) => true,
+            | RuntimeValue::TypeReference(_)
+            | RuntimeValue::NativeFunction(_) => true,
             RuntimeValue::Object(obj) => obj.is_valid(),
         }
     }
@@ -119,7 +142,7 @@ impl RuntimeTypeReference {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RuntimeObject {
     // TODO: probably want to be a little stricter on making these
     pub type_descriptor: Arc<RuntimeTypeReference>,
@@ -166,7 +189,7 @@ pub struct ErrorTrace {
     pub proxy_chain: Vec<Breadcrumbs>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum RunResult {
     Returned(RuntimeValue),
     Caused(Arc<RuntimeObject>),
@@ -302,27 +325,31 @@ impl LangVm {
         })
     }
 
-    pub fn get_type_id(&self, file_path: &str, name: &str) -> Result<CanonicalLangTypeId, String> {
-        let descriptor = if file_path == "core/builtin.cau" {
+    fn get_file_descriptor(&self, file_path: &str) -> Result<ExternalFileDescriptor, String> {
+        if file_path == "core/builtin.cau" {
             let (_, builtin) = core_descriptors::core_builtin_file();
-            builtin
+            Ok(builtin)
         } else if file_path.starts_with("core/") {
             let file = core_descriptors::core_files()
                 .into_iter()
                 .find(|it| it.0 == file_path);
             if let Some((_, file)) = file {
-                file
+                Ok(file)
             } else {
-                return Err(format!("I couldn't find a file called {file_path}"));
+                Err(format!("I couldn't find a file called {file_path}"))
             }
         } else {
             let compiled_file = self.files.get(file_path);
             if let Some(compiled_file) = compiled_file {
-                ExternalFileDescriptor::from(compiled_file.as_ref())
+                Ok(ExternalFileDescriptor::from(compiled_file.as_ref()))
             } else {
-                return Err(format!("I couldn't find a file called {file_path}"));
+                Err(format!("I couldn't find a file called {file_path}"))
             }
-        };
+        }
+    }
+
+    pub fn get_type_id(&self, file_path: &str, name: &str) -> Result<CanonicalLangTypeId, String> {
+        let descriptor = self.get_file_descriptor(file_path)?;
 
         let found = descriptor
             .exports
@@ -502,7 +529,7 @@ impl LangVm {
                     }
                 }
                 &Instruction::ReadLocal(_) => todo!(),
-                &Instruction::Construct => {
+                &Instruction::Construct { arity } => {
                     let constructor_type = self.stack.pop_back();
 
                     let constructor_type = match constructor_type {
@@ -515,32 +542,74 @@ impl LangVm {
                         None => return Err(format!("Stack is empty. {COMPILE_ERROR_ASSURANCE}")),
                     };
 
-                    match constructor_type.as_ref() {
-                        RuntimeTypeReference::Signal(signal) => {
-                            let mut params =
-                                Vec::<RuntimeValue>::with_capacity(signal.params.len());
-                            for _ in 0..signal.params.len() {
-                                params.push(self.stack.pop_back().ok_or_else(|| {
-                                    format!("Stack is empty. {COMPILE_ERROR_ASSURANCE}")
-                                })?);
+                    let mut params = Vec::<RuntimeValue>::with_capacity(arity);
+                    for _ in 0..arity {
+                        params.push(
+                            self.stack.pop_back().ok_or_else(|| {
+                                format!("Stack is empty. {COMPILE_ERROR_ASSURANCE}")
+                            })?,
+                        );
+                    }
+                    params.reverse();
+
+                    let object = RuntimeObject {
+                        type_descriptor: constructor_type.clone(),
+                        values: params,
+                    };
+
+                    self.stack.push_back(RuntimeValue::Object(object.into()));
+                }
+                &Instruction::CallFunction { arity } => {
+                    let function: RuntimeValue = self
+                        .stack
+                        .pop_back()
+                        .ok_or_else(|| format!("Stack is empty. {COMPILE_ERROR_ASSURANCE}"))?;
+
+                    let mut params = Vec::<RuntimeValue>::with_capacity(arity);
+                    for _ in 0..arity {
+                        params.push(
+                            self.stack.pop_back().ok_or_else(|| {
+                                format!("Stack is empty. {COMPILE_ERROR_ASSURANCE}")
+                            })?,
+                        );
+                    }
+                    params.reverse();
+
+                    match function {
+                        RuntimeValue::NativeFunction(native_function) => {
+                            let result = (native_function.function)(&params);
+                            match result {
+                                Ok(result) => self.stack.push_back(result),
+                                Err(err) => {
+                                    let canonical_type = self
+                                        .files
+                                        .get("core/builtin.cau")
+                                        .unwrap()
+                                        .types
+                                        .get(
+                                            &self
+                                                .get_type_id("core/builtin.cau", "AssumptionBroken")
+                                                .unwrap(),
+                                        )
+                                        .unwrap();
+                                    let signal = Arc::new(RuntimeObject {
+                                        type_descriptor: Arc::new(RuntimeTypeReference::Signal(
+                                            match canonical_type.to_owned() {
+                                                CanonicalLangType::Signal(signal) => signal,
+                                            },
+                                        )),
+                                        values: vec![RuntimeValue::String(err.into())],
+                                    });
+
+                                    call_frame.pending_signal = Some(signal.clone());
+                                    call_frame.instruction += 1;
+                                    return Ok(RunResult::Caused(signal));
+                                }
                             }
-                            params.reverse();
-
-                            let object = RuntimeObject {
-                                type_descriptor: constructor_type.clone(),
-                                values: params,
-                            };
-
-                            self.stack.push_back(RuntimeValue::Object(object.into()));
                         }
-                        unexpected => {
-                            return Err(format!(
-                                "Tried to construct a {unexpected:?}. {COMPILE_ERROR_ASSURANCE}"
-                            ))
-                        }
+                        _ => unimplemented!(),
                     }
                 }
-                &Instruction::CallFunction => todo!(),
                 &Instruction::Cause => {
                     let signal = self
                         .stack

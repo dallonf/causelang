@@ -236,7 +236,7 @@ fn compile_cause_expression(
             file_path_constant,
             export_name_constant,
         });
-        chunk.write_instruction(Instruction::Construct);
+        chunk.write_instruction(Instruction::Construct { arity: 1 });
         chunk.write_instruction(Instruction::Cause);
     } else {
         chunk.write_instruction(Instruction::Cause);
@@ -286,11 +286,26 @@ fn compile_call_expression(
             .expect("callee type unknown");
 
         match callee_type {
-            ValueLangType::Resolved(ResolvedValueLangType::TypeReference(_type_id)) => {
-                chunk.write_instruction(Instruction::Construct);
+            ValueLangType::Resolved(ResolvedValueLangType::TypeReference(type_id)) => {
+                let canonical = ctx
+                    .compiler_input
+                    .resolved
+                    .canonical_types
+                    .get(type_id)
+                    .expect(format!("Missing type: {type_id}").as_str());
+
+                match canonical {
+                    CanonicalLangType::Signal(signal) => {
+                        chunk.write_instruction(Instruction::Construct {
+                            arity: signal.params.len(),
+                        });
+                    }
+                }
             }
-            ValueLangType::Resolved(ResolvedValueLangType::Function(_function)) => {
-                chunk.write_instruction(Instruction::CallFunction);
+            ValueLangType::Resolved(ResolvedValueLangType::Function(function)) => {
+                chunk.write_instruction(Instruction::CallFunction {
+                    arity: function.params.len(),
+                });
             }
             ValueLangType::Resolved(_) => unimplemented!(),
             ValueLangType::Pending => unimplemented!(),

@@ -136,5 +136,24 @@ fn receive_value_from_input_effect() {
         result.values[0],
         RuntimeValue::String("Hello, Bob".to_owned().into())
     );
-    insta::assert_debug_snapshot!(result, @"");
+    insta::assert_debug_snapshot!(result, @r###"
+    RuntimeObject {
+        type_descriptor: Signal(
+            CanonicalLangTypeId(
+                "test/io.cau:Print0",
+            ),
+        ),
+        values: [
+            String(
+                "Hello, Bob",
+            ),
+        ],
+    }
+    "###);
+
+    let result = vm
+        .resume_execution(RuntimeValue::Action)
+        .unwrap()
+        .expect_returned();
+    assert_eq!(result, RuntimeValue::Action);
 }

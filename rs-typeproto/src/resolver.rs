@@ -57,8 +57,8 @@ pub fn resolve_for_file(input: FileResolverInput) -> ResolvedFile {
     } = input;
 
     let mut other_files = other_files.clone();
-    let core_global_file = core_builtin_file();
-    other_files.insert(core_global_file.0, core_global_file.1);
+    let core_builtin_file = core_builtin_file();
+    other_files.insert(core_builtin_file.0, core_builtin_file.1);
     for (name, descriptor) in core_files() {
         other_files.insert(name, descriptor);
     }

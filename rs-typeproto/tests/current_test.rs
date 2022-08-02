@@ -80,7 +80,7 @@ fn hello_vm() {
                 file_path_constant: 1,
                 export_name_constant: 2,
             },
-            Instruction::Construct,
+            Instruction::Construct { arity: 1 },
             Instruction::Cause,
             Instruction::Return,
         ],
