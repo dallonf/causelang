@@ -157,3 +157,47 @@ fn receive_value_from_input_effect() {
         .expect_returned();
     assert_eq!(result, RuntimeValue::Action);
 }
+
+#[test]
+fn assign_received_value_to_name() {
+    let mut vm = LangVm::new();
+    vm.add_compiled_file(io_file());
+    vm.add_file(
+        "project/test.cau",
+        r#"
+            import core/string { append }
+            import test/io { Print, Prompt }
+
+            function main() {
+                cause Print("What is your name?")
+                let name = cause Prompt()
+                cause Print(append("Hello, ", name))
+            }
+    "#,
+    );
+    common::expect_no_compile_errors(&vm);
+
+    let result = vm
+        .execute_function("project/test.cau", "main", &vec![])
+        .unwrap();
+    common::expect_valid_caused(&result, &vm.get_type_id("test/io.cau", "Print").unwrap());
+
+    let result = vm.resume_execution(RuntimeValue::Action).unwrap();
+    common::expect_valid_caused(&result, &vm.get_type_id("test/io.cau", "Prompt").unwrap());
+
+    let result = vm
+        .resume_execution(RuntimeValue::String("Bob".to_owned().into()))
+        .unwrap();
+    let result =
+        common::expect_valid_caused(&result, &vm.get_type_id("test/io.cau", "Print").unwrap());
+    assert_eq!(
+        result.values[0],
+        RuntimeValue::String("Hello, Bob".to_owned().into())
+    );
+
+    let result = vm
+        .resume_execution(RuntimeValue::Action)
+        .unwrap()
+        .expect_returned();
+    assert_eq!(result, RuntimeValue::Action);
+}
