@@ -54,7 +54,7 @@ sealed interface AstNode {
     val info: NodeInfo
 }
 
-data class Identifier(override val info: NodeInfo, val name: String) : AstNode
+data class Identifier(override val info: NodeInfo, val text: String) : AstNode
 
 sealed interface TypeReferenceNode : AstNode {
     data class IdentifierTypeReferenceNode(override val info: NodeInfo, val identifier: Identifier) : TypeReferenceNode

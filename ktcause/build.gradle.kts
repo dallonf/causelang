@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "1.7.10"
-    application
 }
 
 group = "com.dallonf"
@@ -13,7 +12,9 @@ repositories {
 }
 
 dependencies {
+    implementation("org.antlr:antlr4-runtime:4.10.1")
     testImplementation(kotlin("test"))
+    testImplementation("com.tylerthrailkill.helpers:pretty-print:v2.0.8")
 }
 
 tasks.test {
@@ -22,4 +23,10 @@ tasks.test {
 
 tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "1.8"
+}
+
+sourceSets.main {
+    java {
+        srcDir("${projectDir}/src/${this@main.name}/gen")
+    }
 }
