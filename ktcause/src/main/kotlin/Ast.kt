@@ -100,7 +100,7 @@ sealed interface ExpressionNode : AstNode {
         data class ParameterNode(override val info: NodeInfo, val value: ExpressionNode) : AstNode
     }
 
-    data class StringLiteralExpression(override val info: NodeInfo, val text: String, val textRange: DocumentRange) :
+    data class StringLiteralExpression(override val info: NodeInfo, val text: String) :
         ExpressionNode
 
     data class IntegerLiteralExpression(override val info: NodeInfo, val value: Long) : ExpressionNode

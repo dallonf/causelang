@@ -4,11 +4,17 @@ import com.tylerthrailkill.helpers.prettyprint.pp
 
 internal class AstTest {
     @Test
-    fun testParseImport() {
+    fun testParse() {
         val ast = parse(
             """
                 import core/string ( append )
-                import test/io ( Print, Prompt ) 
+                import test/io ( Print, Prompt )
+                
+                function main() {
+                    cause Print("What is your name?")
+                    let name = cause Prompt()
+                    cause Print(append("Hello, ", name))
+                }
             """.trimIndent()
         )
         ast.pp()
