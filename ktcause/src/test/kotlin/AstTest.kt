@@ -1,3 +1,4 @@
+import com.dallonf.ktcause.Analyzer
 import kotlin.test.Test
 import com.dallonf.ktcause.parse.parse
 import com.tylerthrailkill.helpers.prettyprint.pp
@@ -17,6 +18,7 @@ internal class AstTest {
                 }
             """.trimIndent()
         )
-        ast.pp()
+        val analyzed = Analyzer.analyzeFile(ast)
+        analyzed.pp()
     }
 }

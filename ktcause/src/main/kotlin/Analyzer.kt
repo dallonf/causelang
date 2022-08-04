@@ -1,10 +1,8 @@
 package com.dallonf.ktcause
 
-import com.dallonf.ktcause.ast.Breadcrumbs
-import com.dallonf.ktcause.ast.DeclarationNode
-import com.dallonf.ktcause.ast.FileNode
-import com.dallonf.ktcause.ast.TypeReferenceNode
+import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.types.PrimitiveLangValueType
+import kotlin.math.exp
 
 data class AnalyzedNode(
     val nodeTags: MutableMap<Breadcrumbs, MutableList<NodeTag>> = mutableMapOf(),
@@ -118,14 +116,18 @@ sealed class NodeTag {
 
 object Analyzer {
     private data class ScopeItem(val origin: Breadcrumbs)
-    private data class Scope(val items: Map<String, ScopeItem> = mutableMapOf())
+    private data class Scope(val items: MutableMap<String, ScopeItem> = mutableMapOf()) {
+        fun extend(): Scope = Scope(items.toMutableMap())
+    }
 
-    //    {
-//        fun withNewScope(breadcrumbs: Breadcrumbs, f: (MutableMap<String, ScopeItem>) -> Unit) {
-//
-//        }
-//    }
-    private data class AnalyzerContext(val currentScope: Scope, val currentScopePosition: Breadcrumbs)
+    private data class AnalyzerContext(val currentScope: Scope, val currentScopePosition: Breadcrumbs) {
+        fun withNewScope(breadcrumbs: Breadcrumbs, f: (AnalyzerContext) -> Unit) {
+            val newCtx = clone(breadcrumbs)
+            f(newCtx)
+        }
+
+        fun clone(breadcrumbs: Breadcrumbs) = AnalyzerContext(currentScope.extend(), breadcrumbs)
+    }
 
     fun analyzeFile(astNode: FileNode): AnalyzedNode {
         val result = AnalyzedNode()
@@ -133,7 +135,7 @@ object Analyzer {
 
         // loop over top-level declarations to hoist them into file scope
         for (declaration in astNode.declarations) {
-            addDeclarationToScopeMap(declaration, rootScopeItems)
+            getDeclarationsForScope(declaration)?.let { rootScopeItems.putAll(it.asSequence()) }
         }
 
         val ctx = AnalyzerContext(
@@ -147,27 +149,25 @@ object Analyzer {
         return result
     }
 
-    private fun addDeclarationToScopeMap(
-        declaration: DeclarationNode, scopeItems: MutableMap<String, ScopeItem>
-    ): Boolean {
+    private fun getDeclarationsForScope(
+        declaration: DeclarationNode
+    ): List<Pair<String, ScopeItem>>? {
         when (declaration) {
             is DeclarationNode.Function -> {
-                scopeItems[declaration.name.text] = ScopeItem(declaration.info.breadcrumbs)
-                return true
+                return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
             }
 
             is DeclarationNode.Import -> {
-                for (mapping in declaration.mappings) {
+                val list = declaration.mappings.map { mapping ->
                     val sourceName = mapping.sourceName.text
                     val rename = mapping.rename?.text
-                    scopeItems[rename ?: sourceName] = ScopeItem(mapping.info.breadcrumbs)
+                    (rename ?: sourceName) to ScopeItem(mapping.info.breadcrumbs)
                 }
-                return true
+                return list.ifEmpty { null }
             }
 
             is DeclarationNode.NamedValue -> {
-                scopeItems[declaration.name.text] = ScopeItem(declaration.info.breadcrumbs)
-                return true
+                return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
             }
         }
     }
@@ -218,13 +218,135 @@ object Analyzer {
     private fun analyzeFunctionDeclaration(
         declaration: DeclarationNode.Function, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        TODO("Not yet implemented")
+        ctx.withNewScope(declaration.info.breadcrumbs) { newCtx ->
+            val name = declaration.name.text
+            // the function itself goes in the scope to allow recursion
+            newCtx.currentScope.items[name] = ScopeItem(declaration.info.breadcrumbs)
+
+            output.addTag(declaration.info.breadcrumbs, NodeTag.IsFunction(name = name))
+            output.addTag(
+                declaration.info.breadcrumbs, NodeTag.FunctionCanReturnTypeOf(
+                    declaration.body.info.breadcrumbs
+                )
+            )
+
+            analyzeBody(declaration.body, output, newCtx)
+        }
     }
 
     private fun analyzeNamedValueDeclaration(
         declaration: DeclarationNode.NamedValue, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        TODO("Not yet implemented")
+        output.addTag(
+            declaration.info.breadcrumbs, NodeTag.NamedValue(
+                name = declaration.name.text,
+                typeDeclaration = declaration.typeAnnotation?.info?.breadcrumbs,
+                value = declaration.value.info.breadcrumbs
+            )
+        )
+
+        analyzeExpression(declaration.value, output, ctx)
+        declaration.typeAnnotation?.let { typeAnnotation ->
+            analyzeTypeReference(typeAnnotation, output, ctx)
+            output.addTag(typeAnnotation.info.breadcrumbs, NodeTag.AnnotatesTypeFor(declaration.value.info.breadcrumbs))
+        }
     }
+
+    private fun analyzeBody(body: BodyNode, output: AnalyzedNode, ctx: AnalyzerContext) {
+        when (body) {
+            is BodyNode.BlockBody -> {
+                if (body.statements.isEmpty()) {
+                    // if there are no statements, the block can only be Action-typed.
+                    // Avoids issue with `statements.last()` below
+                    output.addTag(body.info.breadcrumbs, NodeTag.IsPrimitiveValue(PrimitiveLangValueType.ACTION))
+                } else {
+                    // a block's return type is the last expression... or the type of any returns? hmmmmmm
+                    val lastStatementBreadcrumbs = body.statements.last().info.breadcrumbs
+                    output.addValueFlowTag(lastStatementBreadcrumbs, body.info.breadcrumbs)
+                }
+
+                var currentCtx = ctx.clone(body.info.breadcrumbs)
+
+                for (statementNode in body.statements) {
+                    when (statementNode) {
+                        is StatementNode.ExpressionStatement -> {
+                            output.addValueFlowTag(
+                                statementNode.expression.info.breadcrumbs, statementNode.info.breadcrumbs
+                            )
+                            analyzeExpression(statementNode.expression, output, currentCtx)
+                        }
+
+                        is StatementNode.DeclarationStatement -> {
+                            getDeclarationsForScope(statementNode.declaration)?.let { declarations ->
+                                analyzeDeclaration(statementNode.declaration, output, currentCtx)
+
+                                currentCtx = AnalyzerContext(currentCtx.currentScope.extend().also { scope ->
+                                    scope.items.putAll(declarations.asSequence())
+                                }, currentCtx.currentScopePosition)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun analyzeExpression(expression: ExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext) {
+        when (expression) {
+            is ExpressionNode.IdentifierExpression -> analyzeIdentifierExpression(expression, output, ctx)
+            is ExpressionNode.CauseExpression -> analyzeCauseExpression(expression, output, ctx)
+            is ExpressionNode.CallExpression -> analyzeCallExpression(expression, output, ctx)
+            is ExpressionNode.StringLiteralExpression -> output.addTag(
+                expression.info.breadcrumbs,
+                NodeTag.IsPrimitiveValue(PrimitiveLangValueType.INTEGER)
+            )
+
+            is ExpressionNode.IntegerLiteralExpression -> output.addTag(
+                expression.info.breadcrumbs,
+                NodeTag.IsPrimitiveValue(PrimitiveLangValueType.STRING)
+            )
+        }
+        output.addTag(expression.info.breadcrumbs, NodeTag.Expression)
+    }
+
+
+    private fun analyzeIdentifierExpression(
+        expression: ExpressionNode.IdentifierExpression,
+        output: AnalyzedNode,
+        ctx: AnalyzerContext
+    ) {
+        val identifierText = expression.identifier.text
+        val foundItem = ctx.currentScope.items[identifierText]
+        if (foundItem != null) {
+            output.addValueFlowTag(foundItem.origin, expression.info.breadcrumbs)
+        } else {
+            output.addTag(expression.info.breadcrumbs, NodeTag.ReferenceNotInScope)
+        }
+    }
+
+    private fun analyzeCauseExpression(
+        expression: ExpressionNode.CauseExpression,
+        output: AnalyzedNode,
+        ctx: AnalyzerContext
+    ) {
+        output.addTag(expression.info.breadcrumbs, NodeTag.Causes(expression.signal.info.breadcrumbs))
+        analyzeExpression(expression.signal, output, ctx)
+    }
+
+    private fun analyzeCallExpression(
+        expression: ExpressionNode.CallExpression,
+        output: AnalyzedNode,
+        ctx: AnalyzerContext
+    ) {
+        expression.parameters.forEachIndexed { i, parameterNode ->
+            analyzeExpression(parameterNode.value, output, ctx)
+            output.addValueFlowTag(parameterNode.value.info.breadcrumbs, parameterNode.info.breadcrumbs)
+            output.addTag(parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(expression.info.breadcrumbs, i))
+        }
+
+        analyzeExpression(expression.callee, output, ctx)
+        output.addTag(expression.info.breadcrumbs, NodeTag.Calls(expression.callee.info.breadcrumbs))
+    }
+
 
 }
