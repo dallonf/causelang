@@ -78,7 +78,7 @@ private fun parseImportDeclaration(
         val name = (iterator.next() as TerminalNode).symbol
         assert(name.type == IDENTIFIER)
         iterator.skipNewlines()
-        val rename = (iterator.tryNext() as TerminalNode?)?.symbol
+        val rename = (iterator.tryNext() as? TerminalNode)?.symbol
         if (rename != null) {
             assert(rename.type == IDENTIFIER)
         }
@@ -195,7 +195,7 @@ private fun parseExpression(
         }
     }
 
-    val suffixContainer = expressionContext.getChild(1) as ExpressionSuffixContext?
+    val suffixContainer = expressionContext.getChild(1) as? ExpressionSuffixContext
     return when (val suffix = suffixContainer?.getChild(0)) {
         is CallExpressionSuffixContext -> parseCallExpressionSuffix(
             suffix,
