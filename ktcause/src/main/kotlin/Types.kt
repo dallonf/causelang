@@ -19,7 +19,7 @@ data class CanonicalLangTypeId(
     }
 }
 
-sealed interface CanonicalLangType {
+sealed interface CanonicalLangType : ResolvedValueLangType {
     val id: CanonicalLangTypeId
 
     data class SignalCanonicalLangType(
@@ -27,7 +27,9 @@ sealed interface CanonicalLangType {
         val name: String,
         val params: List<LangParameter>,
         val result: ValueLangType,
-    ) : CanonicalLangType
+    ) : CanonicalLangType {
+        override fun getInstanceType() = TypeReferenceLangValueType(this)
+    }
 }
 
 data class LangParameter(
