@@ -1,4 +1,5 @@
 import com.dallonf.ktcause.Analyzer
+import com.dallonf.ktcause.Compiler
 import com.dallonf.ktcause.Resolver
 import kotlin.test.Test
 import com.dallonf.ktcause.parse.parse
@@ -14,8 +15,7 @@ internal class AstTest {
                 
                 function main() {
                     cause Print("What is your name?")
-                    let name = cause Prompt()
-                    cause Print(append("Hello, ", name))
+                    cause Print(append("Hello, ", Prompt()))
                 }
             """.trimIndent()
         )
@@ -26,6 +26,7 @@ internal class AstTest {
             analyzed = analyzed,
             otherFiles = mapOf()
         )
-        resolved.getUniqueErrors().pp()
+        val compiled = Compiler.compile(ast, analyzed, resolved)
+        compiled.pp()
     }
 }

@@ -24,6 +24,15 @@ data class ResolvedFile(
         return expected ?: resolvedTypes[ResolutionKey(INFERRED, breadcrumbs)]!!.getRuntimeError()
     }
 
+    fun getExpectedType(breadcrumbs: Breadcrumbs): ValueLangType {
+        return resolvedTypes[ResolutionKey(EXPECTED, breadcrumbs)] ?: getInferredType(breadcrumbs)
+    }
+
+    fun getInferredType(breadcrumbs: Breadcrumbs): ValueLangType = resolvedTypes[ResolutionKey(
+        INFERRED,
+        breadcrumbs
+    )]!!
+
     fun getUniqueErrors(): List<ResolverError> {
         return resolvedTypes.mapNotNull { (key, resolvedType) ->
             val breadcrumbs = key.breadcrumbs
