@@ -1,4 +1,5 @@
 import com.dallonf.ktcause.Analyzer
+import com.dallonf.ktcause.Resolver
 import kotlin.test.Test
 import com.dallonf.ktcause.parse.parse
 import com.tylerthrailkill.helpers.prettyprint.pp
@@ -19,6 +20,12 @@ internal class AstTest {
             """.trimIndent()
         )
         val analyzed = Analyzer.analyzeFile(ast)
-        analyzed.pp()
+        val resolved = Resolver.resolveForFile(
+            path = "project/test.cau",
+            fileNode = ast,
+            analyzed = analyzed,
+            otherFiles = mapOf()
+        )
+        resolved.getUniqueErrors().pp()
     }
 }

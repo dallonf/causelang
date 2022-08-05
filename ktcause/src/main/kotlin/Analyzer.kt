@@ -1,7 +1,7 @@
 package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.*
-import com.dallonf.ktcause.types.PrimitiveLangValueType
+import com.dallonf.ktcause.types.PrimitiveValueLangType
 import kotlin.math.exp
 
 data class AnalyzedNode(
@@ -71,7 +71,7 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(causeExpression, Causes(signal = breadcrumbs))
     }
 
-    data class IsPrimitiveValue(val primitiveType: PrimitiveLangValueType) : NodeTag() {
+    data class IsPrimitiveValue(val primitiveType: PrimitiveValueLangType) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
@@ -258,7 +258,7 @@ object Analyzer {
                 if (body.statements.isEmpty()) {
                     // if there are no statements, the block can only be Action-typed.
                     // Avoids issue with `statements.last()` below
-                    output.addTag(body.info.breadcrumbs, NodeTag.IsPrimitiveValue(PrimitiveLangValueType.ACTION))
+                    output.addTag(body.info.breadcrumbs, NodeTag.IsPrimitiveValue(PrimitiveValueLangType.ACTION))
                 } else {
                     // a block's return type is the last expression... or the type of any returns? hmmmmmm
                     val lastStatementBreadcrumbs = body.statements.last().info.breadcrumbs
@@ -298,12 +298,12 @@ object Analyzer {
             is ExpressionNode.CallExpression -> analyzeCallExpression(expression, output, ctx)
             is ExpressionNode.StringLiteralExpression -> output.addTag(
                 expression.info.breadcrumbs,
-                NodeTag.IsPrimitiveValue(PrimitiveLangValueType.INTEGER)
+                NodeTag.IsPrimitiveValue(PrimitiveValueLangType.STRING)
             )
 
             is ExpressionNode.IntegerLiteralExpression -> output.addTag(
                 expression.info.breadcrumbs,
-                NodeTag.IsPrimitiveValue(PrimitiveLangValueType.STRING)
+                NodeTag.IsPrimitiveValue(PrimitiveValueLangType.INTEGER)
             )
         }
         output.addTag(expression.info.breadcrumbs, NodeTag.Expression)
