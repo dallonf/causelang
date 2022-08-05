@@ -28,7 +28,7 @@ sealed interface CanonicalLangType : ResolvedValueLangType {
         val params: List<LangParameter>,
         val result: ValueLangType,
     ) : CanonicalLangType {
-        override fun getInstanceType() = TypeReferenceLangValueType(this)
+        override fun getInstanceType() = TypeReferenceValueLangType(this)
     }
 }
 
@@ -42,7 +42,7 @@ sealed interface ValueLangType {
 
     fun isPending(): Boolean = when (this) {
         Pending -> true
-        is FunctionLangValueType -> this.returnType.isPending()
+        is FunctionValueLangType -> this.returnType.isPending()
         is ResolvedValueLangType -> false
         is ErrorValueLangType -> false
     }
@@ -85,37 +85,37 @@ sealed interface ResolvedValueLangType : ValueLangType {
     fun getInstanceType(): ResolvedValueLangType?
 }
 
-data class FunctionLangValueType(val name: String?, val returnType: ValueLangType, val params: List<LangParameter>) :
+data class FunctionValueLangType(val name: String?, val returnType: ValueLangType, val params: List<LangParameter>) :
     ResolvedValueLangType {
     override fun getInstanceType() = null
 }
 
-data class FunctionTypeLangValueType(val functionType: FunctionLangValueType) : ResolvedValueLangType {
+data class FunctionTypeValueLangType(val functionType: FunctionValueLangType) : ResolvedValueLangType {
     override fun getInstanceType() = functionType
 }
 
-enum class PrimitiveLangValueType : ResolvedValueLangType {
+enum class PrimitiveValueLangType : ResolvedValueLangType {
     STRING, INTEGER, FLOAT, ACTION;
 
     override fun getInstanceType() = null
 }
 
-data class PrimitiveTypeLangValueType(val primitiveType: PrimitiveLangValueType) : ResolvedValueLangType {
+data class PrimitiveTypeValueLangType(val primitiveType: PrimitiveValueLangType) : ResolvedValueLangType {
     override fun getInstanceType() = primitiveType
 }
 
-data class TypeReferenceLangValueType(val canonicalType: CanonicalLangType) : ResolvedValueLangType {
-    override fun getInstanceType() = InstanceLangValueType(this)
+data class TypeReferenceValueLangType(val canonicalType: CanonicalLangType) : ResolvedValueLangType {
+    override fun getInstanceType() = InstanceValueLangType(this)
 }
 
-data class InstanceLangValueType(val type: TypeReferenceLangValueType) : ResolvedValueLangType {
+data class InstanceValueLangType(val type: TypeReferenceValueLangType) : ResolvedValueLangType {
     override fun getInstanceType() = null
 }
 
-object BadLangValueType : ResolvedValueLangType {
+object BadValueLangType : ResolvedValueLangType {
     override fun getInstanceType() = null
 }
 
-object NeverContinuesLangValueType : ResolvedValueLangType {
+object NeverContinuesValueLangType : ResolvedValueLangType {
     override fun getInstanceType() = null
 }
