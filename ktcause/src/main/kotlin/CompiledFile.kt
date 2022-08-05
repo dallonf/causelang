@@ -71,7 +71,7 @@ data class CompiledFile(
 
     sealed interface CompiledExport {
         data class Type(val typeId: CanonicalLangTypeId) : CompiledExport
-        data class Function(val chunkIndex: Int, val type: FunctionValueLangType) : CompiledExport
+        data class Function(val chunkIndex: Int, val type: ValueLangType) : CompiledExport
         data class Value(val constant: CompiledConstant, val type: ValueLangType) : CompiledExport
     }
 }

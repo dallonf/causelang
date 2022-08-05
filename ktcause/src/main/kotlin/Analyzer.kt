@@ -2,7 +2,6 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.types.PrimitiveValueLangType
-import kotlin.math.exp
 
 data class AnalyzedNode(
     val nodeTags: MutableMap<Breadcrumbs, MutableList<NodeTag>> = mutableMapOf(),
@@ -131,16 +130,22 @@ object Analyzer {
 
     fun analyzeFile(astNode: FileNode): AnalyzedNode {
         val result = AnalyzedNode()
-        val rootScopeItems = mutableMapOf<String, ScopeItem>()
+        val rootScope = Scope()
+
+        val ctx = AnalyzerContext(
+            currentScope = rootScope, currentScopePosition = astNode.info.breadcrumbs
+        )
 
         // loop over top-level declarations to hoist them into file scope
         for (declaration in astNode.declarations) {
-            getDeclarationsForScope(declaration)?.let { rootScopeItems.putAll(it.asSequence()) }
+            getDeclarationsForScope(declaration)?.let {
+                addDeclarationsToScope(
+                    it,
+                    result,
+                    ctx
+                )
+            }
         }
-
-        val ctx = AnalyzerContext(
-            currentScope = Scope(rootScopeItems), currentScopePosition = astNode.info.breadcrumbs
-        )
 
         for (declaration in astNode.declarations) {
             analyzeDeclaration(declaration, result, ctx)
@@ -170,6 +175,27 @@ object Analyzer {
                 return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
             }
         }
+    }
+
+    private fun addDeclarationsToScope(
+        declarations: List<Pair<String, ScopeItem>>,
+        output: AnalyzedNode,
+        scope: Scope,
+        scopePosition: Breadcrumbs
+    ) {
+        for (declaration in declarations) {
+            val (name, item) = declaration
+            scope.items[name] = item
+            output.addTag(item.origin, NodeTag.DeclarationForScope(scopePosition))
+        }
+    }
+
+    private fun addDeclarationsToScope(
+        declarations: List<Pair<String, ScopeItem>>,
+        output: AnalyzedNode,
+        ctx: AnalyzerContext
+    ) {
+        addDeclarationsToScope(declarations, output, ctx.currentScope, ctx.currentScopePosition)
     }
 
     private fun analyzeTypeReference(typeReference: TypeReferenceNode, output: AnalyzedNode, ctx: AnalyzerContext) {
@@ -280,9 +306,9 @@ object Analyzer {
                             getDeclarationsForScope(statementNode.declaration)?.let { declarations ->
                                 analyzeDeclaration(statementNode.declaration, output, currentCtx)
 
-                                currentCtx = AnalyzerContext(currentCtx.currentScope.extend().also { scope ->
-                                    scope.items.putAll(declarations.asSequence())
-                                }, currentCtx.currentScopePosition)
+                                currentCtx =
+                                    AnalyzerContext(currentCtx.currentScope.extend(), currentCtx.currentScopePosition)
+                                addDeclarationsToScope(declarations, output, currentCtx)
                             }
                         }
                     }

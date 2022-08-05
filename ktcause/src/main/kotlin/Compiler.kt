@@ -25,7 +25,7 @@ object Compiler {
                 is DeclarationNode.Function -> {
                     val ctx = CompilerContext(fileNode, analyzed, resolved)
                     val chunk = compileFunction(declaration, ctx)
-                    val functionType = resolved.getExpectedType(declaration.info.breadcrumbs) as FunctionValueLangType
+                    val functionType = resolved.getExpectedType(declaration.info.breadcrumbs)
 
                     chunks.add(chunk.toInstructionChunk())
                     exports[declaration.name.text] =
