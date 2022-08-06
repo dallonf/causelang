@@ -1,5 +1,6 @@
 package com.dallonf.ktcause.parse
 
+import com.dallonf.ktcause.CoreDescriptors
 import com.dallonf.ktcause.antlr.*
 import com.dallonf.ktcause.antlr.CauseParser.*
 import com.dallonf.ktcause.ast.*
@@ -14,11 +15,29 @@ fun parse(source: String): FileNode {
     val tree = CauseParser(tokens).file()
 
     val declarationsBreadcrumbs = Breadcrumbs.empty().appendName("declarations")
-    val declarations = tree.declaration().mapIndexed { i, declaration ->
-        parseDeclaration(declaration, declarationsBreadcrumbs.appendIndex(i), ParserContext())
-    }
+    val declarations = listOf(generateCoreBuiltinsImport(declarationsBreadcrumbs.appendIndex(0))) +
+            tree.declaration()
+                .mapIndexed { i, declaration ->
+                    parseDeclaration(declaration, declarationsBreadcrumbs.appendIndex(i + 1), ParserContext())
+                }
 
     return FileNode(NodeInfo(tree.getRange(), Breadcrumbs.empty()), declarations)
+}
+
+fun generateCoreBuiltinsImport(breadcrumbs: Breadcrumbs): DeclarationNode.Import {
+    val (coreBuiltinFilepath, coreBuiltinFile) = CoreDescriptors.coreBuiltinFile
+    val coreBuiltinNames = coreBuiltinFile.exports.map { (key, _) -> key }
+    val position = DocumentRange(DocumentPosition(0, 0), DocumentPosition(0, 0))
+    return DeclarationNode.Import(NodeInfo(position, breadcrumbs),
+        path = DeclarationNode.Import.PathNode(NodeInfo(position, breadcrumbs.appendName("path")), coreBuiltinFilepath),
+        mappings = coreBuiltinNames.mapIndexed { i, name ->
+            val mappingBreadcrumbs = breadcrumbs.appendName("mappings").appendIndex(i)
+            DeclarationNode.Import.MappingNode(
+                NodeInfo(position, mappingBreadcrumbs),
+                sourceName = Identifier(NodeInfo(position, mappingBreadcrumbs.appendName("sourceName")), name),
+                rename = null
+            )
+        })
 }
 
 private fun parseIdentifier(token: Token, breadcrumbs: Breadcrumbs, ctx: ParserContext): Identifier {
@@ -109,7 +128,7 @@ private fun parseNamedValueDeclaration(
     val nameToken = (iterator.next() as TerminalNode).symbol
     val name = parseIdentifier(nameToken, breadcrumbs.appendName("name"), ctx)
 
-    iterator.skip { (it is TerminalNode && (it.symbol.type == COLON || it.symbol.type == NEWLINE|| it.symbol.type == EQUALS)) }
+    iterator.skip { (it is TerminalNode && (it.symbol.type == COLON || it.symbol.type == NEWLINE || it.symbol.type == EQUALS)) }
     val typeAnnotationMaybeRule = iterator.next()
     var valueRule = typeAnnotationMaybeRule
 
@@ -198,10 +217,7 @@ private fun parseExpression(
     val suffixContainer = expressionContext.getChild(1) as? ExpressionSuffixContext
     return when (val suffix = suffixContainer?.getChild(0)) {
         is CallExpressionSuffixContext -> parseCallExpressionSuffix(
-            suffix,
-            breadcrumbs,
-            mainExpression,
-            ctx
+            suffix, breadcrumbs, mainExpression, ctx
         )
 
         null -> mainExpression(breadcrumbs)
@@ -210,55 +226,43 @@ private fun parseExpression(
 }
 
 private fun parseStringLiteralExpression(
-    expression: StringLiteralExpressionContext,
-    breadcrumbs: Breadcrumbs,
-    ctx: ParserContext
+    expression: StringLiteralExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ExpressionNode.StringLiteralExpression {
     val quotedText = expression.STRING_LITERAL().text
     val unquoted = quotedText.subSequence(1 until quotedText.length - 1)
 
     return ExpressionNode.StringLiteralExpression(
-        NodeInfo(expression.getRange(), breadcrumbs),
-        unquoted.toString()
+        NodeInfo(expression.getRange(), breadcrumbs), unquoted.toString()
     )
 }
 
 private fun parseIntegerLiteralExpression(
-    expression: IntegerLiteralExpressionContext,
-    breadcrumbs: Breadcrumbs,
-    ctx: ParserContext
+    expression: IntegerLiteralExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ExpressionNode.IntegerLiteralExpression {
     val text = expression.INT_LITERAL().text
     val number = text.replace("_", "").toLong()
 
     return ExpressionNode.IntegerLiteralExpression(
-        NodeInfo(expression.getRange(), breadcrumbs),
-        number
+        NodeInfo(expression.getRange(), breadcrumbs), number
     )
 }
 
 private fun parseCauseExpression(
-    expression: CauseExpressionContext,
-    breadcrumbs: Breadcrumbs,
-    ctx: ParserContext
+    expression: CauseExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ExpressionNode.CauseExpression {
     val signal = parseExpression(expression.expression(), breadcrumbs.appendName("signal"), ctx)
 
     return ExpressionNode.CauseExpression(
-        NodeInfo(expression.getRange(), breadcrumbs),
-        signal
+        NodeInfo(expression.getRange(), breadcrumbs), signal
     )
 }
 
 private fun parseIdentifierExpression(
-    expression: IdentifierExpressionContext,
-    breadcrumbs: Breadcrumbs,
-    ctx: ParserContext
+    expression: IdentifierExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ExpressionNode.IdentifierExpression {
     val identifier = parseIdentifier(expression.IDENTIFIER().symbol, breadcrumbs.appendName("identifier"), ctx)
     return ExpressionNode.IdentifierExpression(
-        NodeInfo(expression.getRange(), breadcrumbs),
-        identifier
+        NodeInfo(expression.getRange(), breadcrumbs), identifier
     )
 }
 
@@ -279,21 +283,16 @@ private fun parseCallExpressionSuffix(
     }
 
     return ExpressionNode.CallExpression(
-        NodeInfo(suffix.getRange(), breadcrumbs),
-        callee,
-        params
+        NodeInfo(suffix.getRange(), breadcrumbs), callee, params
     )
 }
 
 private fun parsePositionalParameter(
-    param: CallPositionalParameterContext,
-    breadcrumbs: Breadcrumbs,
-    ctx: ParserContext
+    param: CallPositionalParameterContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ExpressionNode.CallExpression.ParameterNode {
     val value = parseExpression(param.expression(), breadcrumbs.appendName("value"), ctx)
     return ExpressionNode.CallExpression.ParameterNode(
-        NodeInfo(param.getRange(), breadcrumbs),
-        value
+        NodeInfo(param.getRange(), breadcrumbs), value
     )
 }
 

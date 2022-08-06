@@ -1,6 +1,4 @@
-import com.dallonf.ktcause.Analyzer
-import com.dallonf.ktcause.Compiler
-import com.dallonf.ktcause.Resolver
+import com.dallonf.ktcause.*
 import kotlin.test.Test
 import com.dallonf.ktcause.parse.parse
 import com.tylerthrailkill.helpers.prettyprint.pp
@@ -8,25 +6,25 @@ import com.tylerthrailkill.helpers.prettyprint.pp
 internal class AstTest {
     @Test
     fun testParse() {
-        val ast = parse(
-            """
-                import core/string ( append )
-                import test/io ( Print, Prompt )
-                
-                function main() {
-                    cause Print("What is your name?")
-                    cause Print(append("Hello, ", Prompt()))
-                }
-            """.trimIndent()
-        )
+        val source = """
+            import core/string ( append )
+            
+            function main() {
+                cause Debug(append("Hello, ", "Bob"))
+            }
+        """.trimIndent()
+        val ast = parse(source)
         val analyzed = Analyzer.analyzeFile(ast)
         val resolved = Resolver.resolveForFile(
-            path = "project/test.cau",
-            fileNode = ast,
-            analyzed = analyzed,
-            otherFiles = mapOf()
+            path = "project/test.cau", fileNode = ast, analyzed = analyzed, otherFiles = mapOf()
         )
+        resolved.getUniqueErrors().pp()
         val compiled = Compiler.compile(ast, analyzed, resolved)
-        compiled.pp()
+        val vm = LangVm()
+        vm.addFile("project/test.cau", source)
+        val result1 = vm.executeFunction("project/test.cau", "main", emptyList())
+        result1.pp()
+        val result2 = vm.resumeExecution(RuntimeValue.Action)
+        result2.pp()
     }
 }

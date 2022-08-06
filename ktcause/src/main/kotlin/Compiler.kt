@@ -1,9 +1,7 @@
 package com.dallonf.ktcause
 
-import CompiledFile
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.types.*
-import kotlin.math.exp
 
 object Compiler {
     private data class CompilerContext(

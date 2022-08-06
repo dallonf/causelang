@@ -245,7 +245,14 @@ object Resolver {
                                     else -> ErrorValueLangType.ImplementationTodo("Can't infer a function that can return from multiple locations")
                                 }
 
-                                resolveWith(returnType)
+                                resolveWith(
+                                    FunctionValueLangType(
+                                        name = tag.name,
+                                        returnType = returnType,
+                                        // TODO
+                                        params = emptyList()
+                                    )
+                                )
                             }
 
                             is NodeTag.ReferencesFile -> {
