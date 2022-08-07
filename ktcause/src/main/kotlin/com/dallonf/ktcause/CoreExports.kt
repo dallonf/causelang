@@ -1,3 +1,5 @@
+package com.dallonf.ktcause
+
 import com.dallonf.ktcause.CoreDescriptors
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.RuntimeValue
