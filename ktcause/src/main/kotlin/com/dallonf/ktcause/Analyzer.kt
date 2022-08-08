@@ -271,6 +271,7 @@ object Analyzer {
                 value = declaration.value.info.breadcrumbs
             )
         )
+        output.addTag(declaration.info.breadcrumbs, NodeTag.DeclarationForScope(ctx.currentScopePosition))
 
         analyzeExpression(declaration.value, output, ctx)
         declaration.typeAnnotation?.let { typeAnnotation ->

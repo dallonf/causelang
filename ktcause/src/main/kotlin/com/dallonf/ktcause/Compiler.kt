@@ -8,8 +8,17 @@ object Compiler {
         val fileNode: FileNode,
         val analyzed: AnalyzedNode,
         val resolved: ResolvedFile,
+        val scopeStack: ArrayDeque<CompilerScope> = ArrayDeque()
     ) {
         fun getTags(breadcrumbs: Breadcrumbs): List<NodeTag> = analyzed.nodeTags[breadcrumbs]!!
+        fun nextScopeIndex(): Int {
+            return scopeStack.sumOf { it.namedValueIndices.size }
+        }
+    }
+
+    private class CompilerScope(val scopeRoot: Breadcrumbs) {
+        // indices are computed from the top of the current call frame
+        val namedValueIndices = mutableMapOf<Breadcrumbs, Int>()
     }
 
     fun compile(fileNode: FileNode, analyzed: AnalyzedNode, resolved: ResolvedFile): CompiledFile {
@@ -43,11 +52,16 @@ object Compiler {
         val chunk = CompiledFile.MutableInstructionChunk()
         when (declaration.body) {
             is BodyNode.BlockBody -> {
+                ctx.scopeStack.addLast(CompilerScope(declaration.body.info.breadcrumbs))
+
                 for ((i, statement) in declaration.body.statements.withIndex()) {
                     compileStatement(
                         statement, chunk, ctx, isLastStatement = i == declaration.body.statements.lastIndex
                     )
                 }
+
+                ctx.scopeStack.removeLast()
+
                 // TODO: make sure this is the right type to return
                 chunk.writeInstruction(Instruction.Return)
             }
@@ -87,7 +101,28 @@ object Compiler {
                 }
             }
 
-            is StatementNode.DeclarationStatement -> TODO()
+            is StatementNode.DeclarationStatement -> {
+                compileLocalDeclaration(statement, chunk, ctx)
+            }
+        }
+    }
+
+    private fun compileLocalDeclaration(
+        statement: StatementNode.DeclarationStatement,
+        chunk: CompiledFile.MutableInstructionChunk,
+        ctx: CompilerContext
+    ) {
+        when (val declaration = statement.declaration) {
+            is DeclarationNode.Import -> {}
+            is DeclarationNode.Function -> TODO()
+            is DeclarationNode.NamedValue -> {
+                compileExpression(declaration.value, chunk, ctx)
+                ctx.resolved.checkForRuntimeErrors(declaration.info.breadcrumbs)?.let { error ->
+                    chunk.writeInstruction(Instruction.Pop)
+                    compileBadValue(declaration, error, chunk, ctx)
+                }
+                ctx.scopeStack.last().namedValueIndices[declaration.info.breadcrumbs] = ctx.nextScopeIndex()
+            }
         }
     }
 
@@ -129,22 +164,18 @@ object Compiler {
         }
 
         val tags = ctx.getTags(expression.info.breadcrumbs)
-        val comesFrom = tags.firstNotNullOf { (it as? NodeTag.ValueComesFrom)?.source }
-        val comesFromTags = ctx.getTags(comesFrom)
+        val comesFrom = tags.firstNotNullOf { (it as? NodeTag.ValueComesFrom) }
+        val comesFromTags = ctx.getTags(comesFrom.source)
 
         for (tag in comesFromTags) {
             when (tag) {
                 is NodeTag.ReferencesFile -> {
-                    val filePathConstant = chunk.addConstant(CompiledFile.CompiledConstant.StringConst(tag.path))
-                    val exportNameConstant = tag.exportName?.let {
-                        chunk.addConstant(CompiledFile.CompiledConstant.StringConst(it))
-                    }
+                    compileFileImportReference(tag, chunk)
+                    return
+                }
 
-                    if (exportNameConstant == null) {
-                        TODO("Haven't implemented files as first-class objects yet")
-                    } else {
-                        chunk.writeInstruction(Instruction.Import(filePathConstant, exportNameConstant))
-                    }
+                is NodeTag.NamedValue -> {
+                    compileNamedValueReference(comesFrom, chunk, ctx)
                     return
                 }
 
@@ -154,6 +185,37 @@ object Compiler {
 
         // change this to an AssertionError when we're more stable
         TODO("Wasn't able to resolve identifier to anything")
+    }
+
+    private fun compileFileImportReference(
+        tag: NodeTag.ReferencesFile,
+        chunk: CompiledFile.MutableInstructionChunk
+    ) {
+        val filePathConstant = chunk.addConstant(CompiledFile.CompiledConstant.StringConst(tag.path))
+        val exportNameConstant = tag.exportName?.let {
+            chunk.addConstant(CompiledFile.CompiledConstant.StringConst(it))
+        }
+
+        if (exportNameConstant == null) {
+            TODO("Haven't implemented files as first-class objects yet")
+        } else {
+            chunk.writeInstruction(Instruction.Import(filePathConstant, exportNameConstant))
+        }
+    }
+
+    private fun compileNamedValueReference(
+        valueComesFrom: NodeTag.ValueComesFrom,
+        chunk: CompiledFile.MutableInstructionChunk,
+        ctx: CompilerContext,
+    ) {
+        for (scope in ctx.scopeStack.reversed()) {
+            val foundIndex = scope.namedValueIndices[valueComesFrom.source]
+            if (foundIndex != null) {
+                chunk.writeInstruction(Instruction.ReadLocal(foundIndex))
+                return
+            }
+        }
+        error("Couldn't find named value in scope")
     }
 
     private fun compileCauseExpression(

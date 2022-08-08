@@ -189,7 +189,11 @@ class LangVm {
                     }
                 }
 
-                is Instruction.ReadLocal -> TODO()
+                is Instruction.ReadLocal -> {
+                    val index = instruction.index
+                    val value = stack[callFrame.stackStart + index]
+                    stack.addLast(value)
+                }
                 is Instruction.Construct -> {
                     val constructorType = stack.removeLast().let {
                         if (it is RuntimeValue.RuntimeTypeReference)
