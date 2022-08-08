@@ -3,6 +3,7 @@ package com.dallonf.ktcause
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.types.LangPrimitiveKind
 import com.dallonf.ktcause.types.PrimitiveValueLangType
+import kotlin.math.exp
 
 data class AnalyzedNode(
     val nodeTags: MutableMap<Breadcrumbs, MutableList<NodeTag>> = mutableMapOf(),
@@ -247,8 +248,6 @@ object Analyzer {
     ) {
         ctx.withNewScope(declaration.info.breadcrumbs) { newCtx ->
             val name = declaration.name.text
-            // the function itself goes in the scope to allow recursion
-            newCtx.currentScope.items[name] = ScopeItem(declaration.info.breadcrumbs)
 
             output.addTag(declaration.info.breadcrumbs, NodeTag.IsFunction(name = name))
             output.addTag(
@@ -321,6 +320,7 @@ object Analyzer {
 
     private fun analyzeExpression(expression: ExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext) {
         when (expression) {
+            is ExpressionNode.BlockExpressionNode -> analyzeBlockExpression(expression, output, ctx)
             is ExpressionNode.IdentifierExpression -> analyzeIdentifierExpression(expression, output, ctx)
             is ExpressionNode.CauseExpression -> analyzeCauseExpression(expression, output, ctx)
             is ExpressionNode.CallExpression -> analyzeCallExpression(expression, output, ctx)
@@ -335,6 +335,14 @@ object Analyzer {
             )
         }
         output.addTag(expression.info.breadcrumbs, NodeTag.Expression)
+    }
+
+    private fun analyzeBlockExpression(
+        expression: ExpressionNode.BlockExpressionNode,
+        output: AnalyzedNode,
+        ctx: AnalyzerContext
+    ) {
+        TODO("Not yet implemented")
     }
 
 

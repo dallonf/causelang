@@ -248,6 +248,13 @@ sealed interface StatementNode : AstNode {
 }
 
 sealed interface ExpressionNode : AstNode {
+
+    data class BlockExpressionNode(override val info: NodeInfo, val block: BodyNode.BlockBody) : ExpressionNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
+            buildMap { put("block", block) }
+
+    }
+
     data class IdentifierExpression(override val info: NodeInfo, val identifier: Identifier) : ExpressionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
             buildMap { put("identifier", identifier) }

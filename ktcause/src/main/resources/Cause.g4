@@ -36,21 +36,22 @@ functionDeclaration : FUNCTION NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE* 
 
 namedValueDeclaration : LET NEWLINE* IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference NEWLINE*)? EQUALS NEWLINE* expression ;
 
-structureBody : blockBody ;
+structureBody : block ;
 
-blockBody : CURLY_OPEN NEWLINE* (statement (NEWLINE+ statement)*)? NEWLINE* CURLY_CLOSE ;
+block : CURLY_OPEN NEWLINE* (statement (NEWLINE+ statement)*)? NEWLINE* CURLY_CLOSE ;
 
 statement : declarationStatement | expressionStatement ;
 
 expressionStatement : expression ;
 declarationStatement : declaration ;
 
-expression : (stringLiteralExpression | integerLiteralExpression | causeExpression | identifierExpression)
+expression : (blockExpression | causeExpression | stringLiteralExpression | integerLiteralExpression | identifierExpression)
     expressionSuffix? ;
 
+blockExpression : block ;
+causeExpression : CAUSE NEWLINE* expression ;
 stringLiteralExpression : STRING_LITERAL ;
 integerLiteralExpression : INT_LITERAL ;
-causeExpression : CAUSE NEWLINE* expression ;
 identifierExpression : IDENTIFIER ;
 
 expressionSuffix : callExpressionSuffix ;

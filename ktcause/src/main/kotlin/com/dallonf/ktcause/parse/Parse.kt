@@ -151,16 +151,16 @@ private fun parseNamedValueDeclaration(
 private fun parseStructureBody(
     structureBody: StructureBodyContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): BodyNode {
-    if (structureBody.blockBody() != null) {
-        return parseBlockBody(structureBody.blockBody(), breadcrumbs, ctx)
+    if (structureBody.block() != null) {
+        return parseBlock(structureBody.block(), breadcrumbs, ctx)
     }
 
     throw Error("unexpected body type")
 }
 
 
-private fun parseBlockBody(
-    blockBody: BlockBodyContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+private fun parseBlock(
+    blockBody: BlockContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): BodyNode.BlockBody {
     val statementBreadcrumbs = breadcrumbs.appendName("statements")
     val statements = blockBody.statement().mapIndexed { i, statementRule ->
@@ -206,9 +206,10 @@ private fun parseExpression(
 ): ExpressionNode {
     val mainExpression = { innerBreadcrumbs: Breadcrumbs ->
         when (val child = expressionContext.getChild(0)) {
+            is BlockExpressionContext -> parseBlockExpression(child, innerBreadcrumbs, ctx)
+            is CauseExpressionContext -> parseCauseExpression(child, innerBreadcrumbs, ctx)
             is StringLiteralExpressionContext -> parseStringLiteralExpression(child, innerBreadcrumbs, ctx)
             is IntegerLiteralExpressionContext -> parseIntegerLiteralExpression(child, innerBreadcrumbs, ctx)
-            is CauseExpressionContext -> parseCauseExpression(child, innerBreadcrumbs, ctx)
             is IdentifierExpressionContext -> parseIdentifierExpression(child, innerBreadcrumbs, ctx)
             else -> throw Error("unexpected expression type")
         }
@@ -223,6 +224,17 @@ private fun parseExpression(
         null -> mainExpression(breadcrumbs)
         else -> throw Error("unexpected call expression suffix")
     }
+}
+
+private fun parseBlockExpression(
+    expression: BlockExpressionContext,
+    breadcrumbs: Breadcrumbs,
+    ctx: ParserContext
+): ExpressionNode.BlockExpressionNode {
+    return ExpressionNode.BlockExpressionNode(
+        NodeInfo(expression.getRange(), breadcrumbs),
+        parseBlock(expression.block(), breadcrumbs.appendName("block"), ctx)
+    )
 }
 
 private fun parseStringLiteralExpression(
