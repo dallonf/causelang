@@ -69,4 +69,71 @@ internal class ErrorHandlingBasicTest {
             """.trimIndent()
         )
     }
+
+    @Test
+    fun mistypedArgument() {
+        val vm = LangVm()
+        vm.addFile(
+            "project/hello.cau",
+            """
+            function main() {
+                cause Debug(1)
+            }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            vm.compileErrors.debug(),
+            """
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.1.body.statements.0.expression.signal.parameters.0",
+                        "position": "2:16-2:16"
+                    },
+                    "error": {
+                        "#type": "MismatchedType",
+                        "expected": {
+                            "#type": "Primitive",
+                            "kind": "String"
+                        },
+                        "actual": {
+                            "#type": "Primitive",
+                            "kind": "Integer"
+                        }
+                    }
+                }
+            ]
+            """.trimIndent()
+        )
+
+        val result = vm.executeFunction("project/hello.cau", "main", listOf())
+        assertEquals(
+            TestUtils.expectInvalidSignal(result).debug(),
+            """
+            {
+                "#type": "BadValue",
+                "position": {
+                    "#type": "SourcePosition",
+                    "path": "project/hello.cau",
+                    "breadcrumbs": "declarations.1.body.statements.0.expression.signal.parameters.0",
+                    "position": "2:16-2:16"
+                },
+                "error": {
+                    "#type": "MismatchedType",
+                    "expected": {
+                        "#type": "Primitive",
+                        "kind": "String"
+                    },
+                    "actual": {
+                        "#type": "Primitive",
+                        "kind": "Integer"
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+
+    }
 }

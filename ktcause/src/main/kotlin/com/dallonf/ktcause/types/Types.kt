@@ -1,6 +1,5 @@
 package com.dallonf.ktcause.types
 
-import com.dallonf.ktcause.ast.Breadcrumbs
 import com.dallonf.ktcause.ast.SourcePosition
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -37,12 +36,15 @@ sealed interface CanonicalLangType : ResolvedValueLangType {
     }
 }
 
+@Serializable
 data class LangParameter(
     val name: String,
     val valueType: ValueLangType,
 )
 
 sealed interface ValueLangType {
+    @Serializable
+    @SerialName("Pending")
     object Pending : ValueLangType
 
     fun isPending(): Boolean = when (this) {
@@ -125,37 +127,69 @@ sealed interface ResolvedValueLangType : ValueLangType {
     fun getInstanceType(): ResolvedValueLangType?
 }
 
+@Serializable
+@SerialName("Function")
 data class FunctionValueLangType(val name: String?, val returnType: ValueLangType, val params: List<LangParameter>) :
     ResolvedValueLangType {
     override fun getInstanceType() = null
 }
 
+@Serializable
+@SerialName("FunctionType")
 data class FunctionTypeValueLangType(val functionType: FunctionValueLangType) : ResolvedValueLangType {
     override fun getInstanceType() = functionType
 }
 
-enum class PrimitiveValueLangType : ResolvedValueLangType {
-    STRING, INTEGER, FLOAT, ACTION;
-
+@Serializable
+@SerialName("Primitive")
+data class PrimitiveValueLangType(val kind: LangPrimitiveKind) : ResolvedValueLangType {
     override fun getInstanceType() = null
 }
 
+@Serializable
+enum class LangPrimitiveKind() {
+    @SerialName("String")
+    STRING,
+
+    @SerialName("Integer")
+    INTEGER,
+
+    @SerialName("Float")
+    FLOAT,
+
+    @SerialName("Action")
+    ACTION;
+
+    fun toValueLangType() = PrimitiveValueLangType(this)
+    fun toTypeValueLangType() = PrimitiveTypeValueLangType(this.toValueLangType())
+}
+
+@Serializable
+@SerialName("PrimitiveType")
 data class PrimitiveTypeValueLangType(val primitiveType: PrimitiveValueLangType) : ResolvedValueLangType {
     override fun getInstanceType() = primitiveType
 }
 
+@Serializable
+@SerialName("TypeReference")
 data class TypeReferenceValueLangType(val canonicalType: CanonicalLangType) : ResolvedValueLangType {
     override fun getInstanceType() = InstanceValueLangType(this)
 }
 
+@Serializable
+@SerialName("Instance")
 data class InstanceValueLangType(val type: TypeReferenceValueLangType) : ResolvedValueLangType {
     override fun getInstanceType() = null
 }
 
+@Serializable
+@SerialName("BadValue")
 object BadValueLangType : ResolvedValueLangType {
     override fun getInstanceType() = null
 }
 
+@Serializable
+@SerialName("NeverContinues")
 object NeverContinuesValueLangType : ResolvedValueLangType {
     override fun getInstanceType() = null
 }

@@ -34,7 +34,18 @@ sealed class RuntimeValue {
     fun validate(): RuntimeValue {
         return when (this) {
             is BadValue, is Action, is String, is Integer, is Float, is RuntimeTypeReference, is NativeFunction -> this
-            is RuntimeObject -> TODO()
+            is RuntimeObject -> {
+                // TODO: we shouldn't make a brand new object if it's all valid
+                val newValues = mutableListOf<RuntimeValue>()
+                for (value in values) {
+                    when (val validatedValue = value.validate()) {
+                        is BadValue -> return validatedValue
+                        else -> newValues.add(validatedValue)
+                    }
+                }
+
+                this.copy(values = newValues)
+            }
         }
     }
 

@@ -7,15 +7,17 @@ object CoreDescriptors {
         val filename = "core/builtin.cau"
         val descriptor = Resolver.ExternalFileDescriptor(
             exports = mapOf(
-                "String" to PrimitiveTypeValueLangType(PrimitiveValueLangType.STRING),
-                "Integer" to PrimitiveTypeValueLangType(PrimitiveValueLangType.INTEGER),
-                "Float" to PrimitiveTypeValueLangType(PrimitiveValueLangType.FLOAT),
-                "Action" to PrimitiveTypeValueLangType(PrimitiveValueLangType.ACTION),
+                "String" to LangPrimitiveKind.STRING.toTypeValueLangType(),
+                "Integer" to LangPrimitiveKind.INTEGER.toTypeValueLangType(),
+                "Float" to LangPrimitiveKind.FLOAT.toTypeValueLangType(),
+                "Action" to LangPrimitiveKind.ACTION.toTypeValueLangType(),
                 "Debug" to CanonicalLangType.SignalCanonicalLangType(
                     CanonicalLangTypeId(filename, name = "Debug", number = 0.toUByte()),
                     name = "Debug",
-                    params = listOf(LangParameter("message", PrimitiveValueLangType.STRING)),
-                    result = PrimitiveValueLangType.ACTION
+                    params = listOf(
+                        LangParameter("message", LangPrimitiveKind.STRING.toValueLangType()),
+                    ),
+                    result = LangPrimitiveKind.ACTION.toValueLangType()
                 ),
                 "TypeError" to CanonicalLangType.SignalCanonicalLangType(
                     CanonicalLangTypeId(filename, name = "TypeError", number = 0.toUByte()),
@@ -46,10 +48,10 @@ object CoreDescriptors {
                         "append" to FunctionValueLangType(
                             name = "append",
                             params = listOf(
-                                LangParameter("this", PrimitiveValueLangType.STRING),
-                                LangParameter("other", PrimitiveValueLangType.STRING),
+                                LangParameter("this", LangPrimitiveKind.STRING.toValueLangType()),
+                                LangParameter("other", LangPrimitiveKind.STRING.toValueLangType()),
                             ),
-                            returnType = PrimitiveValueLangType.STRING
+                            returnType = LangPrimitiveKind.STRING.toValueLangType()
                         )
                     )
                 )

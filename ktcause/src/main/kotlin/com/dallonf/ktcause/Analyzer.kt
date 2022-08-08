@@ -1,6 +1,7 @@
 package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.*
+import com.dallonf.ktcause.types.LangPrimitiveKind
 import com.dallonf.ktcause.types.PrimitiveValueLangType
 
 data class AnalyzedNode(
@@ -70,7 +71,7 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(causeExpression, Causes(signal = breadcrumbs))
     }
 
-    data class IsPrimitiveValue(val primitiveType: PrimitiveValueLangType) : NodeTag() {
+    data class IsPrimitiveValue(val kind: LangPrimitiveKind) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
@@ -284,7 +285,7 @@ object Analyzer {
                 if (body.statements.isEmpty()) {
                     // if there are no statements, the block can only be Action-typed.
                     // Avoids issue with `statements.last()` below
-                    output.addTag(body.info.breadcrumbs, NodeTag.IsPrimitiveValue(PrimitiveValueLangType.ACTION))
+                    output.addTag(body.info.breadcrumbs, NodeTag.IsPrimitiveValue(LangPrimitiveKind.ACTION))
                 } else {
                     // a block's return type is the last expression... or the type of any returns? hmmmmmm
                     val lastStatementBreadcrumbs = body.statements.last().info.breadcrumbs
@@ -324,12 +325,12 @@ object Analyzer {
             is ExpressionNode.CallExpression -> analyzeCallExpression(expression, output, ctx)
             is ExpressionNode.StringLiteralExpression -> output.addTag(
                 expression.info.breadcrumbs,
-                NodeTag.IsPrimitiveValue(PrimitiveValueLangType.STRING)
+                NodeTag.IsPrimitiveValue(LangPrimitiveKind.STRING)
             )
 
             is ExpressionNode.IntegerLiteralExpression -> output.addTag(
                 expression.info.breadcrumbs,
-                NodeTag.IsPrimitiveValue(PrimitiveValueLangType.INTEGER)
+                NodeTag.IsPrimitiveValue(LangPrimitiveKind.INTEGER)
             )
         }
         output.addTag(expression.info.breadcrumbs, NodeTag.Expression)

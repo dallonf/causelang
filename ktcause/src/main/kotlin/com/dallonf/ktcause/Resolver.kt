@@ -4,7 +4,6 @@ import com.dallonf.ktcause.ast.Breadcrumbs
 import com.dallonf.ktcause.ast.FileNode
 
 import com.dallonf.ktcause.ResolutionType.*
-import com.dallonf.ktcause.ast.AstNode
 import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
 import kotlinx.serialization.Serializable
@@ -234,7 +233,7 @@ object Resolver {
                                 }
                             }
 
-                            is NodeTag.IsPrimitiveValue -> resolveWith(tag.primitiveType)
+                            is NodeTag.IsPrimitiveValue -> resolveWith(tag.kind.toValueLangType())
 
                             is NodeTag.IsFunction -> {
                                 val canReturn = pendingTags.mapNotNull {
