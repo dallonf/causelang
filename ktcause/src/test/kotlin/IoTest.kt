@@ -95,4 +95,38 @@ class IoTest {
         val finalResult = vm.resumeExecution(RuntimeValue.Action).expectReturned()
         assertEquals(finalResult.returnValue, RuntimeValue.Action)
     }
+
+    @Test
+    fun assignReceivedValueToName() {
+        val vm = LangVm()
+        vm.addCompiledFile(ioFile())
+        TestUtils.addFileExpectingNoCompileErrors(
+            vm, "project/test.cau", """
+                import core/string ( append )
+                import test/io ( Print, Prompt )
+                
+                function main() {
+                   cause Print("What is your name?")
+                   let name = cause Prompt()
+                   cause Print(append("Hello, ", name))
+                }
+            """.trimIndent()
+        )
+
+        TestUtils.expectValidCaused(
+            vm.executeFunction("project/test.cau", "main", listOf()),
+            vm.getTypeId("test/io.cau", "Print")
+        )
+        TestUtils.expectValidCaused(
+            vm.resumeExecution(RuntimeValue.Action),
+            vm.getTypeId("test/io.cau", "Prompt")
+        )
+        val finalPrint = TestUtils.expectValidCaused(
+            vm.resumeExecution(RuntimeValue.String("Bob")),
+            vm.getTypeId("test/io.cau", "Print")
+        )
+        assertEquals(finalPrint.values[0], RuntimeValue.String("Hello, Bob"))
+
+        assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturned().returnValue, RuntimeValue.Action)
+    }
 }
