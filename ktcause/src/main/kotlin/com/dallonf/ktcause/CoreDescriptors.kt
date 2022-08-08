@@ -12,19 +12,19 @@ object CoreDescriptors {
                 "Float" to PrimitiveTypeValueLangType(PrimitiveValueLangType.FLOAT),
                 "Action" to PrimitiveTypeValueLangType(PrimitiveValueLangType.ACTION),
                 "Debug" to CanonicalLangType.SignalCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "Debug", number = 0),
+                    CanonicalLangTypeId(filename, name = "Debug", number = 0.toUByte()),
                     name = "Debug",
                     params = listOf(LangParameter("message", PrimitiveValueLangType.STRING)),
                     result = PrimitiveValueLangType.ACTION
                 ),
                 "TypeError" to CanonicalLangType.SignalCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "TypeError", number = 0),
+                    CanonicalLangTypeId(filename, name = "TypeError", number = 0.toUByte()),
                     name = "TypeError",
                     params = listOf(LangParameter("message", BadValueLangType)),
                     result = NeverContinuesValueLangType
                 ),
                 "AssumptionBroken" to CanonicalLangType.SignalCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "AssumptionBroken", number = 0),
+                    CanonicalLangTypeId(filename, name = "AssumptionBroken", number = 0.toUByte()),
                     name = "AssumptionBroken",
                     params = listOf(LangParameter("message", BadValueLangType)),
                     result = NeverContinuesValueLangType

@@ -6,15 +6,16 @@ data class CanonicalLangTypeId(
     val path: String,
     val parentName: String? = null,
     val name: String?,
-    val number: Byte,
+    val number: UByte,
 ) {
     override fun toString(): String {
         val name = name ?: "<anonymous>"
+        val numberIfApplicable = if (number == 0.toUByte()) "" else number
 
         return if (parentName != null) {
-            "${path}:${parentName}_${name}${number}"
+            "${path}:${parentName}_${name}${numberIfApplicable}"
         } else {
-            "${path}:${name}${number}"
+            "${path}:${name}${numberIfApplicable}"
         }
     }
 }
