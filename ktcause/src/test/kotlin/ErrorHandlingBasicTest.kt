@@ -26,7 +26,7 @@ internal class ErrorHandlingBasicTest {
                             "position": "2:15-2:16"
                         },
                         "error": {
-                            "type": "MissingParameters",
+                            "#type": "MissingParameters",
                             "names": [
                                 "message"
                             ]
@@ -43,22 +43,22 @@ internal class ErrorHandlingBasicTest {
             {
                 "#type": "BadValue",
                 "position": {
-                    "type": "SourcePosition",
+                    "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.1.body.statements.0.expression",
                     "position": "2:4-2:16"
                 },
                 "error": {
-                    "type": "ProxyError",
+                    "#type": "ProxyError",
                     "actualError": {
-                        "type": "MissingParameters",
+                        "#type": "MissingParameters",
                         "names": [
                             "message"
                         ]
                     },
                     "proxyChain": [
                         {
-                            "type": "SourcePosition",
+                            "#type": "SourcePosition",
                             "path": "project/hello.cau",
                             "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
                             "position": "2:15-2:16"
@@ -74,8 +74,7 @@ internal class ErrorHandlingBasicTest {
     fun mistypedArgument() {
         val vm = LangVm()
         vm.addFile(
-            "project/hello.cau",
-            """
+            "project/hello.cau", """
             function main() {
                 cause Debug(1)
             }
@@ -83,8 +82,7 @@ internal class ErrorHandlingBasicTest {
         )
 
         assertEquals(
-            vm.compileErrors.debug(),
-            """
+            vm.compileErrors.debug(), """
             [
                 {
                     "position": {
@@ -110,8 +108,7 @@ internal class ErrorHandlingBasicTest {
 
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
         assertEquals(
-            TestUtils.expectInvalidSignal(result).debug(),
-            """
+            TestUtils.expectInvalidSignal(result).debug(), """
             {
                 "#type": "BadValue",
                 "position": {
@@ -134,6 +131,116 @@ internal class ErrorHandlingBasicTest {
             }
             """.trimIndent()
         )
+    }
 
+    @Test
+    fun causeNonSignal() {
+        val vm = LangVm()
+        vm.addFile(
+            "project/hello.cau", """
+                function main() {
+                    cause "oops"
+                }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            vm.compileErrors.debug(), """
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.1.body.statements.0.expression",
+                        "position": "2:4-2:10"
+                    },
+                    "error": {
+                        "#type": "NotCausable"
+                    }
+                }
+            ]
+            """.trimIndent()
+        )
+
+        val result = vm.executeFunction("project/hello.cau", "main", listOf())
+        assertEquals(
+            TestUtils.expectTypeError(result, vm).debug(), """
+            {
+                "#type": "BadValue",
+                "position": {
+                    "#type": "SourcePosition",
+                    "path": "project/hello.cau",
+                    "breadcrumbs": "declarations.1.body.statements.0.expression",
+                    "position": "2:4-2:10"
+                },
+                "error": {
+                    "#type": "NotCausable"
+                }
+            }
+            """.trimIndent()
+        )
+    }
+
+    @Test
+    fun nonExistentSignal() {
+        val vm = LangVm()
+        vm.addFile(
+            "project/hello.cau", """
+                function main() {
+                  cause DoesntExist("oops")
+                }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            vm.compileErrors.debug(), """
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.1.body.statements.0.expression.signal.callee",
+                        "position": "2:8-2:8"
+                    },
+                    "error": {
+                        "#type": "NotInScope"
+                    }
+                }
+            ]
+            """.trimIndent()
+        )
+
+        val result = vm.executeFunction("project/hello.cau", "main", listOf())
+        assertEquals(
+            TestUtils.expectTypeError(result, vm).debug(), """
+            {
+                "#type": "BadValue",
+                "position": {
+                    "#type": "SourcePosition",
+                    "path": "project/hello.cau",
+                    "breadcrumbs": "declarations.1.body.statements.0.expression",
+                    "position": "2:2-2:26"
+                },
+                "error": {
+                    "#type": "ProxyError",
+                    "actualError": {
+                        "#type": "NotInScope"
+                    },
+                    "proxyChain": [
+                        {
+                            "#type": "SourcePosition",
+                            "path": "project/hello.cau",
+                            "breadcrumbs": "declarations.1.body.statements.0.expression.signal.callee",
+                            "position": "2:8-2:8"
+                        },
+                        {
+                            "#type": "SourcePosition",
+                            "path": "project/hello.cau",
+                            "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
+                            "position": "2:19-2:26"
+                        }
+                    ]
+                }
+            }
+            """.trimIndent()
+        )
     }
 }

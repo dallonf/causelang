@@ -7,7 +7,8 @@ internal class HelloWorldTest {
     @Test
     fun helloWorld() {
         val vm = LangVm()
-        vm.addFile(
+        TestUtils.addFileExpectingNoCompileErrors(
+            vm,
             "project/hello.cau", """
                 function main() {
                     cause Debug("Hello world!")
