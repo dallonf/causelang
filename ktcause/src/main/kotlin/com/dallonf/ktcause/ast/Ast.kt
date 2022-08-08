@@ -1,5 +1,13 @@
 package com.dallonf.ktcause.ast
 
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
 data class DocumentPosition(val line: Int, val column: Int) {
     override fun toString(): String {
         return "${line}:${column}"
@@ -8,6 +16,7 @@ data class DocumentPosition(val line: Int, val column: Int) {
 
 data class DocumentRange(val start: DocumentPosition, val end: DocumentPosition)
 
+@Serializable(with = BreadcrumbsSerializer::class)
 data class Breadcrumbs(val entries: List<BreadcrumbEntry>) {
     sealed interface BreadcrumbEntry {
         data class Index(val index: Int) : BreadcrumbEntry
@@ -45,6 +54,18 @@ data class Breadcrumbs(val entries: List<BreadcrumbEntry>) {
             }
         }
         return segments.joinToString(".")
+    }
+}
+
+class BreadcrumbsSerializer : KSerializer<Breadcrumbs> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Breadcrumbs", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: Breadcrumbs) {
+        encoder.encodeString(value.toString())
+    }
+
+    override fun deserialize(decoder: Decoder): Breadcrumbs {
+        TODO("Not yet implemented")
     }
 }
 

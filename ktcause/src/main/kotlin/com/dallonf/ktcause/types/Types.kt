@@ -1,6 +1,8 @@
 package com.dallonf.ktcause.types
 
 import com.dallonf.ktcause.ast.Breadcrumbs
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 data class CanonicalLangTypeId(
     val path: String,
@@ -64,20 +66,58 @@ sealed interface ErrorSourcePosition {
 }
 
 sealed interface ErrorValueLangType : ValueLangType {
+    @Serializable
+    @SerialName("NeverResolved")
     object NeverResolved : ErrorValueLangType
+
+    @Serializable
+    @SerialName("NotInScope")
     object NotInScope : ErrorValueLangType
+
+    @Serializable
+    @SerialName("FileNotFound")
     object FileNotFound : ErrorValueLangType
+
+    @Serializable
+    @SerialName("ExportNotFound")
     object ExportNotFound : ErrorValueLangType
+
+    @Serializable
+    @SerialName("ProxyError")
     data class ProxyError(val causedBy: ErrorSourcePosition) : ErrorValueLangType
+
+    @Serializable
+    @SerialName("NotCallable")
     object NotCallable : ErrorValueLangType
+
+    @Serializable
+    @SerialName("NotCausable")
     object NotCausable : ErrorValueLangType
+
+    @Serializable
+    @SerialName("ImplementationTodo")
     data class ImplementationTodo(val description: String) : ErrorValueLangType
+
+    @Serializable
+    @SerialName("NotATypeReference")
     data class NotATypeReference(val actual: ResolvedValueLangType) : ErrorValueLangType
+
+    @Serializable
+    @SerialName("MismatchedType")
     data class MismatchedType(val expected: ResolvedValueLangType, val actual: ResolvedValueLangType) :
         ErrorValueLangType
 
+    @Serializable
+    @SerialName("MissingParameters")
+
     data class MissingParameters(val names: List<String>) : ErrorValueLangType
+
+    @Serializable
+    @SerialName("ExcessParameters")
     data class ExcessParameter(val expected: Int) : ErrorValueLangType
+
+    @Serializable
+    @SerialName("UnknownParameter")
     object UnknownParameter : ErrorValueLangType
 }
 

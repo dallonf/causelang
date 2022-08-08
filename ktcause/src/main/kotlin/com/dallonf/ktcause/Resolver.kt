@@ -5,11 +5,12 @@ import com.dallonf.ktcause.ast.FileNode
 
 import com.dallonf.ktcause.ResolutionType.*
 import com.dallonf.ktcause.types.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 
 enum class ResolutionType {
     INFERRED, EXPECTED;
 }
-
 
 data class ResolutionKey(val type: ResolutionType, val breadcrumbs: Breadcrumbs)
 data class ResolvedFile(
@@ -17,6 +18,7 @@ data class ResolvedFile(
     val resolvedTypes: Map<ResolutionKey, ValueLangType>,
     val canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>
 ) {
+    @Serializable
     data class ResolverError(val filePath: String, val location: Breadcrumbs, val error: ErrorValueLangType)
 
     fun checkForRuntimeErrors(breadcrumbs: Breadcrumbs): ErrorValueLangType? {
@@ -54,6 +56,10 @@ data class ResolvedFile(
             }
         }
     }
+}
+
+internal fun List<ResolvedFile.ResolverError>.debug(): String {
+    return Debug.debugSerializer.encodeToString(this)
 }
 
 object Resolver {

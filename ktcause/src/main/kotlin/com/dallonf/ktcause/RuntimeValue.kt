@@ -25,10 +25,6 @@ sealed class RuntimeValue {
     data class NativeFunction(val name: kotlin.String, val function: (List<RuntimeValue>) -> RuntimeValue) :
         RuntimeValue()
 
-    companion object {
-        private val debugSerializer by lazy { Json { prettyPrint = true } }
-    }
-
     fun isAssignableTo(langType: ValueLangType): Boolean {
         // TODO: implement this!
         return true
@@ -76,9 +72,5 @@ sealed class RuntimeValue {
             is RuntimeValue.RuntimeTypeReference -> TODO()
             is RuntimeValue.String -> JsonPrimitive(this.value)
         }
-    }
-
-    internal fun debug(): kotlin.String {
-        return debugSerializer.encodeToString(this.toJson())
     }
 }
