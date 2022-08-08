@@ -23,8 +23,8 @@ internal class AstTest {
         val vm = LangVm()
         vm.addFile("project/test.cau", source)
         val result1 = vm.executeFunction("project/test.cau", "main", emptyList())
-        result1.pp()
+        println(result1.expectCaused().debug())
         val result2 = vm.resumeExecution(RuntimeValue.Action)
-        result2.pp()
+        println(result2.expectReturned().debug())
     }
 }

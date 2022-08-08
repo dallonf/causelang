@@ -19,6 +19,7 @@ data class CanonicalLangTypeId(
     }
 }
 
+
 sealed interface CanonicalLangType : ResolvedValueLangType {
     val id: CanonicalLangTypeId
 

@@ -295,6 +295,14 @@ class LangVm {
 }
 
 sealed interface RunResult {
-    data class Returned(val returnValue: RuntimeValue) : RunResult
-    data class Caused(val signal: RuntimeValue.RuntimeObject) : RunResult
+    data class Returned(val returnValue: RuntimeValue) : RunResult {
+        fun debug() = returnValue.debug()
+    }
+
+    data class Caused(val signal: RuntimeValue.RuntimeObject) : RunResult {
+        fun debug() = signal.debug()
+    }
+
+    fun expectReturned(): Returned = this as Returned
+    fun expectCaused(): Caused = this as Caused
 }

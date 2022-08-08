@@ -15,7 +15,6 @@ repositories {
 dependencies {
     implementation("org.antlr:antlr4-runtime:4.10.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.0-RC")
-    implementation("com.charleskorn.kaml:kaml:0.46.0")
     testImplementation(kotlin("test"))
     testImplementation("com.tylerthrailkill.helpers:pretty-print:v2.0.8")
 }
