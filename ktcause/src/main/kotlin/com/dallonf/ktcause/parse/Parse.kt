@@ -299,7 +299,7 @@ private fun parsePositionalParameter(
 private fun ParserRuleContext.getRange(): DocumentRange {
     return DocumentRange(
         DocumentPosition(this.start.line, this.start.charPositionInLine),
-        DocumentPosition(this.stop.line, this.stop.charPositionInLine)
+        this.stop.getRange().end
     )
 }
 

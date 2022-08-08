@@ -132,7 +132,7 @@ object Resolver {
                         if (error is ErrorValueLangType.ProxyError) {
                             ErrorValueLangType.ProxyError(
                                 error.actualError,
-                                error.proxyChain + listOf(sourcePosition)
+                                listOf(sourcePosition) + error.proxyChain
                             )
                         } else {
                             ErrorValueLangType.ProxyError(

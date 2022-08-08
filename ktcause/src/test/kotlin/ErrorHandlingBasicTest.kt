@@ -23,7 +23,7 @@ internal class ErrorHandlingBasicTest {
                         "position": {
                             "path": "project/hello.cau",
                             "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
-                            "position": "2:15-2:16"
+                            "position": "2:15-2:17"
                         },
                         "error": {
                             "#type": "MissingParameters",
@@ -46,7 +46,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.1.body.statements.0.expression",
-                    "position": "2:4-2:16"
+                    "position": "2:4-2:17"
                 },
                 "error": {
                     "#type": "ProxyError",
@@ -61,7 +61,7 @@ internal class ErrorHandlingBasicTest {
                             "#type": "SourcePosition",
                             "path": "project/hello.cau",
                             "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
-                            "position": "2:15-2:16"
+                            "position": "2:15-2:17"
                         }
                     ]
                 }
@@ -88,7 +88,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body.statements.0.expression.signal.parameters.0",
-                        "position": "2:16-2:16"
+                        "position": "2:16-2:17"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -115,7 +115,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.1.body.statements.0.expression.signal.parameters.0",
-                    "position": "2:16-2:16"
+                    "position": "2:16-2:17"
                 },
                 "error": {
                     "#type": "MismatchedType",
@@ -151,7 +151,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body.statements.0.expression",
-                        "position": "2:4-2:10"
+                        "position": "2:4-2:16"
                     },
                     "error": {
                         "#type": "NotCausable"
@@ -170,7 +170,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.1.body.statements.0.expression",
-                    "position": "2:4-2:10"
+                    "position": "2:4-2:16"
                 },
                 "error": {
                     "#type": "NotCausable"
@@ -198,7 +198,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body.statements.0.expression.signal.callee",
-                        "position": "2:8-2:8"
+                        "position": "2:8-2:19"
                     },
                     "error": {
                         "#type": "NotInScope"
@@ -217,7 +217,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.1.body.statements.0.expression",
-                    "position": "2:2-2:26"
+                    "position": "2:2-2:27"
                 },
                 "error": {
                     "#type": "ProxyError",
@@ -228,14 +228,14 @@ internal class ErrorHandlingBasicTest {
                         {
                             "#type": "SourcePosition",
                             "path": "project/hello.cau",
-                            "breadcrumbs": "declarations.1.body.statements.0.expression.signal.callee",
-                            "position": "2:8-2:8"
+                            "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
+                            "position": "2:19-2:27"
                         },
                         {
                             "#type": "SourcePosition",
                             "path": "project/hello.cau",
-                            "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
-                            "position": "2:19-2:26"
+                            "breadcrumbs": "declarations.1.body.statements.0.expression.signal.callee",
+                            "position": "2:8-2:19"
                         }
                     ]
                 }
