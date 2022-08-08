@@ -4,6 +4,8 @@ import com.dallonf.ktcause.ast.Breadcrumbs
 import com.dallonf.ktcause.ast.FileNode
 
 import com.dallonf.ktcause.ResolutionType.*
+import com.dallonf.ktcause.ast.AstNode
+import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -16,11 +18,8 @@ data class ResolutionKey(val type: ResolutionType, val breadcrumbs: Breadcrumbs)
 data class ResolvedFile(
     val path: String,
     val resolvedTypes: Map<ResolutionKey, ValueLangType>,
-    val canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>
+    val canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,
 ) {
-    @Serializable
-    data class ResolverError(val filePath: String, val location: Breadcrumbs, val error: ErrorValueLangType)
-
     fun checkForRuntimeErrors(breadcrumbs: Breadcrumbs): ErrorValueLangType? {
         val expected = resolvedTypes[ResolutionKey(EXPECTED, breadcrumbs)]?.getRuntimeError()
         return expected ?: resolvedTypes[ResolutionKey(INFERRED, breadcrumbs)]!!.getRuntimeError()
@@ -34,40 +33,25 @@ data class ResolvedFile(
         INFERRED,
         breadcrumbs
     )]!!
-
-    fun getUniqueErrors(): List<ResolverError> {
-        return resolvedTypes.mapNotNull { (key, resolvedType) ->
-            val breadcrumbs = key.breadcrumbs
-
-            when (resolvedType) {
-                is ResolvedValueLangType -> null
-                is ErrorValueLangType.ProxyError -> null
-                is ErrorValueLangType -> ResolverError(
-                    filePath = path,
-                    location = breadcrumbs,
-                    error = resolvedType,
-                )
-
-                is ValueLangType.Pending -> ResolverError(
-                    filePath = path,
-                    location = breadcrumbs,
-                    error = ErrorValueLangType.NeverResolved,
-                )
-            }
-        }
-    }
-}
-
-internal fun List<ResolvedFile.ResolverError>.debug(): String {
-    return Debug.debugSerializer.encodeToString(this)
 }
 
 object Resolver {
+    @Serializable
+    data class ResolverError(val position: SourcePosition.Source, val error: ErrorValueLangType)
+
+    internal fun List<ResolverError>.debug(): String {
+        return Debug.debugSerializer.encodeToString(this)
+    }
+
+
     data class ExternalFileDescriptor(val exports: Map<String, ValueLangType>)
 
     fun resolveForFile(
-        path: String, fileNode: FileNode, analyzed: AnalyzedNode, otherFiles: Map<String, ExternalFileDescriptor>
-    ): ResolvedFile {
+        path: String,
+        fileNode: FileNode,
+        analyzed: AnalyzedNode,
+        otherFiles: Map<String, ExternalFileDescriptor>
+    ): Pair<ResolvedFile, List<ResolverError>> {
         val allOtherFiles = otherFiles.toMutableMap().also {
             val core = CoreDescriptors.coreBuiltinFile;
             it[core.first] = core.second
@@ -139,13 +123,26 @@ object Resolver {
                     iterationResolvedReferences.add(pendingKey to langType)
                 }
 
-                fun resolveWithProxyError(breadcrumbs: Breadcrumbs) {
+                fun resolveWithProxyError(error: ErrorValueLangType, breadcrumbs: Breadcrumbs) {
+                    val sourcePosition = SourcePosition.Source(
+                        path,
+                        breadcrumbs,
+                        fileNode.findNode(breadcrumbs).info.position
+                    )
                     resolveWith(
-                        ErrorValueLangType.ProxyError(
-                            ErrorSourcePosition.SameFile(
-                                path, breadcrumbs
+                        if (error is ErrorValueLangType.ProxyError) {
+                            ErrorValueLangType.ProxyError(
+                                error.actualError,
+                                error.proxyChain + listOf(sourcePosition)
                             )
-                        )
+                        } else {
+                            ErrorValueLangType.ProxyError(
+                                error,
+                                listOf(
+                                    sourcePosition
+                                )
+                            )
+                        }
                     )
                 }
 
@@ -157,7 +154,7 @@ object Resolver {
                                 when (val sourceType = getResolvedTypeOf(tag.source)) {
                                     is ValueLangType.Pending -> {}
                                     is ResolvedValueLangType -> resolveWith(sourceType)
-                                    is ErrorValueLangType -> resolveWithProxyError(tag.source)
+                                    is ErrorValueLangType -> resolveWithProxyError(sourceType, tag.source)
                                 }
                             }
 
@@ -179,7 +176,7 @@ object Resolver {
                                                 parameterTags?.forEach { (parameterBreadcrumbs, index) ->
                                                     val argumentType = getResolvedTypeOf(parameterBreadcrumbs)
                                                     if (argumentType is ErrorValueLangType) {
-                                                        resolveWithProxyError(parameterBreadcrumbs)
+                                                        resolveWithProxyError(argumentType, parameterBreadcrumbs)
                                                         return@eachTag
                                                     }
                                                     params[index] = argumentType
@@ -205,7 +202,7 @@ object Resolver {
                                     }
 
                                     is ResolvedValueLangType -> resolveWith(ErrorValueLangType.NotCallable)
-                                    is ErrorValueLangType -> resolveWithProxyError(tag.callee)
+                                    is ErrorValueLangType -> resolveWithProxyError(calleeType, tag.callee)
                                 }
                             }
 
@@ -220,7 +217,7 @@ object Resolver {
                                 }
 
                                 is ResolvedValueLangType -> resolveWith(ErrorValueLangType.NotCausable)
-                                is ErrorValueLangType -> resolveWithProxyError(tag.signal)
+                                is ErrorValueLangType -> resolveWithProxyError(signalType, tag.signal)
                             }
 
                             is NodeTag.NamedValue -> {
@@ -232,7 +229,7 @@ object Resolver {
                                     when (val inferredType = getResolvedTypeOf(valueBreadcrumbs)) {
                                         is ValueLangType.Pending -> {}
                                         is ResolvedValueLangType -> resolveWith(inferredType)
-                                        is ErrorValueLangType -> resolveWithProxyError(valueBreadcrumbs)
+                                        is ErrorValueLangType -> resolveWithProxyError(inferredType, valueBreadcrumbs)
                                     }
                                 }
                             }
@@ -298,7 +295,7 @@ object Resolver {
                                         }
                                     }
 
-                                    is ErrorValueLangType -> resolveWithProxyError(tag.annotation)
+                                    is ErrorValueLangType -> resolveWithProxyError(foundType, tag.annotation)
                                 }
                             }
 
@@ -326,7 +323,7 @@ object Resolver {
                                         }
                                     }
 
-                                    is ErrorValueLangType -> resolveWithProxyError(callTag.callee)
+                                    is ErrorValueLangType -> resolveWithProxyError(callType, callTag.callee)
                                 }
                             }
 
@@ -376,10 +373,36 @@ object Resolver {
             }
         }
 
-        return ResolvedFile(
+        val file = ResolvedFile(
             path,
             resolvedTypes,
             knownCanonicalTypes
         )
+        val errors = resolvedTypes.mapNotNull { (key, resolvedType) ->
+            val breadcrumbs = key.breadcrumbs
+            val source by lazy {
+                SourcePosition.Source(
+                    path,
+                    breadcrumbs,
+                    fileNode.findNode(breadcrumbs).info.position
+                )
+            }
+
+            when (resolvedType) {
+                is ResolvedValueLangType -> null
+                is ErrorValueLangType.ProxyError -> null
+                is ErrorValueLangType -> ResolverError(
+                    source,
+                    error = resolvedType,
+                )
+
+                is ValueLangType.Pending -> ResolverError(
+                    source,
+                    error = ErrorValueLangType.NeverResolved,
+                )
+            }
+        }
+
+        return Pair(file, errors)
     }
 }

@@ -1,5 +1,5 @@
 import com.dallonf.ktcause.LangVm
-import com.dallonf.ktcause.debug
+import com.dallonf.ktcause.Resolver.debug
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -20,8 +20,11 @@ internal class ErrorHandlingBasicTest {
             """
                 [
                     {
-                        "filePath": "project/hello.cau",
-                        "location": "declarations.1.body.statements.0.signal",
+                        "position": {
+                            "path": "project/hello.cau",
+                            "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
+                            "position": "2:15-2:16"
+                        },
                         "error": {
                             "type": "MissingParameters",
                             "names": [

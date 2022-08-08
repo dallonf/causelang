@@ -1,6 +1,7 @@
 package com.dallonf.ktcause.types
 
 import com.dallonf.ktcause.ast.Breadcrumbs
+import com.dallonf.ktcause.ast.SourcePosition
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -60,10 +61,6 @@ sealed interface ValueLangType {
     fun getError() = this as? ErrorValueLangType
 }
 
-sealed interface ErrorSourcePosition {
-    data class SameFile(val path: String, val breadcrumbs: Breadcrumbs) : ErrorSourcePosition
-    data class FileImport(val path: String, val exportName: String) : ErrorSourcePosition
-}
 
 sealed interface ErrorValueLangType : ValueLangType {
     @Serializable
@@ -84,7 +81,8 @@ sealed interface ErrorValueLangType : ValueLangType {
 
     @Serializable
     @SerialName("ProxyError")
-    data class ProxyError(val causedBy: ErrorSourcePosition) : ErrorValueLangType
+    data class ProxyError(val actualError: ErrorValueLangType, val proxyChain: List<SourcePosition>) :
+        ErrorValueLangType
 
     @Serializable
     @SerialName("NotCallable")

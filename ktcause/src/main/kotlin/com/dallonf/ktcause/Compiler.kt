@@ -60,8 +60,11 @@ object Compiler {
     ) {
         chunk.writeLiteral(
             CompiledFile.CompiledConstant.ErrorConst(
-                ctx.resolved.path,
-                node.info.breadcrumbs,
+                SourcePosition.Source(
+                    ctx.resolved.path,
+                    node.info.breadcrumbs,
+                    node.info.position
+                ),
                 error,
             )
         )

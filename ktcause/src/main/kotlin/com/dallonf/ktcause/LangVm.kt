@@ -1,19 +1,23 @@
 package com.dallonf.ktcause
 
+import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.ast.Breadcrumbs
+import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.parse.parse
 import com.dallonf.ktcause.types.*
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class LangVm {
     open class VmError(message: String) : Error(message)
     class InternalVmError(message: String) : VmError(message)
 
     private val files = mutableMapOf<String, CompiledFile>()
-    private val _compileErrors = mutableListOf<ResolvedFile.ResolverError>()
+    private val _compileErrors = mutableListOf<Resolver.ResolverError>()
     private var callFrame: CallFrame? = null
     private val stack: ArrayDeque<RuntimeValue> = ArrayDeque()
 
-    val compileErrors: List<ResolvedFile.ResolverError>
+    val compileErrors: List<Resolver.ResolverError>
         get() = _compileErrors
 
     private class CallFrame(val chunk: CompiledFile.InstructionChunk, val parent: CallFrame? = null) {
@@ -23,10 +27,9 @@ class LangVm {
     }
 
     data class ErrorTrace(
-        val filePath: String,
-        val breadcrumbs: Breadcrumbs,
+        val position: SourcePosition,
         val error: ErrorValueLangType,
-        val proxyChain: List<Breadcrumbs>
+        val proxyChain: List<SourcePosition>
     )
 
     fun addCompiledFile(file: CompiledFile) {
@@ -39,56 +42,13 @@ class LangVm {
         // TODO: need a step between here and compilation to allow for loading other files
 
         val otherFiles = files.mapValues { (path, compiledFile) -> compiledFile.toFileDescriptor() }
-        val resolvedFile = Resolver.resolveForFile(
+        val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
             filePath, astNode, analyzedFile, otherFiles
         )
-        _compileErrors.addAll(resolvedFile.getUniqueErrors())
+        _compileErrors.addAll(resolverErrors)
 
         val compiledFile = Compiler.compile(astNode, analyzedFile, resolvedFile)
         addCompiledFile(compiledFile)
-    }
-
-    fun getErrorFromBadValue(badValue: RuntimeValue.BadValue): ErrorTrace {
-        val proxyChain = mutableListOf<Breadcrumbs>()
-
-        var breadcrumbs = badValue.breadcrumbs
-        val file = files[badValue.filePath]
-        requireNotNull(file) { "This error comes from ${badValue.filePath}, but I don't know that file." }
-        val resolvedFile = file.resolved
-        requireNotNull(resolvedFile) { "I don't have detailed error reporting for ${badValue.filePath}." }
-
-        var foundError: ErrorValueLangType? = null
-        while (true) {
-            when (val currentError = resolvedFile.getInferredType(breadcrumbs)) {
-                is ValueLangType.Pending -> {
-                    foundError = ErrorValueLangType.NeverResolved
-                    break
-                }
-
-                is ResolvedValueLangType -> {
-                    throw VmError("This points to a value that isn't an error: $currentError")
-                }
-
-                is ErrorValueLangType.ProxyError -> {
-                    // TODO: "SameFile" is wrong
-                    if (currentError.causedBy is ErrorSourcePosition.SameFile) {
-                        proxyChain.add(breadcrumbs)
-                        breadcrumbs = currentError.causedBy.breadcrumbs
-                    } else {
-                        foundError = currentError
-                        break
-                    }
-                }
-
-                is ErrorValueLangType -> {
-                    foundError = currentError
-                    break
-                }
-            }
-        }
-        requireNotNull(foundError)
-
-        return ErrorTrace(badValue.filePath, breadcrumbs, foundError, proxyChain)
     }
 
     private fun getFileDescriptor(filePath: String): Resolver.ExternalFileDescriptor {
@@ -152,6 +112,8 @@ class LangVm {
     private val COMPILE_ERROR_ASSURANCE =
         "This probably isn't your fault. This shouldn't happen if the compiler is working properly.";
 
+    private val stackJsonSerializer = Json
+
     private fun execute(): RunResult {
         while (true) {
             val callFrame = requireNotNull(callFrame) { "I'm not ready to execute anything!" }
@@ -166,7 +128,8 @@ class LangVm {
             }
 
             // TODO: VM play-by-play enabled optionally
-            println("stack: $stack")
+            val debugStack = stackJsonSerializer.encodeToString(stack.map { it.toJson() })
+            println("stack: $debugStack")
             println("instruction: $instruction")
 
             when (instruction) {
@@ -178,8 +141,7 @@ class LangVm {
                         is CompiledFile.CompiledConstant.IntegerConst -> RuntimeValue.Integer(constant.value)
                         is CompiledFile.CompiledConstant.FloatConst -> RuntimeValue.Float(constant.value)
                         is CompiledFile.CompiledConstant.ErrorConst -> RuntimeValue.BadValue(
-                            constant.filePath,
-                            constant.breadcrumbs,
+                            constant.sourcePosition,
                             constant.error
                         )
                     }

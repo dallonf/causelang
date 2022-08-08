@@ -1,6 +1,7 @@
 package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.Breadcrumbs
+import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
 
 data class CompiledFile(
@@ -64,7 +65,7 @@ data class CompiledFile(
         data class StringConst(val value: String) : CompiledConstant
         data class IntegerConst(val value: Long) : CompiledConstant
         data class FloatConst(val value: Double) : CompiledConstant
-        data class ErrorConst(val filePath: String, val breadcrumbs: Breadcrumbs, val error: ErrorValueLangType) :
+        data class ErrorConst(val sourcePosition: SourcePosition, val error: ErrorValueLangType) :
             CompiledConstant
     }
 

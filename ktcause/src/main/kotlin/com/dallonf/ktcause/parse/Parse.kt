@@ -196,7 +196,7 @@ private fun parseExpressionStatement(
 ): StatementNode.ExpressionStatement {
     return StatementNode.ExpressionStatement(
         NodeInfo(expressionStatement.getRange(), breadcrumbs),
-        parseExpression(expressionStatement.expression(), breadcrumbs, ctx)
+        parseExpression(expressionStatement.expression(), breadcrumbs.appendName("expression"), ctx)
     )
 }
 

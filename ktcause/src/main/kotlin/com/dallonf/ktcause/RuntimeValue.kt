@@ -1,6 +1,7 @@
 package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.Breadcrumbs
+import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.ErrorValueLangType
 import com.dallonf.ktcause.types.ValueLangType
@@ -9,7 +10,7 @@ import kotlinx.serialization.json.*
 
 sealed class RuntimeValue {
     object Action : RuntimeValue()
-    data class BadValue(val filePath: kotlin.String, val breadcrumbs: Breadcrumbs, val error: ErrorValueLangType) :
+    data class BadValue(val position: SourcePosition, val error: ErrorValueLangType) :
         RuntimeValue()
 
     data class String(val value: kotlin.String) : RuntimeValue()
