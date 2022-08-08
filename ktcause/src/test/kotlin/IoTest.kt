@@ -129,4 +129,35 @@ class IoTest {
 
         assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturned().returnValue, RuntimeValue.Action)
     }
+
+    @Test
+    fun inlineBlockExpression() {
+        val vm = LangVm()
+        vm.addCompiledFile(ioFile())
+        TestUtils.addFileExpectingNoCompileErrors(
+            vm, "project/test.cau", """
+                import core/string ( append )
+                import test/io ( Print, Prompt )
+                
+                function main() {
+                  let greeting = {
+                    let name = cause Prompt()
+                    append("Hello, ", name)
+                  }
+                  cause Print(greeting)
+                }
+            """.trimIndent()
+        )
+
+        TestUtils.expectValidCaused(
+            vm.executeFunction("project/test.cau", "main", listOf()),
+            vm.getTypeId("test/io.cau", "Prompt")
+        )
+        val finalPrint = TestUtils.expectValidCaused(
+            vm.resumeExecution(RuntimeValue.String("Bob")),
+            vm.getTypeId("test/io.cau", "Print")
+        )
+        assertEquals(finalPrint.values[0], RuntimeValue.String("Hello, Bob"))
+        assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturned().returnValue, RuntimeValue.Action)
+    }
 }
