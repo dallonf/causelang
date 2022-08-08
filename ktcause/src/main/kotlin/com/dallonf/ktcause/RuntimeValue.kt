@@ -52,10 +52,19 @@ sealed class RuntimeValue {
                 put("#type", JsonPrimitive("Action"))
             }
 
-            is RuntimeValue.BadValue -> TODO()
+            is RuntimeValue.BadValue -> buildJsonObject {
+                put("#type", "BadValue")
+                put("position", Debug.debugSerializer.encodeToJsonElement(this@RuntimeValue.position))
+                put("error", Debug.debugSerializer.encodeToJsonElement(this@RuntimeValue.error))
+            }
+
             is RuntimeValue.Float -> JsonPrimitive(this.value)
             is RuntimeValue.Integer -> JsonPrimitive(this.value)
-            is RuntimeValue.NativeFunction -> TODO()
+            is RuntimeValue.NativeFunction -> buildJsonObject {
+                put("#type", "NativeFunction")
+                put("name", this@RuntimeValue.name)
+            }
+
             is RuntimeValue.RuntimeObject -> {
                 val objectTypeParams = when (val type = this.typeDescriptor.type) {
                     is CanonicalLangType.SignalCanonicalLangType -> type.params
@@ -70,7 +79,11 @@ sealed class RuntimeValue {
                 }
             }
 
-            is RuntimeValue.RuntimeTypeReference -> TODO()
+            is RuntimeValue.RuntimeTypeReference -> buildJsonObject {
+                put("#type", "RuntimeTypeReference")
+                put("id", this@RuntimeValue.type.id.toString())
+            }
+
             is RuntimeValue.String -> JsonPrimitive(this.value)
         }
     }

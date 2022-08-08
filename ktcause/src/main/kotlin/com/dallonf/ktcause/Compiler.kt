@@ -170,6 +170,7 @@ object Compiler {
                     exportNameConstant = chunk.addConstant(CompiledFile.CompiledConstant.StringConst("TypeError")),
                 )
             )
+            chunk.writeInstruction(Instruction.Construct(1))
             chunk.writeInstruction(Instruction.Cause)
             return;
         }
@@ -192,7 +193,7 @@ object Compiler {
 
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
             // Don't call; pop all the arguments and the callee off the stack and then push an error
-            for (i in 0..expression.parameters.size + 1) {
+            for (i in 0 until expression.parameters.size + 1) {
                 chunk.writeInstruction(Instruction.Pop)
             }
             compileBadValue(expression, error, chunk, ctx)
