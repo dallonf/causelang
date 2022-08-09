@@ -92,8 +92,8 @@ class IoTest {
             """.trimIndent()
         )
 
-        val finalResult = vm.resumeExecution(RuntimeValue.Action).expectReturned()
-        assertEquals(finalResult.returnValue, RuntimeValue.Action)
+        val finalResult = vm.resumeExecution(RuntimeValue.Action).expectReturnValue()
+        assertEquals(finalResult, RuntimeValue.Action)
     }
 
     @Test
@@ -127,7 +127,7 @@ class IoTest {
         )
         assertEquals(finalPrint.values[0], RuntimeValue.String("Hello, Bob"))
 
-        assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturned().returnValue, RuntimeValue.Action)
+        assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturnValue(), RuntimeValue.Action)
     }
 
     @Test
@@ -158,6 +158,6 @@ class IoTest {
             vm.getTypeId("test/io.cau", "Print")
         )
         assertEquals(finalPrint.values[0], RuntimeValue.String("Hello, Bob"))
-        assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturned().returnValue, RuntimeValue.Action)
+        assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturnValue(), RuntimeValue.Action)
     }
 }

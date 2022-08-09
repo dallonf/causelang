@@ -14,6 +14,10 @@ fun parse(source: String): FileNode {
     val tokens = CommonTokenStream(CauseLexer(CharStreams.fromString(source)))
     val tree = CauseParser(tokens).file()
 
+    if (tree.exception != null) {
+        throw tree.exception
+    }
+
     val declarationsBreadcrumbs = Breadcrumbs.empty().appendName("declarations")
     val declarations = listOf(generateCoreBuiltinsImport(declarationsBreadcrumbs.appendIndex(0))) +
             tree.declaration()

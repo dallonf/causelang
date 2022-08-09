@@ -247,7 +247,12 @@ class LangVm {
 
                         is RuntimeValue.Function -> {
                             val newCallFrame =
-                                CallFrame(function.file, function.file.chunks[function.chunkIndex], parent = callFrame, stackStart = stack.size)
+                                CallFrame(
+                                    function.file,
+                                    function.file.chunks[function.chunkIndex],
+                                    parent = callFrame,
+                                    stackStart = stack.size
+                                )
                             this.callFrame = newCallFrame
                         }
 
@@ -321,18 +326,6 @@ sealed interface RunResult {
     data class Caused(val signal: RuntimeValue.RuntimeObject) : RunResult {
         fun debug() = signal.debug()
     }
-
-    @Deprecated(
-        "Use expectReturnValue() instead",
-        ReplaceWith("expectReturnValue()")
-    )
-    fun expectReturned(): Returned = this as Returned
-
-    @Deprecated(
-        "Use expectCausedSignal() instead",
-        ReplaceWith("expectCausedSignal()")
-    )
-    fun expectCaused(): Caused = this as Caused
 
     fun expectReturnValue(): RuntimeValue = (this as Returned).returnValue
     fun expectCausedSignal(): RuntimeValue.RuntimeObject = (this as Caused).signal

@@ -1,3 +1,4 @@
+import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
@@ -16,7 +17,7 @@ internal class HelloWorldTest {
             """.trimIndent()
         )
 
-        val result1 = vm.executeFunction("project/hello.cau", "main", listOf()).expectCaused()
+        val result1 = vm.executeFunction("project/hello.cau", "main", listOf()).expectCausedSignal()
         assertEquals(
             result1.debug(), """
                 {
@@ -26,7 +27,7 @@ internal class HelloWorldTest {
             """.trimIndent()
         )
 
-        val result2 = vm.resumeExecution(RuntimeValue.Action).expectReturned()
+        val result2 = vm.resumeExecution(RuntimeValue.Action).expectReturnValue()
         assertEquals(
             result2.debug(), """
                 {
