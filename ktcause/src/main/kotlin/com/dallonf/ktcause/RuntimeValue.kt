@@ -16,6 +16,7 @@ sealed class RuntimeValue {
     data class String(val value: kotlin.String) : RuntimeValue()
     data class Integer(val value: Long) : RuntimeValue()
     data class Float(val value: Double) : RuntimeValue()
+    data class Boolean(val value: kotlin.Boolean) : RuntimeValue()
 
     // TODO: probably want to make it harder to make an invalid RuntimeObject
     data class RuntimeObject(val typeDescriptor: RuntimeTypeReference, val values: List<RuntimeValue>) : RuntimeValue()
@@ -28,14 +29,14 @@ sealed class RuntimeValue {
 
     data class Function(val file: CompiledFile, val chunkIndex: Int, val name: kotlin.String?) : RuntimeValue()
 
-    fun isAssignableTo(langType: ValueLangType): Boolean {
+    fun isAssignableTo(langType: ValueLangType): kotlin.Boolean {
         // TODO: implement this!
         return true
     }
 
     fun validate(): RuntimeValue {
         return when (this) {
-            is BadValue, is Action, is String, is Integer, is Float, is RuntimeTypeReference, is NativeFunction, is Function -> this
+            is BadValue, is Action, is String, is Integer, is Float, is Boolean, is RuntimeTypeReference, is NativeFunction, is Function -> this
             is RuntimeObject -> {
                 // TODO: we shouldn't make a brand new object if it's all valid
                 val newValues = mutableListOf<RuntimeValue>()
@@ -51,10 +52,10 @@ sealed class RuntimeValue {
         }
     }
 
-    fun isValid(): Boolean {
+    fun isValid(): kotlin.Boolean {
         return when (this) {
             is BadValue -> false
-            is Action, is String, is Integer, is Float, is RuntimeTypeReference, is NativeFunction, is Function -> true
+            is Action, is String, is Integer, is Float, is Boolean, is RuntimeTypeReference, is NativeFunction, is Function -> true
             is RuntimeObject -> this.values.all { it.isValid() }
         }
     }
@@ -73,6 +74,8 @@ sealed class RuntimeValue {
 
             is RuntimeValue.Float -> JsonPrimitive(this.value)
             is RuntimeValue.Integer -> JsonPrimitive(this.value)
+            is RuntimeValue.Boolean -> JsonPrimitive(this.value)
+
             is RuntimeValue.NativeFunction -> buildJsonObject {
                 put("#type", "NativeFunction")
                 put("name", this@RuntimeValue.name)

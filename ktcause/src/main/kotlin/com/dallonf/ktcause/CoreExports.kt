@@ -19,17 +19,32 @@ object CoreExports {
                 throw LangVm.InternalVmError("There is no builtin named $exportName.")
             }
         } else if (fileName == STRING_FILE) {
-            if (exportName == "append") {
-                return RuntimeValue.NativeFunction("appendString") { params ->
-                    val val1 = params[0] as? RuntimeValue.String
-                        ?: throw LangVm.VmError("I was expecting the inputs to append to be strings.")
-                    val val2 = params[1] as? RuntimeValue.String
-                        ?: throw LangVm.VmError("I was expecting the inputs to append to be strings.")
+            when (exportName) {
+                "append" -> {
+                    return RuntimeValue.NativeFunction("appendString") { params ->
+                        val val1 = params[0] as? RuntimeValue.String
+                            ?: throw LangVm.VmError("I was expecting the inputs to append to be strings.")
+                        val val2 = params[1] as? RuntimeValue.String
+                            ?: throw LangVm.VmError("I was expecting the inputs to append to be strings.")
 
-                    RuntimeValue.String("${val1.value}${val2.value}")
+                        RuntimeValue.String("${val1.value}${val2.value}")
+                    }
                 }
-            } else {
-                throw LangVm.InternalVmError("There is no export named $exportName in $fileName")
+
+                "equals" -> {
+                    return RuntimeValue.NativeFunction("stringEquals") { params ->
+                        val val1 = params[0] as? RuntimeValue.String
+                            ?: throw LangVm.VmError("I was expecting the inputs to append to be strings.")
+                        val val2 = params[1] as? RuntimeValue.String
+                            ?: throw LangVm.VmError("I was expecting the inputs to append to be strings.")
+
+                        RuntimeValue.Boolean(val1.value == val2.value)
+                    }
+                }
+
+                else -> {
+                    throw LangVm.InternalVmError("There is no export named $exportName in $fileName")
+                }
             }
         } else {
             throw LangVm.InternalVmError("There is no core file called $fileName.")

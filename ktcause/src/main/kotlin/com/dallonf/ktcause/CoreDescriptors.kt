@@ -10,6 +10,9 @@ object CoreDescriptors {
                 "String" to LangPrimitiveKind.STRING.toTypeValueLangType(),
                 "Integer" to LangPrimitiveKind.INTEGER.toTypeValueLangType(),
                 "Float" to LangPrimitiveKind.FLOAT.toTypeValueLangType(),
+                "Boolean" to LangPrimitiveKind.BOOLEAN.toTypeValueLangType(),
+                "True" to LangPrimitiveKind.BOOLEAN.toValueLangType(),
+                "False" to LangPrimitiveKind.BOOLEAN.toValueLangType(),
                 "Action" to LangPrimitiveKind.ACTION.toTypeValueLangType(),
                 "Debug" to CanonicalLangType.SignalCanonicalLangType(
                     CanonicalLangTypeId(filename, name = "Debug", number = 0.toUByte()),
@@ -52,6 +55,14 @@ object CoreDescriptors {
                                 LangParameter("other", LangPrimitiveKind.STRING.toValueLangType()),
                             ),
                             returnType = LangPrimitiveKind.STRING.toValueLangType()
+                        ),
+                        "equals" to FunctionValueLangType(
+                            name = "stringEquals",
+                            params = listOf(
+                                LangParameter("this", LangPrimitiveKind.STRING.toValueLangType()),
+                                LangParameter("other", LangPrimitiveKind.STRING.toValueLangType()),
+                            ),
+                            returnType = LangPrimitiveKind.BOOLEAN.toValueLangType()
                         )
                     )
                 )

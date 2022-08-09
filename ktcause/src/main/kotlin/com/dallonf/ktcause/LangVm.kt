@@ -32,9 +32,7 @@ class LangVm {
     }
 
     data class ErrorTrace(
-        val position: SourcePosition,
-        val error: ErrorValueLangType,
-        val proxyChain: List<SourcePosition>
+        val position: SourcePosition, val error: ErrorValueLangType, val proxyChain: List<SourcePosition>
     )
 
     fun addCompiledFile(file: CompiledFile) {
@@ -135,7 +133,7 @@ class LangVm {
             // TODO: VM play-by-play enabled optionally
             val debugStack = stackJsonSerializer.encodeToString(stack.map { it.toJson() })
             println("stack: $debugStack")
-            println("instruction: $instruction")
+            println("instruction #${callFrame.instruction - 1}: $instruction")
 
             when (instruction) {
                 is Instruction.Pop -> {
@@ -152,15 +150,15 @@ class LangVm {
                     stack.addLast(result)
                 }
 
-                is Instruction.PushAction -> TODO()
+                is Instruction.PushAction -> stack.addLast(RuntimeValue.Action)
+
                 is Instruction.Literal -> {
                     val newValue = when (val constant = getConstant(instruction.constant)) {
                         is CompiledFile.CompiledConstant.StringConst -> RuntimeValue.String(constant.value)
                         is CompiledFile.CompiledConstant.IntegerConst -> RuntimeValue.Integer(constant.value)
                         is CompiledFile.CompiledConstant.FloatConst -> RuntimeValue.Float(constant.value)
                         is CompiledFile.CompiledConstant.ErrorConst -> RuntimeValue.BadValue(
-                            constant.sourcePosition,
-                            constant.error
+                            constant.sourcePosition, constant.error
                         )
                     }
                     stack.addLast(newValue)
@@ -213,8 +211,7 @@ class LangVm {
 
                 is Instruction.Construct -> {
                     val constructorType = stack.removeLast().let {
-                        if (it is RuntimeValue.RuntimeTypeReference)
-                            it
+                        if (it is RuntimeValue.RuntimeTypeReference) it
                         else throw InternalVmError("Tried to construct a $it.")
                     }
 
@@ -246,18 +243,31 @@ class LangVm {
                         }
 
                         is RuntimeValue.Function -> {
-                            val newCallFrame =
-                                CallFrame(
-                                    function.file,
-                                    function.file.chunks[function.chunkIndex],
-                                    parent = callFrame,
-                                    stackStart = stack.size
-                                )
+                            val newCallFrame = CallFrame(
+                                function.file,
+                                function.file.chunks[function.chunkIndex],
+                                parent = callFrame,
+                                stackStart = stack.size
+                            )
                             this.callFrame = newCallFrame
                         }
 
                         is RuntimeValue.BadValue -> throw VmError("I tried to call a function, but it has an error: $function")
                         else -> throw InternalVmError("Can't call $function.")
+                    }
+                }
+
+                is Instruction.Jump -> {
+                    callFrame.instruction = instruction.instruction
+                }
+
+                is Instruction.JumpIfFalse -> {
+                    val condition = stack.removeLast()
+                    if (condition is RuntimeValue.BadValue) {
+                        throw VmError(condition.debug())
+                    }
+                    if (condition == RuntimeValue.Boolean(false)) {
+                        callFrame.instruction = instruction.instruction
                     }
                 }
 
@@ -294,8 +304,7 @@ class LangVm {
     }
 
     private fun getExportAsRuntimeValue(
-        exportName: String,
-        file: CompiledFile
+        exportName: String, file: CompiledFile
     ): RuntimeValue {
         val export =
             requireNotNull(file.exports[exportName]) { "The file ${file.path} doesn't export anything (at least non-private) called $exportName." }

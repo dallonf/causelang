@@ -130,6 +130,15 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) =
             Pair(branchOption, BranchOptionFor(branchExpression = breadcrumbs, type = type))
     }
+
+    data class ConditionFor(val ifBranchOption: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(ifBranchOption, HasCondition(breadcrumbs))
+
+    }
+
+    data class HasCondition(val condition: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(condition, ConditionFor(breadcrumbs))
+    }
 }
 
 
@@ -374,6 +383,10 @@ object Analyzer {
             val type = when (branchOption) {
                 is BranchOptionNode.IfBranchOptionNode -> {
                     analyzeExpression(branchOption.condition, output, ctx)
+                    output.addTag(
+                        branchOption.condition.info.breadcrumbs,
+                        NodeTag.ConditionFor(branchOption.info.breadcrumbs)
+                    )
                     NodeTag.BranchOptionType.IF
                 }
 

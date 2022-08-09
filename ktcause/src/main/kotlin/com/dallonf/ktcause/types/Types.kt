@@ -172,6 +172,9 @@ enum class LangPrimitiveKind() {
     @SerialName("Float")
     FLOAT,
 
+    @SerialName("Boolean")
+    BOOLEAN,
+
     @SerialName("Action")
     ACTION;
 

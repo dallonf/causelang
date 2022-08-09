@@ -82,6 +82,10 @@ object Resolver {
                             track(INFERRED)
                         }
 
+                        is NodeTag.ConditionFor -> {
+                            track(EXPECTED)
+                        }
+
                         else -> {}
                     }
                 }
@@ -91,8 +95,6 @@ object Resolver {
         fun getSourcePosition(breadcrumbs: Breadcrumbs) = SourcePosition.Source(
             path, breadcrumbs, fileNode.findNode(breadcrumbs).info.position
         )
-
-
 
         while (true) {
             val iterationResolvedReferences = mutableListOf<Pair<ResolutionKey, ValueLangType>>()
@@ -113,7 +115,8 @@ object Resolver {
                 }
             }
 
-            val pendingReferences = resolvedTypes.asSequence().mapNotNull { if (it.value.isPending()) it.key else null }
+            val pendingReferences =
+                resolvedTypes.asSequence().mapNotNull { if (it.value.isPending()) it.key else null }
             for (pendingKey in pendingReferences) {
                 fun resolveWith(langType: ValueLangType) {
                     iterationResolvedReferences.add(pendingKey to langType)
@@ -185,7 +188,13 @@ object Resolver {
                                                 if (missingParams.isNotEmpty()) {
                                                     resolveWith(ErrorValueLangType.MissingParameters(missingParams.map { it.name }))
                                                 } else if (foundParams.all { !it.isPending() }) {
-                                                    resolveWith(InstanceValueLangType(TypeReferenceValueLangType(signal)))
+                                                    resolveWith(
+                                                        InstanceValueLangType(
+                                                            TypeReferenceValueLangType(
+                                                                signal
+                                                            )
+                                                        )
+                                                    )
                                                 }
                                             }
                                         }
@@ -212,14 +221,17 @@ object Resolver {
 
                             is NodeTag.NamedValue -> {
                                 val (name, valueBreadcrumbs, typeDeclaration) = tag
-                                val expectedValueType = resolvedTypes[ResolutionKey(EXPECTED, pendingKey.breadcrumbs)]
+                                val expectedValueType =
+                                    resolvedTypes[ResolutionKey(EXPECTED, pendingKey.breadcrumbs)]
                                 if (expectedValueType != null) {
                                     resolveWith(expectedValueType)
                                 } else {
                                     when (val inferredType = getResolvedTypeOf(valueBreadcrumbs)) {
                                         is ValueLangType.Pending -> {}
                                         is ResolvedValueLangType -> resolveWith(inferredType)
-                                        is ErrorValueLangType -> resolveWithProxyError(inferredType, valueBreadcrumbs)
+                                        is ErrorValueLangType -> resolveWithProxyError(
+                                            inferredType, valueBreadcrumbs
+                                        )
                                     }
                                 }
                             }
@@ -335,7 +347,8 @@ object Resolver {
 
                             is NodeTag.ParameterForCall -> {
                                 val (call, index) = tag
-                                val callTag = nodeTags[call]!!.asSequence().mapNotNull { it as? NodeTag.Calls }.first()
+                                val callTag =
+                                    nodeTags[call]!!.asSequence().mapNotNull { it as? NodeTag.Calls }.first()
                                 when (val callType = getResolvedTypeOf(callTag.callee)) {
                                     is ValueLangType.Pending -> {}
                                     is ResolvedValueLangType -> {
@@ -360,6 +373,8 @@ object Resolver {
                                     is ErrorValueLangType -> resolveWithProxyError(callType, callTag.callee)
                                 }
                             }
+
+                            is NodeTag.ConditionFor -> resolveWith(LangPrimitiveKind.BOOLEAN.toValueLangType())
 
                             else -> {}
                         }
