@@ -187,10 +187,23 @@ private fun parseStatement(
     statementRule: StatementContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): StatementNode {
     return when (val child = statementRule.getChild(0)) {
+        is EffectStatementContext -> parseEffectStatement(child, breadcrumbs, ctx)
         is ExpressionStatementContext -> parseExpressionStatement(child, breadcrumbs, ctx)
         is DeclarationStatementContext -> parseDeclarationStatement(child, breadcrumbs, ctx)
         else -> throw Error("unrecognized statement type")
     }
+}
+
+private fun parseEffectStatement(
+    child: EffectStatementContext,
+    breadcrumbs: Breadcrumbs,
+    ctx: ParserContext
+): StatementNode.EffectStatement {
+    return StatementNode.EffectStatement(
+        NodeInfo(child.getRange(), breadcrumbs),
+        parsePattern(child.pattern(), breadcrumbs.appendName("pattern"), ctx),
+        parseBody(child.body(), breadcrumbs.appendName("body"), ctx)
+    )
 }
 
 private fun parseDeclarationStatement(
@@ -357,6 +370,13 @@ private fun parsePositionalParameter(
     val value = parseExpression(param.expression(), breadcrumbs.appendName("value"), ctx)
     return ExpressionNode.CallExpression.ParameterNode(
         NodeInfo(param.getRange(), breadcrumbs), value
+    )
+}
+
+private fun parsePattern(pattern: PatternContext, breadcrumbs: Breadcrumbs, ctx: ParserContext): PatternNode {
+    return PatternNode(
+        NodeInfo(pattern.getRange(), breadcrumbs),
+        typeName = parseIdentifier(pattern.IDENTIFIER().symbol, breadcrumbs.appendName("typeName"), ctx)
     )
 }
 

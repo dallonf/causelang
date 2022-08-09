@@ -43,7 +43,7 @@ class EffectsBasicTest {
             """.trimIndent()
         )
 
-        val debugTypeId = vm.getTypeId("core/builtin", "Debug")
+        val debugTypeId = vm.getTypeId("core/builtin.cau", "Debug")
         val result1 = vm.executeFunction("project/test.cau", "main", listOf())
             .let { TestUtils.expectValidCaused(it, debugTypeId) }
         assertEquals(result1.values[0], RuntimeValue.String("Intercepted an InterceptThis effect"))
