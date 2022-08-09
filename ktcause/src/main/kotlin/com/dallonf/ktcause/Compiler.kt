@@ -55,7 +55,7 @@ object Compiler {
     ): CompiledFile.MutableInstructionChunk {
         val chunk = CompiledFile.MutableInstructionChunk()
         when (declaration.body) {
-            is BodyNode.BlockBody -> {
+            is BodyNode.BlockBodyNode -> {
                 compileBlock(declaration.body, chunk, ctx)
 
                 // TODO: make sure this is the right type to return
@@ -66,7 +66,7 @@ object Compiler {
     }
 
     private fun compileBlock(
-        block: BodyNode.BlockBody,
+        block: BodyNode.BlockBodyNode,
         chunk: CompiledFile.MutableInstructionChunk,
         ctx: CompilerContext,
     ) {

@@ -8,7 +8,6 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlin.math.exp
 
 
 data class DocumentPosition(val line: Int, val column: Int) {
@@ -122,14 +121,13 @@ sealed interface AstNode {
         }
 
         data class List(val list: kotlin.collections.List<AstNode>) : BreadcrumbWalkChild {
-            override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild> =
-                mapOf(
-                    *list.mapIndexed { i, node ->
-                        Breadcrumbs.BreadcrumbEntry.Index(i) to Node(
-                            node
-                        )
-                    }.toTypedArray()
-                )
+            override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild> = mapOf(
+                *list.mapIndexed { i, node ->
+                    Breadcrumbs.BreadcrumbEntry.Index(i) to Node(
+                        node
+                    )
+                }.toTypedArray()
+            )
         }
 
         fun findNode(breadcrumbs: Breadcrumbs): AstNode {
@@ -227,9 +225,15 @@ sealed interface DeclarationNode : AstNode {
 }
 
 sealed interface BodyNode : AstNode {
-    data class BlockBody(override val info: NodeInfo, val statements: List<StatementNode>) : BodyNode {
+    data class BlockBodyNode(override val info: NodeInfo, val statements: List<StatementNode>) : BodyNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
             buildMap { put("statements", statements) }
+    }
+
+    data class SingleExpressionBodyNode(override val info: NodeInfo, val expression: ExpressionNode) : BodyNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            put("expression", expression)
+        }
     }
 }
 
@@ -249,10 +253,18 @@ sealed interface StatementNode : AstNode {
 
 sealed interface ExpressionNode : AstNode {
 
-    data class BlockExpressionNode(override val info: NodeInfo, val block: BodyNode.BlockBody) : ExpressionNode {
+    data class BlockExpressionNode(override val info: NodeInfo, val block: BodyNode.BlockBodyNode) : ExpressionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
             buildMap { put("block", block) }
 
+    }
+
+    data class BranchExpressionNode(
+        override val info: NodeInfo, val branches: List<BranchOptionNode>
+    ) : ExpressionNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            put("branches", branches)
+        }
     }
 
     data class IdentifierExpression(override val info: NodeInfo, val identifier: Identifier) : ExpressionNode {
@@ -287,4 +299,21 @@ sealed interface ExpressionNode : AstNode {
     data class IntegerLiteralExpression(override val info: NodeInfo, val value: Long) : ExpressionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
     }
+}
+
+sealed interface BranchOptionNode : AstNode {
+    data class IfBranchOptionNode(override val info: NodeInfo, val condition: ExpressionNode, val body: BodyNode) :
+        BranchOptionNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            put("condition", condition)
+            put("body", body)
+        }
+    }
+
+    data class ElseBranchOptionNode(override val info: NodeInfo, val body: BodyNode) : BranchOptionNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            put("body", body)
+        }
+    }
+
 }

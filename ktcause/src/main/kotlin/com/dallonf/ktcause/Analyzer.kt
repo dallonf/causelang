@@ -2,8 +2,6 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.types.LangPrimitiveKind
-import com.dallonf.ktcause.types.PrimitiveValueLangType
-import kotlin.math.exp
 
 data class AnalyzedNode(
     val nodeTags: MutableMap<Breadcrumbs, MutableList<NodeTag>> = mutableMapOf(),
@@ -288,7 +286,7 @@ object Analyzer {
 
     private fun analyzeBody(body: BodyNode, output: AnalyzedNode, ctx: AnalyzerContext) {
         when (body) {
-            is BodyNode.BlockBody -> {
+            is BodyNode.BlockBodyNode -> {
                 if (body.statements.isEmpty()) {
                     // if there are no statements, the block can only be Action-typed.
                     // Avoids issue with `statements.last()` below

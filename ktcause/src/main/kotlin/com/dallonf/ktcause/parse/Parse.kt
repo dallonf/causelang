@@ -78,7 +78,7 @@ private fun parseFunctionDeclaration(
 ): DeclarationNode.Function {
 
     val name = parseIdentifier(functionDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
-    val body = parseStructureBody(functionDeclaration.structureBody(), breadcrumbs.appendName("body"), ctx)
+    val body = parseBody(functionDeclaration.body(), breadcrumbs.appendName("body"), ctx)
 
     return DeclarationNode.Function(
         NodeInfo(functionDeclaration.getRange(), breadcrumbs), name, body
@@ -152,20 +152,27 @@ private fun parseNamedValueDeclaration(
     )
 }
 
-private fun parseStructureBody(
-    structureBody: StructureBodyContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+private fun parseBody(
+    body: BodyContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): BodyNode {
-    if (structureBody.block() != null) {
-        return parseBlock(structureBody.block(), breadcrumbs, ctx)
-    }
+    return when (val child = body.getChild(0)) {
+        is BlockContext -> parseBlock(child, breadcrumbs, ctx)
+        is SingleExpressionBodyContext -> {
+            val expression = parseExpression(child.expression(), breadcrumbs.appendName("expression"), ctx)
+            BodyNode.SingleExpressionBodyNode(
+                NodeInfo(child.getRange(), breadcrumbs),
+                expression
+            )
+        }
 
-    throw Error("unexpected body type")
+        else -> error("unexpected body type")
+    }
 }
 
 
 private fun parseBlock(
     blockBody: BlockContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): BodyNode.BlockBody {
+): BodyNode.BlockBodyNode {
     val statementBreadcrumbs = breadcrumbs.appendName("statements")
     val statements = blockBody.statement().mapIndexed { i, statementRule ->
         parseStatement(
@@ -173,7 +180,7 @@ private fun parseBlock(
         )
     }
 
-    return BodyNode.BlockBody(NodeInfo(blockBody.getRange(), breadcrumbs), statements)
+    return BodyNode.BlockBodyNode(NodeInfo(blockBody.getRange(), breadcrumbs), statements)
 }
 
 private fun parseStatement(
@@ -211,6 +218,7 @@ private fun parseExpression(
     val mainExpression = { innerBreadcrumbs: Breadcrumbs ->
         when (val child = expressionContext.getChild(0)) {
             is BlockExpressionContext -> parseBlockExpression(child, innerBreadcrumbs, ctx)
+            is BranchExpressionContext -> parseBranchExpression(child, innerBreadcrumbs, ctx)
             is CauseExpressionContext -> parseCauseExpression(child, innerBreadcrumbs, ctx)
             is StringLiteralExpressionContext -> parseStringLiteralExpression(child, innerBreadcrumbs, ctx)
             is IntegerLiteralExpressionContext -> parseIntegerLiteralExpression(child, innerBreadcrumbs, ctx)
@@ -239,6 +247,46 @@ private fun parseBlockExpression(
         NodeInfo(expression.getRange(), breadcrumbs),
         parseBlock(expression.block(), breadcrumbs.appendName("block"), ctx)
     )
+}
+
+private fun parseBranchExpression(
+    expression: BranchExpressionContext,
+    breadcrumbs: Breadcrumbs,
+    ctx: ParserContext
+): ExpressionNode {
+    val options = expression.branchOption()
+        .mapIndexed { i, it -> parseBranchOption(it, breadcrumbs.appendName("branches").appendIndex(i), ctx) }
+
+    return ExpressionNode.BranchExpressionNode(
+        NodeInfo(expression.getRange(), breadcrumbs),
+        options
+    )
+}
+
+private fun parseBranchOption(
+    branchOption: BranchOptionContext,
+    breadcrumbs: Breadcrumbs,
+    ctx: ParserContext
+): BranchOptionNode {
+    val info = NodeInfo(branchOption.getRange(), breadcrumbs)
+    return when (val child = branchOption.getChild(0)) {
+        is IfBranchOptionContext -> {
+            BranchOptionNode.IfBranchOptionNode(
+                info,
+                parseExpression(child.expression(), breadcrumbs.appendName("condition"), ctx),
+                parseBody(child.body(), breadcrumbs.appendName("body"), ctx),
+            )
+        }
+
+        is ElseBranchOptionContext -> {
+            BranchOptionNode.ElseBranchOptionNode(
+                info,
+                parseBody(child.body(), breadcrumbs.appendName("body"), ctx)
+            )
+        }
+
+        else -> error("Unexpected branch option type")
+    }
 }
 
 private fun parseStringLiteralExpression(
