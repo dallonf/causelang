@@ -342,7 +342,8 @@ object Analyzer {
         output: AnalyzedNode,
         ctx: AnalyzerContext
     ) {
-        TODO("Not yet implemented")
+        analyzeBody(expression.block, output, ctx)
+        output.addValueFlowTag(expression.block.info.breadcrumbs, expression.info.breadcrumbs)
     }
 
 

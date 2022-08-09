@@ -187,7 +187,7 @@ private fun parseDeclarationStatement(
 ): StatementNode.DeclarationStatement {
     return StatementNode.DeclarationStatement(
         NodeInfo(declarationStatement.getRange(), breadcrumbs),
-        parseDeclaration(declarationStatement.declaration(), breadcrumbs, ctx)
+        parseDeclaration(declarationStatement.declaration(), breadcrumbs.appendName("declaration"), ctx)
     )
 }
 

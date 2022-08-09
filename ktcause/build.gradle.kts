@@ -24,16 +24,11 @@ tasks.test {
 }
 
 tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
+    kotlinOptions.jvmTarget = "18"
 }
 
 sourceSets.main {
     java {
         srcDir("${projectDir}/src/${this@main.name}/gen")
     }
-}
-
-val compileKotlin: KotlinCompile by tasks
-compileKotlin.kotlinOptions {
-    jvmTarget = "1.8"
 }

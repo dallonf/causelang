@@ -1,4 +1,5 @@
 import com.dallonf.ktcause.LangVm
+import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RunResult
 import com.dallonf.ktcause.RuntimeValue
 import com.dallonf.ktcause.types.CanonicalLangTypeId
@@ -8,7 +9,9 @@ import kotlin.test.assertIs
 
 object TestUtils {
     fun expectNoCompileErrors(vm: LangVm) {
-        assertEquals(vm.compileErrors, listOf())
+        if (vm.compileErrors.isNotEmpty()) {
+            throw AssertionError("Compile errors: ${vm.compileErrors.debug()}")
+        }
     }
 
     fun addFileExpectingNoCompileErrors(vm: LangVm, path: String, source: String) {

@@ -52,21 +52,30 @@ object Compiler {
         val chunk = CompiledFile.MutableInstructionChunk()
         when (declaration.body) {
             is BodyNode.BlockBody -> {
-                ctx.scopeStack.addLast(CompilerScope(declaration.body.info.breadcrumbs))
-
-                for ((i, statement) in declaration.body.statements.withIndex()) {
-                    compileStatement(
-                        statement, chunk, ctx, isLastStatement = i == declaration.body.statements.lastIndex
-                    )
-                }
-
-                ctx.scopeStack.removeLast()
+                compileBlock(declaration.body, chunk, ctx)
 
                 // TODO: make sure this is the right type to return
                 chunk.writeInstruction(Instruction.Return)
             }
         }
         return chunk
+    }
+
+    private fun compileBlock(
+        block: BodyNode.BlockBody,
+        chunk: CompiledFile.MutableInstructionChunk,
+        ctx: CompilerContext,
+    ) {
+        ctx.scopeStack.addLast(CompilerScope(block.info.breadcrumbs))
+
+        for ((i, statement) in block.statements.withIndex()) {
+            compileStatement(
+                statement, chunk, ctx, isLastStatement = i == block.statements.lastIndex
+            )
+        }
+
+        val scope = ctx.scopeStack.removeLast()
+        chunk.writeInstruction(Instruction.PopScope(scope.namedValueIndices.size))
     }
 
     private fun compileBadValue(
@@ -97,7 +106,7 @@ object Compiler {
                 // TODO: emit compile error for mismatched type?
 
                 if (!isLastStatement) {
-                    chunk.writeInstruction(Instruction.Pop)
+                    chunk.writeInstruction(Instruction.Pop())
                 }
             }
 
@@ -118,7 +127,7 @@ object Compiler {
             is DeclarationNode.NamedValue -> {
                 compileExpression(declaration.value, chunk, ctx)
                 ctx.resolved.checkForRuntimeErrors(declaration.info.breadcrumbs)?.let { error ->
-                    chunk.writeInstruction(Instruction.Pop)
+                    chunk.writeInstruction(Instruction.Pop())
                     compileBadValue(declaration, error, chunk, ctx)
                 }
                 ctx.scopeStack.last().namedValueIndices[declaration.info.breadcrumbs] = ctx.nextScopeIndex()
@@ -130,6 +139,7 @@ object Compiler {
         expression: ExpressionNode, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
     ) {
         when (expression) {
+            is ExpressionNode.BlockExpressionNode -> compileBlockExpression(expression, chunk, ctx)
             is ExpressionNode.IdentifierExpression -> compileIdentifierExpression(expression, chunk, ctx)
             is ExpressionNode.CauseExpression -> compileCauseExpression(expression, chunk, ctx)
             is ExpressionNode.CallExpression -> compileCallExpression(expression, chunk, ctx)
@@ -148,9 +158,17 @@ object Compiler {
 
         // TODO: this can be redundant since sometimes there's already a BadValue on the stack
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
-            chunk.writeInstruction(Instruction.Pop)
+            chunk.writeInstruction(Instruction.Pop())
             compileBadValue(expression, error, chunk, ctx)
         }
+    }
+
+    private fun compileBlockExpression(
+        expression: ExpressionNode.BlockExpressionNode,
+        chunk: CompiledFile.MutableInstructionChunk,
+        ctx: CompilerContext
+    ) {
+        compileBlock(expression.block, chunk, ctx)
     }
 
     private fun compileIdentifierExpression(
@@ -224,7 +242,7 @@ object Compiler {
         compileExpression(expression.signal, chunk, ctx)
 
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
-            chunk.writeInstruction(Instruction.Pop)
+            chunk.writeInstruction(Instruction.Pop())
             compileBadValue(expression, error, chunk, ctx)
             chunk.writeInstruction(
                 Instruction.Import(
@@ -246,7 +264,7 @@ object Compiler {
         for (param in expression.parameters) {
             compileExpression(param.value, chunk, ctx)
             ctx.resolved.checkForRuntimeErrors(param.info.breadcrumbs)?.let { error ->
-                chunk.writeInstruction(Instruction.Pop)
+                chunk.writeInstruction(Instruction.Pop())
                 compileBadValue(param, error, chunk, ctx)
             }
         }
@@ -255,9 +273,7 @@ object Compiler {
 
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
             // Don't call; pop all the arguments and the callee off the stack and then push an error
-            for (i in 0 until expression.parameters.size + 1) {
-                chunk.writeInstruction(Instruction.Pop)
-            }
+            chunk.writeInstruction(Instruction.Pop(expression.parameters.size + 1))
             compileBadValue(expression, error, chunk, ctx)
             return
         }

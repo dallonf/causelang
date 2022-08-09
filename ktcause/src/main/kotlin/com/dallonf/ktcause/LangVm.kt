@@ -133,7 +133,20 @@ class LangVm {
             println("instruction: $instruction")
 
             when (instruction) {
-                is Instruction.Pop -> stack.removeLast()
+                is Instruction.Pop -> {
+                    for (i in 0 until instruction.number) {
+                        stack.removeLast()
+                    }
+                }
+
+                is Instruction.PopScope -> {
+                    val result = stack.removeLast()
+                    for (i in 0 until instruction.values) {
+                        stack.removeLast()
+                    }
+                    stack.addLast(result)
+                }
+
                 is Instruction.PushAction -> TODO()
                 is Instruction.Literal -> {
                     val newValue = when (val constant = getConstant(instruction.constant)) {
@@ -194,6 +207,7 @@ class LangVm {
                     val value = stack[callFrame.stackStart + index]
                     stack.addLast(value)
                 }
+
                 is Instruction.Construct -> {
                     val constructorType = stack.removeLast().let {
                         if (it is RuntimeValue.RuntimeTypeReference)
