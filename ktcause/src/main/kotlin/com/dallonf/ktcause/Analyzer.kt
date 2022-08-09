@@ -372,7 +372,11 @@ object Analyzer {
         output.addTag(expression.info.breadcrumbs, NodeTag.IsBranch)
         for (branchOption in expression.branches) {
             val type = when (branchOption) {
-                is BranchOptionNode.IfBranchOptionNode -> NodeTag.BranchOptionType.IF
+                is BranchOptionNode.IfBranchOptionNode -> {
+                    analyzeExpression(branchOption.condition, output, ctx)
+                    NodeTag.BranchOptionType.IF
+                }
+
                 is BranchOptionNode.ElseBranchOptionNode -> NodeTag.BranchOptionType.ELSE
             }
             output.addTag(expression.info.breadcrumbs, NodeTag.BranchOptionFor(branchOption.info.breadcrumbs, type))

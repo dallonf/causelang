@@ -50,13 +50,15 @@ data class CompiledFile(
 
         fun addConstant(constant: String): Int = addConstant(CompiledConstant.StringConst(constant))
 
-        fun writeInstruction(instruction: Instruction) {
+        fun writeInstruction(instruction: Instruction): Int {
             instructions.add(instruction)
+            return instructions.lastIndex
         }
 
-        fun writeLiteral(constant: CompiledConstant) {
+        fun writeLiteral(constant: CompiledConstant): Int {
             val index = addConstant(constant)
             writeInstruction(Instruction.Literal(index))
+            return instructions.lastIndex
         }
     }
 

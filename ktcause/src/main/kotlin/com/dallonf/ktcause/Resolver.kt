@@ -29,8 +29,7 @@ data class ResolvedFile(
     }
 
     fun getInferredType(breadcrumbs: Breadcrumbs): ValueLangType = resolvedTypes[ResolutionKey(
-        INFERRED,
-        breadcrumbs
+        INFERRED, breadcrumbs
     )]!!
 }
 
@@ -46,10 +45,7 @@ object Resolver {
     data class ExternalFileDescriptor(val exports: Map<String, ValueLangType>)
 
     fun resolveForFile(
-        path: String,
-        fileNode: FileNode,
-        analyzed: AnalyzedNode,
-        otherFiles: Map<String, ExternalFileDescriptor>
+        path: String, fileNode: FileNode, analyzed: AnalyzedNode, otherFiles: Map<String, ExternalFileDescriptor>
     ): Pair<ResolvedFile, List<ResolverError>> {
         val allOtherFiles = otherFiles.toMutableMap().also {
             val core = CoreDescriptors.coreBuiltinFile;
@@ -93,9 +89,7 @@ object Resolver {
         }
 
         fun getSourcePosition(breadcrumbs: Breadcrumbs) = SourcePosition.Source(
-            path,
-            breadcrumbs,
-            fileNode.findNode(breadcrumbs).info.position
+            path, breadcrumbs, fileNode.findNode(breadcrumbs).info.position
         )
 
 
@@ -130,13 +124,11 @@ object Resolver {
                     resolveWith(
                         if (error is ErrorValueLangType.ProxyError) {
                             ErrorValueLangType.ProxyError(
-                                error.actualError,
-                                listOf(sourcePosition) + error.proxyChain
+                                error.actualError, listOf(sourcePosition) + error.proxyChain
                             )
                         } else {
                             ErrorValueLangType.ProxyError(
-                                error,
-                                listOf(
+                                error, listOf(
                                     sourcePosition
                                 )
                             )
@@ -248,8 +240,7 @@ object Resolver {
 
                                 resolveWith(
                                     FunctionValueLangType(
-                                        name = tag.name,
-                                        returnType = returnType,
+                                        name = tag.name, returnType = returnType,
                                         // TODO
                                         params = emptyList()
                                     )
@@ -279,11 +270,12 @@ object Resolver {
 
                             is NodeTag.ReferenceNotInScope -> resolveWith(ErrorValueLangType.NotInScope)
 
-                            is NodeTag.IsBranch -> {
+                            is NodeTag.IsBranch -> run branch@{
                                 val branchOptions = pendingNodeTags.mapNotNull { it as? NodeTag.HasBranchOption }
 
                                 if (branchOptions.isEmpty()) {
                                     resolveWith(PrimitiveValueLangType(LangPrimitiveKind.ACTION))
+                                    return@branch
                                 }
 
                                 val elseBranches =
@@ -291,31 +283,34 @@ object Resolver {
 
                                 if (elseBranches.size > 1) {
                                     resolveWith(ErrorValueLangType.TooManyElseBranches)
-                                } else if (elseBranches.isEmpty()) {
-                                    resolveWith(ErrorValueLangType.MissingElseBranch)
-                                } else {
-                                    val branchValueTypes =
-                                        branchOptions
-                                            .map { Pair(it.branchOption, getResolvedTypeOf(it.branchOption)) }
+                                    return@branch
+                                }
 
-                                    if (branchValueTypes.all { !it.second.isPending() }) {
-                                        val nonErrorValueTypes =
-                                            branchValueTypes.filter { it.second.getError() == null }
-                                        if (nonErrorValueTypes.isEmpty()) {
-                                            resolveWith(branchValueTypes[0].second)
-                                        } else {
-                                            val firstNonErrorValueType = nonErrorValueTypes[0].second
-                                            if (nonErrorValueTypes.all { it.second.getError() != null || it.second == firstNonErrorValueType }) {
-                                                resolveWith(firstNonErrorValueType)
-                                            } else {
-                                                resolveWith(ErrorValueLangType.IncompatibleTypes(branchValueTypes.map {
-                                                    ErrorValueLangType.IncompatibleTypes.IncompatibleType(
-                                                        it.second,
-                                                        getSourcePosition(it.first)
-                                                    )
-                                                }))
-                                            }
-                                        }
+                                if (elseBranches.isEmpty()) {
+                                    resolveWith(ErrorValueLangType.MissingElseBranch)
+                                    return@branch
+                                }
+
+                                val branchValueTypes =
+                                    branchOptions.map { Pair(it.branchOption, getResolvedTypeOf(it.branchOption)) }
+
+                                if (branchValueTypes.all { !it.second.isPending() }) {
+                                    val nonErrorValueTypes =
+                                        branchValueTypes.filter { it.second.getError() == null }
+                                    if (nonErrorValueTypes.isEmpty()) {
+                                        resolveWith(branchValueTypes[0].second)
+                                        return@branch
+                                    }
+
+                                    val firstNonErrorValueType = nonErrorValueTypes[0].second
+                                    if (nonErrorValueTypes.all { it.second.getError() != null || it.second == firstNonErrorValueType }) {
+                                        resolveWith(firstNonErrorValueType)
+                                    } else {
+                                        resolveWith(ErrorValueLangType.IncompatibleTypes(branchValueTypes.map {
+                                            ErrorValueLangType.IncompatibleTypes.IncompatibleType(
+                                                it.second, getSourcePosition(it.first)
+                                            )
+                                        }))
                                     }
                                 }
                             }
@@ -405,25 +400,20 @@ object Resolver {
                 if (expectedResolvedType != null && actualType != null && expectedResolvedType != actualType) {
                     resolvedTypes[ResolutionKey(INFERRED, breadcrumbsOfExpectedType)] =
                         ErrorValueLangType.MismatchedType(
-                            expected = expectedResolvedType,
-                            actual = actualType
+                            expected = expectedResolvedType, actual = actualType
                         )
                 }
             }
         }
 
         val file = ResolvedFile(
-            path,
-            resolvedTypes,
-            knownCanonicalTypes
+            path, resolvedTypes, knownCanonicalTypes
         )
         val errors = resolvedTypes.mapNotNull { (key, resolvedType) ->
             val breadcrumbs = key.breadcrumbs
             val source by lazy {
                 SourcePosition.Source(
-                    path,
-                    breadcrumbs,
-                    fileNode.findNode(breadcrumbs).info.position
+                    path, breadcrumbs, fileNode.findNode(breadcrumbs).info.position
                 )
             }
 

@@ -54,15 +54,26 @@ object Compiler {
         declaration: DeclarationNode.Function, ctx: CompilerContext
     ): CompiledFile.MutableInstructionChunk {
         val chunk = CompiledFile.MutableInstructionChunk()
-        when (declaration.body) {
-            is BodyNode.BlockBodyNode -> {
-                compileBlock(declaration.body, chunk, ctx)
+        compileBody(declaration.body, chunk, ctx)
+        // TODO: make sure this is the right type to return
+        chunk.writeInstruction(Instruction.Return)
+        return chunk
+    }
 
-                // TODO: make sure this is the right type to return
-                chunk.writeInstruction(Instruction.Return)
+    private fun compileBody(
+        body: BodyNode,
+        chunk: CompiledFile.MutableInstructionChunk,
+        ctx: CompilerContext
+    ) {
+        when (body) {
+            is BodyNode.BlockBodyNode -> {
+                compileBlock(body, chunk, ctx)
+            }
+
+            is BodyNode.SingleExpressionBodyNode -> {
+                compileExpression(body.expression, chunk, ctx)
             }
         }
-        return chunk
     }
 
     private fun compileBlock(
@@ -140,6 +151,7 @@ object Compiler {
     ) {
         when (expression) {
             is ExpressionNode.BlockExpressionNode -> compileBlockExpression(expression, chunk, ctx)
+            is ExpressionNode.BranchExpressionNode -> compileBranchExpression(expression, chunk, ctx)
             is ExpressionNode.IdentifierExpression -> compileIdentifierExpression(expression, chunk, ctx)
             is ExpressionNode.CauseExpression -> compileCauseExpression(expression, chunk, ctx)
             is ExpressionNode.CallExpression -> compileCallExpression(expression, chunk, ctx)
@@ -169,6 +181,33 @@ object Compiler {
         ctx: CompilerContext
     ) {
         compileBlock(expression.block, chunk, ctx)
+    }
+
+    private fun compileBranchExpression(
+        expression: ExpressionNode.BranchExpressionNode,
+        chunk: CompiledFile.MutableInstructionChunk,
+        ctx: CompilerContext
+    ) {
+        val elseBranch = expression.branches.firstNotNullOfOrNull { it as? BranchOptionNode.ElseBranchOptionNode }
+        val ifBranches = expression.branches.mapNotNull { it as? BranchOptionNode.IfBranchOptionNode }
+
+        val remainingBranchJumps = mutableListOf<Int>()
+        for (ifBranch in ifBranches) {
+            compileExpression(ifBranch.condition, chunk, ctx)
+            val skipBodyInstruction = chunk.writeInstruction(Instruction.JumpIfFalse(0))
+            compileBody(ifBranch.body, chunk, ctx)
+            remainingBranchJumps.add(chunk.writeInstruction(Instruction.Jump(0)))
+            chunk.instructions[skipBodyInstruction] = Instruction.JumpIfFalse(chunk.instructions.size)
+        }
+        if (elseBranch != null) {
+            compileBody(elseBranch.body, chunk, ctx)
+        } else {
+            chunk.writeInstruction(Instruction.PushAction)
+        }
+
+        for (jump in remainingBranchJumps) {
+            chunk.instructions[jump] = Instruction.Jump(chunk.instructions.size)
+        }
     }
 
     private fun compileIdentifierExpression(

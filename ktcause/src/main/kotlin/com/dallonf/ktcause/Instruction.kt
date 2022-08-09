@@ -17,6 +17,9 @@ sealed interface Instruction {
     data class Construct(val arity: Int) : Instruction
     data class CallFunction(val arity: Int) : Instruction
 
+    data class Jump(val instruction: Int) : Instruction
+    data class JumpIfFalse(val instruction: Int) : Instruction
+
     object Cause : Instruction
     object Return : Instruction
 }
