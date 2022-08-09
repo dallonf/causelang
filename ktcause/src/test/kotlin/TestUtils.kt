@@ -32,7 +32,7 @@ object TestUtils {
     }
 
     fun expectValidCaused(result: RunResult, expectedType: CanonicalLangTypeId): RuntimeValue.RuntimeObject {
-        val signal = result.expectCaused().signal.validate() as RuntimeValue.RuntimeObject
+        val signal = result.expectCausedSignal().validate() as RuntimeValue.RuntimeObject
         assertEquals(signal.typeDescriptor.type.id, expectedType)
         return signal
     }
