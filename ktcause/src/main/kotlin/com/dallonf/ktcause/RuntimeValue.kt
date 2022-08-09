@@ -26,6 +26,8 @@ sealed class RuntimeValue {
     data class NativeFunction(val name: kotlin.String, val function: (List<RuntimeValue>) -> RuntimeValue) :
         RuntimeValue()
 
+    data class Function(val file: CompiledFile, val chunkIndex: Int, val name: kotlin.String?) : RuntimeValue()
+
     fun isAssignableTo(langType: ValueLangType): Boolean {
         // TODO: implement this!
         return true
@@ -33,7 +35,7 @@ sealed class RuntimeValue {
 
     fun validate(): RuntimeValue {
         return when (this) {
-            is BadValue, is Action, is String, is Integer, is Float, is RuntimeTypeReference, is NativeFunction -> this
+            is BadValue, is Action, is String, is Integer, is Float, is RuntimeTypeReference, is NativeFunction, is Function -> this
             is RuntimeObject -> {
                 // TODO: we shouldn't make a brand new object if it's all valid
                 val newValues = mutableListOf<RuntimeValue>()
@@ -52,7 +54,7 @@ sealed class RuntimeValue {
     fun isValid(): Boolean {
         return when (this) {
             is BadValue -> false
-            is Action, is String, is Integer, is Float, is RuntimeTypeReference, is NativeFunction -> true
+            is Action, is String, is Integer, is Float, is RuntimeTypeReference, is NativeFunction, is Function -> true
             is RuntimeObject -> this.values.all { it.isValid() }
         }
     }
@@ -74,6 +76,13 @@ sealed class RuntimeValue {
             is RuntimeValue.NativeFunction -> buildJsonObject {
                 put("#type", "NativeFunction")
                 put("name", this@RuntimeValue.name)
+            }
+
+            is RuntimeValue.Function -> buildJsonObject {
+                put("#type", "Function")
+                if (name != null) {
+                    put("name", name)
+                }
             }
 
             is RuntimeValue.RuntimeObject -> {

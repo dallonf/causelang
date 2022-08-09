@@ -9,9 +9,6 @@ data class CompiledFile(
     val types: Map<CanonicalLangTypeId, CanonicalLangType>,
     val chunks: List<InstructionChunk>,
     val exports: Map<String, CompiledExport>,
-    // TODO: I don't love that we need this for error reporting;
-    // ideally a CompiledFile would be a standalone artifact distinct from the AST and resolver
-    val resolved: ResolvedFile?
 ) {
     fun toFileDescriptor(): Resolver.ExternalFileDescriptor {
         val exportDescriptors = mutableMapOf<String, ValueLangType>()
@@ -50,6 +47,8 @@ data class CompiledFile(
                 constantTable.lastIndex
             }
         }
+
+        fun addConstant(constant: String): Int = addConstant(CompiledConstant.StringConst(constant))
 
         fun writeInstruction(instruction: Instruction) {
             instructions.add(instruction)

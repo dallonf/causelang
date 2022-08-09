@@ -83,10 +83,8 @@ object Resolver {
                             track(EXPECTED)
                         }
 
-                        is NodeTag.DeclarationForScope -> {
-                            if (tag.scope == fileNode.info.breadcrumbs) {
-                                track(INFERRED)
-                            }
+                        is NodeTag.TopLevelDeclaration -> {
+                            track(INFERRED)
                         }
 
                         else -> {}
@@ -94,8 +92,6 @@ object Resolver {
                 }
             }
         }
-
-        fun getType(id: CanonicalLangTypeId) = knownCanonicalTypes[id]
 
         while (true) {
             val iterationResolvedReferences = mutableListOf<Pair<ResolutionKey, ValueLangType>>()

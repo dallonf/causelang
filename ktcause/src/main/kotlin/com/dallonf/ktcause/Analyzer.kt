@@ -97,6 +97,10 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(declaration, DeclarationForScope(scope = breadcrumbs))
     }
 
+    data class TopLevelDeclaration(val name: String) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+    }
+
     object Expression : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
@@ -146,6 +150,9 @@ object Analyzer {
                     result,
                     ctx
                 )
+                for ((name, scopeItem) in it) {
+                    result.addTag(scopeItem.origin, NodeTag.TopLevelDeclaration(name))
+                }
             }
         }
 

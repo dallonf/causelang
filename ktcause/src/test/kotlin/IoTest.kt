@@ -35,7 +35,7 @@ class IoTest {
         }, chunks = emptyList(), exports = buildMap {
             put("Print", CompiledFile.CompiledExport.Type(printId))
             put("Prompt", CompiledFile.CompiledExport.Type(promptId))
-        }, resolved = null)
+        })
     }
 
     @Test

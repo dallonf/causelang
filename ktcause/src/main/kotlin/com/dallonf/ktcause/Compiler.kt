@@ -11,6 +11,10 @@ object Compiler {
         val scopeStack: ArrayDeque<CompilerScope> = ArrayDeque()
     ) {
         fun getTags(breadcrumbs: Breadcrumbs): List<NodeTag> = analyzed.nodeTags[breadcrumbs]!!
+
+        inline fun <reified T : NodeTag> getTag(breadcrumbs: Breadcrumbs): T? =
+            getTags(breadcrumbs).firstNotNullOfOrNull { it as? T }
+
         fun nextScopeIndex(): Int {
             return scopeStack.sumOf { it.namedValueIndices.size }
         }
@@ -43,7 +47,7 @@ object Compiler {
             }
         }
 
-        return CompiledFile(resolved.path, types, chunks, exports, resolved)
+        return CompiledFile(resolved.path, types, chunks, exports)
     }
 
     private fun compileFunction(
@@ -84,9 +88,7 @@ object Compiler {
         chunk.writeLiteral(
             CompiledFile.CompiledConstant.ErrorConst(
                 SourcePosition.Source(
-                    ctx.resolved.path,
-                    node.info.breadcrumbs,
-                    node.info.position
+                    ctx.resolved.path, node.info.breadcrumbs, node.info.position
                 ),
                 error,
             )
@@ -117,9 +119,7 @@ object Compiler {
     }
 
     private fun compileLocalDeclaration(
-        statement: StatementNode.DeclarationStatement,
-        chunk: CompiledFile.MutableInstructionChunk,
-        ctx: CompilerContext
+        statement: StatementNode.DeclarationStatement, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
     ) {
         when (val declaration = statement.declaration) {
             is DeclarationNode.Import -> {}
@@ -183,31 +183,34 @@ object Compiler {
 
         val tags = ctx.getTags(expression.info.breadcrumbs)
         val comesFrom = tags.firstNotNullOf { (it as? NodeTag.ValueComesFrom) }
-        val comesFromTags = ctx.getTags(comesFrom.source)
 
-        for (tag in comesFromTags) {
-            when (tag) {
-                is NodeTag.ReferencesFile -> {
-                    compileFileImportReference(tag, chunk)
-                    return
-                }
+        ctx.getTag<NodeTag.ReferencesFile>(comesFrom.source)?.let {
+            compileFileImportReference(it, chunk)
+            return
+        }
 
-                is NodeTag.NamedValue -> {
-                    compileNamedValueReference(comesFrom, chunk, ctx)
-                    return
-                }
+        ctx.getTag<NodeTag.TopLevelDeclaration>(comesFrom.source)?.let {
+            compileTopLevelReference(it, chunk, ctx)
+            return
+        }
 
-                else -> {}
-            }
+        (ctx.getTag<NodeTag.NamedValue>(comesFrom.source) ?: ctx.getTag<NodeTag.IsFunction>(comesFrom.source))?.let {
+            compileNamedValueReference(comesFrom, chunk, ctx)
+            return
         }
 
         // change this to an AssertionError when we're more stable
         TODO("Wasn't able to resolve identifier to anything")
     }
 
+    private fun compileTopLevelReference(
+        comesFrom: NodeTag.TopLevelDeclaration, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+    ) {
+        chunk.writeInstruction(Instruction.ImportSameFile(chunk.addConstant(comesFrom.name)))
+    }
+
     private fun compileFileImportReference(
-        tag: NodeTag.ReferencesFile,
-        chunk: CompiledFile.MutableInstructionChunk
+        tag: NodeTag.ReferencesFile, chunk: CompiledFile.MutableInstructionChunk
     ) {
         val filePathConstant = chunk.addConstant(CompiledFile.CompiledConstant.StringConst(tag.path))
         val exportNameConstant = tag.exportName?.let {

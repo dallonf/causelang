@@ -10,7 +10,8 @@ import kotlinx.serialization.json.Json
 
 class LangVm {
     open class VmError(message: String) : Error(message)
-    class InternalVmError(message: String) : VmError(message)
+    class InternalVmError(message: String) :
+        VmError("$message This probably isn't your fault. This shouldn't happen if the compiler is working properly.")
 
     private val files = mutableMapOf<String, CompiledFile>()
     private val _compileErrors = mutableListOf<Resolver.ResolverError>()
@@ -20,9 +21,13 @@ class LangVm {
     val compileErrors: List<Resolver.ResolverError>
         get() = _compileErrors
 
-    private class CallFrame(val chunk: CompiledFile.InstructionChunk, val parent: CallFrame? = null) {
+    private class CallFrame(
+        val file: CompiledFile,
+        val chunk: CompiledFile.InstructionChunk,
+        val parent: CallFrame? = null,
+        var stackStart: Int = 0,
+    ) {
         var instruction: Int = 0
-        var stackStart: Int = 0
         var pendingSignal: RuntimeValue.RuntimeObject? = null
     }
 
@@ -87,7 +92,7 @@ class LangVm {
         }
 
         stack.clear()
-        callFrame = CallFrame(file.chunks[function.chunkIndex])
+        callFrame = CallFrame(file, file.chunks[function.chunkIndex])
 
         return execute()
     }
@@ -109,21 +114,21 @@ class LangVm {
         }
     }
 
-    private val COMPILE_ERROR_ASSURANCE =
-        "This probably isn't your fault. This shouldn't happen if the compiler is working properly.";
 
     private val stackJsonSerializer = Json
 
     private fun execute(): RunResult {
         while (true) {
-            val callFrame = requireNotNull(callFrame) { "I'm not ready to execute anything!" }
+            val callFrame = requireNotNull(callFrame) { throw VmError("I'm not ready to execute anything!") }
 
             val instruction =
-                requireNotNull(callFrame.chunk.instructions.getOrNull(callFrame.instruction)) { "I've gotten to instruction #${callFrame.instruction}, but there are no more instructions to read! $COMPILE_ERROR_ASSURANCE" }
+                requireNotNull(callFrame.chunk.instructions.getOrNull(callFrame.instruction)) { throw InternalVmError("I've gotten to instruction #${callFrame.instruction}, but there are no more instructions to read!") }
+            // note: This means the instruction pointer will always be one ahead of the actual instruction!
+            callFrame.instruction += 1
 
             fun getConstant(id: Int): CompiledFile.CompiledConstant {
                 return requireNotNull(callFrame.chunk.constantTable.getOrNull(id)) {
-                    "I'm looking for a constant with the ID of $id, but I can't find it. $COMPILE_ERROR_ASSURANCE"
+                    throw InternalVmError("I'm looking for a constant with the ID of $id, but I can't find it.")
                 }
             }
 
@@ -167,7 +172,7 @@ class LangVm {
                         if (constant is CompiledFile.CompiledConstant.StringConst) {
                             constant.value
                         } else {
-                            throw VmError("I was expecting constant #${instruction.filePathConstant} to be a filepath string, but it was $constant. $COMPILE_ERROR_ASSURANCE")
+                            throw InternalVmError("I was expecting constant #${instruction.filePathConstant} to be a filepath string, but it was $constant.")
                         }
                     }
                     val exportName = run {
@@ -175,7 +180,7 @@ class LangVm {
                         if (constant is CompiledFile.CompiledConstant.StringConst) {
                             constant.value
                         } else {
-                            throw VmError("I was expecting constant #${instruction.exportNameConstant} to be an identifier string, but it was $constant. $COMPILE_ERROR_ASSURANCE")
+                            throw InternalVmError("I was expecting constant #${instruction.exportNameConstant} to be an identifier string, but it was $constant.")
                         }
                     }
 
@@ -183,23 +188,21 @@ class LangVm {
                         val value = CoreExports.getCoreExport(filePath, exportName)
                         stack.addLast(value)
                     } else {
-                        val file = requireNotNull(files[filePath]) { "I couldn't find the file: $filePath." }
-                        val export =
-                            requireNotNull(file.exports[exportName]) { "The file $filePath doesn't export anything (at least non-private) called $exportName." }
+                        val file =
+                            requireNotNull(files[filePath]) { throw InternalVmError("I couldn't find the file: $filePath.") }
 
-                        val value = when (export) {
-                            is CompiledFile.CompiledExport.Type -> {
-                                val canonicalType =
-                                    requireNotNull(file.types[export.typeId]) { "The file $filePath exports a type of ${export.typeId} but doesn't define it" }
-                                RuntimeValue.RuntimeTypeReference(canonicalType)
-                            }
-
-                            is CompiledFile.CompiledExport.Function -> TODO()
-                            is CompiledFile.CompiledExport.Value -> TODO()
-                        }
-
+                        val value = getExportAsRuntimeValue(exportName, file)
                         stack.addLast(value)
                     }
+                }
+
+                is Instruction.ImportSameFile -> {
+                    val exportName =
+                        requireNotNull(getConstant(instruction.exportNameConstant) as? CompiledFile.CompiledConstant.StringConst) {
+                            throw InternalVmError("Can't get exportName")
+                        }.value
+                    val value = getExportAsRuntimeValue(exportName, callFrame.file)
+                    stack.addLast(value)
                 }
 
                 is Instruction.ReadLocal -> {
@@ -212,7 +215,7 @@ class LangVm {
                     val constructorType = stack.removeLast().let {
                         if (it is RuntimeValue.RuntimeTypeReference)
                             it
-                        else throw VmError("Tried to construct a $it. $COMPILE_ERROR_ASSURANCE")
+                        else throw InternalVmError("Tried to construct a $it.")
                     }
 
                     val params = mutableListOf<RuntimeValue>()
@@ -242,8 +245,14 @@ class LangVm {
                             stack.addLast(result)
                         }
 
+                        is RuntimeValue.Function -> {
+                            val newCallFrame =
+                                CallFrame(function.file, function.file.chunks[function.chunkIndex], parent = callFrame, stackStart = stack.size)
+                            this.callFrame = newCallFrame
+                        }
+
                         is RuntimeValue.BadValue -> throw VmError("I tried to call a function, but it has an error: $function")
-                        else -> throw InternalVmError("Can't call $function")
+                        else -> throw InternalVmError("Can't call $function.")
                     }
                 }
 
@@ -251,26 +260,56 @@ class LangVm {
                     val signal = stack.removeLast().let {
                         when (it) {
                             is RuntimeValue.RuntimeObject -> it
-                            is RuntimeValue.BadValue -> throw VmError("I tried to cause a signal, but is has an error: $it")
-                            else -> throw InternalVmError("Can't cause $it")
+                            is RuntimeValue.BadValue -> throw VmError("I tried to cause a signal, but it has an error: $it")
+                            else -> throw InternalVmError("Can't cause $it.")
                         }
                     }
 
                     callFrame.pendingSignal = signal
-                    callFrame.instruction += 1
                     return RunResult.Caused(signal)
                 }
 
                 is Instruction.Return -> {
                     val value = stack.removeLast()
 
-                    // TODO: handle popping a call frame and returning to a calling function
-                    return RunResult.Returned(value)
+                    if (callFrame.parent != null) {
+                        val functionScopeLength = stack.size - callFrame.stackStart
+                        for (i in 0 until functionScopeLength) {
+                            stack.removeLast()
+                        }
+
+                        stack.addLast(value)
+                        this.callFrame = callFrame.parent
+                    } else {
+                        return RunResult.Returned(value)
+                    }
                 }
             }
-
-            callFrame.instruction += 1
         }
+    }
+
+    private fun getExportAsRuntimeValue(
+        exportName: String,
+        file: CompiledFile
+    ): RuntimeValue {
+        val export =
+            requireNotNull(file.exports[exportName]) { "The file ${file.path} doesn't export anything (at least non-private) called $exportName." }
+
+        val value = when (export) {
+            is CompiledFile.CompiledExport.Type -> {
+                val canonicalType =
+                    requireNotNull(file.types[export.typeId]) { "The file ${file.path} exports a type of ${export.typeId} but doesn't define it" }
+                RuntimeValue.RuntimeTypeReference(canonicalType)
+            }
+
+            is CompiledFile.CompiledExport.Function -> {
+                val functionName = (export.type as? FunctionValueLangType)?.name ?: exportName
+                RuntimeValue.Function(file, export.chunkIndex, functionName)
+            }
+
+            is CompiledFile.CompiledExport.Value -> TODO()
+        }
+        return value
     }
 }
 
