@@ -302,7 +302,9 @@ sealed interface ExpressionNode : AstNode {
 }
 
 sealed interface BranchOptionNode : AstNode {
-    data class IfBranchOptionNode(override val info: NodeInfo, val condition: ExpressionNode, val body: BodyNode) :
+    val body: BodyNode
+
+    data class IfBranchOptionNode(override val info: NodeInfo, val condition: ExpressionNode, override val body: BodyNode) :
         BranchOptionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("condition", condition)
@@ -310,7 +312,7 @@ sealed interface BranchOptionNode : AstNode {
         }
     }
 
-    data class ElseBranchOptionNode(override val info: NodeInfo, val body: BodyNode) : BranchOptionNode {
+    data class ElseBranchOptionNode(override val info: NodeInfo, override val body: BodyNode) : BranchOptionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("body", body)
         }

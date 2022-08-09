@@ -64,7 +64,6 @@ object Resolver {
 
         // Seed the crawler with all expressions, top-level declarations,
         // and explicit type annotations
-
         run {
             for ((nodeBreadcrumbs, tags) in nodeTags) {
                 fun track(resolutionType: ResolutionType) {
@@ -93,6 +92,14 @@ object Resolver {
             }
         }
 
+        fun getSourcePosition(breadcrumbs: Breadcrumbs) = SourcePosition.Source(
+            path,
+            breadcrumbs,
+            fileNode.findNode(breadcrumbs).info.position
+        )
+
+
+
         while (true) {
             val iterationResolvedReferences = mutableListOf<Pair<ResolutionKey, ValueLangType>>()
             fun getResolvedTypeOf(breadcrumbs: Breadcrumbs): ValueLangType {
@@ -119,11 +126,7 @@ object Resolver {
                 }
 
                 fun resolveWithProxyError(error: ErrorValueLangType, breadcrumbs: Breadcrumbs) {
-                    val sourcePosition = SourcePosition.Source(
-                        path,
-                        breadcrumbs,
-                        fileNode.findNode(breadcrumbs).info.position
-                    )
+                    val sourcePosition = getSourcePosition(breadcrumbs)
                     resolveWith(
                         if (error is ErrorValueLangType.ProxyError) {
                             ErrorValueLangType.ProxyError(
@@ -141,8 +144,8 @@ object Resolver {
                     )
                 }
 
-                val pendingTags = nodeTags[pendingKey.breadcrumbs]
-                pendingTags?.forEach eachTag@{ tag ->
+                val pendingNodeTags = nodeTags[pendingKey.breadcrumbs]
+                pendingNodeTags?.forEach eachTag@{ tag ->
                     when (pendingKey.type) {
                         INFERRED -> when (tag) {
                             is NodeTag.ValueComesFrom -> {
@@ -232,7 +235,7 @@ object Resolver {
                             is NodeTag.IsPrimitiveValue -> resolveWith(tag.kind.toValueLangType())
 
                             is NodeTag.IsFunction -> {
-                                val canReturn = pendingTags.mapNotNull {
+                                val canReturn = pendingNodeTags.mapNotNull {
                                     if (it is NodeTag.FunctionCanReturnTypeOf) it
                                     else null
                                 }
@@ -275,6 +278,47 @@ object Resolver {
                             }
 
                             is NodeTag.ReferenceNotInScope -> resolveWith(ErrorValueLangType.NotInScope)
+
+                            is NodeTag.IsBranch -> {
+                                val branchOptions = pendingNodeTags.mapNotNull { it as? NodeTag.HasBranchOption }
+
+                                if (branchOptions.isEmpty()) {
+                                    resolveWith(PrimitiveValueLangType(LangPrimitiveKind.ACTION))
+                                }
+
+                                val elseBranches =
+                                    branchOptions.mapNotNull { if (it.type == NodeTag.BranchOptionType.ELSE) it else null }
+
+                                if (elseBranches.size > 1) {
+                                    resolveWith(ErrorValueLangType.TooManyElseBranches)
+                                } else if (elseBranches.isEmpty()) {
+                                    resolveWith(ErrorValueLangType.MissingElseBranch)
+                                } else {
+                                    val branchValueTypes =
+                                        branchOptions
+                                            .map { Pair(it.branchOption, getResolvedTypeOf(it.branchOption)) }
+
+                                    if (branchValueTypes.all { !it.second.isPending() }) {
+                                        val nonErrorValueTypes =
+                                            branchValueTypes.filter { it.second.getError() == null }
+                                        if (nonErrorValueTypes.isEmpty()) {
+                                            resolveWith(branchValueTypes[0].second)
+                                        } else {
+                                            val firstNonErrorValueType = nonErrorValueTypes[0].second
+                                            if (nonErrorValueTypes.all { it.second.getError() != null || it.second == firstNonErrorValueType }) {
+                                                resolveWith(firstNonErrorValueType)
+                                            } else {
+                                                resolveWith(ErrorValueLangType.IncompatibleTypes(branchValueTypes.map {
+                                                    ErrorValueLangType.IncompatibleTypes.IncompatibleType(
+                                                        it.second,
+                                                        getSourcePosition(it.first)
+                                                    )
+                                                }))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
 
                             else -> {}
                         }

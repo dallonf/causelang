@@ -114,6 +114,22 @@ sealed class NodeTag {
     data class AnnotatesTypeFor(val value: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(value, TypeAnnotated(annotation = breadcrumbs))
     }
+
+    object IsBranch : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+    }
+
+    enum class BranchOptionType { IF, ELSE }
+
+    data class BranchOptionFor(val branchExpression: Breadcrumbs, val type: BranchOptionType) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) =
+            Pair(branchExpression, HasBranchOption(branchOption = breadcrumbs, type = type))
+    }
+
+    data class HasBranchOption(val branchOption: Breadcrumbs, val type: BranchOptionType) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) =
+            Pair(branchOption, BranchOptionFor(branchExpression = breadcrumbs, type = type))
+    }
 }
 
 
@@ -320,12 +336,18 @@ object Analyzer {
                     }
                 }
             }
+
+            is BodyNode.SingleExpressionBodyNode -> {
+                analyzeExpression(body.expression, output, ctx)
+                output.addValueFlowTag(body.expression.info.breadcrumbs, body.info.breadcrumbs)
+            }
         }
     }
 
     private fun analyzeExpression(expression: ExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext) {
         when (expression) {
             is ExpressionNode.BlockExpressionNode -> analyzeBlockExpression(expression, output, ctx)
+            is ExpressionNode.BranchExpressionNode -> analyzeBranchExpressionNode(expression, output, ctx)
             is ExpressionNode.IdentifierExpression -> analyzeIdentifierExpression(expression, output, ctx)
             is ExpressionNode.CauseExpression -> analyzeCauseExpression(expression, output, ctx)
             is ExpressionNode.CallExpression -> analyzeCallExpression(expression, output, ctx)
@@ -340,6 +362,22 @@ object Analyzer {
             )
         }
         output.addTag(expression.info.breadcrumbs, NodeTag.Expression)
+    }
+
+    private fun analyzeBranchExpressionNode(
+        expression: ExpressionNode.BranchExpressionNode,
+        output: AnalyzedNode,
+        ctx: AnalyzerContext
+    ) {
+        output.addTag(expression.info.breadcrumbs, NodeTag.IsBranch)
+        for (branchOption in expression.branches) {
+            val type = when (branchOption) {
+                is BranchOptionNode.IfBranchOptionNode -> NodeTag.BranchOptionType.IF
+                is BranchOptionNode.ElseBranchOptionNode -> NodeTag.BranchOptionType.ELSE
+            }
+            output.addTag(expression.info.breadcrumbs, NodeTag.BranchOptionFor(branchOption.info.breadcrumbs, type))
+            analyzeBody(branchOption.body, output, ctx)
+        }
     }
 
     private fun analyzeBlockExpression(

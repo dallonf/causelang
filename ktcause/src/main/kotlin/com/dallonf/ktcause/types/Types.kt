@@ -119,6 +119,21 @@ sealed interface ErrorValueLangType : ValueLangType {
     @Serializable
     @SerialName("UnknownParameter")
     object UnknownParameter : ErrorValueLangType
+
+    @Serializable
+    @SerialName("TooManyElseBranches")
+    object TooManyElseBranches : ErrorValueLangType
+
+    @Serializable
+    @SerialName("MissingElseBranch")
+    object MissingElseBranch : ErrorValueLangType
+
+    @Serializable
+    @SerialName("IncompatibleTypes")
+    data class IncompatibleTypes(val types: List<IncompatibleType>) : ErrorValueLangType {
+        @Serializable
+        data class IncompatibleType(val type: ValueLangType, val position: SourcePosition)
+    }
 }
 
 // TODO: more distinction between values and types?
