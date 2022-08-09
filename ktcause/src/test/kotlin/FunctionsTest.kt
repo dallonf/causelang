@@ -59,4 +59,27 @@ class FunctionsTest {
         assertEquals(debug.values[0], RuntimeValue.String("Hello, World"))
         assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturnValue(), RuntimeValue.Action)
     }
+
+    @Test
+    fun causesInFunctionCall() {
+        val vm = LangVm()
+        TestUtils.addFileExpectingNoCompileErrors(
+            vm, "project/test.cau", """
+                function main() {
+                    greet()
+                }
+                
+                function greet() {
+                    cause Debug("Hello World")
+                }
+            """.trimIndent()
+        )
+
+        val debug = TestUtils.expectValidCaused(
+            vm.executeFunction("project/test.cau", "main", listOf()),
+            vm.getTypeId("core/builtin.cau", "Debug")
+        )
+        assertEquals(debug.values[0], RuntimeValue.String("Hello World"))
+        assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturnValue(), RuntimeValue.Action)
+    }
 }
