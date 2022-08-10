@@ -8,7 +8,8 @@ object Compiler {
         val fileNode: FileNode,
         val analyzed: AnalyzedNode,
         val resolved: ResolvedFile,
-        val scopeStack: ArrayDeque<CompilerScope> = ArrayDeque()
+        val chunks: MutableList<CompiledFile.InstructionChunk>,
+        val scopeStack: ArrayDeque<CompilerScope> = ArrayDeque(),
     ) {
         fun getTags(breadcrumbs: Breadcrumbs): List<NodeTag> = analyzed.nodeTags[breadcrumbs]!!
 
@@ -16,38 +17,39 @@ object Compiler {
             getTags(breadcrumbs).firstNotNullOfOrNull { it as? T }
 
         fun nextScopeIndex(): Int {
-            return scopeStack.sumOf { it.namedValueIndices.size }
+            return scopeStack.sumOf { it.size() }
         }
     }
 
-    private class CompilerScope(val scopeRoot: Breadcrumbs) {
+    private class CompilerScope(val scopeRoot: Breadcrumbs, val parameters: Int = 0) {
         // indices are computed from the top of the current call frame
         val namedValueIndices = mutableMapOf<Breadcrumbs, Int>()
+
+        fun size() = parameters + namedValueIndices.size
     }
 
     fun compile(fileNode: FileNode, analyzed: AnalyzedNode, resolved: ResolvedFile): CompiledFile {
         val types = mutableMapOf<CanonicalLangTypeId, CanonicalLangType>()
-        val chunks = mutableListOf<CompiledFile.InstructionChunk>()
         val exports = mutableMapOf<String, CompiledFile.CompiledExport>()
+        val ctx = CompilerContext(fileNode, analyzed, resolved, chunks = mutableListOf())
 
         for (declaration in fileNode.declarations) {
             when (declaration) {
                 is DeclarationNode.Import -> {}
                 is DeclarationNode.Function -> {
-                    val ctx = CompilerContext(fileNode, analyzed, resolved)
                     val chunk = compileFunction(declaration, ctx)
                     val functionType = resolved.getExpectedType(declaration.info.breadcrumbs)
 
-                    chunks.add(chunk.toInstructionChunk())
+                    ctx.chunks.add(chunk.toInstructionChunk())
                     exports[declaration.name.text] =
-                        CompiledFile.CompiledExport.Function(chunks.lastIndex, functionType)
+                        CompiledFile.CompiledExport.Function(ctx.chunks.lastIndex, functionType)
                 }
 
                 is DeclarationNode.NamedValue -> TODO()
             }
         }
 
-        return CompiledFile(resolved.path, types, chunks, exports)
+        return CompiledFile(resolved.path, types, ctx.chunks, exports)
     }
 
     private fun compileFunction(
@@ -90,7 +92,7 @@ object Compiler {
         }
 
         val scope = ctx.scopeStack.removeLast()
-        chunk.writeInstruction(Instruction.PopScope(scope.namedValueIndices.size))
+        chunk.writeInstruction(Instruction.PopScope(scope.size()))
     }
 
     private fun compileBadValue(
@@ -116,8 +118,6 @@ object Compiler {
             is StatementNode.ExpressionStatement -> {
                 compileExpression(statement.expression, chunk, ctx)
 
-                // TODO: emit compile error for mismatched type?
-
                 if (!isLastStatement) {
                     chunk.writeInstruction(Instruction.Pop())
                 }
@@ -125,6 +125,10 @@ object Compiler {
 
             is StatementNode.DeclarationStatement -> {
                 compileLocalDeclaration(statement, chunk, ctx)
+            }
+
+            is StatementNode.EffectStatement -> {
+                compileEffectStatement(statement, chunk, ctx)
             }
         }
     }
@@ -145,6 +149,38 @@ object Compiler {
             }
         }
     }
+
+    private fun compileEffectStatement(
+        statement: StatementNode.EffectStatement,
+        chunk: CompiledFile.MutableInstructionChunk,
+        ctx: CompilerContext
+    ) {
+        val effectChunk = CompiledFile.MutableInstructionChunk()
+
+        val effectCtx = ctx.copy(scopeStack = ArrayDeque())
+        effectCtx.scopeStack.addLast(CompilerScope(statement.info.breadcrumbs, parameters = 1))
+
+        // Check the condition
+        effectChunk.writeInstruction(Instruction.ReadLocal(0))
+        // Hack: synthesize an IdentifierExpression so we can compile it as the pattern match
+        // TODO: a better solution
+        compileExpression(
+            ExpressionNode.IdentifierExpression(
+                statement.pattern.typeName.info,
+                statement.pattern.typeName,
+            ), effectChunk, effectCtx
+        )
+        effectChunk.writeInstruction(Instruction.IsAssignableTo)
+        val rejectEffectJump = effectChunk.writeInstruction(Instruction.NoOp)
+        compileBody(statement.body, effectChunk, effectCtx)
+        effectChunk.writeInstruction(Instruction.FinishEffect)
+        effectChunk.instructions[rejectEffectJump] = Instruction.JumpIfFalse(effectChunk.instructions.size)
+        effectChunk.writeInstruction(Instruction.RejectSignal)
+
+        ctx.chunks.add(effectChunk.toInstructionChunk())
+        chunk.writeInstruction(Instruction.RegisterEffect(ctx.chunks.lastIndex))
+    }
+
 
     private fun compileExpression(
         expression: ExpressionNode, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
@@ -194,9 +230,9 @@ object Compiler {
         val remainingBranchJumps = mutableListOf<Int>()
         for (ifBranch in ifBranches) {
             compileExpression(ifBranch.condition, chunk, ctx)
-            val skipBodyInstruction = chunk.writeInstruction(Instruction.JumpIfFalse(0))
+            val skipBodyInstruction = chunk.writeInstruction(Instruction.NoOp)
             compileBody(ifBranch.body, chunk, ctx)
-            remainingBranchJumps.add(chunk.writeInstruction(Instruction.Jump(0)))
+            remainingBranchJumps.add(chunk.writeInstruction(Instruction.NoOp))
             chunk.instructions[skipBodyInstruction] = Instruction.JumpIfFalse(chunk.instructions.size)
         }
         if (elseBranch != null) {

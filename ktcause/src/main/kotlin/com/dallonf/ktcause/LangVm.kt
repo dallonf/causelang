@@ -1,7 +1,6 @@
 package com.dallonf.ktcause
 
 import com.dallonf.ktcause.Debug.debug
-import com.dallonf.ktcause.ast.Breadcrumbs
 import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.parse.parse
 import com.dallonf.ktcause.types.*
@@ -16,19 +15,30 @@ class LangVm {
     private val files = mutableMapOf<String, CompiledFile>()
     private val _compileErrors = mutableListOf<Resolver.ResolverError>()
     private var callFrame: CallFrame? = null
-    private val stack: ArrayDeque<RuntimeValue> = ArrayDeque()
 
     val compileErrors: List<Resolver.ResolverError>
         get() = _compileErrors
 
+    private data class RuntimeEffect(
+        val file: CompiledFile,
+        val chunk: CompiledFile.InstructionChunk,
+        val callParent: CallFrame,
+        val nextEffect: RuntimeEffect?
+    )
+
     private class CallFrame(
         val file: CompiledFile,
         val chunk: CompiledFile.InstructionChunk,
-        val parent: CallFrame? = null,
+        val callParent: CallFrame? = null,
+        val causeParent: CallFrame? = null,
+        val stack: ArrayDeque<RuntimeValue>,
         var stackStart: Int = 0,
+        var firstEffect: RuntimeEffect? = null
     ) {
         var instruction: Int = 0
         var pendingSignal: RuntimeValue.RuntimeObject? = null
+
+        fun executionParent() = causeParent ?: callParent
     }
 
     data class ErrorTrace(
@@ -89,8 +99,9 @@ class LangVm {
             TODO("I don't support executing a function with arguments right now.")
         }
 
-        stack.clear()
-        callFrame = CallFrame(file, file.chunks[function.chunkIndex])
+        callFrame = CallFrame(
+            file, file.chunks[function.chunkIndex], callParent = null, causeParent = null, stack = ArrayDeque()
+        )
 
         return execute()
     }
@@ -105,7 +116,7 @@ class LangVm {
 
         if (value.isAssignableTo(pendingSignalType.result)) {
             callFrame.pendingSignal = null
-            stack.addLast(value)
+            callFrame.stack.addLast(value)
             return execute()
         } else {
             throw VmError("I need to resolve a ${pendingSignalType.name} signal with a ${pendingSignalType.result}, but $value isn't a ${pendingSignalType.result}.")
@@ -117,186 +128,263 @@ class LangVm {
 
     private fun execute(): RunResult {
         while (true) {
-            val callFrame = requireNotNull(callFrame) { throw VmError("I'm not ready to execute anything!") }
+            run iteration@{
+                val callFrame = requireNotNull(callFrame) { throw VmError("I'm not ready to execute anything!") }
+                val stack = callFrame.stack
 
-            val instruction =
-                requireNotNull(callFrame.chunk.instructions.getOrNull(callFrame.instruction)) { throw InternalVmError("I've gotten to instruction #${callFrame.instruction}, but there are no more instructions to read!") }
-            // note: This means the instruction pointer will always be one ahead of the actual instruction!
-            callFrame.instruction += 1
-
-            fun getConstant(id: Int): CompiledFile.CompiledConstant {
-                return requireNotNull(callFrame.chunk.constantTable.getOrNull(id)) {
-                    throw InternalVmError("I'm looking for a constant with the ID of $id, but I can't find it.")
+                val instruction = requireNotNull(callFrame.chunk.instructions.getOrNull(callFrame.instruction)) {
+                    throw InternalVmError(
+                        "I've gotten to instruction #${callFrame.instruction}, but there are no more instructions to read!"
+                    )
                 }
-            }
+                // note: This means the instruction pointer will always be one ahead of the actual instruction!
+                callFrame.instruction += 1
 
-            // TODO: VM play-by-play enabled optionally
-            val debugStack = stackJsonSerializer.encodeToString(stack.map { it.toJson() })
-            println("stack: $debugStack")
-            println("instruction #${callFrame.instruction - 1}: $instruction")
-
-            when (instruction) {
-                is Instruction.Pop -> {
-                    for (i in 0 until instruction.number) {
-                        stack.removeLast()
+                fun getConstant(id: Int): CompiledFile.CompiledConstant {
+                    return requireNotNull(callFrame.chunk.constantTable.getOrNull(id)) {
+                        throw InternalVmError("I'm looking for a constant with the ID of $id, but I can't find it.")
                     }
                 }
 
-                is Instruction.PopScope -> {
-                    val result = stack.removeLast()
-                    for (i in 0 until instruction.values) {
-                        stack.removeLast()
-                    }
-                    stack.addLast(result)
-                }
+                // TODO: VM play-by-play enabled optionally
+                val debugStack = stackJsonSerializer.encodeToString(stack.map { it.toJson() })
+                println("stack: $debugStack")
+                println("instruction #${callFrame.instruction - 1}: $instruction")
 
-                is Instruction.PushAction -> stack.addLast(RuntimeValue.Action)
+                when (instruction) {
+                    is Instruction.NoOp -> {}
 
-                is Instruction.Literal -> {
-                    val newValue = when (val constant = getConstant(instruction.constant)) {
-                        is CompiledFile.CompiledConstant.StringConst -> RuntimeValue.String(constant.value)
-                        is CompiledFile.CompiledConstant.IntegerConst -> RuntimeValue.Integer(constant.value)
-                        is CompiledFile.CompiledConstant.FloatConst -> RuntimeValue.Float(constant.value)
-                        is CompiledFile.CompiledConstant.ErrorConst -> RuntimeValue.BadValue(
-                            constant.sourcePosition, constant.error
-                        )
-                    }
-                    stack.addLast(newValue)
-                }
-
-                is Instruction.Import -> {
-                    val filePath = run {
-                        val constant = getConstant(instruction.filePathConstant)
-                        if (constant is CompiledFile.CompiledConstant.StringConst) {
-                            constant.value
-                        } else {
-                            throw InternalVmError("I was expecting constant #${instruction.filePathConstant} to be a filepath string, but it was $constant.")
-                        }
-                    }
-                    val exportName = run {
-                        val constant = getConstant(instruction.exportNameConstant)
-                        if (constant is CompiledFile.CompiledConstant.StringConst) {
-                            constant.value
-                        } else {
-                            throw InternalVmError("I was expecting constant #${instruction.exportNameConstant} to be an identifier string, but it was $constant.")
-                        }
-                    }
-
-                    if (filePath.startsWith("core/")) {
-                        val value = CoreExports.getCoreExport(filePath, exportName)
-                        stack.addLast(value)
-                    } else {
-                        val file =
-                            requireNotNull(files[filePath]) { throw InternalVmError("I couldn't find the file: $filePath.") }
-
-                        val value = getExportAsRuntimeValue(exportName, file)
-                        stack.addLast(value)
-                    }
-                }
-
-                is Instruction.ImportSameFile -> {
-                    val exportName =
-                        requireNotNull(getConstant(instruction.exportNameConstant) as? CompiledFile.CompiledConstant.StringConst) {
-                            throw InternalVmError("Can't get exportName")
-                        }.value
-                    val value = getExportAsRuntimeValue(exportName, callFrame.file)
-                    stack.addLast(value)
-                }
-
-                is Instruction.ReadLocal -> {
-                    val index = instruction.index
-                    val value = stack[callFrame.stackStart + index]
-                    stack.addLast(value)
-                }
-
-                is Instruction.Construct -> {
-                    val constructorType = stack.removeLast().let {
-                        if (it is RuntimeValue.RuntimeTypeReference) it
-                        else throw InternalVmError("Tried to construct a $it.")
-                    }
-
-                    val params = mutableListOf<RuntimeValue>()
-                    for (i in 0 until instruction.arity) {
-                        params.add(stack.removeLast())
-                    }
-                    params.reverse()
-
-                    val obj = RuntimeValue.RuntimeObject(constructorType, params)
-                    stack.addLast(obj)
-                }
-
-                is Instruction.CallFunction -> {
-                    val function = stack.removeLast()
-
-                    val params = mutableListOf<RuntimeValue>()
-                    for (i in 0 until instruction.arity) {
-                        params.add(stack.removeLast())
-                    }
-                    params.reverse()
-
-                    when (function) {
-                        is RuntimeValue.NativeFunction -> {
-                            // TODO: probably want to runtime typecheck native function
-                            // params in development
-                            val result = function.function(params)
-                            stack.addLast(result)
-                        }
-
-                        is RuntimeValue.Function -> {
-                            val newCallFrame = CallFrame(
-                                function.file,
-                                function.file.chunks[function.chunkIndex],
-                                parent = callFrame,
-                                stackStart = stack.size
-                            )
-                            this.callFrame = newCallFrame
-                        }
-
-                        is RuntimeValue.BadValue -> throw VmError("I tried to call a function, but it has an error: $function")
-                        else -> throw InternalVmError("Can't call $function.")
-                    }
-                }
-
-                is Instruction.Jump -> {
-                    callFrame.instruction = instruction.instruction
-                }
-
-                is Instruction.JumpIfFalse -> {
-                    val condition = stack.removeLast()
-                    if (condition is RuntimeValue.BadValue) {
-                        throw VmError(condition.debug())
-                    }
-                    if (condition == RuntimeValue.Boolean(false)) {
-                        callFrame.instruction = instruction.instruction
-                    }
-                }
-
-                is Instruction.Cause -> {
-                    val signal = stack.removeLast().let {
-                        when (it) {
-                            is RuntimeValue.RuntimeObject -> it
-                            is RuntimeValue.BadValue -> throw VmError("I tried to cause a signal, but it has an error: $it")
-                            else -> throw InternalVmError("Can't cause $it.")
-                        }
-                    }
-
-                    callFrame.pendingSignal = signal
-                    return RunResult.Caused(signal)
-                }
-
-                is Instruction.Return -> {
-                    val value = stack.removeLast()
-
-                    if (callFrame.parent != null) {
-                        val functionScopeLength = stack.size - callFrame.stackStart
-                        for (i in 0 until functionScopeLength) {
+                    is Instruction.Pop -> {
+                        for (i in 0 until instruction.number) {
                             stack.removeLast()
                         }
+                    }
 
+                    is Instruction.PopScope -> {
+                        val result = stack.removeLast()
+                        for (i in 0 until instruction.values) {
+                            stack.removeLast()
+                        }
+                        stack.addLast(result)
+                    }
+
+                    is Instruction.RegisterEffect -> {
+                        val chunk = callFrame.file.chunks[instruction.chunk]
+                        callFrame.firstEffect = RuntimeEffect(
+                            callFrame.file, chunk, callParent = callFrame, nextEffect = callFrame.firstEffect
+                        )
+                    }
+
+                    is Instruction.PopEffects -> {
+                        for (i in 0 until instruction.number) {
+                            callFrame.firstEffect = callFrame.firstEffect!!.nextEffect
+                        }
+                    }
+
+                    is Instruction.PushAction -> stack.addLast(RuntimeValue.Action)
+
+                    is Instruction.Literal -> {
+                        val newValue = when (val constant = getConstant(instruction.constant)) {
+                            is CompiledFile.CompiledConstant.StringConst -> RuntimeValue.String(constant.value)
+                            is CompiledFile.CompiledConstant.IntegerConst -> RuntimeValue.Integer(constant.value)
+                            is CompiledFile.CompiledConstant.FloatConst -> RuntimeValue.Float(constant.value)
+                            is CompiledFile.CompiledConstant.ErrorConst -> RuntimeValue.BadValue(
+                                constant.sourcePosition, constant.error
+                            )
+                        }
+                        stack.addLast(newValue)
+                    }
+
+                    is Instruction.Import -> {
+                        val filePath = run {
+                            val constant = getConstant(instruction.filePathConstant)
+                            if (constant is CompiledFile.CompiledConstant.StringConst) {
+                                constant.value
+                            } else {
+                                throw InternalVmError("I was expecting constant #${instruction.filePathConstant} to be a filepath string, but it was $constant.")
+                            }
+                        }
+                        val exportName = run {
+                            val constant = getConstant(instruction.exportNameConstant)
+                            if (constant is CompiledFile.CompiledConstant.StringConst) {
+                                constant.value
+                            } else {
+                                throw InternalVmError("I was expecting constant #${instruction.exportNameConstant} to be an identifier string, but it was $constant.")
+                            }
+                        }
+
+                        if (filePath.startsWith("core/")) {
+                            val value = CoreExports.getCoreExport(filePath, exportName)
+                            stack.addLast(value)
+                        } else {
+                            val file =
+                                requireNotNull(files[filePath]) { throw InternalVmError("I couldn't find the file: $filePath.") }
+
+                            val value = getExportAsRuntimeValue(exportName, file)
+                            stack.addLast(value)
+                        }
+                    }
+
+                    is Instruction.ImportSameFile -> {
+                        val exportName =
+                            requireNotNull(getConstant(instruction.exportNameConstant) as? CompiledFile.CompiledConstant.StringConst) {
+                                throw InternalVmError("Can't get exportName")
+                            }.value
+                        val value = getExportAsRuntimeValue(exportName, callFrame.file)
                         stack.addLast(value)
-                        this.callFrame = callFrame.parent
-                    } else {
-                        return RunResult.Returned(value)
+                    }
+
+                    is Instruction.ReadLocal -> {
+                        val index = instruction.index
+                        val value = stack[callFrame.stackStart + index]
+                        stack.addLast(value)
+                    }
+
+                    is Instruction.Construct -> {
+                        val constructorType = stack.removeLast().let {
+                            if (it is RuntimeValue.RuntimeTypeReference) it
+                            else throw InternalVmError("Tried to construct a $it.")
+                        }
+
+                        val params = mutableListOf<RuntimeValue>()
+                        for (i in 0 until instruction.arity) {
+                            params.add(stack.removeLast())
+                        }
+                        params.reverse()
+
+                        val obj = RuntimeValue.RuntimeObject(constructorType, params)
+                        stack.addLast(obj)
+                    }
+
+                    is Instruction.CallFunction -> {
+                        val function = stack.removeLast()
+
+                        val params = mutableListOf<RuntimeValue>()
+                        for (i in 0 until instruction.arity) {
+                            params.add(stack.removeLast())
+                        }
+                        params.reverse()
+
+                        when (function) {
+                            is RuntimeValue.NativeFunction -> {
+                                // TODO: probably want to runtime typecheck native function
+                                // params in development
+                                val result = function.function(params)
+                                stack.addLast(result)
+                            }
+
+                            is RuntimeValue.Function -> {
+                                val newCallFrame = CallFrame(
+                                    function.file,
+                                    function.file.chunks[function.chunkIndex],
+                                    callParent = callFrame,
+                                    causeParent = null,
+                                    stack = stack,
+                                    stackStart = stack.size,
+                                    firstEffect = callFrame.firstEffect,
+                                )
+                                this.callFrame = newCallFrame
+                            }
+
+                            is RuntimeValue.BadValue -> throw VmError("I tried to call a function, but it has an error: $function")
+                            else -> throw InternalVmError("Can't call $function.")
+                        }
+                    }
+
+                    is Instruction.IsAssignableTo -> {
+                        val typeValue = stack.removeLast()
+                        val value = stack.removeLast()
+
+                        if (typeValue is RuntimeValue.BadValue) {
+                            throw VmError("I tried to check the type of ${value.debug()}, but the type reference has an error: ${typeValue.debug()}")
+                        }
+
+                        val type = (typeValue as RuntimeValue.RuntimeTypeReference).type
+
+                        stack.addLast(RuntimeValue.Boolean(value.isAssignableTo(type)))
+                    }
+
+                    is Instruction.Jump -> {
+                        callFrame.instruction = instruction.instruction
+                    }
+
+                    is Instruction.JumpIfFalse -> {
+                        val condition = stack.removeLast()
+                        if (condition is RuntimeValue.BadValue) {
+                            throw VmError(condition.debug())
+                        }
+                        if (condition == RuntimeValue.Boolean(false)) {
+                            callFrame.instruction = instruction.instruction
+                        }
+                    }
+
+                    is Instruction.Cause -> {
+                        val signal = stack.removeLast().let {
+                            when (it) {
+                                is RuntimeValue.RuntimeObject -> it
+                                is RuntimeValue.BadValue -> throw VmError("I tried to cause a signal, but it has an error: $it")
+                                else -> throw InternalVmError("Can't cause $it.")
+                            }
+                        }
+
+                        callFrame.pendingSignal = signal
+                        val effect = callFrame.firstEffect
+                        if (effect != null) {
+                            this.callFrame = CallFrame(
+                                effect.file,
+                                effect.chunk,
+                                callParent = effect.callParent,
+                                causeParent = callFrame,
+                                stack = ArrayDeque(listOf(signal)),
+                                firstEffect = effect.nextEffect,
+                            )
+                        } else {
+                            return RunResult.Caused(signal)
+                        }
+
+                    }
+
+                    is Instruction.RejectSignal -> {
+                        val nextEffect = callFrame.firstEffect
+                        val signal = callFrame.causeParent!!.pendingSignal!!
+                        if (nextEffect != null) {
+                            this.callFrame = CallFrame(
+                                nextEffect.file,
+                                nextEffect.chunk,
+                                callParent = nextEffect.callParent,
+                                causeParent = callFrame.causeParent,
+                                stack = ArrayDeque(listOf(signal)),
+                                firstEffect = nextEffect.nextEffect
+                            )
+                        } else {
+                            this.callFrame = callFrame.causeParent
+                            return RunResult.Caused(signal)
+                        }
+                    }
+
+                    is Instruction.FinishEffect -> {
+                        val value = stack.removeLast()
+
+                        val causeParent = callFrame.causeParent!!
+                        causeParent.stack.addLast(value)
+                        causeParent.pendingSignal = null
+                        this.callFrame = causeParent
+                    }
+
+                    is Instruction.Return -> {
+                        val value = stack.removeLast()
+
+                        if (callFrame.callParent != null) {
+                            val functionScopeLength = stack.size - callFrame.stackStart
+                            for (i in 0 until functionScopeLength) {
+                                stack.removeLast()
+                            }
+
+                            callFrame.callParent.stack.addLast(value)
+                            this.callFrame = callFrame.callParent
+                        } else {
+                            return RunResult.Returned(value)
+                        }
                     }
                 }
             }
