@@ -1,3 +1,4 @@
+import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.RuntimeValue
@@ -8,8 +9,7 @@ internal class HelloWorldTest {
     @Test
     fun helloWorld() {
         val vm = LangVm()
-        TestUtils.addFileExpectingNoCompileErrors(
-            vm,
+        vm.addFileExpectingNoCompileErrors(
             "project/hello.cau", """
                 function main() {
                     cause Debug("Hello world!")

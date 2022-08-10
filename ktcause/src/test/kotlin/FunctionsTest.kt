@@ -1,3 +1,4 @@
+import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
@@ -7,8 +8,8 @@ class FunctionsTest {
     @Test
     fun callsAnotherFunctionAndUsesItsValue() {
         val vm = LangVm()
-        TestUtils.addFileExpectingNoCompileErrors(
-            vm, "project/test.cau", """
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
                 function main() {
                     cause Debug(getGreeting())
                 }
@@ -30,8 +31,8 @@ class FunctionsTest {
     @Test
     fun jugglesScope() {
         val vm = LangVm()
-        TestUtils.addFileExpectingNoCompileErrors(
-            vm, "project/test.cau", """
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
                 import core/string ( append )
                 
                 function main() {
@@ -63,8 +64,8 @@ class FunctionsTest {
     @Test
     fun causesInFunctionCall() {
         val vm = LangVm()
-        TestUtils.addFileExpectingNoCompileErrors(
-            vm, "project/test.cau", """
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
                 function main() {
                     greet()
                 }

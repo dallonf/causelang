@@ -1,3 +1,4 @@
+import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.CompiledFile
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
@@ -42,8 +43,8 @@ class IoTest {
     fun receiveValueFromInputEffect() {
         val vm = LangVm()
         vm.addCompiledFile(ioFile())
-        TestUtils.addFileExpectingNoCompileErrors(
-            vm, "project/test.cau", """
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
                 import core/string ( append )
                 import test/io ( Print, Prompt )
             
@@ -100,8 +101,8 @@ class IoTest {
     fun assignReceivedValueToName() {
         val vm = LangVm()
         vm.addCompiledFile(ioFile())
-        TestUtils.addFileExpectingNoCompileErrors(
-            vm, "project/test.cau", """
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
                 import core/string ( append )
                 import test/io ( Print, Prompt )
                 
@@ -134,8 +135,8 @@ class IoTest {
     fun inlineBlockExpression() {
         val vm = LangVm()
         vm.addCompiledFile(ioFile())
-        TestUtils.addFileExpectingNoCompileErrors(
-            vm, "project/test.cau", """
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
                 import core/string ( append )
                 import test/io ( Print, Prompt )
                 

@@ -1,5 +1,6 @@
 import com.dallonf.ktcause.CompiledFile
 import com.dallonf.ktcause.LangVm
+import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RuntimeValue
 import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.CanonicalLangTypeId
@@ -27,8 +28,8 @@ class EffectsBasicTest {
                 exports = mapOf(interceptThisTypeId.name!! to CompiledFile.CompiledExport.Type(interceptThisTypeId))
             )
         )
-        TestUtils.addFileExpectingNoCompileErrors(
-            vm, "project/test.cau", """
+        vm.addFile(
+            "project/test.cau", """
                 import test/test (InterceptThis)
                 
                 function main() {
@@ -42,6 +43,7 @@ class EffectsBasicTest {
                 }
             """.trimIndent()
         )
+        println(vm.compileErrors.debug())
 
         val debugTypeId = vm.getTypeId("core/builtin.cau", "Debug")
         val result1 = vm.executeFunction("project/test.cau", "main", listOf())

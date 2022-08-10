@@ -8,21 +8,22 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 object TestUtils {
+
     fun expectNoCompileErrors(vm: LangVm) {
         if (vm.compileErrors.isNotEmpty()) {
             throw AssertionError("Compile errors: ${vm.compileErrors.debug()}")
         }
     }
 
-    fun addFileExpectingNoCompileErrors(vm: LangVm, path: String, source: String) {
-        vm.addFile(path, source)
-        expectNoCompileErrors(vm)
+    fun LangVm.addFileExpectingNoCompileErrors(path: String, source: String) {
+        addFile(path, source)
+        expectNoCompileErrors(this)
     }
 
     // TODO: it's kinda weird that there's two ways to get almost the same runtime error, hm?
     fun expectTypeError(result: RunResult, vm: LangVm): RuntimeValue.BadValue {
         require(result is RunResult.Caused)
-        assertEquals(result.signal.typeDescriptor.type.id, vm.getTypeId("core/builtin.cau", "TypeError"))
+        assertEquals(vm.getTypeId("core/builtin.cau", "TypeError"), result.signal.typeDescriptor.type.id)
         return result.signal.values[0] as RuntimeValue.BadValue
     }
 
@@ -33,7 +34,7 @@ object TestUtils {
 
     fun expectValidCaused(result: RunResult, expectedType: CanonicalLangTypeId): RuntimeValue.RuntimeObject {
         val signal = result.expectCausedSignal().validate() as RuntimeValue.RuntimeObject
-        assertEquals(signal.typeDescriptor.type.id, expectedType)
+        assertEquals(expectedType, signal.typeDescriptor.type.id)
         return signal
     }
 }

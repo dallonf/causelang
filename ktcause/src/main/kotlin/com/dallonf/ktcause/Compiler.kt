@@ -161,20 +161,25 @@ object Compiler {
         effectCtx.scopeStack.addLast(CompilerScope(statement.info.breadcrumbs, parameters = 1))
 
         // Check the condition
-        effectChunk.writeInstruction(Instruction.ReadLocal(0))
-        // Hack: synthesize an IdentifierExpression so we can compile it as the pattern match
-        // TODO: a better solution
-        compileExpression(
-            ExpressionNode.IdentifierExpression(
-                statement.pattern.typeName.info,
-                statement.pattern.typeName,
-            ), effectChunk, effectCtx
-        )
-        effectChunk.writeInstruction(Instruction.IsAssignableTo)
-        val rejectEffectJump = effectChunk.writeInstruction(Instruction.NoOp)
-        compileBody(statement.body, effectChunk, effectCtx)
-        effectChunk.writeInstruction(Instruction.FinishEffect)
-        effectChunk.instructions[rejectEffectJump] = Instruction.JumpIfFalse(effectChunk.instructions.size)
+        effectCtx.resolved.checkForRuntimeErrors(statement.pattern.typeName.info.breadcrumbs).let { error ->
+            if (error == null) {
+                effectChunk.writeInstruction(Instruction.ReadLocal(0))
+                // Hack: synthesize an IdentifierExpression so we can compile it as the pattern match
+                // TODO: a better solution
+                compileExpression(
+                    ExpressionNode.IdentifierExpression(
+                        statement.pattern.typeName.info,
+                        statement.pattern.typeName,
+                    ), effectChunk, effectCtx
+                )
+                effectChunk.writeInstruction(Instruction.IsAssignableTo)
+                val rejectEffectJump = effectChunk.writeInstruction(Instruction.NoOp)
+                compileBody(statement.body, effectChunk, effectCtx)
+                effectChunk.writeInstruction(Instruction.FinishEffect)
+                effectChunk.instructions[rejectEffectJump] = Instruction.JumpIfFalse(effectChunk.instructions.size)
+            }
+        }
+
         effectChunk.writeInstruction(Instruction.RejectSignal)
 
         ctx.chunks.add(effectChunk.toInstructionChunk())

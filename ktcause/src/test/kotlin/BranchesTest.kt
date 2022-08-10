@@ -1,3 +1,4 @@
+import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
@@ -7,8 +8,8 @@ class BranchesTest {
     @Test
     fun branchExpressionReturnsValue() {
         val vm = LangVm()
-        TestUtils.addFileExpectingNoCompileErrors(
-            vm, "project/test.cau", """
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
                 import core/string (equals)
                 
                 function main() {
