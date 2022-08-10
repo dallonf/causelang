@@ -42,7 +42,7 @@ class LangVm {
     }
 
     data class ErrorTrace(
-        val position: SourcePosition, val error: ErrorValueLangType, val proxyChain: List<SourcePosition>
+        val position: SourcePosition, val error: ErrorLangType, val proxyChain: List<SourcePosition>
     )
 
     fun addCompiledFile(file: CompiledFile) {
@@ -80,8 +80,7 @@ class LangVm {
         val found = requireNotNull(descriptor.exports[name]) { "$filePath doesn't have an export called $name." }
 
         return when (found) {
-            is CanonicalLangType.SignalCanonicalLangType -> found.id
-            is TypeReferenceValueLangType -> found.canonicalType.id
+            is TypeReferenceConstraintLangType -> found.canonicalType.id
             else -> throw VmError("$name isn't a type.")
         }
     }
@@ -240,6 +239,16 @@ class LangVm {
                         stack.addLast(value)
                     }
 
+                    is Instruction.ReadLocalThroughEffectScope -> {
+                        val index = instruction.index
+                        var callParent = callFrame
+                        for (i in 0 until instruction.effectDepth) {
+                            callParent = callParent.callParent!!
+                        }
+                        val value = callParent.stack[callParent.stackStart + index]
+                        stack.addLast(value)
+                    }
+
                     is Instruction.Construct -> {
                         val constructorType = stack.removeLast().let {
                             if (it is RuntimeValue.RuntimeTypeReference) it
@@ -301,7 +310,7 @@ class LangVm {
 
                         val type = (typeValue as RuntimeValue.RuntimeTypeReference).type
 
-                        stack.addLast(RuntimeValue.Boolean(value.isAssignableTo(type)))
+                        stack.addLast(RuntimeValue.Boolean(value.isAssignableTo(TypeReferenceConstraintLangType(type))))
                     }
 
                     is Instruction.Jump -> {
@@ -405,8 +414,16 @@ class LangVm {
             }
 
             is CompiledFile.CompiledExport.Function -> {
-                val functionName = (export.type as? FunctionValueLangType)?.name ?: exportName
-                RuntimeValue.Function(file, export.chunkIndex, functionName)
+                if (export.type is FunctionValueLangType) {
+                    val functionName = export.type.name ?: exportName
+                    RuntimeValue.Function(functionName, file, export.chunkIndex, export.type)
+                } else {
+                    RuntimeValue.BadValue(
+                        SourcePosition.Export(
+                            file.path, exportName
+                        ), export.type.getRuntimeError()!!
+                    )
+                }
             }
 
             is CompiledFile.CompiledExport.Value -> TODO()

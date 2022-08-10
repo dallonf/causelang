@@ -12,34 +12,40 @@ internal object Debug {
     val serializersModule = SerializersModule {
         fun PolymorphicModuleBuilder<ResolvedValueLangType>.registerResolvedValueLangTypeSubclasses() {
             subclass(FunctionValueLangType::class)
-            subclass(FunctionTypeValueLangType::class)
             subclass(PrimitiveValueLangType::class)
-            subclass(PrimitiveTypeValueLangType::class)
-            subclass(TypeReferenceValueLangType::class)
             subclass(InstanceValueLangType::class)
             subclass(BadValueLangType::class)
             subclass(NeverContinuesValueLangType::class)
         }
 
-        fun PolymorphicModuleBuilder<ErrorValueLangType>.registerErrorValueLangTypeSubclasses() {
-            subclass(ErrorValueLangType.NeverResolved::class)
-            subclass(ErrorValueLangType.NotInScope::class)
-            subclass(ErrorValueLangType.FileNotFound::class)
-            subclass(ErrorValueLangType.ExportNotFound::class)
-            subclass(ErrorValueLangType.ProxyError::class)
-            subclass(ErrorValueLangType.NotCallable::class)
-            subclass(ErrorValueLangType.NotCausable::class)
-            subclass(ErrorValueLangType.ImplementationTodo::class)
-            subclass(ErrorValueLangType.NotATypeReference::class)
-            subclass(ErrorValueLangType.MismatchedType::class)
-            subclass(ErrorValueLangType.MissingParameters::class)
-            subclass(ErrorValueLangType.ExcessParameter::class)
-            subclass(ErrorValueLangType.UnknownParameter::class)
+        fun PolymorphicModuleBuilder<ResolvedConstraintLangType>.registerResolvedConstraintLangTypeSubclasses() {
+            subclass(FunctionConstraintLangType::class)
+            subclass(PrimitiveConstraintLangType::class)
+            subclass(TypeReferenceConstraintLangType::class)
+            subclass(BadValueConstraintLangType::class)
+            subclass(NeverContinuesConstraintLangType::class)
+        }
+
+        fun PolymorphicModuleBuilder<ErrorLangType>.registerErrorValueLangTypeSubclasses() {
+            subclass(ErrorLangType.NeverResolved::class)
+            subclass(ErrorLangType.NotInScope::class)
+            subclass(ErrorLangType.FileNotFound::class)
+            subclass(ErrorLangType.ExportNotFound::class)
+            subclass(ErrorLangType.ProxyError::class)
+            subclass(ErrorLangType.NotCallable::class)
+            subclass(ErrorLangType.NotCausable::class)
+            subclass(ErrorLangType.ImplementationTodo::class)
+            subclass(ErrorLangType.MismatchedType::class)
+            subclass(ErrorLangType.MissingParameters::class)
+            subclass(ErrorLangType.ExcessParameter::class)
+            subclass(ErrorLangType.UnknownParameter::class)
+            subclass(ErrorLangType.ConstraintUsedAsValue::class)
+            subclass(ErrorLangType.ValueUsedAsConstraint::class)
         }
 
         // TODO: in 17.20 you'll be able to just pop @Serializable on a sealed interface
         // (which ValueLangType is)
-        polymorphic(ErrorValueLangType::class) {
+        polymorphic(ErrorLangType::class) {
             registerErrorValueLangTypeSubclasses()
         }
 
@@ -47,10 +53,15 @@ internal object Debug {
             registerResolvedValueLangTypeSubclasses()
         }
 
-        polymorphic(ValueLangType::class) {
+        polymorphic(ResolvedConstraintLangType::class) {
+            registerResolvedConstraintLangTypeSubclasses()
+        }
+
+        polymorphic(LangType::class) {
             registerErrorValueLangTypeSubclasses()
             registerResolvedValueLangTypeSubclasses()
-            subclass(ValueLangType.Pending::class)
+            registerResolvedConstraintLangTypeSubclasses()
+            subclass(LangType.Pending::class)
         }
     }
     val debugSerializer by lazy {

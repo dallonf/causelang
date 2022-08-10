@@ -344,7 +344,8 @@ object Analyzer {
                         }
 
                         is StatementNode.EffectStatement -> {
-                            val effectCtx = AnalyzerContext(Scope(), statementNode.info.breadcrumbs)
+                            val effectCtx =
+                                AnalyzerContext(currentCtx.currentScope.extend(), statementNode.info.breadcrumbs)
                             // Hack: synthesize an IdentifierExpression so we can compile it as the pattern match
                             // TODO: a better solution
                             val typeName = ExpressionNode.IdentifierExpression(

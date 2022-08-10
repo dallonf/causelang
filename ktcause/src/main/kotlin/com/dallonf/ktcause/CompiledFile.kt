@@ -1,6 +1,5 @@
 package com.dallonf.ktcause
 
-import com.dallonf.ktcause.ast.Breadcrumbs
 import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
 
@@ -11,13 +10,13 @@ data class CompiledFile(
     val exports: Map<String, CompiledExport>,
 ) {
     fun toFileDescriptor(): Resolver.ExternalFileDescriptor {
-        val exportDescriptors = mutableMapOf<String, ValueLangType>()
+        val exportDescriptors = mutableMapOf<String, LangType>()
         for ((exportName, export) in exports) {
             when (export) {
                 is CompiledExport.Type -> {
                     val canonicalType = types[export.typeId]
                     requireNotNull(canonicalType) { "$path describes a type (${export.typeId}) but doesn't define it" }
-                    exportDescriptors[exportName] = canonicalType
+                    exportDescriptors[exportName] = TypeReferenceConstraintLangType(canonicalType)
                 }
 
                 is CompiledExport.Function -> TODO()
@@ -25,7 +24,7 @@ data class CompiledFile(
             }
         }
 
-        return Resolver.ExternalFileDescriptor(exportDescriptors)
+        return Resolver.ExternalFileDescriptor(exportDescriptors, types)
     }
 
     data class InstructionChunk(val constantTable: List<CompiledConstant>, val instructions: List<Instruction>)
@@ -66,13 +65,13 @@ data class CompiledFile(
         data class StringConst(val value: String) : CompiledConstant
         data class IntegerConst(val value: Long) : CompiledConstant
         data class FloatConst(val value: Double) : CompiledConstant
-        data class ErrorConst(val sourcePosition: SourcePosition, val error: ErrorValueLangType) :
+        data class ErrorConst(val sourcePosition: SourcePosition, val error: ErrorLangType) :
             CompiledConstant
     }
 
     sealed interface CompiledExport {
         data class Type(val typeId: CanonicalLangTypeId) : CompiledExport
-        data class Function(val chunkIndex: Int, val type: ValueLangType) : CompiledExport
-        data class Value(val constant: CompiledConstant, val type: ValueLangType) : CompiledExport
+        data class Function(val chunkIndex: Int, val type: LangType) : CompiledExport
+        data class Value(val constant: CompiledConstant, val type: LangType) : CompiledExport
     }
 }

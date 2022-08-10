@@ -93,7 +93,7 @@ internal class ErrorHandlingBasicTest {
                     "error": {
                         "#type": "MismatchedType",
                         "expected": {
-                            "#type": "Primitive",
+                            "#type": "PrimitiveConstraint",
                             "kind": "String"
                         },
                         "actual": {
@@ -120,7 +120,7 @@ internal class ErrorHandlingBasicTest {
                 "error": {
                     "#type": "MismatchedType",
                     "expected": {
-                        "#type": "Primitive",
+                        "#type": "PrimitiveConstraint",
                         "kind": "String"
                     },
                     "actual": {

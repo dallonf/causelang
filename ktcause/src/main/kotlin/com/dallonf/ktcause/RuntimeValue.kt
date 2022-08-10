@@ -1,17 +1,12 @@
 package com.dallonf.ktcause
 
-import com.dallonf.ktcause.ast.Breadcrumbs
 import com.dallonf.ktcause.ast.SourcePosition
-import com.dallonf.ktcause.types.CanonicalLangType
-import com.dallonf.ktcause.types.ErrorValueLangType
-import com.dallonf.ktcause.types.ValueLangType
-import kotlinx.serialization.*
+import com.dallonf.ktcause.types.*
 import kotlinx.serialization.json.*
 
 sealed class RuntimeValue {
     object Action : RuntimeValue()
-    data class BadValue(val position: SourcePosition, val error: ErrorValueLangType) :
-        RuntimeValue()
+    data class BadValue(val position: SourcePosition, val error: ErrorLangType) : RuntimeValue()
 
     data class String(val value: kotlin.String) : RuntimeValue()
     data class Integer(val value: Long) : RuntimeValue()
@@ -27,11 +22,34 @@ sealed class RuntimeValue {
     data class NativeFunction(val name: kotlin.String, val function: (List<RuntimeValue>) -> RuntimeValue) :
         RuntimeValue()
 
-    data class Function(val file: CompiledFile, val chunkIndex: Int, val name: kotlin.String?) : RuntimeValue()
+    data class Function(
+        val name: kotlin.String?,
+        val file: CompiledFile,
+        val chunkIndex: Int,
+        val type: FunctionValueLangType,
+    ) : RuntimeValue()
 
-    fun isAssignableTo(langType: ValueLangType): kotlin.Boolean {
-        // TODO: implement this!
-        return true
+    fun isAssignableTo(constraint: ConstraintLangType): kotlin.Boolean {
+        return when (constraint) {
+            is LangType.Pending -> false
+            is ErrorLangType -> false
+
+            is FunctionConstraintLangType -> this is Function && this.type.isAssignableTo(constraint)
+            is PrimitiveConstraintLangType -> when (constraint.kind) {
+                LangPrimitiveKind.STRING -> this is String
+                LangPrimitiveKind.INTEGER -> this is Integer
+                LangPrimitiveKind.FLOAT -> this is Float
+                LangPrimitiveKind.BOOLEAN -> this is Boolean
+                LangPrimitiveKind.ACTION -> this is Action
+            }
+
+            BadValueConstraintLangType -> this is RuntimeValue.BadValue
+
+            is TypeReferenceConstraintLangType -> this is RuntimeObject && this.typeDescriptor.type.id == constraint.canonicalType.id
+
+            // No associated runtime values
+            NeverContinuesConstraintLangType -> false
+        }
     }
 
     fun validate(): RuntimeValue {

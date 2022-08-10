@@ -5,37 +5,39 @@ import com.dallonf.ktcause.types.*
 object CoreDescriptors {
     val coreBuiltinFile by lazy {
         val filename = "core/builtin.cau"
-        val descriptor = Resolver.ExternalFileDescriptor(
-            exports = mapOf(
-                "String" to LangPrimitiveKind.STRING.toTypeValueLangType(),
-                "Integer" to LangPrimitiveKind.INTEGER.toTypeValueLangType(),
-                "Float" to LangPrimitiveKind.FLOAT.toTypeValueLangType(),
-                "Boolean" to LangPrimitiveKind.BOOLEAN.toTypeValueLangType(),
-                "True" to LangPrimitiveKind.BOOLEAN.toValueLangType(),
-                "False" to LangPrimitiveKind.BOOLEAN.toValueLangType(),
-                "Action" to LangPrimitiveKind.ACTION.toTypeValueLangType(),
-                "Debug" to CanonicalLangType.SignalCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "Debug", number = 0.toUByte()),
-                    name = "Debug",
-                    params = listOf(
-                        LangParameter("message", LangPrimitiveKind.STRING.toValueLangType()),
-                    ),
-                    result = LangPrimitiveKind.ACTION.toValueLangType()
-                ),
-                "TypeError" to CanonicalLangType.SignalCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "TypeError", number = 0.toUByte()),
-                    name = "TypeError",
-                    params = listOf(LangParameter("message", BadValueLangType)),
-                    result = NeverContinuesValueLangType
-                ),
-                "AssumptionBroken" to CanonicalLangType.SignalCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "AssumptionBroken", number = 0.toUByte()),
-                    name = "AssumptionBroken",
-                    params = listOf(LangParameter("message", BadValueLangType)),
-                    result = NeverContinuesValueLangType
-                ),
-            )
+
+        val types = mapOf(
+            CanonicalLangType.SignalCanonicalLangType(
+                CanonicalLangTypeId(filename, name = "Debug", number = 0u), name = "Debug", params = listOf(
+                    LangParameter("message", LangPrimitiveKind.STRING.toConstraintLangType())
+                ), result = LangPrimitiveKind.ACTION.toConstraintLangType()
+            ).toPair(), CanonicalLangType.SignalCanonicalLangType(
+                CanonicalLangTypeId(filename, name = "TypeError", number = 0u),
+                name = "TypeError",
+                params = listOf(LangParameter("badValue", BadValueConstraintLangType)),
+                result = NeverContinuesConstraintLangType
+            ).toPair(), CanonicalLangType.SignalCanonicalLangType(
+                CanonicalLangTypeId(filename, name = "AssumptionBroken", number = 0.toUByte()),
+                name = "AssumptionBroken",
+                params = listOf(LangParameter("message", LangPrimitiveKind.STRING.toConstraintLangType())),
+                result = NeverContinuesConstraintLangType
+            ).toPair()
         )
+
+        val descriptor = Resolver.ExternalFileDescriptor(exports = buildMap {
+            put("String", LangPrimitiveKind.STRING.toConstraintLangType())
+            put("Integer", LangPrimitiveKind.INTEGER.toConstraintLangType())
+            put("Float", LangPrimitiveKind.FLOAT.toConstraintLangType())
+            put("Boolean", LangPrimitiveKind.BOOLEAN.toConstraintLangType())
+            put("True", LangPrimitiveKind.BOOLEAN.toValueLangType())
+            put("False", LangPrimitiveKind.BOOLEAN.toValueLangType())
+            put("Action", LangPrimitiveKind.ACTION.toConstraintLangType())
+
+            for ((id, type) in types.filter { it.key.name != null && it.key.parentName == null }) {
+                put(id.name!!, TypeReferenceConstraintLangType(type))
+            }
+        }, types = types)
+
 
         filename to descriptor
     }
@@ -49,22 +51,17 @@ object CoreDescriptors {
                 filename to Resolver.ExternalFileDescriptor(
                     exports = mapOf(
                         "append" to FunctionValueLangType(
-                            name = "append",
-                            params = listOf(
-                                LangParameter("this", LangPrimitiveKind.STRING.toValueLangType()),
-                                LangParameter("other", LangPrimitiveKind.STRING.toValueLangType()),
-                            ),
-                            returnType = LangPrimitiveKind.STRING.toValueLangType()
-                        ),
-                        "equals" to FunctionValueLangType(
-                            name = "stringEquals",
-                            params = listOf(
-                                LangParameter("this", LangPrimitiveKind.STRING.toValueLangType()),
-                                LangParameter("other", LangPrimitiveKind.STRING.toValueLangType()),
-                            ),
-                            returnType = LangPrimitiveKind.BOOLEAN.toValueLangType()
+                            name = "append", params = listOf(
+                                LangParameter("this", LangPrimitiveKind.STRING.toConstraintLangType()),
+                                LangParameter("other", LangPrimitiveKind.STRING.toConstraintLangType()),
+                            ), returnConstraint = LangPrimitiveKind.STRING.toConstraintLangType()
+                        ), "equals" to FunctionValueLangType(
+                            name = "stringEquals", params = listOf(
+                                LangParameter("this", LangPrimitiveKind.STRING.toConstraintLangType()),
+                                LangParameter("other", LangPrimitiveKind.STRING.toConstraintLangType()),
+                            ), returnConstraint = LangPrimitiveKind.BOOLEAN.toConstraintLangType()
                         )
-                    )
+                    ), types = mapOf()
                 )
             )
         }

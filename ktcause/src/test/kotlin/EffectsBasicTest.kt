@@ -1,3 +1,4 @@
+import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.CompiledFile
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
@@ -21,14 +22,14 @@ class EffectsBasicTest {
                         interceptThisTypeId,
                         interceptThisTypeId.name!!,
                         listOf(),
-                        result = LangPrimitiveKind.ACTION.toValueLangType()
+                        result = LangPrimitiveKind.ACTION.toConstraintLangType()
                     )
                 ),
                 chunks = listOf(),
                 exports = mapOf(interceptThisTypeId.name!! to CompiledFile.CompiledExport.Type(interceptThisTypeId))
             )
         )
-        vm.addFile(
+        vm.addFileExpectingNoCompileErrors(
             "project/test.cau", """
                 import test/test (InterceptThis)
                 
@@ -39,22 +40,18 @@ class EffectsBasicTest {
                     
                     cause InterceptThis()
                     cause Debug("This should not have been intercepted")
-                    
                 }
             """.trimIndent()
         )
-        println(vm.compileErrors.debug())
 
         val debugTypeId = vm.getTypeId("core/builtin.cau", "Debug")
         val result1 = vm.executeFunction("project/test.cau", "main", listOf())
             .let { TestUtils.expectValidCaused(it, debugTypeId) }
         assertEquals(result1.values[0], RuntimeValue.String("Intercepted an InterceptThis effect"))
 
-        val result2 = vm.resumeExecution(RuntimeValue.Action)
-            .let { TestUtils.expectValidCaused(it, debugTypeId) }
+        val result2 = vm.resumeExecution(RuntimeValue.Action).let { TestUtils.expectValidCaused(it, debugTypeId) }
         assertEquals(result2.values[0], RuntimeValue.String("This should not have been intercepted"))
 
-        vm.resumeExecution(RuntimeValue.Action).expectReturnValue()
-            .let { assertEquals(it, RuntimeValue.Action) }
+        vm.resumeExecution(RuntimeValue.Action).expectReturnValue().let { assertEquals(it, RuntimeValue.Action) }
     }
 }

@@ -21,7 +21,16 @@ object Compiler {
         }
     }
 
-    private class CompilerScope(val scopeRoot: Breadcrumbs, val parameters: Int = 0) {
+    private class CompilerScope(
+        val scopeRoot: Breadcrumbs,
+        val type: ScopeType,
+        val parameters: Int = 0,
+        var effectCount: Int = 0
+    ) {
+        enum class ScopeType {
+            BODY, EFFECT
+        }
+
         // indices are computed from the top of the current call frame
         val namedValueIndices = mutableMapOf<Breadcrumbs, Int>()
 
@@ -83,7 +92,7 @@ object Compiler {
         chunk: CompiledFile.MutableInstructionChunk,
         ctx: CompilerContext,
     ) {
-        ctx.scopeStack.addLast(CompilerScope(block.info.breadcrumbs))
+        ctx.scopeStack.addLast(CompilerScope(block.info.breadcrumbs, CompilerScope.ScopeType.BODY))
 
         for ((i, statement) in block.statements.withIndex()) {
             compileStatement(
@@ -92,11 +101,12 @@ object Compiler {
         }
 
         val scope = ctx.scopeStack.removeLast()
+        chunk.writeInstruction(Instruction.PopEffects(scope.effectCount))
         chunk.writeInstruction(Instruction.PopScope(scope.size()))
     }
 
     private fun compileBadValue(
-        node: AstNode, error: ErrorValueLangType, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        node: AstNode, error: ErrorLangType, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
     ) {
         chunk.writeLiteral(
             CompiledFile.CompiledConstant.ErrorConst(
@@ -156,12 +166,14 @@ object Compiler {
         ctx: CompilerContext
     ) {
         val effectChunk = CompiledFile.MutableInstructionChunk()
+        ctx.scopeStack.last().effectCount += 1
 
-        val effectCtx = ctx.copy(scopeStack = ArrayDeque())
-        effectCtx.scopeStack.addLast(CompilerScope(statement.info.breadcrumbs, parameters = 1))
+        ctx.scopeStack.addLast(
+            CompilerScope(statement.info.breadcrumbs, CompilerScope.ScopeType.EFFECT, parameters = 1)
+        )
 
         // Check the condition
-        effectCtx.resolved.checkForRuntimeErrors(statement.pattern.typeName.info.breadcrumbs).let { error ->
+        ctx.resolved.checkForRuntimeErrors(statement.pattern.typeName.info.breadcrumbs).let { error ->
             if (error == null) {
                 effectChunk.writeInstruction(Instruction.ReadLocal(0))
                 // Hack: synthesize an IdentifierExpression so we can compile it as the pattern match
@@ -170,17 +182,19 @@ object Compiler {
                     ExpressionNode.IdentifierExpression(
                         statement.pattern.typeName.info,
                         statement.pattern.typeName,
-                    ), effectChunk, effectCtx
+                    ), effectChunk, ctx
                 )
                 effectChunk.writeInstruction(Instruction.IsAssignableTo)
                 val rejectEffectJump = effectChunk.writeInstruction(Instruction.NoOp)
-                compileBody(statement.body, effectChunk, effectCtx)
+                compileBody(statement.body, effectChunk, ctx)
                 effectChunk.writeInstruction(Instruction.FinishEffect)
                 effectChunk.instructions[rejectEffectJump] = Instruction.JumpIfFalse(effectChunk.instructions.size)
             }
         }
 
         effectChunk.writeInstruction(Instruction.RejectSignal)
+
+        ctx.scopeStack.removeLast()
 
         ctx.chunks.add(effectChunk.toInstructionChunk())
         chunk.writeInstruction(Instruction.RegisterEffect(ctx.chunks.lastIndex))
@@ -309,11 +323,21 @@ object Compiler {
         chunk: CompiledFile.MutableInstructionChunk,
         ctx: CompilerContext,
     ) {
+        var effectDepth = 0
         for (scope in ctx.scopeStack.reversed()) {
             val foundIndex = scope.namedValueIndices[valueComesFrom.source]
             if (foundIndex != null) {
-                chunk.writeInstruction(Instruction.ReadLocal(foundIndex))
+                chunk.writeInstruction(
+                    if (effectDepth > 0) {
+                        Instruction.ReadLocalThroughEffectScope(effectDepth, foundIndex)
+                    } else {
+                        Instruction.ReadLocal(foundIndex)
+                    }
+                )
                 return
+            }
+            if (scope.type == CompilerScope.ScopeType.EFFECT) {
+                effectDepth += 1
             }
         }
         error("Couldn't find named value in scope")
@@ -362,7 +386,7 @@ object Compiler {
         }
 
         when (val calleeType = ctx.resolved.getExpectedType(expression.callee.info.breadcrumbs)) {
-            is TypeReferenceValueLangType -> {
+            is TypeReferenceConstraintLangType -> {
                 when (calleeType.canonicalType) {
                     is CanonicalLangType.SignalCanonicalLangType -> chunk.writeInstruction(Instruction.Construct(arity = expression.parameters.size))
                 }

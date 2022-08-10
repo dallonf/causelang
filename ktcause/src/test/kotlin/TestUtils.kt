@@ -15,6 +15,12 @@ object TestUtils {
         }
     }
 
+    fun printCompileErrors(vm: LangVm) {
+        if (vm.compileErrors.isNotEmpty()) {
+            println("Compile errors: ${vm.compileErrors.debug()}")
+        }
+    }
+
     fun LangVm.addFileExpectingNoCompileErrors(path: String, source: String) {
         addFile(path, source)
         expectNoCompileErrors(this)
