@@ -173,15 +173,17 @@ object Compiler {
         )
 
         // Check the condition
-        ctx.resolved.checkForRuntimeErrors(statement.pattern.typeName.info.breadcrumbs).let { error ->
+        ctx.resolved.checkForRuntimeErrors(statement.pattern.typeReference.info.breadcrumbs).let { error ->
             if (error == null) {
                 effectChunk.writeInstruction(Instruction.ReadLocal(0))
                 // Hack: synthesize an IdentifierExpression so we can compile it as the pattern match
                 // TODO: a better solution
+                val identifier =
+                    (statement.pattern.typeReference as TypeReferenceNode.IdentifierTypeReferenceNode).identifier
                 compileExpression(
                     ExpressionNode.IdentifierExpression(
-                        statement.pattern.typeName.info,
-                        statement.pattern.typeName,
+                        identifier.info,
+                        identifier,
                     ), effectChunk, ctx
                 )
                 effectChunk.writeInstruction(Instruction.IsAssignableTo)

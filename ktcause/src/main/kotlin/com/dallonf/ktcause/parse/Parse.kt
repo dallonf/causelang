@@ -78,10 +78,23 @@ private fun parseFunctionDeclaration(
 ): DeclarationNode.Function {
 
     val name = parseIdentifier(functionDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
+    val paramsBreadcrumbs = breadcrumbs.appendName("params")
+    val params = functionDeclaration.functionParam().mapIndexed { i, param ->
+        val paramBreadcrumbs = paramsBreadcrumbs.appendIndex(i)
+        DeclarationNode.Function.FunctionParameterNode(
+            NodeInfo(param.getRange(), paramBreadcrumbs),
+            name = parseIdentifier(param.IDENTIFIER().symbol, paramBreadcrumbs.appendName("name"), ctx),
+            typeReference = param.typeReference()
+                ?.let { parseTypeReference(it, paramBreadcrumbs.appendName("typeReference"), ctx) }
+        )
+    }
     val body = parseBody(functionDeclaration.body(), breadcrumbs.appendName("body"), ctx)
+    val returnType = functionDeclaration.functionReturnValue()?.typeReference()?.let {
+        parseTypeReference(it, breadcrumbs.appendName("returnType"), ctx)
+    }
 
     return DeclarationNode.Function(
-        NodeInfo(functionDeclaration.getRange(), breadcrumbs), name, body
+        NodeInfo(functionDeclaration.getRange(), breadcrumbs), name, params, body, returnType = returnType
     )
 }
 
@@ -376,7 +389,7 @@ private fun parsePositionalParameter(
 private fun parsePattern(pattern: PatternContext, breadcrumbs: Breadcrumbs, ctx: ParserContext): PatternNode {
     return PatternNode(
         NodeInfo(pattern.getRange(), breadcrumbs),
-        typeName = parseIdentifier(pattern.IDENTIFIER().symbol, breadcrumbs.appendName("typeName"), ctx)
+        typeReference = parseTypeReference(pattern.typeReference(), breadcrumbs.appendName("typeReference"), ctx)
     )
 }
 

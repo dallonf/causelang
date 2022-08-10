@@ -346,13 +346,11 @@ object Analyzer {
                         is StatementNode.EffectStatement -> {
                             val effectCtx =
                                 AnalyzerContext(currentCtx.currentScope.extend(), statementNode.info.breadcrumbs)
-                            // Hack: synthesize an IdentifierExpression so we can compile it as the pattern match
-                            // TODO: a better solution
-                            val typeName = ExpressionNode.IdentifierExpression(
-                                statementNode.pattern.typeName.info,
-                                statementNode.pattern.typeName,
-                            )
-                            analyzeExpression(typeName, output, effectCtx)
+
+                            analyzeTypeReference(statementNode.pattern.typeReference, output, ctx)
+                            // HACK: Force this to be analyzed at the top level
+                            // TODO: Fix this
+                            output.addTag(statementNode.pattern.typeReference.info.breadcrumbs, NodeTag.Expression)
                             analyzeBody(statementNode.body, output, effectCtx)
                         }
                     }

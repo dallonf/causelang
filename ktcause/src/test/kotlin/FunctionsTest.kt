@@ -83,4 +83,26 @@ class FunctionsTest {
         assertEquals(debug.values[0], RuntimeValue.String("Hello World"))
         assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturnValue(), RuntimeValue.Action)
     }
+
+    @Test
+    fun functionTakesParameters() {
+        val vm = LangVm()
+        vm.addFile(
+            "project/test.cau", """
+                import core/string (append)
+                
+                function main(): String {
+                    formatGreeting("Hello", "World")
+                }
+                
+                function formatGreeting(greeting: String, name: String): String {
+                    append(greeting, append(", ", name))
+                }
+            """.trimIndent()
+        )
+        TestUtils.printCompileErrors(vm)
+
+        val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
+        assertEquals(result, RuntimeValue.String("Hello, World"))
+    }
 }

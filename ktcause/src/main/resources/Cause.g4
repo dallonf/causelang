@@ -38,7 +38,12 @@ importDeclaration : IMPORT NEWLINE* PATH NEWLINE* PAREN_OPEN NEWLINE* importMapp
 importMappings : importMapping NEWLINE* (COMMA NEWLINE* importMapping NEWLINE*)* COMMA? ;
 importMapping : IDENTIFIER (NEWLINE* AS NEWLINE* IDENTIFIER)? ;
 
-functionDeclaration : FUNCTION NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE* PAREN_CLOSE NEWLINE* body ;
+functionDeclaration : FUNCTION NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE*
+    (functionParam NEWLINE* (COMMA NEWLINE* functionParam NEWLINE*)* COMMA?)?
+    NEWLINE* PAREN_CLOSE NEWLINE* functionReturnValue?
+    NEWLINE* body ;
+functionParam : IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference)? ;
+functionReturnValue : COLON NEWLINE* typeReference ;
 
 namedValueDeclaration : LET NEWLINE* IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference NEWLINE*)? EQUALS NEWLINE* expression ;
 
@@ -73,4 +78,4 @@ branchOption : ifBranchOption | elseBranchOption ;
 ifBranchOption : IF expression body ;
 elseBranchOption : ELSE body ;
 
-pattern : UNDERSCORE NEWLINE* COLON NEWLINE* IDENTIFIER ;
+pattern : UNDERSCORE NEWLINE* COLON NEWLINE* typeReference ;

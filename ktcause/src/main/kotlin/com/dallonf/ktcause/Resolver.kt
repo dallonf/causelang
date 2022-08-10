@@ -424,8 +424,9 @@ object Resolver {
                 }
             }
 
-            val resolved = iterationResolvedReferences.size
-            for ((key, newType) in iterationResolvedReferences) {
+            val changedResolutions = iterationResolvedReferences.filter { (key, value) -> resolvedTypes[key] != value }
+            val resolved = changedResolutions.size
+            for ((key, newType) in changedResolutions) {
                 val oldResolvedType = resolvedTypes[key]?.let {
                     if (it.isPending()) null else it
                 }

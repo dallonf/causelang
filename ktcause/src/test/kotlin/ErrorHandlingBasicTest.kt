@@ -243,4 +243,25 @@ internal class ErrorHandlingBasicTest {
             """.trimIndent()
         )
     }
+
+    @Test
+    fun mistypedNamedValue() {
+        val vm = LangVm()
+        vm.addFile(
+            "project/hello.cau", """
+                function main() {
+                    let name: String = 5
+                }
+            """.trimIndent()
+        )
+        assertEquals(
+            vm.compileErrors.debug(), """
+            """.trimIndent()
+        )
+        val result = vm.executeFunction("project/hello.cau", "main", listOf())
+        assertEquals(
+            TestUtils.expectTypeError(result, vm).debug(), """
+            """.trimIndent()
+        )
+    }
 }

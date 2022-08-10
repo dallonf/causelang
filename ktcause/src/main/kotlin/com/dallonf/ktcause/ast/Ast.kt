@@ -200,11 +200,31 @@ sealed interface DeclarationNode : AstNode {
     }
 
     data class Function(
-        override val info: NodeInfo, val name: Identifier, val body: BodyNode /* TODO: params, return type */
+        override val info: NodeInfo,
+        val name: Identifier,
+        val params: List<FunctionParameterNode>,
+        val body: BodyNode,
+        val returnType: TypeReferenceNode?
     ) : DeclarationNode {
+        data class FunctionParameterNode(
+            override val info: NodeInfo,
+            val name: Identifier,
+            val typeReference: TypeReferenceNode?
+        ) : AstNode {
+            override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+                put("name", name)
+                if (typeReference != null) {
+                    put("typeReference", typeReference)
+                }
+            }
+        }
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("name", name)
+            put("params", params)
             put("body", body)
+            if (returnType != null) {
+                put("returnType", returnType)
+            }
         }
     }
 
@@ -332,8 +352,8 @@ sealed interface BranchOptionNode : AstNode {
 
 }
 
-data class PatternNode(override val info: NodeInfo, val typeName: Identifier) : AstNode {
+data class PatternNode(override val info: NodeInfo, val typeReference: TypeReferenceNode) : AstNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-        put("typeName", typeName)
+        put("typeReference", typeReference)
     }
 }
