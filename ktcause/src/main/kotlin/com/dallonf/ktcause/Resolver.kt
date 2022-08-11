@@ -8,6 +8,7 @@ import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
+import kotlin.text.StringBuilder
 
 // TODO: It might not make sense to keep these in the same map, since
 // they're also different types
@@ -20,10 +21,41 @@ data class ResolvedFile(
     val path: String,
     val resolvedTypes: Map<ResolutionKey, LangType>,
     val canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,
+    val debugSource: String? = null,
+    val debugAst: FileNode? = null,
+    val debugAnalyzed: AnalyzedNode? = null
 ) {
     fun checkForRuntimeErrors(breadcrumbs: Breadcrumbs): ErrorLangType? {
         val expected = resolvedTypes[ResolutionKey(CONSTRAINT, breadcrumbs)]?.getRuntimeError()
-        return expected ?: resolvedTypes[ResolutionKey(INFERRED, breadcrumbs)]!!.getRuntimeError()
+        if (expected != null) return expected
+
+        val inferred = resolvedTypes[ResolutionKey(INFERRED, breadcrumbs)]
+
+        if (inferred != null) return inferred.getRuntimeError()
+
+        // Something's gone wrong, print debugging information
+        val debugMessage = StringBuilder()
+        debugMessage.appendLine("Couldn't find the inferred type for $breadcrumbs.")
+        resolvedTypes[ResolutionKey(
+            CONSTRAINT,
+            breadcrumbs
+        )]?.let { debugMessage.appendLine("There was a constraint, though: ${Debug.debugSerializer.encodeToString(it)}") }
+        if (debugAst != null && debugSource != null) {
+            debugMessage.appendLine(Debug.nodeInContext(breadcrumbs, debugAst, debugSource))
+        }
+        if (debugAnalyzed != null) {
+            val tags = debugAnalyzed.nodeTags[breadcrumbs]
+            if (!tags.isNullOrEmpty()) {
+                debugMessage.appendLine("Tags for this node:")
+                for (tag in tags) {
+                    debugMessage.appendLine("- $tag")
+                }
+            } else {
+                debugMessage.appendLine("There aren't any tags for this!")
+            }
+        }
+
+        error(debugMessage.toString())
     }
 
     fun getExpectedType(breadcrumbs: Breadcrumbs): LangType {
@@ -58,7 +90,11 @@ object Resolver {
     )
 
     fun resolveForFile(
-        path: String, fileNode: FileNode, analyzed: AnalyzedNode, otherFiles: Map<String, ExternalFileDescriptor>
+        path: String,
+        fileNode: FileNode,
+        analyzed: AnalyzedNode,
+        otherFiles: Map<String, ExternalFileDescriptor>,
+        debugSource: String? = null
     ): Pair<ResolvedFile, List<ResolverError>> {
         val allOtherFiles = otherFiles.toMutableMap().also {
             val core = CoreDescriptors.coreBuiltinFile;
@@ -464,7 +500,10 @@ object Resolver {
         }
 
         val file = ResolvedFile(
-            path, resolvedTypes, knownCanonicalTypes
+            path, resolvedTypes, knownCanonicalTypes,
+            debugSource = debugSource,
+            debugAst = fileNode,
+            debugAnalyzed = analyzed,
         )
         val errors = resolvedTypes.mapNotNull { (key, resolvedType) ->
             val breadcrumbs = key.breadcrumbs

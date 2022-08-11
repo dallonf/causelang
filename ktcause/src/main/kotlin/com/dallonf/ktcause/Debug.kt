@@ -1,5 +1,8 @@
 package com.dallonf.ktcause
 
+import com.dallonf.ktcause.ast.AstNode
+import com.dallonf.ktcause.ast.Breadcrumbs
+import com.dallonf.ktcause.ast.FileNode
 import com.dallonf.ktcause.types.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -7,6 +10,7 @@ import kotlinx.serialization.modules.PolymorphicModuleBuilder
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
+import kotlin.math.max
 
 internal object Debug {
     val serializersModule = SerializersModule {
@@ -75,5 +79,27 @@ internal object Debug {
 
     fun RuntimeValue.debug(): kotlin.String {
         return Debug.debugSerializer.encodeToString(this.toJson())
+    }
+
+    fun nodeInContext(breadcrumbs: Breadcrumbs, file: FileNode, source: String): String {
+        val contextLines = 2
+
+        val builder = StringBuilder()
+        val position = file.findNode(breadcrumbs).info.position
+        builder.appendLine("Node at $position")
+
+        val startLine = position.start.line
+        val contextStartLine = max(startLine - contextLines, 0)
+        for (line in source.lineSequence().drop(contextStartLine).take(startLine - contextStartLine)) {
+            builder.appendLine(line)
+        }
+        val col = position.start.column
+        val prefixLength = max(col - 1, 0)
+        val prefix = (0 until prefixLength).asSequence().map { '-' }.joinToString("")
+        builder.appendLine("$prefix^")
+        for (line in source.lineSequence().drop(position.end.line).take(contextLines)) {
+            builder.appendLine(line)
+        }
+        return builder.toString()
     }
 }

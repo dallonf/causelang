@@ -56,7 +56,7 @@ class LangVm {
 
         val otherFiles = files.mapValues { (path, compiledFile) -> compiledFile.toFileDescriptor() }
         val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
-            filePath, astNode, analyzedFile, otherFiles
+            filePath, astNode, analyzedFile, otherFiles, debugSource = source
         )
         _compileErrors.addAll(resolverErrors)
 

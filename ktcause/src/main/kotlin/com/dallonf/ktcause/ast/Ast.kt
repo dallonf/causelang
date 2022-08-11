@@ -17,13 +17,15 @@ data class DocumentPosition(val line: Int, val column: Int) {
 }
 
 @Serializable(with = DocumentRangeSerializer::class)
-data class DocumentRange(val start: DocumentPosition, val end: DocumentPosition)
+data class DocumentRange(val start: DocumentPosition, val end: DocumentPosition) {
+    override fun toString(): String = "${start}-${end}"
+}
 
 private class DocumentRangeSerializer : KSerializer<DocumentRange> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("DocumentRange", PrimitiveKind.STRING)
 
     override fun serialize(encoder: Encoder, value: DocumentRange) {
-        encoder.encodeString("${value.start}-${value.end}")
+        encoder.encodeString(this.toString())
     }
 
     override fun deserialize(decoder: Decoder): DocumentRange {
@@ -218,6 +220,7 @@ sealed interface DeclarationNode : AstNode {
                 }
             }
         }
+
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("name", name)
             put("params", params)
