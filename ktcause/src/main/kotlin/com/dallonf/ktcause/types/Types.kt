@@ -26,13 +26,33 @@ data class CanonicalLangTypeId(
 sealed interface CanonicalLangType {
     val id: CanonicalLangTypeId
 
+    fun isPending(): Boolean
+    fun getError(): ErrorLangType?
+
     data class SignalCanonicalLangType(
         override val id: CanonicalLangTypeId,
         val name: String,
-        val params: List<LangParameter>,
+        val fields: List<ObjectField>,
         val result: ConstraintLangType,
     ) : CanonicalLangType {
         fun getInstanceType() = InstanceValueLangType(this)
+
+        override fun isPending() = result.isPending() || fields.any { it.valueConstraint.isPending() }
+        override fun getError() = result.getError() ?: fields.firstNotNullOfOrNull { it.valueConstraint.getError() }
+    }
+
+    data class ObjectCanonicalLangType(
+        override val id: CanonicalLangTypeId,
+        val name: String,
+        val fields: List<ObjectField>
+    ) : CanonicalLangType {
+
+        override fun isPending() = fields.any { it.valueConstraint.isPending() }
+        override fun getError() = fields.firstNotNullOfOrNull { it.valueConstraint.getError() }
+    }
+
+    data class ObjectField(val name: String, val valueConstraint: ConstraintLangType) {
+        fun asLangParameter() = LangParameter(name, valueConstraint)
     }
 
     fun toPair() = id to this
@@ -260,12 +280,18 @@ data class PrimitiveConstraintLangType(val kind: LangPrimitiveKind) : ResolvedCo
 @SerialName("TypeReferenceConstraint")
 data class TypeReferenceConstraintLangType(val canonicalType: CanonicalLangType) : ResolvedConstraintLangType {
     override fun toInstanceType() = InstanceValueLangType(canonicalType)
+
+    override fun isPending() = canonicalType.isPending()
+    override fun getError() = canonicalType.getError()
 }
 
 @Serializable
 @SerialName("Instance")
 data class InstanceValueLangType(val canonicalType: CanonicalLangType) : ResolvedValueLangType {
     override fun toConstraint() = TypeReferenceConstraintLangType(canonicalType)
+
+    override fun isPending() = canonicalType.isPending()
+    override fun getError() = canonicalType.getError()
 }
 
 @Serializable

@@ -24,13 +24,18 @@ class IoTest {
                 printId, CanonicalLangType.SignalCanonicalLangType(
                     printId,
                     "Print",
-                    params = listOf(LangParameter("message", LangPrimitiveKind.STRING.toConstraintLangType())),
+                    fields = listOf(
+                        CanonicalLangType.ObjectField(
+                            "message",
+                            LangPrimitiveKind.STRING.toConstraintLangType()
+                        )
+                    ),
                     result = LangPrimitiveKind.ACTION.toConstraintLangType()
                 )
             )
             put(
                 promptId, CanonicalLangType.SignalCanonicalLangType(
-                    promptId, "Prompt", params = listOf(), result = LangPrimitiveKind.STRING.toConstraintLangType()
+                    promptId, "Prompt", fields = listOf(), result = LangPrimitiveKind.STRING.toConstraintLangType()
                 )
             )
         }, chunks = emptyList(), exports = buildMap {

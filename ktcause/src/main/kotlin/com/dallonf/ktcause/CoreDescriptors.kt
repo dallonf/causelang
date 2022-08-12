@@ -8,18 +8,22 @@ object CoreDescriptors {
 
         val types = mapOf(
             CanonicalLangType.SignalCanonicalLangType(
-                CanonicalLangTypeId(filename, name = "Debug", number = 0u), name = "Debug", params = listOf(
-                    LangParameter("message", LangPrimitiveKind.STRING.toConstraintLangType())
+                CanonicalLangTypeId(filename, name = "Debug", number = 0u), name = "Debug", fields = listOf(
+                    CanonicalLangType.ObjectField("message", LangPrimitiveKind.STRING.toConstraintLangType())
                 ), result = LangPrimitiveKind.ACTION.toConstraintLangType()
             ).toPair(), CanonicalLangType.SignalCanonicalLangType(
                 CanonicalLangTypeId(filename, name = "TypeError", number = 0u),
                 name = "TypeError",
-                params = listOf(LangParameter("badValue", BadValueConstraintLangType)),
+                fields = listOf(CanonicalLangType.ObjectField("badValue", BadValueConstraintLangType)),
                 result = NeverContinuesConstraintLangType
             ).toPair(), CanonicalLangType.SignalCanonicalLangType(
                 CanonicalLangTypeId(filename, name = "AssumptionBroken", number = 0.toUByte()),
                 name = "AssumptionBroken",
-                params = listOf(LangParameter("message", LangPrimitiveKind.STRING.toConstraintLangType())),
+                fields = listOf(
+                    CanonicalLangType.ObjectField(
+                        "message", LangPrimitiveKind.STRING.toConstraintLangType()
+                    )
+                ),
                 result = NeverContinuesConstraintLangType
             ).toPair()
         )

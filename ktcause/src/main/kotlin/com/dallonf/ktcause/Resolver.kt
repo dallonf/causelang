@@ -200,40 +200,40 @@ object Resolver {
                                     }
 
                                     is TypeReferenceConstraintLangType -> {
-                                        when (calleeType.canonicalType) {
-                                            is CanonicalLangType.SignalCanonicalLangType -> {
-                                                val signal = calleeType.canonicalType
-                                                val params = arrayOfNulls<LangType>(signal.params.size)
-                                                val parameterTags = nodeTags[pendingKey.breadcrumbs]?.mapNotNull {
-                                                    (it as? NodeTag.CallsWithParameter)
-                                                }
-                                                parameterTags?.forEach { (parameterBreadcrumbs, index) ->
-                                                    val argumentType = getResolvedTypeOf(parameterBreadcrumbs)
-                                                    if (argumentType is ErrorLangType) {
-                                                        resolveWithProxyError(argumentType, parameterBreadcrumbs)
-                                                        return@eachTag
-                                                    }
-                                                    params[index] = argumentType
-                                                }
+                                        val expectedFields = when (calleeType.canonicalType) {
+                                            is CanonicalLangType.SignalCanonicalLangType -> calleeType.canonicalType.fields
+                                            is CanonicalLangType.ObjectCanonicalLangType -> calleeType.canonicalType.fields
+                                        }
 
-                                                val foundParams = mutableListOf<LangType>()
-                                                val missingParams = mutableListOf<LangParameter>()
-                                                for ((i, param) in params.withIndex()) {
-                                                    if (param != null) {
-                                                        foundParams.add(param)
-                                                    } else {
-                                                        missingParams.add(signal.params[i])
-                                                    }
-                                                }
-
-                                                if (missingParams.isNotEmpty()) {
-                                                    resolveWith(ErrorLangType.MissingParameters(missingParams.map { it.name }))
-                                                } else if (foundParams.all { !it.isPending() }) {
-                                                    resolveWith(
-                                                        InstanceValueLangType(signal)
-                                                    )
-                                                }
+                                        val params = arrayOfNulls<LangType>(expectedFields.size)
+                                        val parameterTags = nodeTags[pendingKey.breadcrumbs]?.mapNotNull {
+                                            (it as? NodeTag.CallsWithParameter)
+                                        }
+                                        parameterTags?.forEach { (parameterBreadcrumbs, paramIndex) ->
+                                            val argumentType = getResolvedTypeOf(parameterBreadcrumbs)
+                                            if (argumentType is ErrorLangType) {
+                                                resolveWithProxyError(argumentType, parameterBreadcrumbs)
+                                                return@eachTag
                                             }
+                                            params[paramIndex] = argumentType
+                                        }
+
+                                        val foundParams = mutableListOf<LangType>()
+                                        val missingParams = mutableListOf<LangParameter>()
+                                        for ((i, param) in params.withIndex()) {
+                                            if (param != null) {
+                                                foundParams.add(param)
+                                            } else {
+                                                missingParams.add(expectedFields[i].asLangParameter())
+                                            }
+                                        }
+
+                                        if (missingParams.isNotEmpty()) {
+                                            resolveWith(ErrorLangType.MissingParameters(missingParams.map { it.name }))
+                                        } else if (foundParams.all { !it.isPending() }) {
+                                            resolveWith(
+                                                InstanceValueLangType(calleeType.canonicalType)
+                                            )
                                         }
                                     }
 
@@ -257,6 +257,8 @@ object Resolver {
                                                 is ResolvedConstraintLangType -> resolveWith(signalCanonicalType.result.toInstanceType())
                                             }
                                         }
+
+                                        else -> resolveWith(ErrorLangType.NotCausable)
                                     }
                                 }
 
@@ -269,6 +271,32 @@ object Resolver {
                                 if (!getResolvedTypeOf(tag.declaration).isPending()) {
                                     resolveWith(LangPrimitiveKind.ACTION.toValueLangType())
                                 }
+                            }
+
+                            is NodeTag.IsObjectType -> {
+                                val fieldTags = pendingNodeTags.mapNotNull { it as? NodeTag.ObjectTypeHasField }
+                                val id = CanonicalLangTypeId(path, null, tag.name, 0u)
+                                val fields = fieldTags.map { field ->
+                                    val fieldType = when (val resolvedFieldType =
+                                        getResolvedTypeOf(field.typeReference).asConstraint()) {
+                                        is LangType.Pending -> LangType.Pending
+                                        is ErrorLangType -> ErrorLangType.ProxyError.from(
+                                            resolvedFieldType, getSourcePosition(field.typeReference)
+                                        )
+
+                                        is ResolvedConstraintLangType -> resolvedFieldType
+                                    }
+                                    CanonicalLangType.ObjectField(field.name, fieldType)
+                                }
+                                val objectType = CanonicalLangType.ObjectCanonicalLangType(id, tag.name, fields)
+
+                                val existingKnownType = knownCanonicalTypes[id]
+                                if (existingKnownType != null && !existingKnownType.isPending()) {
+                                    error("Accidentally clobbered canonical type: $existingKnownType with $objectType.")
+                                }
+
+                                knownCanonicalTypes[id] = objectType
+                                resolveWith(TypeReferenceConstraintLangType(objectType))
                             }
 
                             is NodeTag.IsPrimitiveValue -> resolveWith(tag.kind.toValueLangType())
@@ -415,8 +443,9 @@ object Resolver {
                                             is FunctionValueLangType -> callType.params
                                             is TypeReferenceConstraintLangType -> when (val canonicalType =
                                                 callType.canonicalType) {
-                                                is CanonicalLangType.SignalCanonicalLangType -> canonicalType.params
-                                            }
+                                                is CanonicalLangType.SignalCanonicalLangType -> canonicalType.fields
+                                                is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.fields
+                                            }.map { it.asLangParameter() }
 
                                             else -> throw AssertionError("Call expression not callable (should have been caught by call resolution)")
                                         }
@@ -452,12 +481,7 @@ object Resolver {
                     throw AssertionError("Accidentally clobbered a resolved reference (${key} = ${oldResolvedType}) with $newType")
                 }
 
-                if (newType is CanonicalLangType) {
-                    knownCanonicalTypes[newType.id] = newType
-                    resolvedTypes[key] = TypeReferenceConstraintLangType(newType)
-                } else {
-                    resolvedTypes[key] = newType
-                }
+                resolvedTypes[key] = newType
             }
             if (resolved == 0) {
                 break

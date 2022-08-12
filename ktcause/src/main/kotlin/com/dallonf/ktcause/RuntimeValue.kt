@@ -107,15 +107,16 @@ sealed class RuntimeValue {
             }
 
             is RuntimeValue.RuntimeObject -> {
-                val objectTypeParams = when (val type = this.typeDescriptor.type) {
-                    is CanonicalLangType.SignalCanonicalLangType -> type.params
+                val objectTypeFields = when (val type = this.typeDescriptor.type) {
+                    is CanonicalLangType.SignalCanonicalLangType -> type.fields
+                    is CanonicalLangType.ObjectCanonicalLangType -> type.fields
                 }
 
                 val values = this.values
                 buildJsonObject {
                     put("#type", JsonPrimitive(this@RuntimeValue.typeDescriptor.type.id.toString()))
-                    for ((i, objectTypeParam) in objectTypeParams.withIndex()) {
-                        put(objectTypeParam.name, values[i].toJson())
+                    for ((i, objectTypeField) in objectTypeFields.withIndex()) {
+                        put(objectTypeField.name, values[i].toJson())
                     }
                 }
             }

@@ -12,7 +12,7 @@ class ObjectTypesTest {
             "project/test.cau", """
                 object Card(
                     suit: String,
-                    rank: Int,
+                    rank: Integer,
                 )
                 
                 function main(): Card {
