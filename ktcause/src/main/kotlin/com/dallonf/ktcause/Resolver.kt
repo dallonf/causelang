@@ -8,7 +8,6 @@ import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlin.text.StringBuilder
 
 // TODO: It might not make sense to keep these in the same map, since
 // they're also different types
@@ -21,10 +20,10 @@ data class ResolvedFile(
     val path: String,
     val resolvedTypes: Map<ResolutionKey, LangType>,
     val canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,
-    private val debugContext: Debug.DebugContext? = null
+    private val _debugContext: Debug.DebugContext? = null
 ) {
 
-    fun debugContext() = debugContext?.copy(resolved = this)
+    fun debugContext() = _debugContext?.copy(resolved = this)
 
     fun checkForRuntimeErrors(breadcrumbs: Breadcrumbs): ErrorLangType? {
         val expected = resolvedTypes[ResolutionKey(CONSTRAINT, breadcrumbs)]?.getRuntimeError()
@@ -98,7 +97,7 @@ object Resolver {
                 }
                 for (tag in tags) {
                     when (tag) {
-                        is NodeTag.Expression -> track(INFERRED)
+                        is NodeTag.IsExpression -> track(INFERRED)
                         is NodeTag.TypeAnnotated -> {
                             track(INFERRED)
                             track(CONSTRAINT)
@@ -272,22 +271,11 @@ object Resolver {
                                 is ErrorLangType -> resolveWithProxyError(signalType, tag.signal)
                             }
 
-//                            is NodeTag.NamedValue -> {
-//                                val (_, valueBreadcrumbs) = tag
-//                                val constraint = resolvedTypes[ResolutionKey(CONSTRAINT, pendingKey.breadcrumbs)]
-//                                if (constraint is ResolvedConstraintLangType) {
-//                                    resolveWith(constraint.toInstanceType())
-//                                } else {
-//                                    when (val inferredType = getResolvedTypeOf(valueBreadcrumbs)) {
-//                                        is LangType.Pending -> {}
-//                                        is ResolvedValueLangType -> resolveWith(inferredType)
-//                                        is ResolvedConstraintLangType -> resolveWith(inferredType)
-//                                        is ErrorLangType -> resolveWithProxyError(
-//                                            inferredType, valueBreadcrumbs
-//                                        )
-//                                    }
-//                                }
-//                            }
+                            is NodeTag.IsDeclarationStatement -> {
+                                if (!getResolvedTypeOf(tag.declaration).isPending()) {
+                                    resolveWith(LangPrimitiveKind.ACTION.toValueLangType())
+                                }
+                            }
 
                             is NodeTag.IsPrimitiveValue -> resolveWith(tag.kind.toValueLangType())
 

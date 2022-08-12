@@ -99,7 +99,15 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
-    object Expression : NodeTag() {
+    data class IsDeclarationStatement(val declaration: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+    }
+
+    data class IsEffectStatement(val condition: Breadcrumbs, val effectBody: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+    }
+
+    object IsExpression : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
@@ -341,6 +349,10 @@ object Analyzer {
                                     AnalyzerContext(currentCtx.currentScope.extend(), currentCtx.currentScopePosition)
                                 addDeclarationsToScope(declarations, output, currentCtx)
                             }
+                            output.addTag(
+                                statementNode.info.breadcrumbs,
+                                NodeTag.IsDeclarationStatement(declaration = statementNode.declaration.info.breadcrumbs)
+                            )
                         }
 
                         is StatementNode.EffectStatement -> {
@@ -348,9 +360,15 @@ object Analyzer {
                                 AnalyzerContext(currentCtx.currentScope.extend(), statementNode.info.breadcrumbs)
 
                             analyzeTypeReference(statementNode.pattern.typeReference, output, ctx)
-                            // HACK: Force this to be analyzed at the top level
+                            // HACK: Force this to be resolved at the top level
                             // TODO: Fix this
-                            output.addTag(statementNode.pattern.typeReference.info.breadcrumbs, NodeTag.Expression)
+                            output.addTag(statementNode.pattern.typeReference.info.breadcrumbs, NodeTag.IsExpression)
+                            output.addTag(
+                                statementNode.info.breadcrumbs, NodeTag.IsEffectStatement(
+                                    condition = statementNode.pattern.info.breadcrumbs,
+                                    effectBody = statementNode.body.info.breadcrumbs
+                                )
+                            )
                             analyzeBody(statementNode.body, output, effectCtx)
                         }
                     }
@@ -381,7 +399,7 @@ object Analyzer {
                 NodeTag.IsPrimitiveValue(LangPrimitiveKind.INTEGER)
             )
         }
-        output.addTag(expression.info.breadcrumbs, NodeTag.Expression)
+        output.addTag(expression.info.breadcrumbs, NodeTag.IsExpression)
     }
 
     private fun analyzeBranchExpressionNode(

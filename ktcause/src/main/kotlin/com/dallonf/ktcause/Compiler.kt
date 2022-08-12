@@ -135,10 +135,18 @@ object Compiler {
 
             is StatementNode.DeclarationStatement -> {
                 compileLocalDeclaration(statement, chunk, ctx)
+
+                if (isLastStatement) {
+                    chunk.writeInstruction(Instruction.PushAction)
+                }
             }
 
             is StatementNode.EffectStatement -> {
                 compileEffectStatement(statement, chunk, ctx)
+
+                if (isLastStatement) {
+                    chunk.writeInstruction(Instruction.PushAction)
+                }
             }
         }
     }

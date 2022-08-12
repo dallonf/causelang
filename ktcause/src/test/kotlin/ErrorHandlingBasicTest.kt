@@ -1,6 +1,7 @@
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
+import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -256,12 +257,31 @@ internal class ErrorHandlingBasicTest {
         )
         assertEquals(
             vm.compileErrors.debug(), """
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.1.body.statements.0.declaration",
+                        "position": "2:4-2:24"
+                    },
+                    "error": {
+                        "#type": "MismatchedType",
+                        "expected": {
+                            "#type": "PrimitiveConstraint",
+                            "kind": "String"
+                        },
+                        "actual": {
+                            "#type": "Primitive",
+                            "kind": "Integer"
+                        }
+                    }
+                }
+            ]
             """.trimIndent()
         )
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
-        assertEquals(
-            TestUtils.expectTypeError(result, vm).debug(), """
-            """.trimIndent()
-        )
+
+        // although there's a compile error, it doesn't fail at runtime; the bad value goes nowhere.
+        assertEquals(result.expectReturnValue(), RuntimeValue.Action)
     }
 }
