@@ -59,7 +59,11 @@ data class ResolvedFile(
 
 object Resolver {
     @Serializable
-    data class ResolverError(val position: SourcePosition.Source, val error: ErrorLangType)
+    data class ResolverError(val position: SourcePosition.Source, val error: ErrorLangType) {
+        internal fun debug(): String {
+            return Debug.debugSerializer.encodeToString(this)
+        }
+    }
 
     internal fun List<ResolverError>.debug(): String {
         return Debug.debugSerializer.encodeToString(this)

@@ -99,6 +99,7 @@ object Debug {
             }
 
             if (position != null && source != null) {
+                builder.appendLine("```")
                 val startLine = position.start.line
                 val contextStartLine = max(startLine - contextLines, 0)
                 for (line in source.lineSequence().drop(contextStartLine).take(startLine - contextStartLine)) {
@@ -111,6 +112,7 @@ object Debug {
                 for (line in source.lineSequence().drop(position.end.line).take(contextLines)) {
                     builder.appendLine(line)
                 }
+                builder.appendLine("```")
             }
 
             if (resolved != null) {

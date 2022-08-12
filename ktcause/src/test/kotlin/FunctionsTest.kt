@@ -1,3 +1,4 @@
+import TestUtils.addFileAndPrintCompileErrors
 import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.RuntimeValue
@@ -87,7 +88,7 @@ class FunctionsTest {
     @Test
     fun functionTakesParameters() {
         val vm = LangVm()
-        vm.addFile(
+        vm.addFileAndPrintCompileErrors(
             "project/test.cau", """
                 import core/string (append)
                 
@@ -100,7 +101,6 @@ class FunctionsTest {
                 }
             """.trimIndent()
         )
-        TestUtils.printCompileErrors(vm)
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(result, RuntimeValue.String("Hello, World"))

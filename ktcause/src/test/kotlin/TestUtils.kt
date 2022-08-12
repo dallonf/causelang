@@ -21,6 +21,19 @@ object TestUtils {
         }
     }
 
+    fun LangVm.addFileAndPrintCompileErrors(path: String, source: String) {
+        val debugCtx = addFile(path, source)
+        val errorsForFile = compileErrors.filter { it.position.path == path }
+        if (errorsForFile.isNotEmpty()) {
+            println("Compile errors in file:\n")
+            for (error in errorsForFile) {
+                println(error.debug())
+                println(debugCtx.getNodeContext(error.position.breadcrumbs))
+                println("------------------------------");
+            }
+        }
+    }
+
     fun LangVm.addFileExpectingNoCompileErrors(path: String, source: String) {
         addFile(path, source)
         expectNoCompileErrors(this)
