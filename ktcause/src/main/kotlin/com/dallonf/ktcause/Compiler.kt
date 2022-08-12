@@ -2,6 +2,7 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.types.*
+import kotlin.reflect.KClass
 
 object Compiler {
     private data class CompilerContext(
@@ -16,16 +17,17 @@ object Compiler {
         inline fun <reified T : NodeTag> getTag(breadcrumbs: Breadcrumbs): T? =
             getTags(breadcrumbs).firstNotNullOfOrNull { it as? T }
 
+        fun hasTag(breadcrumbs: Breadcrumbs, vararg types: KClass<out NodeTag>): Boolean {
+            return getTags(breadcrumbs).any { tag -> types.any { it.isInstance(tag) } }
+        }
+
         fun nextScopeIndex(): Int {
             return scopeStack.sumOf { it.size() }
         }
     }
 
     private class CompilerScope(
-        val scopeRoot: Breadcrumbs,
-        val type: ScopeType,
-        val parameters: Int = 0,
-        var effectCount: Int = 0
+        val scopeRoot: Breadcrumbs, val type: ScopeType, val stackPrefix: Int = 0, var effectCount: Int = 0
     ) {
         enum class ScopeType {
             BODY, EFFECT
@@ -34,7 +36,7 @@ object Compiler {
         // indices are computed from the top of the current call frame
         val namedValueIndices = mutableMapOf<Breadcrumbs, Int>()
 
-        fun size() = parameters + namedValueIndices.size
+        fun size() = stackPrefix + namedValueIndices.size
     }
 
     fun compile(fileNode: FileNode, analyzed: AnalyzedNode, resolved: ResolvedFile): CompiledFile {
@@ -65,16 +67,25 @@ object Compiler {
         declaration: DeclarationNode.Function, ctx: CompilerContext
     ): CompiledFile.MutableInstructionChunk {
         val chunk = CompiledFile.MutableInstructionChunk()
+        val functionScope = CompilerScope(declaration.info.breadcrumbs, CompilerScope.ScopeType.BODY)
+        val oldScopeStack = ctx.scopeStack.toList()
+        ctx.scopeStack.clear() // brand-new scope for every function
+        ctx.scopeStack.addLast(functionScope)
+
+        for ((i, param) in declaration.params.withIndex()) {
+            functionScope.namedValueIndices[param.info.breadcrumbs] = i
+        }
         compileBody(declaration.body, chunk, ctx)
         // TODO: make sure this is the right type to return
         chunk.writeInstruction(Instruction.Return)
+
+        ctx.scopeStack.clear()
+        ctx.scopeStack.addAll(oldScopeStack)
         return chunk
     }
 
     private fun compileBody(
-        body: BodyNode,
-        chunk: CompiledFile.MutableInstructionChunk,
-        ctx: CompilerContext
+        body: BodyNode, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
     ) {
         when (body) {
             is BodyNode.BlockBodyNode -> {
@@ -169,15 +180,13 @@ object Compiler {
     }
 
     private fun compileEffectStatement(
-        statement: StatementNode.EffectStatement,
-        chunk: CompiledFile.MutableInstructionChunk,
-        ctx: CompilerContext
+        statement: StatementNode.EffectStatement, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
     ) {
         val effectChunk = CompiledFile.MutableInstructionChunk()
         ctx.scopeStack.last().effectCount += 1
 
         ctx.scopeStack.addLast(
-            CompilerScope(statement.info.breadcrumbs, CompilerScope.ScopeType.EFFECT, parameters = 1)
+            CompilerScope(statement.info.breadcrumbs, CompilerScope.ScopeType.EFFECT, stackPrefix = 1)
         )
 
         // Check the condition
@@ -298,10 +307,14 @@ object Compiler {
             return
         }
 
-        (ctx.getTag<NodeTag.NamedValue>(comesFrom.source) ?: ctx.getTag<NodeTag.IsFunction>(comesFrom.source))?.let {
-            compileNamedValueReference(comesFrom, chunk, ctx)
+        if (ctx.hasTag(
+                comesFrom.source, NodeTag.NamedValue::class, NodeTag.IsFunction::class, NodeTag.ParamForFunction::class
+            )
+        ) {
+            compileValueReference(comesFrom, chunk, ctx)
             return
         }
+
 
         // change this to an AssertionError when we're more stable
         TODO("Wasn't able to resolve identifier to anything")
@@ -328,7 +341,7 @@ object Compiler {
         }
     }
 
-    private fun compileNamedValueReference(
+    private fun compileValueReference(
         valueComesFrom: NodeTag.ValueComesFrom,
         chunk: CompiledFile.MutableInstructionChunk,
         ctx: CompilerContext,

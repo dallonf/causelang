@@ -101,7 +101,23 @@ sealed interface ErrorLangType : LangType, ValueLangType, ConstraintLangType {
 
     @Serializable
     @SerialName("ProxyError")
-    data class ProxyError(val actualError: ErrorLangType, val proxyChain: List<SourcePosition>) : ErrorLangType
+    data class ProxyError(val actualError: ErrorLangType, val proxyChain: List<SourcePosition>) : ErrorLangType {
+        companion object {
+            fun from(error: ErrorLangType, source: SourcePosition): ProxyError {
+                return if (error is ProxyError) {
+                    ProxyError(
+                        error.actualError, listOf(source) + error.proxyChain
+                    )
+                } else {
+                    ProxyError(
+                        error, listOf(
+                            source
+                        )
+                    )
+                }
+            }
+        }
+    }
 
     @Serializable
     @SerialName("NotCallable")

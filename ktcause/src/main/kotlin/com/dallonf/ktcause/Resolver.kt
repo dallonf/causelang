@@ -168,17 +168,7 @@ object Resolver {
                 fun resolveWithProxyError(error: ErrorLangType, breadcrumbs: Breadcrumbs) {
                     val sourcePosition = getSourcePosition(breadcrumbs)
                     resolveWith(
-                        if (error is ErrorLangType.ProxyError) {
-                            ErrorLangType.ProxyError(
-                                error.actualError, listOf(sourcePosition) + error.proxyChain
-                            )
-                        } else {
-                            ErrorLangType.ProxyError(
-                                error, listOf(
-                                    sourcePosition
-                                )
-                            )
-                        }
+                        ErrorLangType.ProxyError.from(error, sourcePosition)
                     )
                 }
 
@@ -296,7 +286,10 @@ object Resolver {
 
                                 val returnConstraint = when (returnType) {
                                     is LangType.Pending -> LangType.Pending
-                                    is ErrorLangType -> returnType
+                                    is ErrorLangType -> ErrorLangType.ProxyError.from(
+                                        returnType, getSourcePosition(canReturn[0].returnExpression)
+                                    )
+
                                     is ResolvedConstraintLangType -> ErrorLangType.ConstraintUsedAsValue(returnType)
                                     is ResolvedValueLangType -> returnType.toConstraint()
                                 }
@@ -313,6 +306,16 @@ object Resolver {
                                         tag.name, returnConstraint, params
                                     )
                                 )
+                            }
+
+                            is NodeTag.ParamForFunction -> {
+                                if (tag.typeReference != null) {
+                                    when (val typeConstraint = getResolvedTypeOf(tag.typeReference).asConstraint()) {
+                                        is LangType.Pending -> resolveWith(LangType.Pending)
+                                        is ErrorLangType -> resolveWithProxyError(typeConstraint, tag.typeReference)
+                                        is ResolvedConstraintLangType -> resolveWith(typeConstraint.toInstanceType())
+                                    }
+                                }
                             }
 
                             is NodeTag.ReferencesFile -> {
