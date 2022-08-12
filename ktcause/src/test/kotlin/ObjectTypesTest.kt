@@ -1,4 +1,5 @@
 import TestUtils.addFileAndPrintCompileErrors
+import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import org.junit.jupiter.api.Test
@@ -8,7 +9,7 @@ class ObjectTypesTest {
     @Test
     fun defineObjectAndInstantiateIt() {
         val vm = LangVm()
-        vm.addFileAndPrintCompileErrors(
+        vm.addFileExpectingNoCompileErrors(
             "project/test.cau", """
                 object Card(
                     suit: String,
@@ -24,7 +25,11 @@ class ObjectTypesTest {
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(
             """
-            
+            {
+                "#type": "project/test.cau:Card",
+                "suit": "hearts",
+                "rank": 3
+            }
             """.trimIndent(),
             result.debug()
         )

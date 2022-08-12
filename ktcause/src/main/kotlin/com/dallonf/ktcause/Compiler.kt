@@ -56,6 +56,21 @@ object Compiler {
                         CompiledFile.CompiledExport.Function(ctx.chunks.lastIndex, functionType)
                 }
 
+                is DeclarationNode.ObjectType -> {
+                    val objectType = resolved.getExpectedType(declaration.info.breadcrumbs)
+
+                    val error = objectType.getRuntimeError()
+                    if (objectType is TypeReferenceConstraintLangType) {
+                        types[objectType.canonicalType.id] = objectType.canonicalType
+                        exports[declaration.name.text] =
+                            CompiledFile.CompiledExport.Type(objectType.canonicalType.id)
+                    } else if (error != null) {
+                        exports[declaration.name.text] = CompiledFile.CompiledExport.Error(error)
+                    } else {
+                        error("Object declaration resolved to: $objectType")
+                    }
+                }
+
                 is DeclarationNode.NamedValue -> TODO()
             }
         }
@@ -167,6 +182,7 @@ object Compiler {
     ) {
         when (val declaration = statement.declaration) {
             is DeclarationNode.Import -> {}
+            is DeclarationNode.ObjectType -> {}
             is DeclarationNode.Function -> TODO()
             is DeclarationNode.NamedValue -> {
                 compileExpression(declaration.value, chunk, ctx)
@@ -412,6 +428,7 @@ object Compiler {
             is TypeReferenceConstraintLangType -> {
                 when (calleeType.canonicalType) {
                     is CanonicalLangType.SignalCanonicalLangType -> chunk.writeInstruction(Instruction.Construct(arity = expression.parameters.size))
+                    is CanonicalLangType.ObjectCanonicalLangType -> chunk.writeInstruction(Instruction.Construct(arity = expression.parameters.size))
                 }
             }
 

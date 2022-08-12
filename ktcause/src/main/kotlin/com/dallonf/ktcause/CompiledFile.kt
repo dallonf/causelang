@@ -19,6 +19,10 @@ data class CompiledFile(
                     exportDescriptors[exportName] = TypeReferenceConstraintLangType(canonicalType)
                 }
 
+                is CompiledExport.Error -> {
+                    exportDescriptors[exportName] = export.error
+                }
+
                 is CompiledExport.Function -> TODO()
                 is CompiledExport.Value -> TODO()
             }
@@ -70,6 +74,7 @@ data class CompiledFile(
     }
 
     sealed interface CompiledExport {
+        data class Error(val error: ErrorLangType) : CompiledExport
         data class Type(val typeId: CanonicalLangTypeId) : CompiledExport
         data class Function(val chunkIndex: Int, val type: LangType) : CompiledExport
         data class Value(val constant: CompiledConstant, val type: LangType) : CompiledExport
