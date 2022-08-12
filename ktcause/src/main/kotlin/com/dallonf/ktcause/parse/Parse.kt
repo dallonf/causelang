@@ -67,6 +67,7 @@ private fun parseDeclaration(
         is ImportDeclarationContext -> parseImportDeclaration(child, breadcrumbs, ctx)
         is FunctionDeclarationContext -> parseFunctionDeclaration(child, breadcrumbs, ctx)
         is NamedValueDeclarationContext -> parseNamedValueDeclaration(child, breadcrumbs, ctx)
+        is ObjectDeclarationContext -> parseObjectDeclaration(child, breadcrumbs, ctx)
         else -> throw Error("unexpected declaration type: ${child.toString()}")
     }
 }
@@ -162,6 +163,31 @@ private fun parseNamedValueDeclaration(
 
     return DeclarationNode.NamedValue(
         NodeInfo(namedValue.getRange(), breadcrumbs), name, typeAnnotation, value
+    )
+}
+
+private fun parseObjectDeclaration(
+    objectDeclaration: ObjectDeclarationContext,
+    breadcrumbs: Breadcrumbs,
+    ctx: ParserContext
+): DeclarationNode.ObjectType {
+    val name = parseIdentifier(objectDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
+    val paramsBreadcrumbs = breadcrumbs.appendName("fields")
+    val fields = objectDeclaration.objectField().mapIndexed { i, field ->
+        val paramBreadcrumbs = paramsBreadcrumbs.appendIndex(i)
+        DeclarationNode.ObjectType.ObjectField(
+            NodeInfo(field.getRange(), paramBreadcrumbs),
+            name = parseIdentifier(field.IDENTIFIER().symbol, paramBreadcrumbs.appendName("name"), ctx),
+            typeConstraint = parseTypeReference(
+                field.typeReference(),
+                paramBreadcrumbs.appendName("typeConstraint"),
+                ctx
+            )
+        )
+    }
+
+    return DeclarationNode.ObjectType(
+        NodeInfo(objectDeclaration.getRange(), breadcrumbs), name, fields
     )
 }
 

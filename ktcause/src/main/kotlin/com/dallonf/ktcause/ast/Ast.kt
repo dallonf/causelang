@@ -215,9 +215,7 @@ sealed interface DeclarationNode : AstNode {
         val returnType: TypeReferenceNode?
     ) : DeclarationNode {
         data class FunctionParameterNode(
-            override val info: NodeInfo,
-            val name: Identifier,
-            val typeReference: TypeReferenceNode?
+            override val info: NodeInfo, val name: Identifier, val typeReference: TypeReferenceNode?
         ) : AstNode {
             override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
                 put("name", name)
@@ -249,6 +247,24 @@ sealed interface DeclarationNode : AstNode {
                 put("typeAnnotation", typeAnnotation)
             }
             put("value", value)
+        }
+    }
+
+    data class ObjectType(
+        override val info: NodeInfo, val name: Identifier, val fields: List<ObjectField>
+    ) : DeclarationNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            put("name", name)
+            put("fields", fields)
+        }
+
+        data class ObjectField(
+            override val info: NodeInfo, val name: Identifier, val typeConstraint: TypeReferenceNode
+        ) : AstNode {
+            override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+                put("name", name)
+                put("typeConstraint", typeConstraint)
+            }
         }
     }
 }
@@ -342,11 +358,8 @@ sealed interface BranchOptionNode : AstNode {
     val body: BodyNode
 
     data class IfBranchOptionNode(
-        override val info: NodeInfo,
-        val condition: ExpressionNode,
-        override val body: BodyNode
-    ) :
-        BranchOptionNode {
+        override val info: NodeInfo, val condition: ExpressionNode, override val body: BodyNode
+    ) : BranchOptionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("condition", condition)
             put("body", body)

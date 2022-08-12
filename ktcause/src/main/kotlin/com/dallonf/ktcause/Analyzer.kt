@@ -94,6 +94,22 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
+    data class IsObjectType(val name: String) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+    }
+
+    data class ObjectTypeHasField(val name: String, val field: Breadcrumbs, val typeReference: Breadcrumbs) :
+        NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) =
+            Pair(field, FieldForObjectType(name, objectType = breadcrumbs, typeReference))
+    }
+
+    data class FieldForObjectType(val name: String, val objectType: Breadcrumbs, val typeReference: Breadcrumbs) :
+        NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) =
+            Pair(objectType, ObjectTypeHasField(name, field = breadcrumbs, typeReference))
+    }
+
     object ReferenceNotInScope : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
@@ -226,6 +242,10 @@ object Analyzer {
             is DeclarationNode.NamedValue -> {
                 return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
             }
+
+            is DeclarationNode.ObjectType -> {
+                return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
+            }
         }
     }
 
@@ -263,6 +283,7 @@ object Analyzer {
             is DeclarationNode.Import -> analyzeImportDeclaration(declaration, output, ctx)
             is DeclarationNode.Function -> analyzeFunctionDeclaration(declaration, output, ctx)
             is DeclarationNode.NamedValue -> analyzeNamedValueDeclaration(declaration, output, ctx)
+            is DeclarationNode.ObjectType -> analyzeObjectTypeDeclaration(declaration, output, ctx)
         }
     }
 
@@ -339,6 +360,27 @@ object Analyzer {
         }
     }
 
+    private fun analyzeObjectTypeDeclaration(
+        declaration: DeclarationNode.ObjectType, output: AnalyzedNode, ctx: AnalyzerContext
+    ) {
+        output.addTag(
+            declaration.info.breadcrumbs, NodeTag.IsObjectType(
+                name = declaration.name.text,
+            )
+        )
+
+        for (field in declaration.fields) {
+            output.addTag(
+                field.info.breadcrumbs, NodeTag.FieldForObjectType(
+                    field.name.text,
+                    objectType = declaration.info.breadcrumbs,
+                    typeReference = field.typeConstraint.info.breadcrumbs,
+                )
+            )
+            analyzeTypeReference(field.typeConstraint, output, ctx)
+        }
+    }
+
     private fun analyzeBody(body: BodyNode, output: AnalyzedNode, ctx: AnalyzerContext) {
         when (body) {
             is BodyNode.BlockBodyNode -> {
@@ -367,8 +409,11 @@ object Analyzer {
                             getDeclarationsForScope(statementNode.declaration)?.let { declarations ->
                                 analyzeDeclaration(statementNode.declaration, output, currentCtx)
 
-                                currentCtx =
-                                    AnalyzerContext(currentCtx.currentScope.extend(), currentCtx.fileRootScope, currentCtx.currentScopePosition)
+                                currentCtx = AnalyzerContext(
+                                    currentCtx.currentScope.extend(),
+                                    currentCtx.fileRootScope,
+                                    currentCtx.currentScopePosition
+                                )
                                 addDeclarationsToScope(declarations, output, currentCtx)
                             }
                             output.addTag(
@@ -378,8 +423,11 @@ object Analyzer {
                         }
 
                         is StatementNode.EffectStatement -> {
-                            val effectCtx =
-                                AnalyzerContext(currentCtx.currentScope.extend(), currentCtx.fileRootScope, statementNode.info.breadcrumbs)
+                            val effectCtx = AnalyzerContext(
+                                currentCtx.currentScope.extend(),
+                                currentCtx.fileRootScope,
+                                statementNode.info.breadcrumbs
+                            )
 
                             analyzeTypeReference(statementNode.pattern.typeReference, output, ctx)
                             // HACK: Force this to be resolved at the top level
