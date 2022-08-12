@@ -272,18 +272,15 @@ class LangVm {
                     }
 
                     is Instruction.CallFunction -> {
-                        val function = stack.removeLast()
-
-                        val params = mutableListOf<RuntimeValue>()
-                        for (i in 0 until instruction.arity) {
-                            params.add(stack.removeLast())
-                        }
-                        params.reverse()
-
-                        when (function) {
+                        when (val function = stack.removeLast()) {
                             is RuntimeValue.NativeFunction -> {
                                 // TODO: probably want to runtime typecheck native function
                                 // params in development
+                                val params = mutableListOf<RuntimeValue>()
+                                for (i in 0 until instruction.arity) {
+                                    params.add(stack.removeLast())
+                                }
+                                params.reverse()
                                 val result = function.function(params)
                                 stack.addLast(result)
                             }
@@ -295,7 +292,7 @@ class LangVm {
                                     callParent = callFrame,
                                     causeParent = null,
                                     stack = stack,
-                                    stackStart = stack.size,
+                                    stackStart = stack.size - instruction.arity,
                                     firstEffect = callFrame.firstEffect,
                                 )
                                 this.callFrame = newCallFrame

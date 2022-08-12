@@ -168,13 +168,15 @@ object Analyzer {
         fun extend(): Scope = Scope(items.toMutableMap())
     }
 
-    private data class AnalyzerContext(val currentScope: Scope, val currentScopePosition: Breadcrumbs) {
+    private data class AnalyzerContext(
+        val currentScope: Scope, val fileRootScope: Scope, val currentScopePosition: Breadcrumbs
+    ) {
         fun withNewScope(breadcrumbs: Breadcrumbs, f: (AnalyzerContext) -> Unit) {
             val newCtx = clone(breadcrumbs)
             f(newCtx)
         }
 
-        fun clone(breadcrumbs: Breadcrumbs) = AnalyzerContext(currentScope.extend(), breadcrumbs)
+        fun clone(breadcrumbs: Breadcrumbs) = AnalyzerContext(currentScope.extend(), fileRootScope, breadcrumbs)
     }
 
     fun analyzeFile(astNode: FileNode): AnalyzedNode {
@@ -182,16 +184,14 @@ object Analyzer {
         val rootScope = Scope()
 
         val ctx = AnalyzerContext(
-            currentScope = rootScope, currentScopePosition = astNode.info.breadcrumbs
+            currentScope = rootScope, fileRootScope = rootScope, currentScopePosition = astNode.info.breadcrumbs
         )
 
         // loop over top-level declarations to hoist them into file scope
         for (declaration in astNode.declarations) {
             getDeclarationsForScope(declaration)?.let {
                 addDeclarationsToScope(
-                    it,
-                    result,
-                    ctx
+                    it, result, ctx
                 )
                 for ((name, scopeItem) in it) {
                     result.addTag(scopeItem.origin, NodeTag.TopLevelDeclaration(name))
@@ -230,10 +230,7 @@ object Analyzer {
     }
 
     private fun addDeclarationsToScope(
-        declarations: List<Pair<String, ScopeItem>>,
-        output: AnalyzedNode,
-        scope: Scope,
-        scopePosition: Breadcrumbs
+        declarations: List<Pair<String, ScopeItem>>, output: AnalyzedNode, scope: Scope, scopePosition: Breadcrumbs
     ) {
         for (declaration in declarations) {
             val (name, item) = declaration
@@ -243,9 +240,7 @@ object Analyzer {
     }
 
     private fun addDeclarationsToScope(
-        declarations: List<Pair<String, ScopeItem>>,
-        output: AnalyzedNode,
-        ctx: AnalyzerContext
+        declarations: List<Pair<String, ScopeItem>>, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         addDeclarationsToScope(declarations, output, ctx.currentScope, ctx.currentScopePosition)
     }
@@ -296,31 +291,33 @@ object Analyzer {
     private fun analyzeFunctionDeclaration(
         declaration: DeclarationNode.Function, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        ctx.withNewScope(declaration.info.breadcrumbs) { newCtx ->
-            val name = declaration.name.text
+        val name = declaration.name.text
 
-            output.addTag(declaration.info.breadcrumbs, NodeTag.IsFunction(name = name))
+        output.addTag(declaration.info.breadcrumbs, NodeTag.IsFunction(name = name))
 
-            for (param in declaration.params) {
-                output.addTag(
-                    param.info.breadcrumbs,
-                    NodeTag.ParamForFunction(
-                        name = param.name.text,
-                        function = declaration.info.breadcrumbs,
-                        typeReference = param.typeReference?.info?.breadcrumbs
-                    )
-                )
-                param.typeReference?.let { analyzeTypeReference(it, output, ctx) }
-            }
-
+        for (param in declaration.params) {
             output.addTag(
-                declaration.info.breadcrumbs, NodeTag.FunctionCanReturnTypeOf(
-                    declaration.body.info.breadcrumbs
+                param.info.breadcrumbs, NodeTag.ParamForFunction(
+                    name = param.name.text,
+                    function = declaration.info.breadcrumbs,
+                    typeReference = param.typeReference?.info?.breadcrumbs
                 )
             )
-
-            analyzeBody(declaration.body, output, newCtx)
+            param.typeReference?.let { analyzeTypeReference(it, output, ctx) }
         }
+
+        output.addTag(
+            declaration.info.breadcrumbs, NodeTag.FunctionCanReturnTypeOf(
+                declaration.body.info.breadcrumbs
+            )
+        )
+
+        // brand-new scope for a function
+        val newCtx = AnalyzerContext(ctx.fileRootScope.extend(), ctx.fileRootScope, declaration.body.info.breadcrumbs)
+        for (param in declaration.params) {
+            newCtx.currentScope.items[param.name.text] = ScopeItem(param.info.breadcrumbs)
+        }
+        analyzeBody(declaration.body, output, newCtx)
     }
 
     private fun analyzeNamedValueDeclaration(
@@ -371,7 +368,7 @@ object Analyzer {
                                 analyzeDeclaration(statementNode.declaration, output, currentCtx)
 
                                 currentCtx =
-                                    AnalyzerContext(currentCtx.currentScope.extend(), currentCtx.currentScopePosition)
+                                    AnalyzerContext(currentCtx.currentScope.extend(), currentCtx.fileRootScope, currentCtx.currentScopePosition)
                                 addDeclarationsToScope(declarations, output, currentCtx)
                             }
                             output.addTag(
@@ -382,7 +379,7 @@ object Analyzer {
 
                         is StatementNode.EffectStatement -> {
                             val effectCtx =
-                                AnalyzerContext(currentCtx.currentScope.extend(), statementNode.info.breadcrumbs)
+                                AnalyzerContext(currentCtx.currentScope.extend(), currentCtx.fileRootScope, statementNode.info.breadcrumbs)
 
                             analyzeTypeReference(statementNode.pattern.typeReference, output, ctx)
                             // HACK: Force this to be resolved at the top level
@@ -415,22 +412,18 @@ object Analyzer {
             is ExpressionNode.CauseExpression -> analyzeCauseExpression(expression, output, ctx)
             is ExpressionNode.CallExpression -> analyzeCallExpression(expression, output, ctx)
             is ExpressionNode.StringLiteralExpression -> output.addTag(
-                expression.info.breadcrumbs,
-                NodeTag.IsPrimitiveValue(LangPrimitiveKind.STRING)
+                expression.info.breadcrumbs, NodeTag.IsPrimitiveValue(LangPrimitiveKind.STRING)
             )
 
             is ExpressionNode.IntegerLiteralExpression -> output.addTag(
-                expression.info.breadcrumbs,
-                NodeTag.IsPrimitiveValue(LangPrimitiveKind.INTEGER)
+                expression.info.breadcrumbs, NodeTag.IsPrimitiveValue(LangPrimitiveKind.INTEGER)
             )
         }
         output.addTag(expression.info.breadcrumbs, NodeTag.IsExpression)
     }
 
     private fun analyzeBranchExpressionNode(
-        expression: ExpressionNode.BranchExpressionNode,
-        output: AnalyzedNode,
-        ctx: AnalyzerContext
+        expression: ExpressionNode.BranchExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         output.addTag(expression.info.breadcrumbs, NodeTag.IsBranch)
         for (branchOption in expression.branches) {
@@ -438,8 +431,7 @@ object Analyzer {
                 is BranchOptionNode.IfBranchOptionNode -> {
                     analyzeExpression(branchOption.condition, output, ctx)
                     output.addTag(
-                        branchOption.condition.info.breadcrumbs,
-                        NodeTag.ConditionFor(branchOption.info.breadcrumbs)
+                        branchOption.condition.info.breadcrumbs, NodeTag.ConditionFor(branchOption.info.breadcrumbs)
                     )
                     NodeTag.BranchOptionType.IF
                 }
@@ -452,9 +444,7 @@ object Analyzer {
     }
 
     private fun analyzeBlockExpression(
-        expression: ExpressionNode.BlockExpressionNode,
-        output: AnalyzedNode,
-        ctx: AnalyzerContext
+        expression: ExpressionNode.BlockExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         analyzeBody(expression.block, output, ctx)
         output.addValueFlowTag(expression.block.info.breadcrumbs, expression.info.breadcrumbs)
@@ -462,9 +452,7 @@ object Analyzer {
 
 
     private fun analyzeIdentifierExpression(
-        expression: ExpressionNode.IdentifierExpression,
-        output: AnalyzedNode,
-        ctx: AnalyzerContext
+        expression: ExpressionNode.IdentifierExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         val identifierText = expression.identifier.text
         val foundItem = ctx.currentScope.items[identifierText]
@@ -476,18 +464,14 @@ object Analyzer {
     }
 
     private fun analyzeCauseExpression(
-        expression: ExpressionNode.CauseExpression,
-        output: AnalyzedNode,
-        ctx: AnalyzerContext
+        expression: ExpressionNode.CauseExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         output.addTag(expression.info.breadcrumbs, NodeTag.Causes(expression.signal.info.breadcrumbs))
         analyzeExpression(expression.signal, output, ctx)
     }
 
     private fun analyzeCallExpression(
-        expression: ExpressionNode.CallExpression,
-        output: AnalyzedNode,
-        ctx: AnalyzerContext
+        expression: ExpressionNode.CallExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         expression.parameters.forEachIndexed { i, parameterNode ->
             analyzeExpression(parameterNode.value, output, ctx)
