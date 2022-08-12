@@ -300,12 +300,12 @@ object Analyzer {
                 value = declaration.value.info.breadcrumbs
             )
         )
-        output.addTag(declaration.info.breadcrumbs, NodeTag.DeclarationForScope(ctx.currentScopePosition))
+        output.addValueFlowTag(declaration.value.info.breadcrumbs, declaration.info.breadcrumbs)
 
         analyzeExpression(declaration.value, output, ctx)
         declaration.typeAnnotation?.let { typeAnnotation ->
             analyzeTypeReference(typeAnnotation, output, ctx)
-            output.addTag(typeAnnotation.info.breadcrumbs, NodeTag.AnnotatesTypeFor(declaration.value.info.breadcrumbs))
+            output.addTag(typeAnnotation.info.breadcrumbs, NodeTag.AnnotatesTypeFor(declaration.info.breadcrumbs))
         }
     }
 

@@ -1,6 +1,5 @@
 package com.dallonf.ktcause
 
-import com.dallonf.ktcause.ast.AstNode
 import com.dallonf.ktcause.ast.Breadcrumbs
 import com.dallonf.ktcause.ast.FileNode
 import com.dallonf.ktcause.types.*
@@ -12,7 +11,7 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import kotlin.math.max
 
-internal object Debug {
+object Debug {
     val serializersModule = SerializersModule {
         fun PolymorphicModuleBuilder<ResolvedValueLangType>.registerResolvedValueLangTypeSubclasses() {
             subclass(FunctionValueLangType::class)
@@ -81,25 +80,78 @@ internal object Debug {
         return Debug.debugSerializer.encodeToString(this.toJson())
     }
 
-    fun nodeInContext(breadcrumbs: Breadcrumbs, file: FileNode, source: String): String {
-        val contextLines = 2
+    data class DebugContext(
+        val source: String? = null,
+        val ast: FileNode? = null,
+        val analyzed: AnalyzedNode? = null,
+        val resolved: ResolvedFile? = null
+    ) {
+        fun getNodeContext(breadcrumbs: Breadcrumbs): String {
+            val contextLines = 2
 
-        val builder = StringBuilder()
-        val position = file.findNode(breadcrumbs).info.position
-        builder.appendLine("Node at $position")
+            val builder = StringBuilder()
 
-        val startLine = position.start.line
-        val contextStartLine = max(startLine - contextLines, 0)
-        for (line in source.lineSequence().drop(contextStartLine).take(startLine - contextStartLine)) {
-            builder.appendLine(line)
+            val node = ast?.findNode(breadcrumbs)
+            val position = node?.info?.position
+
+            if (node != null && position != null) {
+                builder.appendLine("${node::class.simpleName} at $position")
+            }
+
+            if (position != null && source != null) {
+                val startLine = position.start.line
+                val contextStartLine = max(startLine - contextLines, 0)
+                for (line in source.lineSequence().drop(contextStartLine).take(startLine - contextStartLine)) {
+                    builder.appendLine(line)
+                }
+                val col = position.start.column
+                val prefixLength = max(col - 1, 0)
+                val prefix = (0 until prefixLength).asSequence().map { '-' }.joinToString("")
+                builder.appendLine("$prefix^")
+                for (line in source.lineSequence().drop(position.end.line).take(contextLines)) {
+                    builder.appendLine(line)
+                }
+            }
+
+            if (resolved != null) {
+                builder.appendLine(
+                    "Inferred type: ${
+                        resolved.resolvedTypes[ResolutionKey(
+                            ResolutionType.INFERRED,
+                            breadcrumbs
+                        )]?.let { debugSerializer.encodeToString(it) }
+                    }"
+                )
+                val constraint = resolved.resolvedTypes[ResolutionKey(
+                    ResolutionType.CONSTRAINT,
+                    breadcrumbs
+                )]
+                if (constraint != null) {
+                    builder.appendLine(
+                        "Inferred type: ${
+                            debugSerializer.encodeToString(constraint)
+                        }"
+                    )
+                }
+            }
+
+            if (analyzed != null) {
+                val tags = analyzed.nodeTags[breadcrumbs]
+                if (!tags.isNullOrEmpty()) {
+                    builder.appendLine("Tags for this node:")
+                    for (tag in tags) {
+                        builder.appendLine("- $tag")
+                    }
+                } else {
+                    builder.appendLine("There aren't any tags for this!")
+                }
+            }
+
+            return builder.toString()
         }
-        val col = position.start.column
-        val prefixLength = max(col - 1, 0)
-        val prefix = (0 until prefixLength).asSequence().map { '-' }.joinToString("")
-        builder.appendLine("$prefix^")
-        for (line in source.lineSequence().drop(position.end.line).take(contextLines)) {
-            builder.appendLine(line)
+
+        fun getNodeContext(breadcrumbsString: String): String {
+            return getNodeContext(Breadcrumbs.parse(breadcrumbsString))
         }
-        return builder.toString()
     }
 }

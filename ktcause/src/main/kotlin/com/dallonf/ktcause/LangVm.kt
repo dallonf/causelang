@@ -49,19 +49,25 @@ class LangVm {
         files[file.path] = file
     }
 
-    fun addFile(filePath: String, source: String) {
+    fun addFile(filePath: String, source: String): Debug.DebugContext {
         val astNode = parse(source)
         val analyzedFile = Analyzer.analyzeFile(astNode)
         // TODO: need a step between here and compilation to allow for loading other files
 
         val otherFiles = files.mapValues { (path, compiledFile) -> compiledFile.toFileDescriptor() }
         val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
-            filePath, astNode, analyzedFile, otherFiles, debugSource = source
+            filePath,
+            astNode,
+            analyzedFile,
+            otherFiles,
+            debugContext = Debug.DebugContext(source = source, ast = astNode, analyzed = analyzedFile)
         )
         _compileErrors.addAll(resolverErrors)
 
         val compiledFile = Compiler.compile(astNode, analyzedFile, resolvedFile)
         addCompiledFile(compiledFile)
+
+        return Debug.DebugContext(source = source, ast = astNode, analyzed = analyzedFile, resolved = resolvedFile)
     }
 
     private fun getFileDescriptor(filePath: String): Resolver.ExternalFileDescriptor {

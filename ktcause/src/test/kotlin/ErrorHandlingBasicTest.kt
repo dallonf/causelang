@@ -247,7 +247,7 @@ internal class ErrorHandlingBasicTest {
     @Test
     fun mistypedNamedValue() {
         val vm = LangVm()
-        vm.addFile(
+        val debugCtx = vm.addFile(
             "project/hello.cau", """
                 function main() {
                     let name: String = 5

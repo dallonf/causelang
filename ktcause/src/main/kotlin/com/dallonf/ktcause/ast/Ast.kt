@@ -25,7 +25,7 @@ private class DocumentRangeSerializer : KSerializer<DocumentRange> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("DocumentRange", PrimitiveKind.STRING)
 
     override fun serialize(encoder: Encoder, value: DocumentRange) {
-        encoder.encodeString(this.toString())
+        encoder.encodeString(value.toString())
     }
 
     override fun deserialize(decoder: Decoder): DocumentRange {
@@ -43,6 +43,12 @@ data class Breadcrumbs(val entries: List<BreadcrumbEntry>) {
 
     companion object {
         fun empty() = Breadcrumbs(emptyList())
+
+        fun parse(input: String): Breadcrumbs {
+            val entries = input.split(".")
+                .map { entry -> entry.toIntOrNull()?.let { BreadcrumbEntry.Index(it) } ?: BreadcrumbEntry.Name(entry) }
+            return Breadcrumbs(entries)
+        }
     }
 
     fun append(entry: BreadcrumbEntry): Breadcrumbs = Breadcrumbs(entries + entry)
