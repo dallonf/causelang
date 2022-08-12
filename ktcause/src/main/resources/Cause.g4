@@ -25,6 +25,7 @@ FUNCTION : 'function' ;
 IF : 'if' ;
 IMPORT : 'import' ;
 LET : 'let' ;
+OBJECT : 'object' ;
 PATH : [a-zA-Z0-9_\-]+ '/' [a-zA-Z_\-/]+ ;
 IDENTIFIER : [a-zA-Z_] [a-zA-Z0-9_]* ; // TODO: need moar emoji
 
@@ -32,7 +33,7 @@ file : NEWLINE* (declaration (NEWLINE+ declaration)*)? NEWLINE* EOF ;
 
 typeReference : IDENTIFIER ;
 
-declaration : importDeclaration | functionDeclaration | namedValueDeclaration ;
+declaration : importDeclaration | functionDeclaration | namedValueDeclaration | objectDeclaration ;
 
 importDeclaration : IMPORT NEWLINE* PATH NEWLINE* PAREN_OPEN NEWLINE* importMappings NEWLINE* PAREN_CLOSE ;
 importMappings : importMapping NEWLINE* (COMMA NEWLINE* importMapping NEWLINE*)* COMMA? ;
@@ -46,6 +47,9 @@ functionParam : IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference)? ;
 functionReturnValue : COLON NEWLINE* typeReference ;
 
 namedValueDeclaration : LET NEWLINE* IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference NEWLINE*)? EQUALS NEWLINE* expression ;
+
+objectDeclaration : OBJECT NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE* (objectField NEWLINE* (COMMA NEWLINE* objectField NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
+objectField : IDENTIFIER NEWLINE* COLON NEWLINE* typeReference ;
 
 body : block | singleExpressionBody ;
 
