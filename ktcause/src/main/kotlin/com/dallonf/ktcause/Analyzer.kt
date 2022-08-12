@@ -78,6 +78,18 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
+    data class FunctionHasParam(val name: String, val param: Breadcrumbs, val typeReference: Breadcrumbs?) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) =
+            Pair(param, ParamForFunction(name, function = breadcrumbs, typeReference))
+
+    }
+
+    data class ParamForFunction(val name: String, val function: Breadcrumbs, val typeReference: Breadcrumbs?) :
+        NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) =
+            Pair(function, FunctionHasParam(name, param = breadcrumbs, typeReference))
+    }
+
     data class FunctionCanReturnTypeOf(val returnExpression: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
@@ -288,6 +300,19 @@ object Analyzer {
             val name = declaration.name.text
 
             output.addTag(declaration.info.breadcrumbs, NodeTag.IsFunction(name = name))
+
+            for (param in declaration.params) {
+                output.addTag(
+                    param.info.breadcrumbs,
+                    NodeTag.ParamForFunction(
+                        name = param.name.text,
+                        function = declaration.info.breadcrumbs,
+                        typeReference = param.typeReference?.info?.breadcrumbs
+                    )
+                )
+                param.typeReference?.let { analyzeTypeReference(it, output, ctx) }
+            }
+
             output.addTag(
                 declaration.info.breadcrumbs, NodeTag.FunctionCanReturnTypeOf(
                     declaration.body.info.breadcrumbs

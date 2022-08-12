@@ -47,15 +47,11 @@ data class LangParameter(
 sealed interface LangType {
     @Serializable
     @SerialName("Pending")
-    object Pending : LangType, ValueLangType, ConstraintLangType
-
-    fun isPending(): Boolean = when (this) {
-        Pending -> true
-        is FunctionValueLangType -> this.returnConstraint.isPending()
-        is ResolvedValueLangType -> false
-        is ResolvedConstraintLangType -> false
-        is ErrorLangType -> false
+    object Pending : LangType, ValueLangType, ConstraintLangType {
+        override fun isPending() = true
     }
+
+    fun isPending(): Boolean
 
     fun getRuntimeError(): ErrorLangType? = when (this) {
         is ErrorLangType -> this
@@ -65,6 +61,16 @@ sealed interface LangType {
     }
 
     fun getError(): ErrorLangType? = null
+
+    fun asValue(): ValueLangType = when (this) {
+        is Pending, is ResolvedValueLangType, is ErrorLangType -> this as ValueLangType
+        is ResolvedConstraintLangType -> ErrorLangType.ConstraintUsedAsValue(this)
+    }
+
+    fun asConstraint(): ConstraintLangType = when (this) {
+        is Pending, is ResolvedConstraintLangType, is ErrorLangType -> this as ConstraintLangType
+        is ResolvedValueLangType -> ErrorLangType.ValueUsedAsConstraint(this)
+    }
 }
 
 sealed interface ValueLangType : LangType
@@ -73,6 +79,8 @@ sealed interface ConstraintLangType : LangType
 
 
 sealed interface ErrorLangType : LangType, ValueLangType, ConstraintLangType {
+    override fun isPending() = false
+
     override fun getError() = this
 
     @Serializable
@@ -150,6 +158,8 @@ sealed interface ErrorLangType : LangType, ValueLangType, ConstraintLangType {
 }
 
 sealed interface ResolvedValueLangType : ValueLangType {
+    override fun isPending() = false
+
     fun isAssignableTo(constraint: ResolvedConstraintLangType): Boolean {
         return when (constraint) {
             is TypeReferenceConstraintLangType -> this is InstanceValueLangType && this.canonicalType.id == constraint.canonicalType.id
@@ -165,6 +175,8 @@ sealed interface ResolvedValueLangType : ValueLangType {
 }
 
 sealed interface ResolvedConstraintLangType : ConstraintLangType {
+    override fun isPending() = false
+
     fun toInstanceType(): ResolvedValueLangType
 }
 
@@ -173,6 +185,8 @@ sealed interface ResolvedConstraintLangType : ConstraintLangType {
 data class FunctionValueLangType(
     val name: String?, val returnConstraint: ConstraintLangType, val params: List<LangParameter>
 ) : ResolvedValueLangType {
+    override fun isPending(): Boolean = returnConstraint.isPending() || params.any() { it.valueConstraint.isPending() }
+
     override fun toConstraint() = FunctionConstraintLangType(returnConstraint, params)
 
     override fun getError(): ErrorLangType? =
@@ -183,6 +197,9 @@ data class FunctionValueLangType(
 @SerialName("FunctionConstraint")
 data class FunctionConstraintLangType(val returnConstraint: ConstraintLangType, val params: List<LangParameter>) :
     ResolvedConstraintLangType {
+
+    override fun isPending(): Boolean = returnConstraint.isPending() || params.any() { it.valueConstraint.isPending() }
+
     override fun toInstanceType() = FunctionValueLangType(name = null, returnConstraint, params)
 
     override fun getError(): ErrorLangType? =

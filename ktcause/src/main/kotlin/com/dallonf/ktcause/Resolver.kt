@@ -281,8 +281,7 @@ object Resolver {
 
                             is NodeTag.IsFunction -> {
                                 val canReturn = pendingNodeTags.mapNotNull {
-                                    if (it is NodeTag.FunctionCanReturnTypeOf) it
-                                    else null
+                                    it as? NodeTag.FunctionCanReturnTypeOf
                                 }
 
                                 val returnType = when (canReturn.size) {
@@ -298,11 +297,16 @@ object Resolver {
                                     is ResolvedValueLangType -> returnType.toConstraint()
                                 }
 
+                                val paramTags = pendingNodeTags.mapNotNull { it as? NodeTag.FunctionHasParam }
+                                val params = paramTags.map { paramTag ->
+                                    val typeReference =
+                                        paramTag.typeReference?.let { getResolvedTypeOf(it) } ?: LangType.Pending
+                                    LangParameter(paramTag.name, typeReference.asConstraint())
+                                }
+
                                 resolveWith(
                                     FunctionValueLangType(
-                                        name = tag.name, returnConstraint = returnConstraint,
-                                        // TODO
-                                        params = emptyList()
+                                        tag.name, returnConstraint, params
                                     )
                                 )
                             }
@@ -470,8 +474,7 @@ object Resolver {
         }
 
         val file = ResolvedFile(
-            path, resolvedTypes, knownCanonicalTypes,
-            (debugContext ?: Debug.DebugContext()).copy(
+            path, resolvedTypes, knownCanonicalTypes, (debugContext ?: Debug.DebugContext()).copy(
                 ast = fileNode,
                 analyzed = analyzed,
             )
