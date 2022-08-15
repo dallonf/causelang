@@ -62,8 +62,7 @@ object Compiler {
                     val error = objectType.getRuntimeError()
                     if (objectType is TypeReferenceConstraintLangType) {
                         types[objectType.canonicalType.id] = objectType.canonicalType
-                        exports[declaration.name.text] =
-                            CompiledFile.CompiledExport.Type(objectType.canonicalType.id)
+                        exports[declaration.name.text] = CompiledFile.CompiledExport.Type(objectType.canonicalType.id)
                     } else if (error != null) {
                         exports[declaration.name.text] = CompiledFile.CompiledExport.Error(error)
                     } else {
@@ -245,6 +244,8 @@ object Compiler {
             is ExpressionNode.IdentifierExpression -> compileIdentifierExpression(expression, chunk, ctx)
             is ExpressionNode.CauseExpression -> compileCauseExpression(expression, chunk, ctx)
             is ExpressionNode.CallExpression -> compileCallExpression(expression, chunk, ctx)
+            is ExpressionNode.MemberExpression -> compileMemberExpression(expression, chunk, ctx)
+
             is ExpressionNode.StringLiteralExpression -> chunk.writeLiteral(
                 CompiledFile.CompiledConstant.StringConst(
                     expression.text
@@ -439,5 +440,29 @@ object Compiler {
             // error on the CallExpression itself, which was checked above
             else -> throw AssertionError()
         }
+    }
+
+    private fun compileMemberExpression(
+        expression: ExpressionNode.MemberExpression, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+    ) {
+        compileExpression(expression.objectExpression, chunk, ctx)
+
+        ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
+            chunk.writeInstruction(Instruction.Pop(1))
+            compileBadValue(expression, error, chunk, ctx)
+            return
+        }
+
+        // TODO: it'd be nice if we could pick this info up from the resolver,
+        // which already had to do all this work to determine the type
+        val objType =
+            ctx.resolved.getInferredType(expression.objectExpression.info.breadcrumbs) as InstanceValueLangType
+        val fields = when (val canonical = objType.canonicalType) {
+            is CanonicalLangType.ObjectCanonicalLangType -> canonical.fields
+            is CanonicalLangType.SignalCanonicalLangType -> canonical.fields
+        }
+        val fieldIndex = fields.indexOfFirst { it.name == expression.memberIdentifier.text }
+
+        chunk.writeInstruction(Instruction.GetMember(fieldIndex))
     }
 }

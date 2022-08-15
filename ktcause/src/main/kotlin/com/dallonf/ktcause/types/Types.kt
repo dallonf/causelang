@@ -1,9 +1,16 @@
 package com.dallonf.ktcause.types
 
 import com.dallonf.ktcause.ast.SourcePosition
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 
+@Serializable(with = CanonicalLangTypeIdSerializer::class)
 data class CanonicalLangTypeId(
     val path: String,
     val parentName: String? = null,
@@ -22,13 +29,25 @@ data class CanonicalLangTypeId(
     }
 }
 
+class CanonicalLangTypeIdSerializer : KSerializer<CanonicalLangTypeId> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("CanonicalLangTypeId", PrimitiveKind.STRING)
+    override fun serialize(encoder: Encoder, value: CanonicalLangTypeId) = encoder.encodeString(value.toString())
 
+    override fun deserialize(decoder: Decoder): CanonicalLangTypeId {
+        TODO("Not yet implemented")
+    }
+}
+
+
+@Serializable
 sealed interface CanonicalLangType {
     val id: CanonicalLangTypeId
 
     fun isPending(): Boolean
     fun getError(): ErrorLangType?
 
+    @Serializable
+    @SerialName("Signal")
     data class SignalCanonicalLangType(
         override val id: CanonicalLangTypeId,
         val name: String,
@@ -41,6 +60,8 @@ sealed interface CanonicalLangType {
         override fun getError() = result.getError() ?: fields.firstNotNullOfOrNull { it.valueConstraint.getError() }
     }
 
+    @Serializable
+    @SerialName("Object")
     data class ObjectCanonicalLangType(
         override val id: CanonicalLangTypeId,
         val name: String,
@@ -51,6 +72,7 @@ sealed interface CanonicalLangType {
         override fun getError() = fields.firstNotNullOfOrNull { it.valueConstraint.getError() }
     }
 
+    @Serializable
     data class ObjectField(val name: String, val valueConstraint: ConstraintLangType) {
         fun asLangParameter() = LangParameter(name, valueConstraint)
     }
@@ -191,6 +213,14 @@ sealed interface ErrorLangType : LangType, ValueLangType, ConstraintLangType {
     @Serializable
     @SerialName("ValueUsedAsConstraint")
     data class ValueUsedAsConstraint(val type: ValueLangType) : ErrorLangType
+
+    @Serializable
+    @SerialName("DoesNotHaveAnyMembers")
+    object DoesNotHaveAnyMembers : ErrorLangType
+
+    @Serializable
+    @SerialName("DoesNotHaveMember")
+    object DoesNotHaveMember : ErrorLangType
 }
 
 sealed interface ResolvedValueLangType : ValueLangType {

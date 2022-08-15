@@ -44,6 +44,8 @@ object Debug {
             subclass(ErrorLangType.UnknownParameter::class)
             subclass(ErrorLangType.ConstraintUsedAsValue::class)
             subclass(ErrorLangType.ValueUsedAsConstraint::class)
+            subclass(ErrorLangType.DoesNotHaveAnyMembers::class)
+            subclass(ErrorLangType.DoesNotHaveMember::class)
         }
 
         // TODO: in 17.20 you'll be able to just pop @Serializable on a sealed interface
@@ -65,6 +67,23 @@ object Debug {
             registerResolvedValueLangTypeSubclasses()
             registerResolvedConstraintLangTypeSubclasses()
             subclass(LangType.Pending::class)
+        }
+
+        polymorphic(ValueLangType::class) {
+            registerErrorValueLangTypeSubclasses()
+            subclass(LangType.Pending::class)
+            registerResolvedValueLangTypeSubclasses()
+        }
+
+        polymorphic(ConstraintLangType::class) {
+            registerErrorValueLangTypeSubclasses()
+            subclass(LangType.Pending::class)
+            registerResolvedConstraintLangTypeSubclasses()
+        }
+
+        polymorphic(CanonicalLangType::class) {
+            subclass(CanonicalLangType.ObjectCanonicalLangType::class)
+            subclass(CanonicalLangType.SignalCanonicalLangType::class)
         }
     }
     val debugSerializer by lazy {

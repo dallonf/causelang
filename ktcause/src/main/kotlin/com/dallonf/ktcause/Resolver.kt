@@ -92,8 +92,7 @@ object Resolver {
         val resolvedTypes = mutableMapOf<ResolutionKey, LangType>()
         val knownCanonicalTypes = mutableMapOf<CanonicalLangTypeId, CanonicalLangType>()
 
-        // Seed the crawler with all expressions, top-level declarations,
-        // and explicit type annotations
+        // Seed the crawler with everything the compiler will want to know about
         run {
             for ((nodeBreadcrumbs, tags) in nodeTags) {
                 fun track(resolutionType: ResolutionType) {
@@ -102,6 +101,10 @@ object Resolver {
                 for (tag in tags) {
                     when (tag) {
                         is NodeTag.IsExpression -> track(INFERRED)
+                        is NodeTag.NamedValue -> {
+                            track(INFERRED)
+                        }
+
                         is NodeTag.TypeAnnotated -> {
                             track(INFERRED)
                             track(CONSTRAINT)
@@ -410,6 +413,44 @@ object Resolver {
                                             )
                                         }))
                                     }
+                                }
+                            }
+
+                            is NodeTag.GetsMember -> {
+                                val obj = getResolvedTypeOf(tag.objectExpression)
+                                when (obj) {
+                                    is LangType.Pending -> {}
+                                    is ResolvedConstraintLangType -> resolveWith(ErrorLangType.ImplementationTodo("Can't get members of a type"))
+
+                                    // TODO: it's kinda weird that the resolution of
+                                    // which field is being referenced isn't passed to the compiler
+                                    is InstanceValueLangType -> {
+                                        val fields = when (val type = obj.canonicalType) {
+                                            is CanonicalLangType.ObjectCanonicalLangType -> type.fields
+                                            is CanonicalLangType.SignalCanonicalLangType -> type.fields
+                                        }
+                                        val referencedField = fields.firstOrNull { it.name == tag.memberName }
+
+                                        if (referencedField != null) {
+                                            when (val constraint = referencedField.valueConstraint) {
+                                                is LangType.Pending -> {}
+                                                is ResolvedConstraintLangType -> resolveWith(constraint.toInstanceType())
+                                                is ErrorLangType -> resolveWithProxyError(
+                                                    constraint,
+                                                    tag.objectExpression
+                                                )
+                                            }
+                                        } else {
+                                            resolveWith(ErrorLangType.DoesNotHaveMember)
+                                        }
+                                    }
+
+                                    is ResolvedValueLangType -> {
+                                        resolveWith(ErrorLangType.DoesNotHaveAnyMembers)
+                                    }
+
+
+                                    is ErrorLangType -> resolveWithProxyError(obj, tag.objectExpression)
                                 }
                             }
 

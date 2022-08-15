@@ -2,6 +2,7 @@ import TestUtils.addFileAndPrintCompileErrors
 import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
+import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -54,10 +55,8 @@ class ObjectTypesTest {
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(
-            """
-                
-            """.trimIndent(),
-            result.debug()
+            RuntimeValue.String("spades"),
+            result
         )
     }
 }

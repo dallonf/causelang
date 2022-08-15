@@ -325,6 +325,17 @@ sealed interface ExpressionNode : AstNode {
             buildMap { put("identifier", identifier) }
     }
 
+    data class MemberExpression(
+        override val info: NodeInfo,
+        val objectExpression: ExpressionNode,
+        val memberIdentifier: Identifier
+    ) : ExpressionNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            put("objectExpression", objectExpression)
+            put("memberIdentifier", memberIdentifier)
+        }
+    }
+
     data class CauseExpression(override val info: NodeInfo, val signal: ExpressionNode) : ExpressionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
             buildMap { put("signal", signal) }

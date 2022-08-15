@@ -19,11 +19,10 @@ fun parse(source: String): FileNode {
     }
 
     val declarationsBreadcrumbs = Breadcrumbs.empty().appendName("declarations")
-    val declarations = listOf(generateCoreBuiltinsImport(declarationsBreadcrumbs.appendIndex(0))) +
-            tree.declaration()
-                .mapIndexed { i, declaration ->
-                    parseDeclaration(declaration, declarationsBreadcrumbs.appendIndex(i + 1), ParserContext())
-                }
+    val declarations = listOf(generateCoreBuiltinsImport(declarationsBreadcrumbs.appendIndex(0))) + tree.declaration()
+        .mapIndexed { i, declaration ->
+            parseDeclaration(declaration, declarationsBreadcrumbs.appendIndex(i + 1), ParserContext())
+        }
 
     return FileNode(NodeInfo(tree.getRange(), Breadcrumbs.empty()), declarations)
 }
@@ -82,12 +81,10 @@ private fun parseFunctionDeclaration(
     val paramsBreadcrumbs = breadcrumbs.appendName("params")
     val params = functionDeclaration.functionParam().mapIndexed { i, param ->
         val paramBreadcrumbs = paramsBreadcrumbs.appendIndex(i)
-        DeclarationNode.Function.FunctionParameterNode(
-            NodeInfo(param.getRange(), paramBreadcrumbs),
+        DeclarationNode.Function.FunctionParameterNode(NodeInfo(param.getRange(), paramBreadcrumbs),
             name = parseIdentifier(param.IDENTIFIER().symbol, paramBreadcrumbs.appendName("name"), ctx),
             typeReference = param.typeReference()
-                ?.let { parseTypeReference(it, paramBreadcrumbs.appendName("typeReference"), ctx) }
-        )
+                ?.let { parseTypeReference(it, paramBreadcrumbs.appendName("typeReference"), ctx) })
     }
     val body = parseBody(functionDeclaration.body(), breadcrumbs.appendName("body"), ctx)
     val returnType = functionDeclaration.functionReturnValue()?.typeReference()?.let {
@@ -167,9 +164,7 @@ private fun parseNamedValueDeclaration(
 }
 
 private fun parseObjectDeclaration(
-    objectDeclaration: ObjectDeclarationContext,
-    breadcrumbs: Breadcrumbs,
-    ctx: ParserContext
+    objectDeclaration: ObjectDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): DeclarationNode.ObjectType {
     val name = parseIdentifier(objectDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
     val paramsBreadcrumbs = breadcrumbs.appendName("fields")
@@ -179,9 +174,7 @@ private fun parseObjectDeclaration(
             NodeInfo(field.getRange(), paramBreadcrumbs),
             name = parseIdentifier(field.IDENTIFIER().symbol, paramBreadcrumbs.appendName("name"), ctx),
             typeConstraint = parseTypeReference(
-                field.typeReference(),
-                paramBreadcrumbs.appendName("typeConstraint"),
-                ctx
+                field.typeReference(), paramBreadcrumbs.appendName("typeConstraint"), ctx
             )
         )
     }
@@ -199,8 +192,7 @@ private fun parseBody(
         is SingleExpressionBodyContext -> {
             val expression = parseExpression(child.expression(), breadcrumbs.appendName("expression"), ctx)
             BodyNode.SingleExpressionBodyNode(
-                NodeInfo(child.getRange(), breadcrumbs),
-                expression
+                NodeInfo(child.getRange(), breadcrumbs), expression
             )
         }
 
@@ -234,9 +226,7 @@ private fun parseStatement(
 }
 
 private fun parseEffectStatement(
-    child: EffectStatementContext,
-    breadcrumbs: Breadcrumbs,
-    ctx: ParserContext
+    child: EffectStatementContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): StatementNode.EffectStatement {
     return StatementNode.EffectStatement(
         NodeInfo(child.getRange(), breadcrumbs),
@@ -279,21 +269,31 @@ private fun parseExpression(
         }
     }
 
-    val suffixContainer = expressionContext.getChild(1) as? ExpressionSuffixContext
-    return when (val suffix = suffixContainer?.getChild(0)) {
-        is CallExpressionSuffixContext -> parseCallExpressionSuffix(
-            suffix, breadcrumbs, mainExpression, ctx
-        )
+    var lazyExpression = mainExpression
+    for (index in 1 until expressionContext.childCount) {
+        val suffixContainer = expressionContext.getChild(index) as ExpressionSuffixContext
+        val prevLazyExpression = lazyExpression
+        lazyExpression = { innerBreadcrumbs ->
+            when (val suffix = suffixContainer.getChild(0)) {
+                is CallExpressionSuffixContext -> parseCallExpressionSuffix(
+                    suffix, innerBreadcrumbs, prevLazyExpression, ctx
+                )
 
-        null -> mainExpression(breadcrumbs)
-        else -> throw Error("unexpected call expression suffix")
+                is MemberExpressionSuffixContext -> parseMemberExpressionSuffix(
+                    suffix, innerBreadcrumbs, prevLazyExpression, ctx
+                )
+
+                else -> throw Error("unexpected call expression suffix")
+            }
+        }
     }
+
+    return lazyExpression(breadcrumbs)
 }
 
+
 private fun parseBlockExpression(
-    expression: BlockExpressionContext,
-    breadcrumbs: Breadcrumbs,
-    ctx: ParserContext
+    expression: BlockExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ExpressionNode.BlockExpressionNode {
     return ExpressionNode.BlockExpressionNode(
         NodeInfo(expression.getRange(), breadcrumbs),
@@ -302,23 +302,18 @@ private fun parseBlockExpression(
 }
 
 private fun parseBranchExpression(
-    expression: BranchExpressionContext,
-    breadcrumbs: Breadcrumbs,
-    ctx: ParserContext
+    expression: BranchExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ExpressionNode {
     val options = expression.branchOption()
         .mapIndexed { i, it -> parseBranchOption(it, breadcrumbs.appendName("branches").appendIndex(i), ctx) }
 
     return ExpressionNode.BranchExpressionNode(
-        NodeInfo(expression.getRange(), breadcrumbs),
-        options
+        NodeInfo(expression.getRange(), breadcrumbs), options
     )
 }
 
 private fun parseBranchOption(
-    branchOption: BranchOptionContext,
-    breadcrumbs: Breadcrumbs,
-    ctx: ParserContext
+    branchOption: BranchOptionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): BranchOptionNode {
     val info = NodeInfo(branchOption.getRange(), breadcrumbs)
     return when (val child = branchOption.getChild(0)) {
@@ -332,8 +327,7 @@ private fun parseBranchOption(
 
         is ElseBranchOptionContext -> {
             BranchOptionNode.ElseBranchOptionNode(
-                info,
-                parseBody(child.body(), breadcrumbs.appendName("body"), ctx)
+                info, parseBody(child.body(), breadcrumbs.appendName("body"), ctx)
             )
         }
 
@@ -385,10 +379,10 @@ private fun parseIdentifierExpression(
 private fun parseCallExpressionSuffix(
     suffix: CallExpressionSuffixContext,
     breadcrumbs: Breadcrumbs,
-    mainExpression: (Breadcrumbs) -> ExpressionNode,
+    lazyCallee: (Breadcrumbs) -> ExpressionNode,
     ctx: ParserContext
 ): ExpressionNode.CallExpression {
-    val callee = mainExpression(breadcrumbs.appendName("callee"))
+    val callee = lazyCallee(breadcrumbs.appendName("callee"))
 
     val paramsBreadcrumbs = breadcrumbs.appendName("parameters")
     val params = suffix.callParam().mapIndexed { i, paramContainer ->
@@ -398,8 +392,28 @@ private fun parseCallExpressionSuffix(
         }
     }
 
+    val suffixRange = suffix.getRange()
+    val range = DocumentRange(callee.info.position.start, suffixRange.end)
+
     return ExpressionNode.CallExpression(
-        NodeInfo(suffix.getRange(), breadcrumbs), callee, params
+        NodeInfo(range, breadcrumbs), callee, params
+    )
+}
+
+private fun parseMemberExpressionSuffix(
+    suffix: CauseParser.MemberExpressionSuffixContext,
+    breadcrumbs: Breadcrumbs,
+    lazyObject: (Breadcrumbs) -> ExpressionNode,
+    ctx: ParserContext
+): ExpressionNode {
+    val objectExpression = lazyObject(breadcrumbs.appendName("objectExpression"))
+
+    val identifier = parseIdentifier(suffix.IDENTIFIER().symbol, breadcrumbs.appendName("memberIdentifier"), ctx)
+
+    val suffixRange = suffix.getRange()
+    val range = DocumentRange(objectExpression.info.position.start, suffixRange.end)
+    return ExpressionNode.MemberExpression(
+        NodeInfo(range, breadcrumbs), objectExpression, identifier
     )
 }
 
@@ -421,8 +435,7 @@ private fun parsePattern(pattern: PatternContext, breadcrumbs: Breadcrumbs, ctx:
 
 private fun ParserRuleContext.getRange(): DocumentRange {
     return DocumentRange(
-        DocumentPosition(this.start.line, this.start.charPositionInLine),
-        this.stop.getRange().end
+        DocumentPosition(this.start.line, this.start.charPositionInLine), this.stop.getRange().end
     )
 }
 

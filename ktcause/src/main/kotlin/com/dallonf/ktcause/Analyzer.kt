@@ -70,6 +70,10 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(causeExpression, Causes(signal = breadcrumbs))
     }
 
+    data class GetsMember(val objectExpression: Breadcrumbs, val memberName: String) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+    }
+
     data class IsPrimitiveValue(val kind: LangPrimitiveKind) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
@@ -459,6 +463,8 @@ object Analyzer {
             is ExpressionNode.IdentifierExpression -> analyzeIdentifierExpression(expression, output, ctx)
             is ExpressionNode.CauseExpression -> analyzeCauseExpression(expression, output, ctx)
             is ExpressionNode.CallExpression -> analyzeCallExpression(expression, output, ctx)
+            is ExpressionNode.MemberExpression -> analyzeMemberExpression(expression, output, ctx)
+
             is ExpressionNode.StringLiteralExpression -> output.addTag(
                 expression.info.breadcrumbs, NodeTag.IsPrimitiveValue(LangPrimitiveKind.STRING)
             )
@@ -531,5 +537,13 @@ object Analyzer {
         output.addTag(expression.info.breadcrumbs, NodeTag.Calls(expression.callee.info.breadcrumbs))
     }
 
-
+    private fun analyzeMemberExpression(
+        expression: ExpressionNode.MemberExpression, output: AnalyzedNode, ctx: AnalyzerContext
+    ) {
+        analyzeExpression(expression.objectExpression, output, ctx)
+        output.addTag(
+            expression.info.breadcrumbs,
+            NodeTag.GetsMember(expression.objectExpression.info.breadcrumbs, expression.memberIdentifier.text)
+        )
+    }
 }

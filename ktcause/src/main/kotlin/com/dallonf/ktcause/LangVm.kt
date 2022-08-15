@@ -117,6 +117,7 @@ class LangVm {
         val pendingSignal = requireNotNull(callFrame.pendingSignal) { STATE_ERROR }
         val pendingSignalType = when (pendingSignal.typeDescriptor.type) {
             is CanonicalLangType.SignalCanonicalLangType -> pendingSignal.typeDescriptor.type
+            is CanonicalLangType.ObjectCanonicalLangType -> error("somehow an object got in pendingSignal")
         }
 
         if (value.isAssignableTo(pendingSignalType.result)) {
@@ -303,6 +304,17 @@ class LangVm {
                         }
                     }
 
+                    is Instruction.GetMember -> {
+                        when (val obj = stack.removeLast()) {
+                            is RuntimeValue.RuntimeObject -> {
+                                stack.addLast(obj.values[instruction.index])
+                            }
+
+                            is RuntimeValue.BadValue -> throw VmError("I tried to get a member from a bad value: ${obj.debug()}.")
+                            else -> throw InternalError("Can't get a member from ${obj.debug()}.")
+                        }
+                    }
+
                     is Instruction.IsAssignableTo -> {
                         val typeValue = stack.removeLast()
                         val value = stack.removeLast()
@@ -430,6 +442,9 @@ class LangVm {
             }
 
             is CompiledFile.CompiledExport.Value -> TODO()
+            is CompiledFile.CompiledExport.Error -> {
+                RuntimeValue.BadValue(SourcePosition.Export(file.path, exportName), export.error)
+            }
         }
         return value
     }

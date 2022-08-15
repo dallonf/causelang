@@ -22,6 +22,7 @@ sealed interface Instruction {
     data class ReadLocalThroughEffectScope(val effectDepth: Int, val index: Int) : Instruction
     data class Construct(val arity: Int) : Instruction
     data class CallFunction(val arity: Int) : Instruction
+    data class GetMember(val index: Int) : Instruction
 
     object IsAssignableTo : Instruction
 
