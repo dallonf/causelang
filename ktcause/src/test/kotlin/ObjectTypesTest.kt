@@ -34,4 +34,30 @@ class ObjectTypesTest {
             result.debug()
         )
     }
+
+    @Test
+    fun retrieveValuesFromACustomObject() {
+        val vm = LangVm()
+        vm.addFileAndPrintCompileErrors(
+            "project/test.cau", """
+                object Card(
+                    suit: String,
+                    rank: Integer,
+                )
+                
+                function main(): String {
+                    let card = Card("spades", 7)
+                    card.suit
+                }
+            """.trimIndent()
+        )
+
+        val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
+        assertEquals(
+            """
+                
+            """.trimIndent(),
+            result.debug()
+        )
+    }
 }

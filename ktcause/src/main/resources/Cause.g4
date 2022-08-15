@@ -11,6 +11,7 @@ PAREN_CLOSE : ')' ;
 CURLY_OPEN : '{' ;
 CURLY_CLOSE : '}' ;
 UNDERSCORE : '_' ;
+DOT : '.' ;
 
 STRING_LITERAL : '"' .*? '"' ;
 INT_LITERAL : [0-9][0-9_]* ;
@@ -63,7 +64,7 @@ declarationStatement : declaration ;
 effectStatement : EFFECT NEWLINE* PAREN_OPEN NEWLINE* pattern NEWLINE* PAREN_CLOSE body ;
 
 expression : (blockExpression | branchExpression | causeExpression | stringLiteralExpression | integerLiteralExpression | identifierExpression)
-    expressionSuffix? ;
+    expressionSuffix* ;
 
 blockExpression : block ;
 branchExpression : BRANCH NEWLINE* CURLY_OPEN NEWLINE* (branchOption (NEWLINE+ branchOption)*)? NEWLINE* CURLY_CLOSE ;
@@ -72,11 +73,13 @@ stringLiteralExpression : STRING_LITERAL ;
 integerLiteralExpression : INT_LITERAL ;
 identifierExpression : IDENTIFIER ;
 
-expressionSuffix : callExpressionSuffix ;
+expressionSuffix : callExpressionSuffix | memberExpressionSuffix ;
 
 callExpressionSuffix : PAREN_OPEN NEWLINE* (callParam NEWLINE* (COMMA NEWLINE* callParam NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
 callParam : callPositionalParameter ;
 callPositionalParameter : expression ;
+
+memberExpressionSuffix : DOT NEWLINE* IDENTIFIER ;
 
 branchOption : ifBranchOption | elseBranchOption ;
 ifBranchOption : IF expression body ;
