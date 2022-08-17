@@ -64,9 +64,15 @@ object CoreDescriptors {
                                 LangParameter("this", LangPrimitiveKind.STRING.toConstraintLangType()),
                                 LangParameter("other", LangPrimitiveKind.STRING.toConstraintLangType()),
                             ), returnConstraint = LangPrimitiveKind.BOOLEAN.toConstraintLangType()
+                        ),
+                        "integer_to_string" to FunctionValueLangType(
+                            name = "integer_to_string", params = listOf(
+                                LangParameter("this", LangPrimitiveKind.INTEGER.toConstraintLangType()),
+                            ), returnConstraint = LangPrimitiveKind.STRING.toConstraintLangType()
                         )
                     ), types = mapOf()
                 )
+
             )
         }
 

@@ -111,7 +111,7 @@ class EffectsBasicTest {
     @Test
     fun defineOwnSignals() {
         val vm = LangVm()
-        vm.addFileAndPrintCompileErrors(
+        vm.addFileExpectingNoCompileErrors(
             "project/test.cau", """
                 import core/string (append)
                 
@@ -138,5 +138,37 @@ class EffectsBasicTest {
         vm.resumeExecution(RuntimeValue.Action).expectReturnValue().let {
             assertEquals(RuntimeValue.Action, it)
         }
+    }
+
+    @Test
+    fun correctlyFiltersCustomSignals() {
+        val vm = LangVm()
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
+                import core/string (append, integer_to_string)
+                
+                signal TestSignal1(value: String): Action
+                signal TestSignal2(value: Integer): Action
+                
+                function main() {
+                    effect (let e: TestSignal1) {
+                        cause Debug(append("One ", e.value))
+                    }
+                    effect (let e: TestSignal2) {
+                        cause Debug(append("Two ", integer_to_string(e.value)))
+                    }
+                    
+                    cause TestSignal1("hello")
+                    cause TestSignal2(42)
+                }
+            """.trimIndent()
+        )
+
+        TestUtils.runMainExpectingDebugs(
+            vm, "project/test.cau", listOf(
+                "One hello",
+                "Two 42"
+            )
+        )
     }
 }

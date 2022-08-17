@@ -43,6 +43,15 @@ object CoreExports {
                     }
                 }
 
+                "integer_to_string" -> {
+                    return RuntimeValue.NativeFunction("integer_to_string") { params ->
+                        val value = params[0] as? RuntimeValue.Integer
+                            ?: throw LangVm.VmError("I was expecting the input to be an integer.")
+
+                        RuntimeValue.String(value.value.toString())
+                    }
+                }
+
                 else -> {
                     throw LangVm.InternalVmError("There is no export named $exportName in $fileName")
                 }

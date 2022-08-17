@@ -35,7 +35,7 @@ object TestUtils {
     }
 
     fun LangVm.addFileExpectingNoCompileErrors(path: String, source: String) {
-        addFile(path, source)
+        addFileAndPrintCompileErrors(path, source)
         expectNoCompileErrors(this)
     }
 
@@ -55,5 +55,24 @@ object TestUtils {
         val signal = result.expectCausedSignal().validate() as RuntimeValue.RuntimeObject
         assertEquals(expectedType, signal.typeDescriptor.type.id)
         return signal
+    }
+
+    fun runMainExpectingDebugs(vm: LangVm, path: String, expected: List<String>) {
+        var result = vm.executeFunction(path, "main", listOf())
+        val debugType = vm.getTypeId("core/builtin.cau", "Debug")
+        var debugs = 0
+        while (result is RunResult.Caused) {
+            if (debugs >= expected.size) {
+                error("Excess signal! ${result.debug()}")
+            }
+            assertEquals(debugType, result.signal.typeDescriptor.type.id)
+            val expectedMessage = expected[debugs]
+            assertEquals(RuntimeValue.String(expectedMessage), result.signal.values[0])
+
+            debugs += 1
+            result = vm.resumeExecution(RuntimeValue.Action)
+        }
+
+        assertEquals(RuntimeValue.Action, result.expectReturnValue())
     }
 }
