@@ -427,10 +427,21 @@ private fun parsePositionalParameter(
 }
 
 private fun parsePattern(pattern: PatternContext, breadcrumbs: Breadcrumbs, ctx: ParserContext): PatternNode {
-    return PatternNode(
-        NodeInfo(pattern.getRange(), breadcrumbs),
-        typeReference = parseTypeReference(pattern.typeReference(), breadcrumbs.appendName("typeReference"), ctx)
-    )
+    return when (val child = pattern.getChild(0)) {
+        is PlaceholderPatternContext -> PatternNode(
+            NodeInfo(pattern.getRange(), breadcrumbs),
+            name = null,
+            typeReference = parseTypeReference(child.typeReference(), breadcrumbs.appendName("typeReference"), ctx)
+        )
+
+        is CaptureValuePatternContext -> PatternNode(
+            NodeInfo(pattern.getRange(), breadcrumbs),
+            name = parseIdentifier(child.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx),
+            typeReference = parseTypeReference(child.typeReference(), breadcrumbs.appendName("typeReference"), ctx)
+        )
+
+        else -> error("Unrecognized pattern")
+    }
 }
 
 private fun ParserRuleContext.getRange(): DocumentRange {

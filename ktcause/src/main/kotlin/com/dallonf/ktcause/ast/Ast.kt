@@ -385,8 +385,12 @@ sealed interface BranchOptionNode : AstNode {
 
 }
 
-data class PatternNode(override val info: NodeInfo, val typeReference: TypeReferenceNode) : AstNode {
+data class PatternNode(override val info: NodeInfo, val name: Identifier?, val typeReference: TypeReferenceNode) :
+    AstNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        if (name != null) {
+            put("name", name)
+        }
         put("typeReference", typeReference)
     }
 }

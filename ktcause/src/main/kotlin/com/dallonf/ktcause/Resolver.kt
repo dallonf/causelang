@@ -101,7 +101,7 @@ object Resolver {
                 for (tag in tags) {
                     when (tag) {
                         is NodeTag.IsExpression -> track(INFERRED)
-                        is NodeTag.NamedValue -> {
+                        is NodeTag.IsNamedValue -> {
                             track(INFERRED)
                         }
 
@@ -121,6 +121,10 @@ object Resolver {
 
                         is NodeTag.ConditionFor -> {
                             track(CONSTRAINT)
+                        }
+
+                        is NodeTag.IsEffectStatement -> {
+                            track(INFERRED)
                         }
 
                         else -> {}
@@ -436,8 +440,7 @@ object Resolver {
                                                 is LangType.Pending -> {}
                                                 is ResolvedConstraintLangType -> resolveWith(constraint.toInstanceType())
                                                 is ErrorLangType -> resolveWithProxyError(
-                                                    constraint,
-                                                    tag.objectExpression
+                                                    constraint, tag.objectExpression
                                                 )
                                             }
                                         } else {
@@ -451,6 +454,75 @@ object Resolver {
 
 
                                     is ErrorLangType -> resolveWithProxyError(obj, tag.objectExpression)
+                                }
+                            }
+
+                            is NodeTag.IsEffectStatement -> {
+                                val conditionType = getResolvedTypeOf(tag.condition).asValue().let {
+                                    if (it is InstanceValueLangType && it.canonicalType is CanonicalLangType.SignalCanonicalLangType) {
+                                        it.canonicalType
+                                    } else {
+                                        when (it) {
+                                            is LangType.Pending -> return@eachTag
+                                            is ErrorLangType -> {
+                                                resolveWithProxyError(it, tag.condition)
+                                                return@eachTag
+                                            }
+
+                                            is ResolvedValueLangType -> {
+                                                resolveWith(ErrorLangType.NotCausable)
+                                                return@eachTag
+                                            }
+                                        }
+                                    }
+                                }
+
+                                val resultType = when (val result = conditionType.result) {
+                                    is LangType.Pending -> return@eachTag
+                                    is ErrorLangType -> {
+                                        resolveWithProxyError(result, tag.condition)
+                                        return@eachTag
+                                    }
+
+                                    is ResolvedConstraintLangType -> result
+                                }
+
+                                val bodyResult = getResolvedTypeOf(tag.effectBody).asValue().let {
+                                    when (it) {
+                                        is LangType.Pending -> return@eachTag
+                                        is ErrorLangType -> {
+                                            resolveWithProxyError(it, tag.condition)
+                                            return@eachTag
+                                        }
+
+                                        is ResolvedValueLangType -> it
+                                    }
+                                }
+
+                                if (bodyResult.isAssignableTo(resultType)) {
+                                    resolveWith(LangPrimitiveKind.ACTION.toValueLangType())
+                                } else {
+                                    resolveWith(
+                                        ErrorLangType.MismatchedType(
+                                            expected = resultType, actual = bodyResult
+                                        )
+                                    )
+                                }
+                            }
+
+                            is NodeTag.IsPattern -> {
+                                getResolvedTypeOf(tag.typeReference).asConstraint().let { type ->
+                                    when (type) {
+                                        is LangType.Pending -> return@eachTag
+                                        is ErrorLangType -> {
+                                            resolveWithProxyError(type, tag.typeReference)
+                                            return@eachTag
+                                        }
+
+                                        is ResolvedConstraintLangType -> {
+                                            resolveWith(type.toInstanceType())
+                                        }
+                                    }
                                 }
                             }
 

@@ -201,23 +201,15 @@ object Compiler {
         ctx.scopeStack.last().effectCount += 1
 
         ctx.scopeStack.addLast(
-            CompilerScope(statement.info.breadcrumbs, CompilerScope.ScopeType.EFFECT, stackPrefix = 1)
+            CompilerScope(statement.info.breadcrumbs, CompilerScope.ScopeType.EFFECT)
         )
+        ctx.scopeStack.last().namedValueIndices[statement.pattern.info.breadcrumbs] = 0
 
         // Check the condition
         ctx.resolved.checkForRuntimeErrors(statement.pattern.typeReference.info.breadcrumbs).let { error ->
             if (error == null) {
                 effectChunk.writeInstruction(Instruction.ReadLocal(0))
-                // Hack: synthesize an IdentifierExpression so we can compile it as the pattern match
-                // TODO: a better solution
-                val identifier =
-                    (statement.pattern.typeReference as TypeReferenceNode.IdentifierTypeReferenceNode).identifier
-                compileExpression(
-                    ExpressionNode.IdentifierExpression(
-                        identifier.info,
-                        identifier,
-                    ), effectChunk, ctx
-                )
+                compileValueFlowReference(statement.pattern.typeReference, effectChunk, ctx)
                 effectChunk.writeInstruction(Instruction.IsAssignableTo)
                 val rejectEffectJump = effectChunk.writeInstruction(Instruction.NoOp)
                 compileBody(statement.body, effectChunk, ctx)
@@ -241,7 +233,7 @@ object Compiler {
         when (expression) {
             is ExpressionNode.BlockExpressionNode -> compileBlockExpression(expression, chunk, ctx)
             is ExpressionNode.BranchExpressionNode -> compileBranchExpression(expression, chunk, ctx)
-            is ExpressionNode.IdentifierExpression -> compileIdentifierExpression(expression, chunk, ctx)
+            is ExpressionNode.IdentifierExpression -> compileValueFlowReference(expression, chunk, ctx)
             is ExpressionNode.CauseExpression -> compileCauseExpression(expression, chunk, ctx)
             is ExpressionNode.CallExpression -> compileCallExpression(expression, chunk, ctx)
             is ExpressionNode.MemberExpression -> compileMemberExpression(expression, chunk, ctx)
@@ -301,18 +293,17 @@ object Compiler {
         }
     }
 
-    private fun compileIdentifierExpression(
-        expression: ExpressionNode.IdentifierExpression,
+    private fun compileValueFlowReference(
+        node: AstNode,
         chunk: CompiledFile.MutableInstructionChunk,
-        ctx: CompilerContext
+        ctx: CompilerContext,
     ) {
-        ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
-            compileBadValue(expression, error, chunk, ctx)
+        ctx.resolved.checkForRuntimeErrors(node.info.breadcrumbs)?.let { error ->
+            compileBadValue(node, error, chunk, ctx)
             return
         }
 
-        val tags = ctx.getTags(expression.info.breadcrumbs)
-        val comesFrom = tags.firstNotNullOf { (it as? NodeTag.ValueComesFrom) }
+        val comesFrom = ctx.getTag<NodeTag.ValueComesFrom>(node.info.breadcrumbs)!!
 
         ctx.getTag<NodeTag.ReferencesFile>(comesFrom.source)?.let {
             compileFileImportReference(it, chunk)
@@ -325,7 +316,11 @@ object Compiler {
         }
 
         if (ctx.hasTag(
-                comesFrom.source, NodeTag.NamedValue::class, NodeTag.IsFunction::class, NodeTag.ParamForFunction::class
+                comesFrom.source,
+                NodeTag.IsNamedValue::class,
+                NodeTag.IsFunction::class,
+                NodeTag.ParamForFunction::class,
+                NodeTag.IsPattern::class,
             )
         ) {
             compileValueReference(comesFrom, chunk, ctx)

@@ -143,7 +143,11 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
-    data class NamedValue(val name: String, val value: Breadcrumbs, val typeDeclaration: Breadcrumbs?) : NodeTag() {
+    data class IsNamedValue(val name: String, val value: Breadcrumbs, val typeDeclaration: Breadcrumbs?) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+    }
+
+    data class IsPattern(val name: String?, val typeReference: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
@@ -191,11 +195,6 @@ object Analyzer {
     private data class AnalyzerContext(
         val currentScope: Scope, val fileRootScope: Scope, val currentScopePosition: Breadcrumbs
     ) {
-        fun withNewScope(breadcrumbs: Breadcrumbs, f: (AnalyzerContext) -> Unit) {
-            val newCtx = clone(breadcrumbs)
-            f(newCtx)
-        }
-
         fun clone(breadcrumbs: Breadcrumbs) = AnalyzerContext(currentScope.extend(), fileRootScope, breadcrumbs)
     }
 
@@ -349,7 +348,7 @@ object Analyzer {
         declaration: DeclarationNode.NamedValue, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         output.addTag(
-            declaration.info.breadcrumbs, NodeTag.NamedValue(
+            declaration.info.breadcrumbs, NodeTag.IsNamedValue(
                 name = declaration.name.text,
                 typeDeclaration = declaration.typeAnnotation?.info?.breadcrumbs,
                 value = declaration.value.info.breadcrumbs
@@ -433,10 +432,20 @@ object Analyzer {
                                 statementNode.info.breadcrumbs
                             )
 
+                            statementNode.pattern.name?.let {
+                                effectCtx.currentScope.items.put(
+                                    it.text,
+                                    ScopeItem(statementNode.pattern.info.breadcrumbs)
+                                )
+                            }
+
                             analyzeTypeReference(statementNode.pattern.typeReference, output, ctx)
-                            // HACK: Force this to be resolved at the top level
-                            // TODO: Fix this
-                            output.addTag(statementNode.pattern.typeReference.info.breadcrumbs, NodeTag.IsExpression)
+                            output.addTag(
+                                statementNode.pattern.info.breadcrumbs, NodeTag.IsPattern(
+                                    name = statementNode.pattern.name?.text,
+                                    typeReference = statementNode.pattern.typeReference.info.breadcrumbs
+                                )
+                            )
                             output.addTag(
                                 statementNode.info.breadcrumbs, NodeTag.IsEffectStatement(
                                     condition = statementNode.pattern.info.breadcrumbs,

@@ -85,4 +85,6 @@ branchOption : ifBranchOption | elseBranchOption ;
 ifBranchOption : IF expression body ;
 elseBranchOption : ELSE body ;
 
-pattern : UNDERSCORE NEWLINE* COLON NEWLINE* typeReference ;
+pattern : placeholderPattern | captureValuePattern ;
+placeholderPattern : UNDERSCORE NEWLINE* COLON NEWLINE* typeReference ;
+captureValuePattern : LET NEWLINE* IDENTIFIER NEWLINE* COLON NEWLINE* typeReference ;
