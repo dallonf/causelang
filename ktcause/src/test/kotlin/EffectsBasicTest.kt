@@ -80,7 +80,7 @@ class EffectsBasicTest {
                 exports = mapOf(greetTypeId.name!! to CompiledFile.CompiledExport.Type(greetTypeId))
             )
         )
-        vm.addFileAndPrintCompileErrors(
+        vm.addFileExpectingNoCompileErrors(
             "project/test.cau", """
                 import core/string (append)
                 import test/test (Greet)
@@ -106,5 +106,37 @@ class EffectsBasicTest {
 
         vm.resumeExecution(RuntimeValue.Action).expectReturnValue()
             .let { assertEquals(RuntimeValue.Action, it) }
+    }
+
+    @Test
+    fun defineOwnSignals() {
+        val vm = LangVm()
+        vm.addFileAndPrintCompileErrors(
+            "project/test.cau", """
+                import core/string (append)
+                
+                signal Greet(name: String): String
+                
+                function main() {
+                    effect (let e: Greet) {
+                        append("Howdy, ", e.name)
+                    }
+                    
+                    let greeting = cause Greet("partner")
+                    cause Debug(greeting)
+                }
+            """.trimIndent()
+        )
+
+        TestUtils.expectValidCaused(
+            vm.executeFunction("project/test.cau", "main", listOf()),
+            vm.getTypeId("core/builtin", "Debug")
+        ).let {
+            assertEquals(RuntimeValue.String("Howdy, partner"), it.values[0])
+        }
+
+        vm.resumeExecution(RuntimeValue.Action).expectReturnValue().let {
+            assertEquals(RuntimeValue.Action, it)
+        }
     }
 }
