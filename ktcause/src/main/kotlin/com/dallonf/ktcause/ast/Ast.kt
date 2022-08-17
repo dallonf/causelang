@@ -257,14 +257,24 @@ sealed interface DeclarationNode : AstNode {
             put("name", name)
             put("fields", fields)
         }
+    }
 
-        data class ObjectField(
-            override val info: NodeInfo, val name: Identifier, val typeConstraint: TypeReferenceNode
-        ) : AstNode {
-            override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-                put("name", name)
-                put("typeConstraint", typeConstraint)
-            }
+    data class SignalType(
+        override val info: NodeInfo, val name: Identifier, val fields: List<ObjectField>, val result: TypeReferenceNode
+    ) : DeclarationNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            put("name", name)
+            put("fields", fields)
+            put("result", result)
+        }
+    }
+
+    data class ObjectField(
+        override val info: NodeInfo, val name: Identifier, val typeConstraint: TypeReferenceNode
+    ) : AstNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            put("name", name)
+            put("typeConstraint", typeConstraint)
         }
     }
 }
@@ -326,9 +336,7 @@ sealed interface ExpressionNode : AstNode {
     }
 
     data class MemberExpression(
-        override val info: NodeInfo,
-        val objectExpression: ExpressionNode,
-        val memberIdentifier: Identifier
+        override val info: NodeInfo, val objectExpression: ExpressionNode, val memberIdentifier: Identifier
     ) : ExpressionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("objectExpression", objectExpression)

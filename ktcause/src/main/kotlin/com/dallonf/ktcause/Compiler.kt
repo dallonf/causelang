@@ -70,6 +70,20 @@ object Compiler {
                     }
                 }
 
+                is DeclarationNode.SignalType -> {
+                    val signalType = resolved.getExpectedType(declaration.info.breadcrumbs)
+
+                    val error = signalType.getRuntimeError()
+                    if (signalType is TypeReferenceConstraintLangType) {
+                        types[signalType.canonicalType.id] = signalType.canonicalType
+                        exports[declaration.name.text] = CompiledFile.CompiledExport.Type(signalType.canonicalType.id)
+                    } else if (error != null) {
+                        exports[declaration.name.text] = CompiledFile.CompiledExport.Error(error)
+                    } else {
+                        error("Signal declaration resolved to: $signalType")
+                    }
+                }
+
                 is DeclarationNode.NamedValue -> TODO()
             }
         }
@@ -182,6 +196,7 @@ object Compiler {
         when (val declaration = statement.declaration) {
             is DeclarationNode.Import -> {}
             is DeclarationNode.ObjectType -> {}
+            is DeclarationNode.SignalType -> {}
             is DeclarationNode.Function -> TODO()
             is DeclarationNode.NamedValue -> {
                 compileExpression(declaration.value, chunk, ctx)

@@ -407,6 +407,7 @@ class LangVm {
                             callFrame.callParent.stack.addLast(value)
                             this.callFrame = callFrame.callParent
                         } else {
+                            assert(stack.size == 0)
                             return RunResult.Returned(value)
                         }
                     }

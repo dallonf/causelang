@@ -130,7 +130,7 @@ class EffectsBasicTest {
 
         TestUtils.expectValidCaused(
             vm.executeFunction("project/test.cau", "main", listOf()),
-            vm.getTypeId("core/builtin", "Debug")
+            vm.getTypeId("core/builtin.cau", "Debug")
         ).let {
             assertEquals(RuntimeValue.String("Howdy, partner"), it.values[0])
         }

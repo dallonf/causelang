@@ -102,7 +102,11 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
-    data class ObjectTypeHasField(val name: String, val field: Breadcrumbs, val typeReference: Breadcrumbs) :
+    data class IsSignalType(val name: String, val resultTypeReference: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+    }
+
+    data class TypeHasField(val name: String, val field: Breadcrumbs, val typeReference: Breadcrumbs) :
         NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) =
             Pair(field, FieldForObjectType(name, objectType = breadcrumbs, typeReference))
@@ -111,7 +115,7 @@ sealed class NodeTag {
     data class FieldForObjectType(val name: String, val objectType: Breadcrumbs, val typeReference: Breadcrumbs) :
         NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) =
-            Pair(objectType, ObjectTypeHasField(name, field = breadcrumbs, typeReference))
+            Pair(objectType, TypeHasField(name, field = breadcrumbs, typeReference))
     }
 
     object ReferenceNotInScope : NodeTag() {
@@ -249,6 +253,10 @@ object Analyzer {
             is DeclarationNode.ObjectType -> {
                 return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
             }
+
+            is DeclarationNode.SignalType -> {
+                return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
+            }
         }
     }
 
@@ -287,6 +295,7 @@ object Analyzer {
             is DeclarationNode.Function -> analyzeFunctionDeclaration(declaration, output, ctx)
             is DeclarationNode.NamedValue -> analyzeNamedValueDeclaration(declaration, output, ctx)
             is DeclarationNode.ObjectType -> analyzeObjectTypeDeclaration(declaration, output, ctx)
+            is DeclarationNode.SignalType -> analyzeSignalTypeDeclaration(declaration, output, ctx)
         }
     }
 
@@ -383,6 +392,31 @@ object Analyzer {
             analyzeTypeReference(field.typeConstraint, output, ctx)
         }
     }
+
+    private fun analyzeSignalTypeDeclaration(
+        declaration: DeclarationNode.SignalType, output: AnalyzedNode, ctx: AnalyzerContext
+    ) {
+        output.addTag(
+            declaration.info.breadcrumbs, NodeTag.IsSignalType(
+                name = declaration.name.text,
+                resultTypeReference = declaration.result.info.breadcrumbs
+            )
+        )
+
+        for (field in declaration.fields) {
+            output.addTag(
+                field.info.breadcrumbs, NodeTag.FieldForObjectType(
+                    field.name.text,
+                    objectType = declaration.info.breadcrumbs,
+                    typeReference = field.typeConstraint.info.breadcrumbs,
+                )
+            )
+            analyzeTypeReference(field.typeConstraint, output, ctx)
+        }
+
+        analyzeTypeReference(declaration.result, output, ctx)
+    }
+
 
     private fun analyzeBody(body: BodyNode, output: AnalyzedNode, ctx: AnalyzerContext) {
         when (body) {

@@ -281,7 +281,7 @@ object Resolver {
                             }
 
                             is NodeTag.IsObjectType -> {
-                                val fieldTags = pendingNodeTags.mapNotNull { it as? NodeTag.ObjectTypeHasField }
+                                val fieldTags = pendingNodeTags.mapNotNull { it as? NodeTag.TypeHasField }
                                 val id = CanonicalLangTypeId(path, null, tag.name, 0u)
                                 val fields = fieldTags.map { field ->
                                     val fieldType = when (val resolvedFieldType =
@@ -296,6 +296,42 @@ object Resolver {
                                     CanonicalLangType.ObjectField(field.name, fieldType)
                                 }
                                 val objectType = CanonicalLangType.ObjectCanonicalLangType(id, tag.name, fields)
+
+                                val existingKnownType = knownCanonicalTypes[id]
+                                if (existingKnownType != null && !existingKnownType.isPending()) {
+                                    error("Accidentally clobbered canonical type: $existingKnownType with $objectType.")
+                                }
+
+                                knownCanonicalTypes[id] = objectType
+                                resolveWith(TypeReferenceConstraintLangType(objectType))
+                            }
+
+                            is NodeTag.IsSignalType -> {
+                                val fieldTags = pendingNodeTags.mapNotNull { it as? NodeTag.TypeHasField }
+                                val id = CanonicalLangTypeId(path, null, tag.name, 0u)
+                                val fields = fieldTags.map { field ->
+                                    val fieldType = when (val resolvedFieldType =
+                                        getResolvedTypeOf(field.typeReference).asConstraint()) {
+                                        is LangType.Pending -> LangType.Pending
+                                        is ErrorLangType -> ErrorLangType.ProxyError.from(
+                                            resolvedFieldType, getSourcePosition(field.typeReference)
+                                        )
+
+                                        is ResolvedConstraintLangType -> resolvedFieldType
+                                    }
+                                    CanonicalLangType.ObjectField(field.name, fieldType)
+                                }
+                                val result = when (val resolvedResultType =
+                                    getResolvedTypeOf(tag.resultTypeReference).asConstraint()) {
+                                    is LangType.Pending -> LangType.Pending
+                                    is ErrorLangType -> ErrorLangType.ProxyError.from(
+                                        resolvedResultType,
+                                        getSourcePosition(tag.resultTypeReference)
+                                    )
+
+                                    is ResolvedConstraintLangType -> resolvedResultType
+                                }
+                                val objectType = CanonicalLangType.SignalCanonicalLangType(id, tag.name, fields, result)
 
                                 val existingKnownType = knownCanonicalTypes[id]
                                 if (existingKnownType != null && !existingKnownType.isPending()) {
