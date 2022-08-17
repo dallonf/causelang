@@ -1,3 +1,4 @@
+import TestUtils.addFileAndPrintCompileErrors
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
@@ -18,13 +19,13 @@ internal class ErrorHandlingBasicTest {
         )
 
         assertEquals(
-            vm.compileErrors.debug(), """
+            """
                 [
                     {
                         "position": {
                             "path": "project/hello.cau",
                             "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
-                            "position": "2:15-2:17"
+                            "position": "2:10-2:17"
                         },
                         "error": {
                             "#type": "MissingParameters",
@@ -34,13 +35,14 @@ internal class ErrorHandlingBasicTest {
                         }
                     }
                 ]
-            """.trimIndent()
+            """.trimIndent(),
+            vm.compileErrors.debug(),
         )
 
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
         val badValue = TestUtils.expectTypeError(result, vm)
         assertEquals(
-            badValue.debug(), """
+            """
             {
                 "#type": "BadValue",
                 "position": {
@@ -62,12 +64,13 @@ internal class ErrorHandlingBasicTest {
                             "#type": "SourcePosition",
                             "path": "project/hello.cau",
                             "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
-                            "position": "2:15-2:17"
+                            "position": "2:10-2:17"
                         }
                     ]
                 }
             }
-            """.trimIndent()
+            """.trimIndent(),
+            badValue.debug(),
         )
     }
 
@@ -193,7 +196,7 @@ internal class ErrorHandlingBasicTest {
         )
 
         assertEquals(
-            vm.compileErrors.debug(), """
+            """
             [
                 {
                     "position": {
@@ -206,12 +209,13 @@ internal class ErrorHandlingBasicTest {
                     }
                 }
             ]
-            """.trimIndent()
+            """.trimIndent(),
+            vm.compileErrors.debug()
         )
 
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
         assertEquals(
-            TestUtils.expectTypeError(result, vm).debug(), """
+            """
             {
                 "#type": "BadValue",
                 "position": {
@@ -230,7 +234,7 @@ internal class ErrorHandlingBasicTest {
                             "#type": "SourcePosition",
                             "path": "project/hello.cau",
                             "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
-                            "position": "2:19-2:27"
+                            "position": "2:8-2:27"
                         },
                         {
                             "#type": "SourcePosition",
@@ -241,7 +245,8 @@ internal class ErrorHandlingBasicTest {
                     ]
                 }
             }
-            """.trimIndent()
+            """.trimIndent(),
+            TestUtils.expectTypeError(result, vm).debug(),
         )
     }
 
