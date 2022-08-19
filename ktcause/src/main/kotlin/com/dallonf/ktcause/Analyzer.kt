@@ -164,6 +164,10 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
+    object IsVariable : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+    }
+
     data class IsPattern(val name: String?, val typeReference: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
@@ -199,6 +203,11 @@ sealed class NodeTag {
 
     data class HasCondition(val condition: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(condition, ConditionFor(breadcrumbs))
+    }
+
+    data class IsSetStatement(val sets: Breadcrumbs, val setTo: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+
     }
 }
 
@@ -388,6 +397,10 @@ object Analyzer {
             analyzeTypeReference(typeAnnotation, output, ctx)
             output.addTag(typeAnnotation.info.breadcrumbs, NodeTag.AnnotatesTypeFor(declaration.info.breadcrumbs))
         }
+
+        if (declaration.isVariable) {
+            output.addTag(declaration.info.breadcrumbs, NodeTag.IsVariable)
+        }
     }
 
     private fun analyzeObjectTypeDeclaration(
@@ -507,7 +520,7 @@ object Analyzer {
                                 )
                             }
 
-                            analyzeTypeReference(statementNode.pattern.typeReference, output, ctx)
+                            analyzeTypeReference(statementNode.pattern.typeReference, output, currentCtx)
                             output.addTag(
                                 statementNode.pattern.info.breadcrumbs, NodeTag.IsPattern(
                                     name = statementNode.pattern.name?.text,
@@ -521,6 +534,22 @@ object Analyzer {
                                 )
                             )
                             analyzeBody(statementNode.body, output, effectCtx)
+                        }
+
+                        is StatementNode.SetStatement -> {
+                            analyzeExpression(statementNode.expression, output, currentCtx)
+                            val variable = currentCtx.currentScope.items[statementNode.identifier.text]
+                            if (variable == null) {
+                                output.addTag(statementNode.info.breadcrumbs, NodeTag.ReferenceNotInScope)
+                            } else {
+                                output.addTag(
+                                    statementNode.info.breadcrumbs,
+                                    NodeTag.IsSetStatement(
+                                        sets = variable.origin,
+                                        setTo = statementNode.expression.info.breadcrumbs
+                                    )
+                                )
+                            }
                         }
                     }
                 }

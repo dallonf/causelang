@@ -82,7 +82,7 @@ object Resolver {
         debugContext: Debug.DebugContext? = null,
     ): Pair<ResolvedFile, List<ResolverError>> {
         val allOtherFiles = otherFiles.toMutableMap().also {
-            val core = CoreDescriptors.coreBuiltinFile;
+            val core = CoreDescriptors.coreBuiltinFile
             it[core.first] = core.second
             it.putAll(CoreDescriptors.coreFiles)
         }.toMap()
@@ -100,10 +100,13 @@ object Resolver {
                 }
                 for (tag in tags) {
                     when (tag) {
+                        is NodeTag.TopLevelDeclaration -> track(INFERRED)
                         is NodeTag.IsExpression -> track(INFERRED)
-                        is NodeTag.IsNamedValue -> {
-                            track(INFERRED)
-                        }
+                        is NodeTag.IsNamedValue -> track(INFERRED)
+                        is NodeTag.IsEffectStatement -> track(INFERRED)
+                        is NodeTag.IsSetStatement -> track(INFERRED)
+
+                        is NodeTag.ConditionFor -> track(CONSTRAINT)
 
                         is NodeTag.TypeAnnotated -> {
                             track(INFERRED)
@@ -113,18 +116,6 @@ object Resolver {
                         is NodeTag.ParameterForCall -> {
                             track(INFERRED)
                             track(CONSTRAINT)
-                        }
-
-                        is NodeTag.TopLevelDeclaration -> {
-                            track(INFERRED)
-                        }
-
-                        is NodeTag.ConditionFor -> {
-                            track(CONSTRAINT)
-                        }
-
-                        is NodeTag.IsEffectStatement -> {
-                            track(INFERRED)
                         }
 
                         else -> {}
@@ -152,7 +143,7 @@ object Resolver {
 
                 val foundValue = resolvedTypes[ResolutionKey(
                     INFERRED, breadcrumbs
-                )];
+                )]
 
                 if (foundValue != null) {
                     return foundValue
@@ -363,18 +354,15 @@ object Resolver {
                             is NodeTag.IsOptionType -> {
                                 val options: List<ConstraintLangType> =
                                     pendingNodeTags.asSequence().mapNotNull { it as? NodeTag.OptionTypeHasOption }
-                                        .map(
-                                            fun(it): ConstraintLangType =
-                                                when (val resolvedType =
-                                                    getResolvedTypeOf(it.typeReference).asConstraint()) {
-                                                    is LangType.Pending -> LangType.Pending
-                                                    is ErrorLangType -> ErrorLangType.ProxyError.from(
-                                                        resolvedType, getSourcePosition(it.typeReference)
-                                                    )
+                                        .map(fun(it): ConstraintLangType = when (val resolvedType =
+                                            getResolvedTypeOf(it.typeReference).asConstraint()) {
+                                            is LangType.Pending -> LangType.Pending
+                                            is ErrorLangType -> ErrorLangType.ProxyError.from(
+                                                resolvedType, getSourcePosition(it.typeReference)
+                                            )
 
-                                                    is ResolvedConstraintLangType -> resolvedType
-                                                }
-                                        ).toList()
+                                            is ResolvedConstraintLangType -> resolvedType
+                                        }).toList()
 
                                 resolveWith(OptionConstraintLangType(options))
                             }
@@ -541,6 +529,7 @@ object Resolver {
                                                 is AnySignalValueLangType -> {
                                                     return@result AnythingConstraintLangType
                                                 }
+
                                                 is LangType.Pending -> return@eachTag
                                                 is ErrorLangType -> {
                                                     resolveWithProxyError(it, tag.condition)
@@ -603,6 +592,43 @@ object Resolver {
                                             resolveWith(type.toInstanceType())
                                         }
                                     }
+                                }
+                            }
+
+                            is NodeTag.IsSetStatement -> {
+                                val variable = tag.sets
+
+                                val variableTag =
+                                    nodeTags[variable]?.firstNotNullOfOrNull { it -> it as? NodeTag.IsVariable }
+                                if (variableTag == null) {
+                                    resolveWith(ErrorLangType.NotVariable)
+                                    return@eachTag
+                                }
+
+                                val expectedType = when (val variableValue = getResolvedTypeOf(variable).asValue()) {
+                                    is LangType.Pending -> return@eachTag
+                                    is ErrorLangType -> {
+                                        resolveWithProxyError(variableValue, variable)
+                                        return@eachTag
+                                    }
+
+                                    is ResolvedValueLangType -> variableValue.toConstraint()
+                                }
+
+                                val newValue = when (val newValue = getResolvedTypeOf(tag.setTo).asValue()) {
+                                    is LangType.Pending -> return@eachTag
+                                    is ErrorLangType -> {
+                                        resolveWithProxyError(newValue, tag.setTo)
+                                        return@eachTag
+                                    }
+
+                                    is ResolvedValueLangType -> newValue
+                                }
+
+                                if (newValue.isAssignableTo(expectedType)) {
+                                    resolveWith(LangPrimitiveKind.ACTION.toValueLangType())
+                                } else {
+                                    resolveWith(ErrorLangType.MismatchedType(expectedType, newValue))
                                 }
                             }
 

@@ -225,6 +225,10 @@ sealed interface ErrorLangType : LangType, ValueLangType, ConstraintLangType {
     @Serializable
     @SerialName("DoesNotHaveMember")
     object DoesNotHaveMember : ErrorLangType
+
+    @Serializable
+    @SerialName("NotVariable")
+    object NotVariable : ErrorLangType
 }
 
 sealed interface ResolvedValueLangType : ValueLangType {
