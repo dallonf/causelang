@@ -381,15 +381,17 @@ object Analyzer {
             )
         )
 
-        for (field in declaration.fields) {
-            output.addTag(
-                field.info.breadcrumbs, NodeTag.FieldForObjectType(
-                    field.name.text,
-                    objectType = declaration.info.breadcrumbs,
-                    typeReference = field.typeConstraint.info.breadcrumbs,
+        declaration.fields?.let { fields ->
+            for (field in fields) {
+                output.addTag(
+                    field.info.breadcrumbs, NodeTag.FieldForObjectType(
+                        field.name.text,
+                        objectType = declaration.info.breadcrumbs,
+                        typeReference = field.typeConstraint.info.breadcrumbs,
+                    )
                 )
-            )
-            analyzeTypeReference(field.typeConstraint, output, ctx)
+                analyzeTypeReference(field.typeConstraint, output, ctx)
+            }
         }
     }
 
@@ -403,15 +405,17 @@ object Analyzer {
             )
         )
 
-        for (field in declaration.fields) {
-            output.addTag(
-                field.info.breadcrumbs, NodeTag.FieldForObjectType(
-                    field.name.text,
-                    objectType = declaration.info.breadcrumbs,
-                    typeReference = field.typeConstraint.info.breadcrumbs,
+        declaration.fields?.let { fields ->
+            for (field in fields) {
+                output.addTag(
+                    field.info.breadcrumbs, NodeTag.FieldForObjectType(
+                        field.name.text,
+                        objectType = declaration.info.breadcrumbs,
+                        typeReference = field.typeConstraint.info.breadcrumbs,
+                    )
                 )
-            )
-            analyzeTypeReference(field.typeConstraint, output, ctx)
+                analyzeTypeReference(field.typeConstraint, output, ctx)
+            }
         }
 
         analyzeTypeReference(declaration.result, output, ctx)

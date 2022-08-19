@@ -63,6 +63,9 @@ object Compiler {
                     if (objectType is TypeReferenceConstraintLangType) {
                         types[objectType.canonicalType.id] = objectType.canonicalType
                         exports[declaration.name.text] = CompiledFile.CompiledExport.Type(objectType.canonicalType.id)
+                    } else if (objectType is UniqueObjectLangType) {
+                        types[objectType.canonicalType.id] = objectType.canonicalType
+                        exports[declaration.name.text] = CompiledFile.CompiledExport.Type(objectType.canonicalType.id)
                     } else if (error != null) {
                         exports[declaration.name.text] = CompiledFile.CompiledExport.Error(error)
                     } else {
@@ -75,6 +78,9 @@ object Compiler {
 
                     val error = signalType.getRuntimeError()
                     if (signalType is TypeReferenceConstraintLangType) {
+                        types[signalType.canonicalType.id] = signalType.canonicalType
+                        exports[declaration.name.text] = CompiledFile.CompiledExport.Type(signalType.canonicalType.id)
+                    } else if (signalType is UniqueObjectLangType) {
                         types[signalType.canonicalType.id] = signalType.canonicalType
                         exports[declaration.name.text] = CompiledFile.CompiledExport.Type(signalType.canonicalType.id)
                     } else if (error != null) {

@@ -303,7 +303,11 @@ object Resolver {
                                 }
 
                                 knownCanonicalTypes[id] = objectType
-                                resolveWith(TypeReferenceConstraintLangType(objectType))
+                                if (objectType.fields.isEmpty()) {
+                                    resolveWith(UniqueObjectLangType(objectType))
+                                } else {
+                                    resolveWith(TypeReferenceConstraintLangType(objectType))
+                                }
                             }
 
                             is NodeTag.IsSignalType -> {
@@ -331,15 +335,19 @@ object Resolver {
 
                                     is ResolvedConstraintLangType -> resolvedResultType
                                 }
-                                val objectType = CanonicalLangType.SignalCanonicalLangType(id, tag.name, fields, result)
+                                val signalType = CanonicalLangType.SignalCanonicalLangType(id, tag.name, fields, result)
 
                                 val existingKnownType = knownCanonicalTypes[id]
                                 if (existingKnownType != null && !existingKnownType.isPending()) {
-                                    error("Accidentally clobbered canonical type: $existingKnownType with $objectType.")
+                                    error("Accidentally clobbered canonical type: $existingKnownType with $signalType.")
                                 }
 
-                                knownCanonicalTypes[id] = objectType
-                                resolveWith(TypeReferenceConstraintLangType(objectType))
+                                knownCanonicalTypes[id] = signalType
+                                if (signalType.fields.isEmpty()) {
+                                    resolveWith(UniqueObjectLangType(signalType))
+                                } else {
+                                    resolveWith(TypeReferenceConstraintLangType(signalType))
+                                }
                             }
 
                             is NodeTag.IsPrimitiveValue -> resolveWith(tag.kind.toValueLangType())
@@ -361,8 +369,8 @@ object Resolver {
                                         returnType, getSourcePosition(canReturn[0].returnExpression)
                                     )
 
-                                    is ResolvedConstraintLangType -> ErrorLangType.ConstraintUsedAsValue(returnType)
                                     is ResolvedValueLangType -> returnType.toConstraint()
+                                    is ResolvedConstraintLangType -> ErrorLangType.ConstraintUsedAsValue(returnType)
                                 }
 
                                 val paramTags = pendingNodeTags.mapNotNull { it as? NodeTag.FunctionHasParam }

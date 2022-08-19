@@ -251,20 +251,24 @@ sealed interface DeclarationNode : AstNode {
     }
 
     data class ObjectType(
-        override val info: NodeInfo, val name: Identifier, val fields: List<ObjectField>
+        override val info: NodeInfo, val name: Identifier, val fields: List<ObjectField>?
     ) : DeclarationNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("name", name)
-            put("fields", fields)
+            if (fields != null) {
+                put("fields", fields)
+            }
         }
     }
 
     data class SignalType(
-        override val info: NodeInfo, val name: Identifier, val fields: List<ObjectField>, val result: TypeReferenceNode
+        override val info: NodeInfo, val name: Identifier, val fields: List<ObjectField>?, val result: TypeReferenceNode
     ) : DeclarationNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("name", name)
-            put("fields", fields)
+            if (fields != null) {
+                put("fields", fields)
+            }
             put("result", result)
         }
     }

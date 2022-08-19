@@ -4,7 +4,6 @@ import com.dallonf.ktcause.CoreDescriptors
 import com.dallonf.ktcause.antlr.*
 import com.dallonf.ktcause.antlr.CauseParser.*
 import com.dallonf.ktcause.ast.*
-import com.dallonf.ktcause.types.CanonicalLangType
 import org.antlr.v4.runtime.*
 import org.antlr.v4.runtime.tree.ParseTree
 import org.antlr.v4.runtime.tree.TerminalNode
@@ -169,17 +168,7 @@ private fun parseObjectDeclaration(
     objectDeclaration: ObjectDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): DeclarationNode.ObjectType {
     val name = parseIdentifier(objectDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
-    val paramsBreadcrumbs = breadcrumbs.appendName("fields")
-    val fields = objectDeclaration.objectField().mapIndexed { i, field ->
-        val paramBreadcrumbs = paramsBreadcrumbs.appendIndex(i)
-        DeclarationNode.ObjectField(
-            NodeInfo(field.getRange(), paramBreadcrumbs),
-            name = parseIdentifier(field.IDENTIFIER().symbol, paramBreadcrumbs.appendName("name"), ctx),
-            typeConstraint = parseTypeReference(
-                field.typeReference(), paramBreadcrumbs.appendName("typeConstraint"), ctx
-            )
-        )
-    }
+    val fields = objectDeclaration.objectFields()?.let { parseObjectFields(it, breadcrumbs.appendName("fields"), ctx) }
 
     return DeclarationNode.ObjectType(
         NodeInfo(objectDeclaration.getRange(), breadcrumbs), name, fields
@@ -190,22 +179,27 @@ private fun parseSignalDeclaration(
     signalDeclaration: SignalDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): DeclarationNode.SignalType {
     val name = parseIdentifier(signalDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
-    val paramsBreadcrumbs = breadcrumbs.appendName("fields")
-    val fields = signalDeclaration.objectField().mapIndexed { i, field ->
-        val paramBreadcrumbs = paramsBreadcrumbs.appendIndex(i)
-        DeclarationNode.ObjectField(
-            NodeInfo(field.getRange(), paramBreadcrumbs),
-            name = parseIdentifier(field.IDENTIFIER().symbol, paramBreadcrumbs.appendName("name"), ctx),
-            typeConstraint = parseTypeReference(
-                field.typeReference(), paramBreadcrumbs.appendName("typeConstraint"), ctx
-            )
-        )
-    }
+    val fields = signalDeclaration.objectFields()?.let { parseObjectFields(it, breadcrumbs.appendName("fields"), ctx) }
     val result = parseTypeReference(signalDeclaration.typeReference(), breadcrumbs.appendName("result"), ctx)
 
     return DeclarationNode.SignalType(
         NodeInfo(signalDeclaration.getRange(), breadcrumbs), name, fields, result
     )
+}
+
+private fun parseObjectFields(
+    objectFields: ObjectFieldsContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+): List<DeclarationNode.ObjectField> {
+    return objectFields.objectField().mapIndexed { i, field ->
+        val fieldBreadcrumbs = breadcrumbs.appendIndex(i)
+        DeclarationNode.ObjectField(
+            NodeInfo(field.getRange(), fieldBreadcrumbs),
+            name = parseIdentifier(field.IDENTIFIER().symbol, fieldBreadcrumbs.appendName("name"), ctx),
+            typeConstraint = parseTypeReference(
+                field.typeReference(), fieldBreadcrumbs.appendName("typeConstraint"), ctx
+            )
+        )
+    }
 }
 
 
@@ -412,7 +406,10 @@ private fun parseCallExpressionSuffix(
     val paramsBreadcrumbs = breadcrumbs.appendName("parameters")
     val params = suffix.callParam().mapIndexed { i, paramContainer ->
         when (val param = paramContainer.getChild(0)) {
-            is CallPositionalParameterContext -> parsePositionalParameter(param, paramsBreadcrumbs.appendIndex(i), ctx)
+            is CallPositionalParameterContext -> parsePositionalParameter(
+                param, paramsBreadcrumbs.appendIndex(i), ctx
+            )
+
             else -> throw Error("Unexpected call parameter type")
         }
     }

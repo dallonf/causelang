@@ -46,6 +46,8 @@ sealed interface CanonicalLangType {
     fun isPending(): Boolean
     fun getError(): ErrorLangType?
 
+    fun isUnique(): Boolean
+
     @Serializable
     @SerialName("Signal")
     data class SignalCanonicalLangType(
@@ -55,6 +57,8 @@ sealed interface CanonicalLangType {
         val result: ConstraintLangType,
     ) : CanonicalLangType {
         fun getInstanceType() = InstanceValueLangType(this)
+
+        override fun isUnique() = fields.isEmpty()
 
         override fun isPending() = result.isPending() || fields.any { it.valueConstraint.isPending() }
         override fun getError() = result.getError() ?: fields.firstNotNullOfOrNull { it.valueConstraint.getError() }
@@ -67,6 +71,8 @@ sealed interface CanonicalLangType {
         val name: String,
         val fields: List<ObjectField>
     ) : CanonicalLangType {
+
+        override fun isUnique() = fields.isEmpty()
 
         override fun isPending() = fields.any { it.valueConstraint.isPending() }
         override fun getError() = fields.firstNotNullOfOrNull { it.valueConstraint.getError() }
@@ -232,6 +238,7 @@ sealed interface ResolvedValueLangType : ValueLangType {
             is CanonicalLangType -> this is InstanceValueLangType && this.canonicalType.id == constraint.id
             is FunctionConstraintLangType -> this is FunctionValueLangType && this.returnConstraint == constraint.returnConstraint && this.params == constraint.params
             is PrimitiveConstraintLangType -> this is PrimitiveValueLangType && this.kind == constraint.kind
+            is UniqueObjectLangType -> this is UniqueObjectLangType && this.canonicalType.id == constraint.canonicalType.id
             BadValueConstraintLangType -> this is BadValueLangType
             NeverContinuesConstraintLangType -> this is NeverContinuesValueLangType
         }
@@ -322,6 +329,19 @@ data class InstanceValueLangType(val canonicalType: CanonicalLangType) : Resolve
 
     override fun isPending() = canonicalType.isPending()
     override fun getError() = canonicalType.getError()
+}
+
+@Serializable
+@SerialName("UniqueObject")
+data class UniqueObjectLangType(val canonicalType: CanonicalLangType) : ResolvedConstraintLangType,
+    ResolvedValueLangType {
+    override fun isPending() = canonicalType.isPending()
+
+    override fun getError() = canonicalType.getError()
+
+    override fun toInstanceType() = this
+
+    override fun toConstraint() = this
 }
 
 @Serializable

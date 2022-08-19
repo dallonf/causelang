@@ -50,8 +50,9 @@ functionReturnValue : COLON NEWLINE* typeReference ;
 
 namedValueDeclaration : LET NEWLINE* IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference NEWLINE*)? EQUALS NEWLINE* expression ;
 
-objectDeclaration : OBJECT NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE* (objectField NEWLINE* (COMMA NEWLINE* objectField NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
-signalDeclaration : SIGNAL NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE* (objectField NEWLINE* (COMMA NEWLINE* objectField NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE NEWLINE* COLON NEWLINE* typeReference;
+objectDeclaration : OBJECT NEWLINE* IDENTIFIER NEWLINE* objectFields? ;
+signalDeclaration : SIGNAL NEWLINE* IDENTIFIER NEWLINE* objectFields? NEWLINE* COLON NEWLINE* typeReference;
+objectFields : (PAREN_OPEN NEWLINE* (objectField NEWLINE* (COMMA NEWLINE* objectField NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE) ;
 objectField : IDENTIFIER NEWLINE* COLON NEWLINE* typeReference ;
 
 body : block | singleExpressionBody ;

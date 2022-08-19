@@ -18,6 +18,8 @@ sealed class RuntimeValue {
 
     data class RuntimeTypeReference(val type: CanonicalLangType) : RuntimeValue()
 
+    data class RuntimeUniqueObject(val typeId: CanonicalLangTypeId) : RuntimeValue()
+
     // TODO: definitely don't want these to come from anywhere but the core modules
     data class NativeFunction(val name: kotlin.String, val function: (List<RuntimeValue>) -> RuntimeValue) :
         RuntimeValue()
@@ -43,9 +45,11 @@ sealed class RuntimeValue {
                 LangPrimitiveKind.ACTION -> this is Action
             }
 
-            BadValueConstraintLangType -> this is RuntimeValue.BadValue
+            BadValueConstraintLangType -> this is BadValue
 
             is TypeReferenceConstraintLangType -> this is RuntimeObject && this.typeDescriptor.type.id == constraint.canonicalType.id
+
+            is UniqueObjectLangType -> this is RuntimeUniqueObject && this.typeId == constraint.canonicalType.id
 
             // No associated runtime values
             NeverContinuesConstraintLangType -> false
@@ -54,7 +58,7 @@ sealed class RuntimeValue {
 
     fun validate(): RuntimeValue {
         return when (this) {
-            is BadValue, is Action, is String, is Integer, is Float, is Boolean, is RuntimeTypeReference, is NativeFunction, is Function -> this
+            is BadValue, is Action, is String, is Integer, is Float, is Boolean, is RuntimeTypeReference, is NativeFunction, is Function, is RuntimeUniqueObject -> this
             is RuntimeObject -> {
                 // TODO: we shouldn't make a brand new object if it's all valid
                 val newValues = mutableListOf<RuntimeValue>()
@@ -73,7 +77,7 @@ sealed class RuntimeValue {
     fun isValid(): kotlin.Boolean {
         return when (this) {
             is BadValue -> false
-            is Action, is String, is Integer, is Float, is Boolean, is RuntimeTypeReference, is NativeFunction, is Function -> true
+            is Action, is String, is Integer, is Float, is Boolean, is RuntimeTypeReference, is NativeFunction, is Function, is RuntimeUniqueObject -> true
             is RuntimeObject -> this.values.all { it.isValid() }
         }
     }
@@ -124,6 +128,11 @@ sealed class RuntimeValue {
             is RuntimeValue.RuntimeTypeReference -> buildJsonObject {
                 put("#type", "RuntimeTypeReference")
                 put("id", this@RuntimeValue.type.id.toString())
+            }
+
+            is RuntimeUniqueObject -> buildJsonObject {
+                put("#type", "RuntimeUniqueObject")
+                put("id", this@RuntimeValue.typeId.toString())
             }
 
             is RuntimeValue.String -> JsonPrimitive(this.value)

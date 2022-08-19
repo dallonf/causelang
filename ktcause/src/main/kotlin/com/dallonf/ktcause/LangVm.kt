@@ -6,6 +6,7 @@ import com.dallonf.ktcause.parse.parse
 import com.dallonf.ktcause.types.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.put
 
 class LangVm {
     open class VmError(message: String) : Error(message)
@@ -426,7 +427,11 @@ class LangVm {
             is CompiledFile.CompiledExport.Type -> {
                 val canonicalType =
                     requireNotNull(file.types[export.typeId]) { "The file ${file.path} exports a type of ${export.typeId} but doesn't define it" }
-                RuntimeValue.RuntimeTypeReference(canonicalType)
+                if (canonicalType.isUnique()) {
+                    RuntimeValue.RuntimeUniqueObject(canonicalType.id)
+                } else {
+                    RuntimeValue.RuntimeTypeReference(canonicalType)
+                }
             }
 
             is CompiledFile.CompiledExport.Function -> {

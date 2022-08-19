@@ -19,6 +19,7 @@ object Debug {
             subclass(InstanceValueLangType::class)
             subclass(BadValueLangType::class)
             subclass(NeverContinuesValueLangType::class)
+            subclass(UniqueObjectLangType::class)
         }
 
         fun PolymorphicModuleBuilder<ResolvedConstraintLangType>.registerResolvedConstraintLangTypeSubclasses() {
@@ -27,6 +28,7 @@ object Debug {
             subclass(TypeReferenceConstraintLangType::class)
             subclass(BadValueConstraintLangType::class)
             subclass(NeverContinuesConstraintLangType::class)
+            subclass(UniqueObjectLangType::class)
         }
 
         fun PolymorphicModuleBuilder<ErrorLangType>.registerErrorValueLangTypeSubclasses() {
