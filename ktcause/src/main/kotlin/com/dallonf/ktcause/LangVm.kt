@@ -92,6 +92,8 @@ class LangVm {
         }
     }
 
+    fun getBuiltinTypeId(name: String) = getTypeId("core/builtin.cau", name)
+
     fun executeFunction(filePath: String, functionName: String, parameters: List<RuntimeValue>): RunResult {
         val file = requireNotNull(files[filePath]) { "I don't know about any file at $filePath." }
         val export =
