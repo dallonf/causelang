@@ -78,6 +78,24 @@ object CoreDescriptors {
             )
         }
 
+        run {
+            val filename = "core/math.cau"
+            result.add(
+                filename to Resolver.ExternalFileDescriptor(
+                    exports = mapOf(
+                        "add" to FunctionValueLangType(
+                            name = "add", params = listOf(
+                                LangParameter("this", LangPrimitiveKind.INTEGER.toConstraintLangType()),
+                                LangParameter("other", LangPrimitiveKind.INTEGER.toConstraintLangType()),
+                            ),
+                            returnConstraint = LangPrimitiveKind.INTEGER.toConstraintLangType()
+                        )
+                    ),
+                    types = mapOf()
+                )
+            )
+        }
+
         result.toList()
     }
 }

@@ -88,7 +88,7 @@ class FunctionsTest {
     @Test
     fun functionTakesParameters() {
         val vm = LangVm()
-        vm.addFileAndPrintCompileErrors(
+        vm.addFileExpectingNoCompileErrors(
             "project/test.cau", """
                 import core/string (append)
                 
@@ -103,6 +103,27 @@ class FunctionsTest {
         )
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
-        assertEquals(result, RuntimeValue.String("Hello, World"))
+        assertEquals(RuntimeValue.String("Hello, World"), result)
+    }
+
+    @Test
+    fun functionCanAccessOuterScope() {
+        val vm = LangVm()
+        vm.addFileAndPrintCompileErrors(
+            "project/test.cau", """
+                import core/math (add)                   
+                                
+                function main(): Integer {
+                    let base = 1
+                    function next() {
+                        add(base, 2)
+                    }
+                    next()
+                }
+            """.trimIndent()
+        )
+
+        val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
+        assertEquals(RuntimeValue.Integer(3), result)
     }
 }

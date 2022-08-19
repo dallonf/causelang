@@ -197,6 +197,9 @@ class LangVm {
                             is CompiledFile.CompiledConstant.StringConst -> RuntimeValue.String(constant.value)
                             is CompiledFile.CompiledConstant.IntegerConst -> RuntimeValue.Integer(constant.value)
                             is CompiledFile.CompiledConstant.FloatConst -> RuntimeValue.Float(constant.value)
+                            is CompiledFile.CompiledConstant.FunctionConst -> {
+                                RuntimeValue.Function(constant.type.name, callFrame.file, constant.chunkIndex, constant.type)
+                            }
                             is CompiledFile.CompiledConstant.ErrorConst -> RuntimeValue.BadValue(
                                 constant.sourcePosition, constant.error
                             )

@@ -9,6 +9,7 @@ import com.dallonf.ktcause.types.TypeReferenceConstraintLangType
 object CoreExports {
     const val BUILTINS_FILE = "core/builtin.cau"
     const val STRING_FILE = "core/string.cau"
+    const val MATH_FILE = "core/math.cau"
 
     fun getCoreExport(fileName: String, exportName: String): RuntimeValue {
         if (fileName == BUILTINS_FILE) {
@@ -49,6 +50,21 @@ object CoreExports {
                             ?: throw LangVm.VmError("I was expecting the input to be an integer.")
 
                         RuntimeValue.String(value.value.toString())
+                    }
+                }
+
+                else -> {
+                    throw LangVm.InternalVmError("There is no export named $exportName in $fileName")
+                }
+            }
+        } else if (fileName == MATH_FILE) {
+            when (exportName) {
+                "add" -> {
+                    return RuntimeValue.NativeFunction("add") { params ->
+                        val val1 = params[0] as RuntimeValue.Integer
+                        val val2 = params[1] as RuntimeValue.Integer
+
+                        RuntimeValue.Integer(val1.value + val2.value)
                     }
                 }
 

@@ -224,7 +224,23 @@ object Compiler {
             is DeclarationNode.ObjectType -> {}
             is DeclarationNode.SignalType -> {}
             is DeclarationNode.OptionType -> {}
-            is DeclarationNode.Function -> TODO()
+            is DeclarationNode.Function -> {
+                val newChunk = compileFunction(declaration, ctx)
+
+                ctx.resolved.checkForRuntimeErrors(declaration.info.breadcrumbs)?.let { error ->
+                    compileBadValue(declaration, error, chunk, ctx)
+                } ?: run {
+                    ctx.chunks.add(newChunk.toInstructionChunk())
+                    chunk.writeLiteral(
+                        CompiledFile.CompiledConstant.FunctionConst(
+                            ctx.chunks.lastIndex,
+                            ctx.resolved.getExpectedType(declaration.info.breadcrumbs) as FunctionValueLangType
+                        )
+                    )
+                }
+                ctx.scopeStack.last().namedValueIndices[declaration.info.breadcrumbs] = ctx.nextScopeIndex()
+            }
+
             is DeclarationNode.NamedValue -> {
                 compileExpression(declaration.value, chunk, ctx)
                 ctx.resolved.checkForRuntimeErrors(declaration.info.breadcrumbs)?.let { error ->
@@ -269,9 +285,7 @@ object Compiler {
     }
 
     private fun compileSetStatement(
-        statement: StatementNode.SetStatement,
-        chunk: CompiledFile.MutableInstructionChunk,
-        ctx: CompilerContext
+        statement: StatementNode.SetStatement, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
     ) {
         compileExpression(statement.expression, chunk, ctx)
 
@@ -292,8 +306,7 @@ object Compiler {
         if (valueReference.effectDepth > 0) {
             chunk.writeInstruction(
                 Instruction.WriteLocalThroughEffectScope(
-                    valueReference.effectDepth,
-                    valueReference.foundIndex
+                    valueReference.effectDepth, valueReference.foundIndex
                 )
             )
         } else {
