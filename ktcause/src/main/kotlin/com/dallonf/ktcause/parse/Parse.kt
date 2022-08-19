@@ -142,6 +142,15 @@ private fun parseNamedValueDeclaration(
     val iterator = namedValue.children.ruleIterator()
     iterator.skip { (it is TerminalNode && (it.symbol.type == LET || it.symbol.type == NEWLINE)) }
 
+    val isVariable = (iterator.peek() as? TerminalNode)?.let {
+        if (it.symbol.type == VARIABLE) {
+            iterator.next()
+            true
+        } else {
+            false
+        }
+    } ?: false
+
     val nameToken = (iterator.next() as TerminalNode).symbol
     val name = parseIdentifier(nameToken, breadcrumbs.appendName("name"), ctx)
 
@@ -161,7 +170,7 @@ private fun parseNamedValueDeclaration(
     val value = parseExpression(valueRule as ExpressionContext, breadcrumbs.appendName("value"), ctx)
 
     return DeclarationNode.NamedValue(
-        NodeInfo(namedValue.getRange(), breadcrumbs), name, typeAnnotation, value
+        NodeInfo(namedValue.getRange(), breadcrumbs), name, typeAnnotation, value, isVariable
     )
 }
 
@@ -256,6 +265,7 @@ private fun parseStatement(
 ): StatementNode {
     return when (val child = statementRule.getChild(0)) {
         is EffectStatementContext -> parseEffectStatement(child, breadcrumbs, ctx)
+        is SetStatementContext -> parseSetStatement(child, breadcrumbs, ctx)
         is ExpressionStatementContext -> parseExpressionStatement(child, breadcrumbs, ctx)
         is DeclarationStatementContext -> parseDeclarationStatement(child, breadcrumbs, ctx)
         else -> throw Error("unrecognized statement type")
@@ -269,6 +279,19 @@ private fun parseEffectStatement(
         NodeInfo(child.getRange(), breadcrumbs),
         parsePattern(child.pattern(), breadcrumbs.appendName("pattern"), ctx),
         parseBody(child.body(), breadcrumbs.appendName("body"), ctx)
+    )
+}
+
+private fun parseSetStatement(
+    statement: SetStatementContext,
+    breadcrumbs: Breadcrumbs,
+    ctx: ParserContext
+): StatementNode.SetStatement {
+    val identifier = parseIdentifier(statement.IDENTIFIER().symbol, breadcrumbs.appendName("identifier"), ctx)
+    val expression = parseExpression(statement.expression(), breadcrumbs.appendName("expression"), ctx)
+    return StatementNode.SetStatement(
+        NodeInfo(statement.getRange(), breadcrumbs),
+        identifier, expression
     )
 }
 

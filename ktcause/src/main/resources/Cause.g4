@@ -28,7 +28,9 @@ IMPORT : 'import' ;
 LET : 'let' ;
 OBJECT : 'object' ;
 OPTION : 'option' ;
+SET : 'set' ;
 SIGNAL : 'signal' ;
+VARIABLE : 'variable' ;
 PATH : [a-zA-Z0-9_\-]+ '/' [a-zA-Z_\-/]+ ;
 IDENTIFIER : [a-zA-Z_] [a-zA-Z0-9_]* ; // TODO: need moar emoji
 
@@ -49,7 +51,7 @@ functionDeclaration : FUNCTION NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE*
 functionParam : IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference)? ;
 functionReturnValue : COLON NEWLINE* typeReference ;
 
-namedValueDeclaration : LET NEWLINE* IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference NEWLINE*)? EQUALS NEWLINE* expression ;
+namedValueDeclaration : LET NEWLINE* VARIABLE? NEWLINE* IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference NEWLINE*)? EQUALS NEWLINE* expression ;
 
 objectDeclaration : OBJECT NEWLINE* IDENTIFIER NEWLINE* objectFields? ;
 signalDeclaration : SIGNAL NEWLINE* IDENTIFIER NEWLINE* objectFields? NEWLINE* COLON NEWLINE* typeReference;
@@ -63,11 +65,12 @@ body : block | singleExpressionBody ;
 block : CURLY_OPEN NEWLINE* (statement (NEWLINE+ statement)*)? NEWLINE* CURLY_CLOSE ;
 singleExpressionBody : THICK_ARROW NEWLINE* expression ;
 
-statement : effectStatement | declarationStatement | expressionStatement ;
+statement : effectStatement | setStatement | declarationStatement | expressionStatement  ;
 
 expressionStatement : expression ;
 declarationStatement : declaration ;
 effectStatement : EFFECT NEWLINE* PAREN_OPEN NEWLINE* pattern NEWLINE* PAREN_CLOSE body ;
+setStatement : SET NEWLINE* IDENTIFIER NEWLINE* EQUALS NEWLINE* expression ;
 
 expression : (blockExpression | branchExpression | causeExpression | stringLiteralExpression | integerLiteralExpression | identifierExpression)
     expressionSuffix* ;

@@ -239,7 +239,8 @@ sealed interface DeclarationNode : AstNode {
         override val info: NodeInfo,
         val name: Identifier,
         val typeAnnotation: TypeReferenceNode?,
-        val value: ExpressionNode
+        val value: ExpressionNode,
+        val isVariable: Boolean = false,
     ) : DeclarationNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("name", name)
@@ -311,6 +312,14 @@ sealed interface StatementNode : AstNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("pattern", pattern)
             put("body", body)
+        }
+    }
+
+    data class SetStatement(override val info: NodeInfo, val identifier: Identifier, val expression: ExpressionNode) :
+        StatementNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            put("identifier", identifier)
+            put("expression", expression)
         }
     }
 
