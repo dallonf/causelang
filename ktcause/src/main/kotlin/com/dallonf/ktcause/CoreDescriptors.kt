@@ -36,6 +36,8 @@ object CoreDescriptors {
             put("True", LangPrimitiveKind.BOOLEAN.toValueLangType())
             put("False", LangPrimitiveKind.BOOLEAN.toValueLangType())
             put("Action", LangPrimitiveKind.ACTION.toConstraintLangType())
+            put("Anything", AnythingConstraintLangType)
+            put("AnySignal", AnySignalConstraintLangType)
 
             for ((id, type) in types.filter { it.key.name != null && it.key.parentName == null }) {
                 put(id.name!!, TypeReferenceConstraintLangType(type))

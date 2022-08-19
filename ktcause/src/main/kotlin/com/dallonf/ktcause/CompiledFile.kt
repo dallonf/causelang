@@ -28,7 +28,9 @@ data class CompiledFile(
                     exportDescriptors[exportName] = export.error
                 }
 
-                is CompiledExport.Function -> TODO()
+                is CompiledExport.Function -> {
+                    exportDescriptors[exportName] = export.type
+                }
                 is CompiledExport.Value -> TODO()
             }
         }

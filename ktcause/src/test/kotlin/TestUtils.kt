@@ -42,7 +42,7 @@ object TestUtils {
     // TODO: it's kinda weird that there's two ways to get almost the same runtime error, hm?
     fun expectTypeError(result: RunResult, vm: LangVm): RuntimeValue.BadValue {
         require(result is RunResult.Caused)
-        assertEquals(vm.getTypeId("core/builtin.cau", "TypeError"), result.signal.typeDescriptor.type.id)
+        assertEquals(vm.getTypeId("core/builtin.cau", "TypeError"), result.signal.typeDescriptor.id)
         return result.signal.values[0] as RuntimeValue.BadValue
     }
 
@@ -53,7 +53,7 @@ object TestUtils {
 
     fun expectValidCaused(result: RunResult, expectedType: CanonicalLangTypeId): RuntimeValue.RuntimeObject {
         val signal = result.expectCausedSignal().validate() as RuntimeValue.RuntimeObject
-        assertEquals(expectedType, signal.typeDescriptor.type.id)
+        assertEquals(expectedType, signal.typeDescriptor.id)
         return signal
     }
 
@@ -65,7 +65,7 @@ object TestUtils {
             if (debugs >= expected.size) {
                 error("Excess signal! ${result.debug()}")
             }
-            assertEquals(debugType, result.signal.typeDescriptor.type.id)
+            assertEquals(debugType, result.signal.typeDescriptor.id)
             val expectedMessage = expected[debugs]
             assertEquals(RuntimeValue.String(expectedMessage), result.signal.values[0])
 

@@ -12,10 +12,10 @@ object CoreExports {
 
     fun getCoreExport(fileName: String, exportName: String): RuntimeValue {
         if (fileName == BUILTINS_FILE) {
-            if (exportName == "Debug" || exportName == "TypeError" || exportName == "AssumptionBroken") {
-                val signal = CoreDescriptors.coreBuiltinFile.second.exports[exportName]
+            if (setOf("Debug", "TypeError", "AssumptionBroken", "Anything", "AnySignal").contains(exportName)) {
+                val exportedType = CoreDescriptors.coreBuiltinFile.second.exports[exportName]!!.asConstraint()
 
-                return RuntimeValue.RuntimeTypeReference((signal as TypeReferenceConstraintLangType).canonicalType)
+                return RuntimeValue.RuntimeTypeReference(exportedType)
             } else {
                 throw LangVm.InternalVmError("There is no builtin named $exportName.")
             }

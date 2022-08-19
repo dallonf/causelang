@@ -19,6 +19,8 @@ object Debug {
             subclass(InstanceValueLangType::class)
             subclass(UniqueObjectLangType::class)
             subclass(OptionValueLangType::class)
+            subclass(AnythingValueLangType::class)
+            subclass(AnySignalValueLangType::class)
             subclass(BadValueLangType::class)
             subclass(NeverContinuesValueLangType::class)
         }
@@ -29,6 +31,8 @@ object Debug {
             subclass(TypeReferenceConstraintLangType::class)
             subclass(OptionConstraintLangType::class)
             subclass(UniqueObjectLangType::class)
+            subclass(AnythingConstraintLangType::class)
+            subclass(AnySignalConstraintLangType::class)
             subclass(BadValueConstraintLangType::class)
             subclass(NeverContinuesConstraintLangType::class)
         }

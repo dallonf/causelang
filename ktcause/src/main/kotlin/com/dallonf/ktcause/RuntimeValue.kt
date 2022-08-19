@@ -14,9 +14,9 @@ sealed class RuntimeValue {
     data class Boolean(val value: kotlin.Boolean) : RuntimeValue()
 
     // TODO: probably want to make it harder to make an invalid RuntimeObject
-    data class RuntimeObject(val typeDescriptor: RuntimeTypeReference, val values: List<RuntimeValue>) : RuntimeValue()
+    data class RuntimeObject(val typeDescriptor: CanonicalLangType, val values: List<RuntimeValue>) : RuntimeValue()
 
-    data class RuntimeTypeReference(val type: CanonicalLangType) : RuntimeValue()
+    data class RuntimeTypeReference(val type: ConstraintLangType) : RuntimeValue()
 
     data class RuntimeUniqueObject(val typeId: CanonicalLangTypeId) : RuntimeValue()
 
@@ -51,11 +51,14 @@ sealed class RuntimeValue {
                 else false
             }
 
+            is AnySignalConstraintLangType -> this is RuntimeObject && this.typeDescriptor is CanonicalLangType.SignalCanonicalLangType
+            is AnythingConstraintLangType -> true
+
             is UniqueObjectLangType -> this is RuntimeUniqueObject && this.typeId == constraint.canonicalType.id
 
-            BadValueConstraintLangType -> this is BadValue
+            is BadValueConstraintLangType -> this is BadValue
 
-            is TypeReferenceConstraintLangType -> this is RuntimeObject && this.typeDescriptor.type.id == constraint.canonicalType.id
+            is TypeReferenceConstraintLangType -> this is RuntimeObject && this.typeDescriptor.id == constraint.canonicalType.id
 
 
             // No associated runtime values
@@ -118,14 +121,14 @@ sealed class RuntimeValue {
             }
 
             is RuntimeValue.RuntimeObject -> {
-                val objectTypeFields = when (val type = this.typeDescriptor.type) {
+                val objectTypeFields = when (val type = this.typeDescriptor) {
                     is CanonicalLangType.SignalCanonicalLangType -> type.fields
                     is CanonicalLangType.ObjectCanonicalLangType -> type.fields
                 }
 
                 val values = this.values
                 buildJsonObject {
-                    put("#type", JsonPrimitive(this@RuntimeValue.typeDescriptor.type.id.toString()))
+                    put("#type", JsonPrimitive(this@RuntimeValue.typeDescriptor.id.toString()))
                     for ((i, objectTypeField) in objectTypeFields.withIndex()) {
                         put(objectTypeField.name, values[i].toJson())
                     }
@@ -134,7 +137,15 @@ sealed class RuntimeValue {
 
             is RuntimeValue.RuntimeTypeReference -> buildJsonObject {
                 put("#type", "RuntimeTypeReference")
-                put("id", this@RuntimeValue.type.id.toString())
+                if (this@RuntimeValue.type is TypeReferenceConstraintLangType) {
+                    val id = when (val canonicalType = this@RuntimeValue.type.canonicalType) {
+                        is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.id
+                        is CanonicalLangType.SignalCanonicalLangType -> canonicalType.id
+                    }
+                    put("id", id.toString())
+                } else {
+                    put("descriptor", Debug.debugSerializer.encodeToJsonElement(this@RuntimeValue.type))
+                }
             }
 
             is RuntimeUniqueObject -> buildJsonObject {

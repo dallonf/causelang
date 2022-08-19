@@ -116,8 +116,8 @@ class LangVm {
         val STATE_ERROR = "I'm not currently waiting for a signal, so I can't resume execution."
         val callFrame = requireNotNull(callFrame) { STATE_ERROR }
         val pendingSignal = requireNotNull(callFrame.pendingSignal) { STATE_ERROR }
-        val pendingSignalType = when (pendingSignal.typeDescriptor.type) {
-            is CanonicalLangType.SignalCanonicalLangType -> pendingSignal.typeDescriptor.type
+        val pendingSignalType = when (pendingSignal.typeDescriptor) {
+            is CanonicalLangType.SignalCanonicalLangType -> pendingSignal.typeDescriptor
             is CanonicalLangType.ObjectCanonicalLangType -> error("somehow an object got in pendingSignal")
         }
 
@@ -259,7 +259,7 @@ class LangVm {
 
                     is Instruction.Construct -> {
                         val constructorType = stack.removeLast().let {
-                            if (it is RuntimeValue.RuntimeTypeReference) it
+                            if (it is RuntimeValue.RuntimeTypeReference && it.type is TypeReferenceConstraintLangType) it.type
                             else throw InternalVmError("Tried to construct a $it.")
                         }
 
@@ -269,7 +269,7 @@ class LangVm {
                         }
                         params.reverse()
 
-                        val obj = RuntimeValue.RuntimeObject(constructorType, params)
+                        val obj = RuntimeValue.RuntimeObject(constructorType.canonicalType, params)
                         stack.addLast(obj)
                     }
 
@@ -326,7 +326,7 @@ class LangVm {
 
                         val type = (typeValue as RuntimeValue.RuntimeTypeReference).type
 
-                        stack.addLast(RuntimeValue.Boolean(value.isAssignableTo(TypeReferenceConstraintLangType(type))))
+                        stack.addLast(RuntimeValue.Boolean(value.isAssignableTo(type)))
                     }
 
                     is Instruction.Jump -> {
@@ -391,6 +391,13 @@ class LangVm {
                         val value = stack.removeLast()
 
                         val causeParent = callFrame.causeParent!!
+
+                        val pendingSignalType =
+                            (causeParent.pendingSignal!!.typeDescriptor as CanonicalLangType.SignalCanonicalLangType)
+                        if (!value.isAssignableTo(pendingSignalType.result)) {
+                            throw VmError("I tried to resolve a ${pendingSignalType.name} signal with a value of ${value.debug()}, but it needs to be ${pendingSignalType.result}")
+                        }
+
                         causeParent.stack.addLast(value)
                         causeParent.pendingSignal = null
                         this.callFrame = causeParent
@@ -430,7 +437,7 @@ class LangVm {
                 if (canonicalType.isUnique()) {
                     RuntimeValue.RuntimeUniqueObject(canonicalType.id)
                 } else {
-                    RuntimeValue.RuntimeTypeReference(canonicalType)
+                    RuntimeValue.RuntimeTypeReference(TypeReferenceConstraintLangType(canonicalType))
                 }
             }
 

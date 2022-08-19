@@ -1,6 +1,7 @@
 import TestUtils.addFileAndPrintCompileErrors
 import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.CompiledFile
+import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RuntimeValue
@@ -65,15 +66,11 @@ class EffectsBasicTest {
                 "test/test.cau",
                 types = mapOf(
                     greetTypeId to CanonicalLangType.SignalCanonicalLangType(
-                        greetTypeId,
-                        greetTypeId.name!!,
-                        listOf(
+                        greetTypeId, greetTypeId.name!!, listOf(
                             CanonicalLangType.ObjectField(
-                                "name",
-                                LangPrimitiveKind.STRING.toConstraintLangType()
+                                "name", LangPrimitiveKind.STRING.toConstraintLangType()
                             )
-                        ),
-                        result = LangPrimitiveKind.ACTION.toConstraintLangType()
+                        ), result = LangPrimitiveKind.ACTION.toConstraintLangType()
                     )
                 ),
                 chunks = listOf(),
@@ -100,12 +97,10 @@ class EffectsBasicTest {
         val result1 = vm.executeFunction("project/test.cau", "main", listOf())
             .let { TestUtils.expectValidCaused(it, debugTypeId) }
         assertEquals(RuntimeValue.String("Don't handle this one"), result1.values[0])
-        val result2 = vm.resumeExecution(RuntimeValue.Action)
-            .let { TestUtils.expectValidCaused(it, debugTypeId) }
+        val result2 = vm.resumeExecution(RuntimeValue.Action).let { TestUtils.expectValidCaused(it, debugTypeId) }
         assertEquals(RuntimeValue.String("Howdy, partner"), result2.values[0])
 
-        vm.resumeExecution(RuntimeValue.Action).expectReturnValue()
-            .let { assertEquals(RuntimeValue.Action, it) }
+        vm.resumeExecution(RuntimeValue.Action).expectReturnValue().let { assertEquals(RuntimeValue.Action, it) }
     }
 
     @Test
@@ -129,8 +124,7 @@ class EffectsBasicTest {
         )
 
         TestUtils.expectValidCaused(
-            vm.executeFunction("project/test.cau", "main", listOf()),
-            vm.getTypeId("core/builtin.cau", "Debug")
+            vm.executeFunction("project/test.cau", "main", listOf()), vm.getTypeId("core/builtin.cau", "Debug")
         ).let {
             assertEquals(RuntimeValue.String("Howdy, partner"), it.values[0])
         }
@@ -166,9 +160,47 @@ class EffectsBasicTest {
 
         TestUtils.runMainExpectingDebugs(
             vm, "project/test.cau", listOf(
-                "One hello",
-                "Two 42"
+                "One hello", "Two 42"
             )
+        )
+    }
+
+    @Test
+    fun canCaptureAnySignal() {
+        val vm = LangVm()
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
+                signal Extract(value: Anything): Action
+                
+                function main() {
+                    effect (let s: AnySignal) {
+                        cause Extract(s)
+                    }
+                    
+                    cause Debug("this should be extracted and not printed")
+                }
+            """.trimIndent()
+        )
+
+        vm.executeFunction("project/test.cau", "main", listOf())
+            .let { TestUtils.expectValidCaused(it, vm.getTypeId("project/test.cau", "Extract")) }
+            .let {
+                assertEquals(
+                    """
+                    {
+                        "#type": "project/test.cau:Extract",
+                        "value": {
+                            "#type": "core/builtin.cau:Debug",
+                            "message": "this should be extracted and not printed"
+                        }
+                    }
+                    """.trimIndent(),
+                    it.debug()
+                )
+            }
+        assertEquals(
+            RuntimeValue.Action,
+            vm.resumeExecution(RuntimeValue.Action).expectReturnValue(),
         )
     }
 }

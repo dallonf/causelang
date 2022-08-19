@@ -243,6 +243,9 @@ sealed interface ResolvedValueLangType : ValueLangType {
                 else false
             }
 
+            AnySignalConstraintLangType -> this is InstanceValueLangType && this.canonicalType is CanonicalLangType.SignalCanonicalLangType
+            AnythingConstraintLangType -> true
+
             BadValueConstraintLangType -> this is BadValueLangType
             NeverContinuesConstraintLangType -> this is NeverContinuesValueLangType
         }
@@ -364,6 +367,30 @@ data class OptionConstraintLangType(val options: List<ConstraintLangType>) : Res
 
     override fun isPending() = options.any { it.isPending() }
     override fun getError() = options.firstNotNullOfOrNull { it.getError() }
+}
+
+@Serializable
+@SerialName("AnythingValue")
+object AnythingValueLangType : ResolvedValueLangType {
+    override fun toConstraint() = AnythingConstraintLangType
+}
+
+@Serializable
+@SerialName("AnythingConstraint")
+object AnythingConstraintLangType : ResolvedConstraintLangType {
+    override fun toInstanceType() = AnythingValueLangType
+}
+
+@Serializable
+@SerialName("AnySignalValue")
+object AnySignalValueLangType : ResolvedValueLangType {
+    override fun toConstraint() = AnySignalConstraintLangType
+}
+
+@Serializable
+@SerialName("AnySignalConstraint")
+object AnySignalConstraintLangType : ResolvedConstraintLangType {
+    override fun toInstanceType() = AnySignalValueLangType
 }
 
 @Serializable
