@@ -205,6 +205,14 @@ object Compiler {
                     chunk.writeInstruction(Instruction.PushAction)
                 }
             }
+
+            is StatementNode.SetStatement -> {
+                compileSetStatement(statement, chunk, ctx)
+
+                if (isLastStatement) {
+                    chunk.writeInstruction(Instruction.PushAction)
+                }
+            }
         }
     }
 
@@ -260,6 +268,40 @@ object Compiler {
         chunk.writeInstruction(Instruction.RegisterEffect(ctx.chunks.lastIndex))
     }
 
+    private fun compileSetStatement(
+        statement: StatementNode.SetStatement,
+        chunk: CompiledFile.MutableInstructionChunk,
+        ctx: CompilerContext
+    ) {
+        compileExpression(statement.expression, chunk, ctx)
+
+        ctx.resolved.checkForRuntimeErrors(statement.info.breadcrumbs)?.let { error ->
+            chunk.writeInstruction(Instruction.Pop())
+            compileBadValue(statement, error, chunk, ctx)
+
+            when (error) {
+                // these errors are recoverable
+                is ErrorLangType.MismatchedType -> {}
+                // others, like NotVariable... not so much
+                else -> compileTypeErrorFromStackBadValue(chunk)
+            }
+        }
+
+        val tag = ctx.getTag<NodeTag.IsSetStatement>(statement.info.breadcrumbs)!!
+        val valueReference = findValueReference(tag.sets, ctx)
+        if (valueReference.effectDepth > 0) {
+            chunk.writeInstruction(
+                Instruction.WriteLocalThroughEffectScope(
+                    valueReference.effectDepth,
+                    valueReference.foundIndex
+                )
+            )
+        } else {
+            chunk.writeInstruction(
+                Instruction.WriteLocal(valueReference.foundIndex)
+            )
+        }
+    }
 
     private fun compileExpression(
         expression: ExpressionNode, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
@@ -392,18 +434,25 @@ object Compiler {
         chunk: CompiledFile.MutableInstructionChunk,
         ctx: CompilerContext,
     ) {
+        val valueReference = findValueReference(valueComesFrom.source, ctx)
+        chunk.writeInstruction(
+            if (valueReference.effectDepth > 0) {
+                Instruction.ReadLocalThroughEffectScope(valueReference.effectDepth, valueReference.foundIndex)
+            } else {
+                Instruction.ReadLocal(valueReference.foundIndex)
+            }
+        )
+    }
+
+
+    data class ValueReferenceResult(val foundIndex: Int, val effectDepth: Int)
+
+    private fun findValueReference(source: Breadcrumbs, ctx: CompilerContext): ValueReferenceResult {
         var effectDepth = 0
         for (scope in ctx.scopeStack.reversed()) {
-            val foundIndex = scope.namedValueIndices[valueComesFrom.source]
+            val foundIndex = scope.namedValueIndices[source]
             if (foundIndex != null) {
-                chunk.writeInstruction(
-                    if (effectDepth > 0) {
-                        Instruction.ReadLocalThroughEffectScope(effectDepth, foundIndex)
-                    } else {
-                        Instruction.ReadLocal(foundIndex)
-                    }
-                )
-                return
+                return ValueReferenceResult(foundIndex, effectDepth)
             }
             if (scope.type == CompilerScope.ScopeType.EFFECT) {
                 effectDepth += 1
@@ -420,14 +469,7 @@ object Compiler {
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
             chunk.writeInstruction(Instruction.Pop())
             compileBadValue(expression, error, chunk, ctx)
-            chunk.writeInstruction(
-                Instruction.Import(
-                    filePathConstant = chunk.addConstant(CompiledFile.CompiledConstant.StringConst("core/builtin.cau")),
-                    exportNameConstant = chunk.addConstant(CompiledFile.CompiledConstant.StringConst("TypeError")),
-                )
-            )
-            chunk.writeInstruction(Instruction.Construct(1))
-            chunk.writeInstruction(Instruction.Cause)
+            compileTypeErrorFromStackBadValue(chunk)
             return;
         }
 
@@ -502,4 +544,16 @@ object Compiler {
 
         chunk.writeInstruction(Instruction.GetMember(fieldIndex))
     }
+
+    private fun compileTypeErrorFromStackBadValue(chunk: CompiledFile.MutableInstructionChunk) {
+        chunk.writeInstruction(
+            Instruction.Import(
+                filePathConstant = chunk.addConstant(CompiledFile.CompiledConstant.StringConst("core/builtin.cau")),
+                exportNameConstant = chunk.addConstant(CompiledFile.CompiledConstant.StringConst("TypeError")),
+            )
+        )
+        chunk.writeInstruction(Instruction.Construct(1))
+        chunk.writeInstruction(Instruction.Cause)
+    }
 }
+

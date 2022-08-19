@@ -249,6 +249,12 @@ class LangVm {
                         stack.addLast(value)
                     }
 
+                    is Instruction.WriteLocal -> {
+                        val index = callFrame.stackStart + instruction.index
+                        val value = stack.removeLast()
+                        stack[index] = value
+                    }
+
                     is Instruction.ReadLocalThroughEffectScope -> {
                         val index = instruction.index
                         var callParent = callFrame
@@ -257,6 +263,16 @@ class LangVm {
                         }
                         val value = callParent.stack[callParent.stackStart + index]
                         stack.addLast(value)
+                    }
+
+                    is Instruction.WriteLocalThroughEffectScope -> {
+                        val index = callFrame.stackStart + instruction.index
+                        var callParent = callFrame
+                        for (i in 0 until instruction.effectDepth) {
+                            callParent = callParent.callParent!!
+                        }
+                        val value = stack.removeLast()
+                        callParent.stack[callParent.stackStart + index] = value
                     }
 
                     is Instruction.Construct -> {
