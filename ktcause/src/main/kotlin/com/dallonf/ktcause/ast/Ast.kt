@@ -281,6 +281,15 @@ sealed interface DeclarationNode : AstNode {
             put("typeConstraint", typeConstraint)
         }
     }
+
+    data class OptionType(
+        override val info: NodeInfo, val name: Identifier, val options: List<TypeReferenceNode>
+    ) : DeclarationNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            put("name", name)
+            put("options", options)
+        }
+    }
 }
 
 sealed interface BodyNode : AstNode {

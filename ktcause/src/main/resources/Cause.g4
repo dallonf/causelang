@@ -27,6 +27,7 @@ IF : 'if' ;
 IMPORT : 'import' ;
 LET : 'let' ;
 OBJECT : 'object' ;
+OPTION : 'option' ;
 SIGNAL : 'signal' ;
 PATH : [a-zA-Z0-9_\-]+ '/' [a-zA-Z_\-/]+ ;
 IDENTIFIER : [a-zA-Z_] [a-zA-Z0-9_]* ; // TODO: need moar emoji
@@ -35,7 +36,7 @@ file : NEWLINE* (declaration (NEWLINE+ declaration)*)? NEWLINE* EOF ;
 
 typeReference : IDENTIFIER ;
 
-declaration : importDeclaration | functionDeclaration | namedValueDeclaration | objectDeclaration | signalDeclaration ;
+declaration : importDeclaration | functionDeclaration | namedValueDeclaration | objectDeclaration | signalDeclaration | optionDeclaration ;
 
 importDeclaration : IMPORT NEWLINE* PATH NEWLINE* PAREN_OPEN NEWLINE* importMappings NEWLINE* PAREN_CLOSE ;
 importMappings : importMapping NEWLINE* (COMMA NEWLINE* importMapping NEWLINE*)* COMMA? ;
@@ -54,6 +55,8 @@ objectDeclaration : OBJECT NEWLINE* IDENTIFIER NEWLINE* objectFields? ;
 signalDeclaration : SIGNAL NEWLINE* IDENTIFIER NEWLINE* objectFields? NEWLINE* COLON NEWLINE* typeReference;
 objectFields : (PAREN_OPEN NEWLINE* (objectField NEWLINE* (COMMA NEWLINE* objectField NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE) ;
 objectField : IDENTIFIER NEWLINE* COLON NEWLINE* typeReference ;
+
+optionDeclaration : OPTION NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE* (typeReference NEWLINE* (COMMA NEWLINE* typeReference NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
 
 body : block | singleExpressionBody ;
 

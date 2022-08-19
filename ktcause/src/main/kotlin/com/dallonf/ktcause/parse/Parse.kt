@@ -68,6 +68,7 @@ private fun parseDeclaration(
         is NamedValueDeclarationContext -> parseNamedValueDeclaration(child, breadcrumbs, ctx)
         is ObjectDeclarationContext -> parseObjectDeclaration(child, breadcrumbs, ctx)
         is SignalDeclarationContext -> parseSignalDeclaration(child, breadcrumbs, ctx)
+        is OptionDeclarationContext -> parseOptionDeclaration(child, breadcrumbs, ctx)
         else -> throw Error("unexpected declaration type: ${child.toString()}")
     }
 }
@@ -200,6 +201,23 @@ private fun parseObjectFields(
             )
         )
     }
+}
+
+private fun parseOptionDeclaration(
+    declaration: OptionDeclarationContext,
+    breadcrumbs: Breadcrumbs,
+    ctx: ParserContext
+): DeclarationNode.OptionType {
+    val name = parseIdentifier(declaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
+    val optionsBreadcrumbs = breadcrumbs.appendName("options")
+    val options = declaration.typeReference()
+        .mapIndexed { option, it -> parseTypeReference(it, optionsBreadcrumbs.appendIndex(option), ctx) }
+
+    return DeclarationNode.OptionType(
+        NodeInfo(declaration.getRange(), breadcrumbs),
+        name,
+        options
+    )
 }
 
 
