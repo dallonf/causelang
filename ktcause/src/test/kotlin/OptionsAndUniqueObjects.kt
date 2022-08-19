@@ -142,4 +142,39 @@ class OptionsAndUniqueObjects {
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(RuntimeValue.Action, result)
     }
+
+    @Test
+    fun defineOptionTypes() {
+        val vm = LangVm()
+        vm.addFileAndPrintCompileErrors(
+            "project/test.cau", """
+                object Hearts
+                object Diamonds
+                object Clubs
+                object Spades
+                
+                option Suit(
+                    Hearts,
+                    Diamonds,
+                    Clubs,
+                    Spades,
+                )
+                
+                function main() {
+                    let card_suit: Suit = Diamonds
+                    card_suit
+                }
+            """.trimIndent()
+        )
+
+        val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
+        assertEquals(
+            """
+            {
+                "#type": "RuntimeUniqueObject",
+                "id": "project/test.cau:Diamonds"
+            }
+            """.trimIndent(), result.debug()
+        )
+    }
 }
