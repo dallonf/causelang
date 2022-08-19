@@ -191,7 +191,7 @@ class EffectsBasicTest {
                         "#type": "project/test.cau:Extract",
                         "value": {
                             "#type": "core/builtin.cau:Debug",
-                            "message": "this should be extracted and not printed"
+                            "value": "this should be extracted and not printed"
                         }
                     }
                     """.trimIndent(),

@@ -9,7 +9,7 @@ object CoreDescriptors {
         val types = mapOf(
             CanonicalLangType.SignalCanonicalLangType(
                 CanonicalLangTypeId(filename, name = "Debug", number = 0u), name = "Debug", fields = listOf(
-                    CanonicalLangType.ObjectField("message", LangPrimitiveKind.STRING.toConstraintLangType())
+                    CanonicalLangType.ObjectField("value", AnythingConstraintLangType)
                 ), result = LangPrimitiveKind.ACTION.toConstraintLangType()
             ).toPair(), CanonicalLangType.SignalCanonicalLangType(
                 CanonicalLangTypeId(filename, name = "TypeError", number = 0u),

@@ -1,4 +1,3 @@
-import TestUtils.addFileAndPrintCompileErrors
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
@@ -30,7 +29,7 @@ internal class ErrorHandlingBasicTest {
                         "error": {
                             "#type": "MissingParameters",
                             "names": [
-                                "message"
+                                "value"
                             ]
                         }
                     }
@@ -56,7 +55,7 @@ internal class ErrorHandlingBasicTest {
                     "actualError": {
                         "#type": "MissingParameters",
                         "names": [
-                            "message"
+                            "value"
                         ]
                     },
                     "proxyChain": [
@@ -75,24 +74,26 @@ internal class ErrorHandlingBasicTest {
     }
 
     @Test
-    fun mistypedArgument() {
+    fun mistypedConstructParameter() {
         val vm = LangVm()
         vm.addFile(
             "project/hello.cau", """
-            function main() {
-                cause Debug(1)
-            }
+                signal ExpectString(message: String): Action
+                
+                function main() {
+                    cause ExpectString(1)
+                }
             """.trimIndent()
         )
 
         assertEquals(
-            vm.compileErrors.debug(), """
+            """
             [
                 {
                     "position": {
                         "path": "project/hello.cau",
-                        "breadcrumbs": "declarations.1.body.statements.0.expression.signal.parameters.0",
-                        "position": "2:16-2:17"
+                        "breadcrumbs": "declarations.2.body.statements.0.expression.signal.parameters.0",
+                        "position": "4:23-4:24"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -107,19 +108,20 @@ internal class ErrorHandlingBasicTest {
                     }
                 }
             ]
-            """.trimIndent()
+            """.trimIndent(),
+            vm.compileErrors.debug(),
         )
 
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
         assertEquals(
-            TestUtils.expectInvalidSignal(result).debug(), """
+            """
             {
                 "#type": "BadValue",
                 "position": {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
-                    "breadcrumbs": "declarations.1.body.statements.0.expression.signal.parameters.0",
-                    "position": "2:16-2:17"
+                    "breadcrumbs": "declarations.2.body.statements.0.expression.signal.parameters.0",
+                    "position": "4:23-4:24"
                 },
                 "error": {
                     "#type": "MismatchedType",
@@ -133,7 +135,80 @@ internal class ErrorHandlingBasicTest {
                     }
                 }
             }
+            """.trimIndent(),
+            TestUtils.expectInvalidSignal(result).debug(),
+        )
+    }
+
+    @Test
+    fun mistypedCallParameter() {
+        val vm = LangVm()
+        vm.addFile(
+            "project/hello.cau", """               
+                function main() {
+                    expect_string(1)
+                }
+                
+                function expect_string(message: String) {
+                    cause Debug(message)
+                }
             """.trimIndent()
+        )
+
+        assertEquals(
+            """
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.1.body.statements.0.expression.parameters.0",
+                        "position": "2:18-2:19"
+                    },
+                    "error": {
+                        "#type": "MismatchedType",
+                        "expected": {
+                            "#type": "PrimitiveConstraint",
+                            "kind": "String"
+                        },
+                        "actual": {
+                            "#type": "Primitive",
+                            "kind": "Integer"
+                        }
+                    }
+                }
+            ]
+            """.trimIndent(),
+            vm.compileErrors.debug()
+        )
+
+        val result = vm.executeFunction("project/hello.cau", "main", listOf())
+        assertEquals(
+            """
+            {
+                "#type": "core/builtin.cau:Debug",
+                "value": {
+                    "#type": "BadValue",
+                    "position": {
+                        "#type": "SourcePosition",
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.1.body.statements.0.expression.parameters.0",
+                        "position": "2:18-2:19"
+                    },
+                    "error": {
+                        "#type": "MismatchedType",
+                        "expected": {
+                            "#type": "PrimitiveConstraint",
+                            "kind": "String"
+                        },
+                        "actual": {
+                            "#type": "Primitive",
+                            "kind": "Integer"
+                        }
+                    }
+                }
+            }
+            """.trimIndent(),
+            result.expectCausedSignal().debug(),
         )
     }
 

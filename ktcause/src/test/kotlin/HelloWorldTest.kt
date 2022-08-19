@@ -22,7 +22,7 @@ internal class HelloWorldTest {
             result1.debug(), """
                 {
                     "#type": "core/builtin.cau:Debug",
-                    "message": "Hello world!"
+                    "value": "Hello world!"
                 }
             """.trimIndent()
         )
