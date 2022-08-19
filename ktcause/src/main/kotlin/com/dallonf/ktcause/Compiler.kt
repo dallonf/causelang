@@ -90,6 +90,18 @@ object Compiler {
                     }
                 }
 
+                is DeclarationNode.OptionType -> {
+                    val optionType = resolved.getExpectedType(declaration.info.breadcrumbs)
+                    val error = optionType.getRuntimeError()
+                    if (optionType is OptionConstraintLangType) {
+                        exports[declaration.name.text] = CompiledFile.CompiledExport.Value(null, optionType)
+                    } else if (error != null) {
+                        exports[declaration.name.text] = CompiledFile.CompiledExport.Error(error)
+                    } else {
+                        error("Option type declaration resolved to: $optionType")
+                    }
+                }
+
                 is DeclarationNode.NamedValue -> TODO()
             }
         }
@@ -203,6 +215,7 @@ object Compiler {
             is DeclarationNode.Import -> {}
             is DeclarationNode.ObjectType -> {}
             is DeclarationNode.SignalType -> {}
+            is DeclarationNode.OptionType -> {}
             is DeclarationNode.Function -> TODO()
             is DeclarationNode.NamedValue -> {
                 compileExpression(declaration.value, chunk, ctx)

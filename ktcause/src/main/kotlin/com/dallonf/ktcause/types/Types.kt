@@ -58,7 +58,7 @@ sealed interface CanonicalLangType {
     ) : CanonicalLangType {
         fun getInstanceType() = InstanceValueLangType(this)
 
-        override fun isUnique() = fields.isEmpty()
+        override fun isUnique() = false
 
         override fun isPending() = result.isPending() || fields.any { it.valueConstraint.isPending() }
         override fun getError() = result.getError() ?: fields.firstNotNullOfOrNull { it.valueConstraint.getError() }

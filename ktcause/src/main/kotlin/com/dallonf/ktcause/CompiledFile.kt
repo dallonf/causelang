@@ -16,7 +16,12 @@ data class CompiledFile(
                 is CompiledExport.Type -> {
                     val canonicalType = types[export.typeId]
                     requireNotNull(canonicalType) { "$path describes a type (${export.typeId}) but doesn't define it" }
-                    exportDescriptors[exportName] = TypeReferenceConstraintLangType(canonicalType)
+
+                    exportDescriptors[exportName] = if (canonicalType.isUnique()) {
+                        UniqueObjectLangType(canonicalType)
+                    } else {
+                        TypeReferenceConstraintLangType(canonicalType)
+                    }
                 }
 
                 is CompiledExport.Error -> {
@@ -77,6 +82,6 @@ data class CompiledFile(
         data class Error(val error: ErrorLangType) : CompiledExport
         data class Type(val typeId: CanonicalLangTypeId) : CompiledExport
         data class Function(val chunkIndex: Int, val type: LangType) : CompiledExport
-        data class Value(val constant: CompiledConstant, val type: LangType) : CompiledExport
+        data class Value(val constant: CompiledConstant?, val type: LangType) : CompiledExport
     }
 }

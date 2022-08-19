@@ -45,11 +45,18 @@ sealed class RuntimeValue {
                 LangPrimitiveKind.ACTION -> this is Action
             }
 
+            is OptionConstraintLangType -> constraint.options.any {
+                if (it is ResolvedConstraintLangType)
+                    this.isAssignableTo(it)
+                else false
+            }
+
+            is UniqueObjectLangType -> this is RuntimeUniqueObject && this.typeId == constraint.canonicalType.id
+
             BadValueConstraintLangType -> this is BadValue
 
             is TypeReferenceConstraintLangType -> this is RuntimeObject && this.typeDescriptor.type.id == constraint.canonicalType.id
 
-            is UniqueObjectLangType -> this is RuntimeUniqueObject && this.typeId == constraint.canonicalType.id
 
             // No associated runtime values
             NeverContinuesConstraintLangType -> false

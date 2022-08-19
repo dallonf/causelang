@@ -252,28 +252,41 @@ object Resolver {
                                 }
                             }
 
-                            is NodeTag.Causes -> when (val signalType = getResolvedTypeOf(tag.signal)) {
-                                is LangType.Pending -> {}
-                                is InstanceValueLangType -> {
-                                    when (val signalCanonicalType = signalType.canonicalType) {
-                                        is CanonicalLangType.SignalCanonicalLangType -> {
-                                            when (signalCanonicalType.result) {
-                                                is LangType.Pending -> {}
-                                                is ErrorLangType -> resolveWithProxyError(
-                                                    signalCanonicalType.result, tag.signal
-                                                )
+                            is NodeTag.Causes -> {
+                                val signalType = when (val signalType = getResolvedTypeOf(tag.signal)) {
+                                    is LangType.Pending -> return@eachTag
+                                    is InstanceValueLangType -> signalType.canonicalType
 
-                                                is ResolvedConstraintLangType -> resolveWith(signalCanonicalType.result.toInstanceType())
-                                            }
-                                        }
+                                    is ResolvedValueLangType -> {
+                                        resolveWith(ErrorLangType.NotCausable)
+                                        return@eachTag
+                                    }
 
-                                        else -> resolveWith(ErrorLangType.NotCausable)
+                                    is ResolvedConstraintLangType -> {
+                                        resolveWith(ErrorLangType.NotCausable)
+                                        return@eachTag
+                                    }
+
+                                    is ErrorLangType -> {
+                                        resolveWithProxyError(signalType, tag.signal)
+                                        return@eachTag
                                     }
                                 }
 
-                                is ResolvedValueLangType -> resolveWith(ErrorLangType.NotCausable)
-                                is ResolvedConstraintLangType -> resolveWith(ErrorLangType.NotCausable)
-                                is ErrorLangType -> resolveWithProxyError(signalType, tag.signal)
+                                when (signalType) {
+                                    is CanonicalLangType.SignalCanonicalLangType -> {
+                                        when (signalType.result) {
+                                            is LangType.Pending -> {}
+                                            is ErrorLangType -> resolveWithProxyError(
+                                                signalType.result, tag.signal
+                                            )
+
+                                            is ResolvedConstraintLangType -> resolveWith(signalType.result.toInstanceType())
+                                        }
+                                    }
+
+                                    else -> resolveWith(ErrorLangType.NotCausable)
+                                }
                             }
 
                             is NodeTag.IsDeclarationStatement -> {
@@ -344,11 +357,7 @@ object Resolver {
                                 }
 
                                 knownCanonicalTypes[id] = signalType
-                                if (signalType.fields.isEmpty()) {
-                                    resolveWith(UniqueObjectLangType(signalType))
-                                } else {
-                                    resolveWith(TypeReferenceConstraintLangType(signalType))
-                                }
+                                resolveWith(TypeReferenceConstraintLangType(signalType))
                             }
 
                             is NodeTag.IsOptionType -> {
