@@ -17,18 +17,20 @@ object Debug {
             subclass(FunctionValueLangType::class)
             subclass(PrimitiveValueLangType::class)
             subclass(InstanceValueLangType::class)
+            subclass(UniqueObjectLangType::class)
+            subclass(OptionValueLangType::class)
             subclass(BadValueLangType::class)
             subclass(NeverContinuesValueLangType::class)
-            subclass(UniqueObjectLangType::class)
         }
 
         fun PolymorphicModuleBuilder<ResolvedConstraintLangType>.registerResolvedConstraintLangTypeSubclasses() {
             subclass(FunctionConstraintLangType::class)
             subclass(PrimitiveConstraintLangType::class)
             subclass(TypeReferenceConstraintLangType::class)
+            subclass(OptionConstraintLangType::class)
+            subclass(UniqueObjectLangType::class)
             subclass(BadValueConstraintLangType::class)
             subclass(NeverContinuesConstraintLangType::class)
-            subclass(UniqueObjectLangType::class)
         }
 
         fun PolymorphicModuleBuilder<ErrorLangType>.registerErrorValueLangTypeSubclasses() {

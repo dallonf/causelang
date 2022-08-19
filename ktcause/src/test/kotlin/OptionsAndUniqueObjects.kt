@@ -5,6 +5,7 @@ import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
+import kotlin.test.Ignore
 import kotlin.test.assertEquals
 
 class OptionsAndUniqueObjects {
@@ -146,7 +147,7 @@ class OptionsAndUniqueObjects {
     @Test
     fun defineOptionTypes() {
         val vm = LangVm()
-        vm.addFileAndPrintCompileErrors(
+        vm.addFileExpectingNoCompileErrors(
             "project/test.cau", """
                 object Hearts
                 object Diamonds
@@ -175,6 +176,141 @@ class OptionsAndUniqueObjects {
                 "id": "project/test.cau:Diamonds"
             }
             """.trimIndent(), result.debug()
+        )
+    }
+
+    @Test
+    fun optionTypesTypeCheck() {
+        val vm = LangVm()
+        vm.addFile(
+            "project/test.cau", """
+                object Hearts
+                object Diamonds
+                
+                option Suit(
+                    Hearts,
+                    Diamonds,
+                )
+                
+                function main() {
+                    let card_suit: Suit = 5
+                    card_suit
+                }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            """
+            [
+                {
+                    "position": {
+                        "path": "project/test.cau",
+                        "breadcrumbs": "declarations.4.body.statements.0.declaration",
+                        "position": "10:4-10:27"
+                    },
+                    "error": {
+                        "#type": "MismatchedType",
+                        "expected": {
+                            "#type": "OptionConstraint",
+                            "options": [
+                                {
+                                    "#type": "UniqueObject",
+                                    "canonicalType": {
+                                        "#type": "Object",
+                                        "id": "project/test.cau:Hearts",
+                                        "name": "Hearts",
+                                        "fields": [
+                                        ]
+                                    }
+                                },
+                                {
+                                    "#type": "UniqueObject",
+                                    "canonicalType": {
+                                        "#type": "Object",
+                                        "id": "project/test.cau:Diamonds",
+                                        "name": "Diamonds",
+                                        "fields": [
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        "actual": {
+                            "#type": "Primitive",
+                            "kind": "Integer"
+                        }
+                    }
+                }
+            ]
+            """.trimIndent(), vm.compileErrors.debug()
+        )
+        assertEquals(
+            """
+            {
+                "#type": "BadValue",
+                "position": {
+                    "#type": "SourcePosition",
+                    "path": "project/test.cau",
+                    "breadcrumbs": "declarations.4.body.statements.0.declaration",
+                    "position": "10:4-10:27"
+                },
+                "error": {
+                    "#type": "MismatchedType",
+                    "expected": {
+                        "#type": "OptionConstraint",
+                        "options": [
+                            {
+                                "#type": "UniqueObject",
+                                "canonicalType": {
+                                    "#type": "Object",
+                                    "id": "project/test.cau:Hearts",
+                                    "name": "Hearts",
+                                    "fields": [
+                                    ]
+                                }
+                            },
+                            {
+                                "#type": "UniqueObject",
+                                "canonicalType": {
+                                    "#type": "Object",
+                                    "id": "project/test.cau:Diamonds",
+                                    "name": "Diamonds",
+                                    "fields": [
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    "actual": {
+                        "#type": "Primitive",
+                        "kind": "Integer"
+                    }
+                }
+            }
+            """.trimIndent(), vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue().debug()
+        )
+    }
+
+    @Test
+    @Ignore
+    fun optionTypesWithShorthand() {
+        val vm = LangVm()
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
+                option MaybeInteger(
+                    object None,
+                    object Some(value: Integer),
+                )
+                
+                function main(): MaybeInteger {
+                    MaybeInteger.Some(4)
+                }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            """
+            """.trimIndent(), vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue().debug()
         )
     }
 }
