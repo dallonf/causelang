@@ -118,6 +118,19 @@ sealed class NodeTag {
             Pair(objectType, TypeHasField(name, field = breadcrumbs, typeReference))
     }
 
+    data class IsOptionType(val name: String) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+    }
+
+    data class OptionForOptionType(val optionType: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(optionType, OptionTypeHasOption(breadcrumbs))
+
+    }
+
+    data class OptionTypeHasOption(val typeReference: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(typeReference, OptionForOptionType(breadcrumbs))
+    }
+
     object ReferenceNotInScope : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
@@ -257,6 +270,10 @@ object Analyzer {
             is DeclarationNode.SignalType -> {
                 return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
             }
+
+            is DeclarationNode.OptionType -> {
+                return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
+            }
         }
     }
 
@@ -296,6 +313,7 @@ object Analyzer {
             is DeclarationNode.NamedValue -> analyzeNamedValueDeclaration(declaration, output, ctx)
             is DeclarationNode.ObjectType -> analyzeObjectTypeDeclaration(declaration, output, ctx)
             is DeclarationNode.SignalType -> analyzeSignalTypeDeclaration(declaration, output, ctx)
+            is DeclarationNode.OptionType -> analyzeOptionTypeDeclaration(declaration, output, ctx)
         }
     }
 
@@ -419,6 +437,18 @@ object Analyzer {
         }
 
         analyzeTypeReference(declaration.result, output, ctx)
+    }
+
+    private fun analyzeOptionTypeDeclaration(
+        declaration: DeclarationNode.OptionType,
+        output: AnalyzedNode,
+        ctx: AnalyzerContext
+    ) {
+        output.addTag(declaration.info.breadcrumbs, NodeTag.IsOptionType(declaration.name.text))
+        for (option in declaration.options) {
+            analyzeTypeReference(option, output, ctx)
+            output.addTag(option.info.breadcrumbs, NodeTag.OptionForOptionType(declaration.info.breadcrumbs))
+        }
     }
 
 

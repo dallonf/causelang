@@ -331,8 +331,7 @@ object Resolver {
                                     getResolvedTypeOf(tag.resultTypeReference).asConstraint()) {
                                     is LangType.Pending -> LangType.Pending
                                     is ErrorLangType -> ErrorLangType.ProxyError.from(
-                                        resolvedResultType,
-                                        getSourcePosition(tag.resultTypeReference)
+                                        resolvedResultType, getSourcePosition(tag.resultTypeReference)
                                     )
 
                                     is ResolvedConstraintLangType -> resolvedResultType
@@ -350,6 +349,25 @@ object Resolver {
                                 } else {
                                     resolveWith(TypeReferenceConstraintLangType(signalType))
                                 }
+                            }
+
+                            is NodeTag.IsOptionType -> {
+                                val options: List<ConstraintLangType> =
+                                    pendingNodeTags.asSequence().mapNotNull { it as? NodeTag.OptionTypeHasOption }
+                                        .map(
+                                            fun(it): ConstraintLangType =
+                                                when (val resolvedType =
+                                                    getResolvedTypeOf(it.typeReference).asConstraint()) {
+                                                    is LangType.Pending -> LangType.Pending
+                                                    is ErrorLangType -> ErrorLangType.ProxyError.from(
+                                                        resolvedType, getSourcePosition(it.typeReference)
+                                                    )
+
+                                                    is ResolvedConstraintLangType -> resolvedType
+                                                }
+                                        ).toList()
+
+                                resolveWith(OptionConstraintLangType(options))
                             }
 
                             is NodeTag.IsPrimitiveValue -> resolveWith(tag.kind.toValueLangType())

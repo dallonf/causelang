@@ -67,9 +67,7 @@ sealed interface CanonicalLangType {
     @Serializable
     @SerialName("Object")
     data class ObjectCanonicalLangType(
-        override val id: CanonicalLangTypeId,
-        val name: String,
-        val fields: List<ObjectField>
+        override val id: CanonicalLangTypeId, val name: String, val fields: List<ObjectField>
     ) : CanonicalLangType {
 
         override fun isUnique() = fields.isEmpty()
@@ -239,6 +237,12 @@ sealed interface ResolvedValueLangType : ValueLangType {
             is FunctionConstraintLangType -> this is FunctionValueLangType && this.returnConstraint == constraint.returnConstraint && this.params == constraint.params
             is PrimitiveConstraintLangType -> this is PrimitiveValueLangType && this.kind == constraint.kind
             is UniqueObjectLangType -> this is UniqueObjectLangType && this.canonicalType.id == constraint.canonicalType.id
+            is OptionConstraintLangType -> constraint.options.any {
+                if (it is ResolvedConstraintLangType)
+                    this.isAssignableTo(it)
+                else false
+            }
+
             BadValueConstraintLangType -> this is BadValueLangType
             NeverContinuesConstraintLangType -> this is NeverContinuesValueLangType
         }
@@ -342,6 +346,24 @@ data class UniqueObjectLangType(val canonicalType: CanonicalLangType) : Resolved
     override fun toInstanceType() = this
 
     override fun toConstraint() = this
+}
+
+@Serializable
+@SerialName("OptionValue")
+data class OptionValueLangType(val options: List<ConstraintLangType>) : ResolvedValueLangType {
+    override fun toConstraint() = OptionConstraintLangType(options)
+
+    override fun isPending() = options.any { it.isPending() }
+    override fun getError() = options.firstNotNullOfOrNull { it.getError() }
+}
+
+@Serializable
+@SerialName("OptionConstraint")
+data class OptionConstraintLangType(val options: List<ConstraintLangType>) : ResolvedConstraintLangType {
+    override fun toInstanceType() = OptionValueLangType(options)
+
+    override fun isPending() = options.any { it.isPending() }
+    override fun getError() = options.firstNotNullOfOrNull { it.getError() }
 }
 
 @Serializable
