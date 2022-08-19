@@ -452,6 +452,14 @@ object Compiler {
             is FunctionValueLangType -> {
                 chunk.writeInstruction(Instruction.CallFunction(arity = expression.parameters.size))
             }
+
+            is UniqueObjectLangType -> {
+                // ignore this, unique objects don't need to be constructed.
+                // Kiiind of abusing PopScope here to keep the value in place while popping
+                // any erroneous params
+                chunk.writeInstruction(Instruction.PopScope(expression.parameters.size))
+            }
+
             // any other case should have been handled by the resolver as an
             // error on the CallExpression itself, which was checked above
             else -> throw AssertionError()

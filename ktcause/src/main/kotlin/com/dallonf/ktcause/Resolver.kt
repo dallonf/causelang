@@ -244,6 +244,8 @@ object Resolver {
                                         }
                                     }
 
+                                    is UniqueObjectLangType -> resolveWith(calleeType)
+
                                     is ResolvedValueLangType -> resolveWith(ErrorLangType.NotCallable)
                                     is ResolvedConstraintLangType -> resolveWith(ErrorLangType.NotCallable)
                                     is ErrorLangType -> resolveWithProxyError(calleeType, tag.callee)
