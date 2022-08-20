@@ -203,4 +203,33 @@ class EffectsBasicTest {
             vm.resumeExecution(RuntimeValue.Action).expectReturnValue(),
         )
     }
+
+    @Test
+    fun setFromInnerFunctionWithCause() {
+        val vm = LangVm()
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
+                signal SetX(value: Integer): Action
+                
+                function main() {
+                    let variable x = 1
+                    
+                    effect (let s: SetX) {
+                        set x = s.value
+                    }
+                    
+                    function update() {
+                        cause SetX(2)
+                    }
+                    
+                    update()
+                    
+                    x
+                }
+            """.trimIndent()
+        )
+
+        val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
+        assertEquals(RuntimeValue.Integer(2), result)
+    }
 }
