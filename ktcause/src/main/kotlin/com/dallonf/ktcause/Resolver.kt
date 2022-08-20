@@ -103,8 +103,6 @@ object Resolver {
                         is NodeTag.TopLevelDeclaration -> track(INFERRED)
                         is NodeTag.IsExpression -> track(INFERRED)
                         is NodeTag.IsNamedValue -> track(INFERRED)
-                        is NodeTag.IsEffectStatement -> track(INFERRED)
-                        is NodeTag.IsSetStatement -> track(INFERRED)
 
                         is NodeTag.ConditionFor -> track(CONSTRAINT)
 
@@ -116,6 +114,20 @@ object Resolver {
                         is NodeTag.ParameterForCall -> {
                             track(INFERRED)
                             track(CONSTRAINT)
+                        }
+
+                        // expect Action results for non-value statements
+                        // this keeps things compiling even if individual statements have errors
+                        is NodeTag.IsEffectStatement -> {
+                            track(INFERRED)
+                            resolvedTypes[ResolutionKey(CONSTRAINT, nodeBreadcrumbs)] =
+                                LangPrimitiveKind.ACTION.toConstraintLangType()
+                        }
+
+                        is NodeTag.IsSetStatement -> {
+                            track(INFERRED)
+                            resolvedTypes[ResolutionKey(CONSTRAINT, nodeBreadcrumbs)] =
+                                LangPrimitiveKind.ACTION.toConstraintLangType()
                         }
 
                         else -> {}
@@ -175,6 +187,16 @@ object Resolver {
                     when (pendingKey.type) {
                         INFERRED -> when (tag) {
                             is NodeTag.ValueComesFrom -> {
+                                val usesCapturedValue =
+                                    pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.UsesCapturedValue }
+                                if (usesCapturedValue != null) {
+                                    val sourceTags = nodeTags[tag.source] ?: emptyList()
+                                    if (sourceTags.any { it is NodeTag.IsVariable }) {
+                                        resolveWith(ErrorLangType.OuterVariable)
+                                        return@eachTag
+                                    }
+                                }
+
                                 when (val sourceType = getResolvedTypeOf(tag.source)) {
                                     is LangType.Pending -> {}
                                     is ResolvedValueLangType -> resolveWith(sourceType)
@@ -602,6 +624,11 @@ object Resolver {
                                     nodeTags[variable]?.firstNotNullOfOrNull { it -> it as? NodeTag.IsVariable }
                                 if (variableTag == null) {
                                     resolveWith(ErrorLangType.NotVariable)
+                                    return@eachTag
+                                }
+
+                                if (pendingNodeTags.any { it is NodeTag.UsesCapturedValue }) {
+                                    resolveWith(ErrorLangType.OuterVariable)
                                     return@eachTag
                                 }
 

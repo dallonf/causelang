@@ -229,6 +229,10 @@ sealed interface ErrorLangType : LangType, ValueLangType, ConstraintLangType {
     @Serializable
     @SerialName("NotVariable")
     object NotVariable : ErrorLangType
+
+    @Serializable
+    @SerialName("OuterVariable")
+    object OuterVariable : ErrorLangType
 }
 
 sealed interface ResolvedValueLangType : ValueLangType {

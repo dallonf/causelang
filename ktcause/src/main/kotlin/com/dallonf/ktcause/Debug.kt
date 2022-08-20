@@ -55,6 +55,7 @@ object Debug {
             subclass(ErrorLangType.DoesNotHaveAnyMembers::class)
             subclass(ErrorLangType.DoesNotHaveMember::class)
             subclass(ErrorLangType.NotVariable::class)
+            subclass(ErrorLangType.OuterVariable::class)
         }
 
         // TODO: in 17.20 you'll be able to just pop @Serializable on a sealed interface

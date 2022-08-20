@@ -74,4 +74,121 @@ class VariablesTest {
             """.trimIndent(), error.debug()
         )
     }
+
+    @Test
+    fun cantReadVariableInInnerFunction() {
+        val vm = LangVm()
+        vm.addFile(
+            "project/test.cau", """
+                function main() {
+                    let variable x = 1
+                    function read() {
+                        cause Debug(x)
+                    }
+                    set x = 2
+                    read()
+                }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            """
+            [
+                {
+                    "position": {
+                        "path": "project/test.cau",
+                        "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression.signal.parameters.0.value",
+                        "position": "4:20-4:21"
+                    },
+                    "error": {
+                        "#type": "OuterVariable"
+                    }
+                }
+            ]
+            """.trimIndent(), vm.compileErrors.debug()
+        )
+
+        val debug = vm.executeFunction("project/test.cau", "main", listOf()).expectCausedSignal().let {
+            assertEquals(vm.getBuiltinTypeId("Debug"), it.typeDescriptor.id)
+            it.values[0]
+        }
+        assertEquals(
+            """
+            {
+                "#type": "BadValue",
+                "position": {
+                    "#type": "SourcePosition",
+                    "path": "project/test.cau",
+                    "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression.signal.parameters.0",
+                    "position": "4:20-4:21"
+                },
+                "error": {
+                    "#type": "ProxyError",
+                    "actualError": {
+                        "#type": "OuterVariable"
+                    },
+                    "proxyChain": [
+                        {
+                            "#type": "SourcePosition",
+                            "path": "project/test.cau",
+                            "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression.signal.parameters.0.value",
+                            "position": "4:20-4:21"
+                        }
+                    ]
+                }
+            }
+            """.trimIndent(), debug.debug()
+        )
+    }
+
+    @Test
+    fun cantSetVariableInInnerFunction() {
+        val vm = LangVm()
+        vm.addFile(
+            "project/test.cau", """
+                function main() {
+                    let variable x = 1
+                    function update() {
+                        set x = 2
+                    }
+                    update()
+                }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            """
+            [
+                {
+                    "position": {
+                        "path": "project/test.cau",
+                        "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0",
+                        "position": "4:8-4:17"
+                    },
+                    "error": {
+                        "#type": "OuterVariable"
+                    }
+                }
+            ]
+            """.trimIndent(), vm.compileErrors.debug()
+        )
+
+        val error = TestUtils.expectTypeError(vm.executeFunction("project/test.cau", "main", listOf()), vm)
+        assertEquals(
+            """
+            {
+                "#type": "BadValue",
+                "position": {
+                    "#type": "SourcePosition",
+                    "path": "project/test.cau",
+                    "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0",
+                    "position": "4:8-4:17"
+                },
+                "error": {
+                    "#type": "OuterVariable"
+                }
+            }
+            """.trimIndent(), error.debug()
+        )
+    }
 }

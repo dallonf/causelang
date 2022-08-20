@@ -44,6 +44,10 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(destination, ValueComesFrom(source = breadcrumbs))
     }
 
+    data class UsesCapturedValue(val parentFunction: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+    }
+
     data class ValueCapturedBy(val function: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(function, CapturesValue(value = breadcrumbs))
     }
@@ -332,6 +336,7 @@ object Analyzer {
                     // TODO: think harder about whether type references are actually captured
                     if (scopeItem is CapturedValueScopeItem) {
                         output.addTag(scopeItem.origin, NodeTag.ValueCapturedBy(ctx.currentFunction!!))
+                        output.addTag(typeReference.info.breadcrumbs, NodeTag.UsesCapturedValue(ctx.currentFunction))
                     }
                 } else {
                     output.addTag(typeReference.info.breadcrumbs, NodeTag.ReferenceNotInScope)
@@ -573,17 +578,7 @@ object Analyzer {
                         }
 
                         is StatementNode.SetStatement -> {
-                            analyzeExpression(statementNode.expression, output, currentCtx)
-                            val variable = currentCtx.currentScope.items[statementNode.identifier.text]
-                            if (variable == null) {
-                                output.addTag(statementNode.info.breadcrumbs, NodeTag.ReferenceNotInScope)
-                            } else {
-                                output.addTag(
-                                    statementNode.info.breadcrumbs, NodeTag.IsSetStatement(
-                                        sets = variable.origin, setTo = statementNode.expression.info.breadcrumbs
-                                    )
-                                )
-                            }
+                            analyzeSetStatement(statementNode, output, currentCtx)
                         }
                     }
                 }
@@ -592,6 +587,27 @@ object Analyzer {
             is BodyNode.SingleExpressionBodyNode -> {
                 analyzeExpression(body.expression, output, ctx)
                 output.addValueFlowTag(body.expression.info.breadcrumbs, body.info.breadcrumbs)
+            }
+        }
+    }
+
+    private fun analyzeSetStatement(
+        statementNode: StatementNode.SetStatement,
+        output: AnalyzedNode,
+        ctx: AnalyzerContext
+    ) {
+        analyzeExpression(statementNode.expression, output, ctx)
+        val variable = ctx.currentScope.items[statementNode.identifier.text]
+        if (variable == null) {
+            output.addTag(statementNode.info.breadcrumbs, NodeTag.ReferenceNotInScope)
+        } else {
+            output.addTag(
+                statementNode.info.breadcrumbs, NodeTag.IsSetStatement(
+                    sets = variable.origin, setTo = statementNode.expression.info.breadcrumbs
+                )
+            )
+            if (variable is CapturedValueScopeItem) {
+                output.addTag(statementNode.info.breadcrumbs, NodeTag.UsesCapturedValue(ctx.currentFunction!!))
             }
         }
     }
@@ -654,6 +670,7 @@ object Analyzer {
             output.addValueFlowTag(foundItem.origin, expression.info.breadcrumbs)
             if (foundItem is CapturedValueScopeItem) {
                 output.addTag(foundItem.origin, NodeTag.ValueCapturedBy(ctx.currentFunction!!))
+                output.addTag(expression.info.breadcrumbs, NodeTag.UsesCapturedValue(ctx.currentFunction))
             }
         } else {
             output.addTag(expression.info.breadcrumbs, NodeTag.ReferenceNotInScope)

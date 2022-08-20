@@ -317,6 +317,7 @@ object Compiler {
                 // others, like NotVariable... not so much
                 else -> compileTypeErrorFromStackBadValue(chunk)
             }
+            return
         }
 
         val tag = ctx.getTag<NodeTag.IsSetStatement>(statement.info.breadcrumbs)!!
