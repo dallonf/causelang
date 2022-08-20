@@ -16,8 +16,9 @@ sealed interface Instruction {
     object PushAction : Instruction
     data class Literal(val constant: Int) : Instruction
     data class Import(val filePathConstant: Int, val exportNameConstant: Int) : Instruction
-
     data class ImportSameFile(val exportNameConstant: Int) : Instruction
+    data class DefineFunction(val chunkIndex: Int, val typeConstant: Int, val capturedValues: Int) : Instruction
+
     data class ReadLocal(val index: Int) : Instruction
     data class WriteLocal(val index: Int): Instruction
     data class ReadLocalThroughEffectScope(val effectDepth: Int, val index: Int) : Instruction

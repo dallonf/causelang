@@ -197,9 +197,7 @@ class LangVm {
                             is CompiledFile.CompiledConstant.StringConst -> RuntimeValue.String(constant.value)
                             is CompiledFile.CompiledConstant.IntegerConst -> RuntimeValue.Integer(constant.value)
                             is CompiledFile.CompiledConstant.FloatConst -> RuntimeValue.Float(constant.value)
-                            is CompiledFile.CompiledConstant.FunctionConst -> {
-                                RuntimeValue.Function(constant.type.name, callFrame.file, constant.chunkIndex, constant.type)
-                            }
+                            is CompiledFile.CompiledConstant.TypeConst -> throw InternalVmError("This isn't supposed to be used as a literal: $constant")
                             is CompiledFile.CompiledConstant.ErrorConst -> RuntimeValue.BadValue(
                                 constant.sourcePosition, constant.error
                             )
@@ -244,6 +242,29 @@ class LangVm {
                             }.value
                         val value = getExportAsRuntimeValue(exportName, callFrame.file)
                         stack.addLast(value)
+                    }
+
+                    is Instruction.DefineFunction -> {
+                        val capturedValues = run {
+                            val list = mutableListOf<RuntimeValue>()
+                            for (i in 0 until instruction.capturedValues) {
+                                list.add(stack.removeLast())
+                            }
+                            list.reverse()
+                            list.toList()
+                        }
+
+                        val functionType =
+                            (getConstant(instruction.typeConstant) as CompiledFile.CompiledConstant.TypeConst).type as FunctionValueLangType
+
+                        val functionValue = RuntimeValue.Function(
+                            functionType.name,
+                            file = callFrame.file,
+                            chunkIndex = instruction.chunkIndex,
+                            type = functionType,
+                            capturedValues = capturedValues
+                        )
+                        stack.addLast(functionValue)
                     }
 
                     is Instruction.ReadLocal -> {
@@ -318,6 +339,7 @@ class LangVm {
                                     stackStart = stack.size - instruction.arity,
                                     firstEffect = callFrame.firstEffect,
                                 )
+                                stack.addAll(function.capturedValues)
                                 this.callFrame = newCallFrame
                             }
 
@@ -465,7 +487,7 @@ class LangVm {
             is CompiledFile.CompiledExport.Function -> {
                 if (export.type is FunctionValueLangType) {
                     val functionName = export.type.name ?: exportName
-                    RuntimeValue.Function(functionName, file, export.chunkIndex, export.type)
+                    RuntimeValue.Function(functionName, file, export.chunkIndex, export.type, capturedValues = listOf())
                 } else {
                     RuntimeValue.BadValue(
                         SourcePosition.Export(

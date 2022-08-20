@@ -29,6 +29,7 @@ sealed class RuntimeValue {
         val file: CompiledFile,
         val chunkIndex: Int,
         val type: FunctionValueLangType,
+        val capturedValues: List<RuntimeValue>
     ) : RuntimeValue()
 
     fun isAssignableTo(constraint: ConstraintLangType): kotlin.Boolean {

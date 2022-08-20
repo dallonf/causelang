@@ -78,7 +78,7 @@ data class CompiledFile(
         data class FloatConst(val value: Double) : CompiledConstant
         data class ErrorConst(val sourcePosition: SourcePosition, val error: ErrorLangType) :
             CompiledConstant
-        data class FunctionConst(val chunkIndex: Int, val type: FunctionValueLangType) : CompiledConstant
+        data class TypeConst(val type: ValueLangType) : CompiledConstant
     }
 
     sealed interface CompiledExport {

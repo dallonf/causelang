@@ -44,6 +44,14 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(destination, ValueComesFrom(source = breadcrumbs))
     }
 
+    data class ValueCapturedBy(val function: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(function, CapturesValue(value = breadcrumbs))
+    }
+
+    data class CapturesValue(val value: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(value, ValueCapturedBy(function = breadcrumbs))
+    }
+
     data class Calls(val callee: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(callee, CalledBy(callExpression = breadcrumbs))
     }
@@ -106,8 +114,7 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
-    data class TypeHasField(val name: String, val field: Breadcrumbs, val typeReference: Breadcrumbs) :
-        NodeTag() {
+    data class TypeHasField(val name: String, val field: Breadcrumbs, val typeReference: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) =
             Pair(field, FieldForObjectType(name, objectType = breadcrumbs, typeReference))
     }
@@ -213,15 +220,26 @@ sealed class NodeTag {
 
 
 object Analyzer {
-    private data class ScopeItem(val origin: Breadcrumbs)
+    private sealed interface ScopeItem {
+        val origin: Breadcrumbs
+    }
+
+    private data class LocalScopeItem(override val origin: Breadcrumbs) : ScopeItem
+    private data class TopLevelScopeItem(override val origin: Breadcrumbs) : ScopeItem
+    private data class CapturedValueScopeItem(override val origin: Breadcrumbs) : ScopeItem
+
     private data class Scope(val items: MutableMap<String, ScopeItem> = mutableMapOf()) {
         fun extend(): Scope = Scope(items.toMutableMap())
     }
 
     private data class AnalyzerContext(
-        val currentScope: Scope, val fileRootScope: Scope, val currentScopePosition: Breadcrumbs
+        val currentScope: Scope,
+        val fileRootScope: Scope,
+        val currentScopePosition: Breadcrumbs,
+        val currentFunction: Breadcrumbs?
     ) {
-        fun clone(breadcrumbs: Breadcrumbs) = AnalyzerContext(currentScope.extend(), fileRootScope, breadcrumbs)
+        fun clone(breadcrumbs: Breadcrumbs) =
+            AnalyzerContext(currentScope.extend(), fileRootScope, breadcrumbs, currentFunction)
     }
 
     fun analyzeFile(astNode: FileNode): AnalyzedNode {
@@ -229,17 +247,20 @@ object Analyzer {
         val rootScope = Scope()
 
         val ctx = AnalyzerContext(
-            currentScope = rootScope, fileRootScope = rootScope, currentScopePosition = astNode.info.breadcrumbs
+            currentScope = rootScope,
+            fileRootScope = rootScope,
+            currentScopePosition = astNode.info.breadcrumbs,
+            currentFunction = null
         )
 
         // loop over top-level declarations to hoist them into file scope
         for (declaration in astNode.declarations) {
             getDeclarationsForScope(declaration)?.let {
                 addDeclarationsToScope(
-                    it, result, ctx
+                    it.map { (name, position) -> name to TopLevelScopeItem(position) }, result, ctx
                 )
                 for ((name, scopeItem) in it) {
-                    result.addTag(scopeItem.origin, NodeTag.TopLevelDeclaration(name))
+                    result.addTag(scopeItem, NodeTag.TopLevelDeclaration(name))
                 }
             }
         }
@@ -253,35 +274,35 @@ object Analyzer {
 
     private fun getDeclarationsForScope(
         declaration: DeclarationNode
-    ): List<Pair<String, ScopeItem>>? {
+    ): List<Pair<String, Breadcrumbs>>? {
         when (declaration) {
             is DeclarationNode.Function -> {
-                return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
+                return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
             is DeclarationNode.Import -> {
                 val list = declaration.mappings.map { mapping ->
                     val sourceName = mapping.sourceName.text
                     val rename = mapping.rename?.text
-                    (rename ?: sourceName) to ScopeItem(mapping.info.breadcrumbs)
+                    (rename ?: sourceName) to mapping.info.breadcrumbs
                 }
                 return list.ifEmpty { null }
             }
 
             is DeclarationNode.NamedValue -> {
-                return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
+                return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
             is DeclarationNode.ObjectType -> {
-                return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
+                return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
             is DeclarationNode.SignalType -> {
-                return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
+                return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
             is DeclarationNode.OptionType -> {
-                return listOf(declaration.name.text to ScopeItem(declaration.info.breadcrumbs))
+                return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
         }
     }
@@ -308,6 +329,10 @@ object Analyzer {
                 val scopeItem = ctx.currentScope.items[typeReference.identifier.text]
                 if (scopeItem != null) {
                     output.addValueFlowTag(scopeItem.origin, typeReference.info.breadcrumbs)
+                    // TODO: think harder about whether type references are actually captured
+                    if (scopeItem is CapturedValueScopeItem) {
+                        output.addTag(scopeItem.origin, NodeTag.ValueCapturedBy(ctx.currentFunction!!))
+                    }
                 } else {
                     output.addTag(typeReference.info.breadcrumbs, NodeTag.ReferenceNotInScope)
                 }
@@ -372,10 +397,19 @@ object Analyzer {
             )
         )
 
-        // brand-new scope for a function
-        val newCtx = AnalyzerContext(ctx.fileRootScope.extend(), ctx.fileRootScope, declaration.body.info.breadcrumbs)
+        val newCtx = AnalyzerContext(
+            ctx.currentScope.copy(
+                items = ctx.currentScope.items.mapValues { (key, value) ->
+                    if (value is LocalScopeItem) {
+                        CapturedValueScopeItem(value.origin)
+                    } else {
+                        value
+                    }
+                }.toMutableMap()
+            ), ctx.fileRootScope, declaration.body.info.breadcrumbs, currentFunction = declaration.info.breadcrumbs
+        )
         for (param in declaration.params) {
-            newCtx.currentScope.items[param.name.text] = ScopeItem(param.info.breadcrumbs)
+            newCtx.currentScope.items[param.name.text] = LocalScopeItem(param.info.breadcrumbs)
         }
         analyzeBody(declaration.body, output, newCtx)
     }
@@ -431,8 +465,7 @@ object Analyzer {
     ) {
         output.addTag(
             declaration.info.breadcrumbs, NodeTag.IsSignalType(
-                name = declaration.name.text,
-                resultTypeReference = declaration.result.info.breadcrumbs
+                name = declaration.name.text, resultTypeReference = declaration.result.info.breadcrumbs
             )
         )
 
@@ -453,9 +486,7 @@ object Analyzer {
     }
 
     private fun analyzeOptionTypeDeclaration(
-        declaration: DeclarationNode.OptionType,
-        output: AnalyzedNode,
-        ctx: AnalyzerContext
+        declaration: DeclarationNode.OptionType, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         output.addTag(declaration.info.breadcrumbs, NodeTag.IsOptionType(declaration.name.text))
         for (option in declaration.options) {
@@ -496,9 +527,14 @@ object Analyzer {
                                 currentCtx = AnalyzerContext(
                                     currentCtx.currentScope.extend(),
                                     currentCtx.fileRootScope,
-                                    currentCtx.currentScopePosition
+                                    currentCtx.currentScopePosition,
+                                    currentCtx.currentFunction
                                 )
-                                addDeclarationsToScope(declarations, output, currentCtx)
+                                addDeclarationsToScope(
+                                    declarations.map { (name, item) -> name to LocalScopeItem(item) },
+                                    output,
+                                    currentCtx
+                                )
                             }
                             output.addTag(
                                 statementNode.info.breadcrumbs,
@@ -510,13 +546,13 @@ object Analyzer {
                             val effectCtx = AnalyzerContext(
                                 currentCtx.currentScope.extend(),
                                 currentCtx.fileRootScope,
-                                statementNode.info.breadcrumbs
+                                statementNode.info.breadcrumbs,
+                                currentCtx.currentFunction
                             )
 
                             statementNode.pattern.name?.let {
                                 effectCtx.currentScope.items.put(
-                                    it.text,
-                                    ScopeItem(statementNode.pattern.info.breadcrumbs)
+                                    it.text, LocalScopeItem(statementNode.pattern.info.breadcrumbs)
                                 )
                             }
 
@@ -543,10 +579,8 @@ object Analyzer {
                                 output.addTag(statementNode.info.breadcrumbs, NodeTag.ReferenceNotInScope)
                             } else {
                                 output.addTag(
-                                    statementNode.info.breadcrumbs,
-                                    NodeTag.IsSetStatement(
-                                        sets = variable.origin,
-                                        setTo = statementNode.expression.info.breadcrumbs
+                                    statementNode.info.breadcrumbs, NodeTag.IsSetStatement(
+                                        sets = variable.origin, setTo = statementNode.expression.info.breadcrumbs
                                     )
                                 )
                             }
@@ -618,6 +652,9 @@ object Analyzer {
         val foundItem = ctx.currentScope.items[identifierText]
         if (foundItem != null) {
             output.addValueFlowTag(foundItem.origin, expression.info.breadcrumbs)
+            if (foundItem is CapturedValueScopeItem) {
+                output.addTag(foundItem.origin, NodeTag.ValueCapturedBy(ctx.currentFunction!!))
+            }
         } else {
             output.addTag(expression.info.breadcrumbs, NodeTag.ReferenceNotInScope)
         }

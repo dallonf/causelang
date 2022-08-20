@@ -17,6 +17,9 @@ object Compiler {
         inline fun <reified T : NodeTag> getTag(breadcrumbs: Breadcrumbs): T? =
             getTags(breadcrumbs).firstNotNullOfOrNull { it as? T }
 
+        inline fun <reified T : NodeTag> getTagsOfType(breadcrumbs: Breadcrumbs): List<T> =
+            getTags(breadcrumbs).mapNotNull { it as? T }
+
         fun hasTag(breadcrumbs: Breadcrumbs, vararg types: KClass<out NodeTag>): Boolean {
             return getTags(breadcrumbs).any { tag -> types.any { it.isInstance(tag) } }
         }
@@ -121,6 +124,11 @@ object Compiler {
         for ((i, param) in declaration.params.withIndex()) {
             functionScope.namedValueIndices[param.info.breadcrumbs] = i
         }
+
+        for ((i, captured) in ctx.getTagsOfType<NodeTag.CapturesValue>(declaration.info.breadcrumbs).withIndex()) {
+            functionScope.namedValueIndices[captured.value] = i
+        }
+
         compileBody(declaration.body, chunk, ctx)
         // TODO: make sure this is the right type to return
         chunk.writeInstruction(Instruction.Return)
@@ -225,16 +233,26 @@ object Compiler {
             is DeclarationNode.SignalType -> {}
             is DeclarationNode.OptionType -> {}
             is DeclarationNode.Function -> {
+                val capturedValues = ctx.getTagsOfType<NodeTag.CapturesValue>(declaration.info.breadcrumbs)
+                for (captured in capturedValues) {
+                    compileValueReference(captured.value, chunk, ctx)
+                }
+
                 val newChunk = compileFunction(declaration, ctx)
 
                 ctx.resolved.checkForRuntimeErrors(declaration.info.breadcrumbs)?.let { error ->
                     compileBadValue(declaration, error, chunk, ctx)
                 } ?: run {
                     ctx.chunks.add(newChunk.toInstructionChunk())
-                    chunk.writeLiteral(
-                        CompiledFile.CompiledConstant.FunctionConst(
-                            ctx.chunks.lastIndex,
-                            ctx.resolved.getExpectedType(declaration.info.breadcrumbs) as FunctionValueLangType
+                    chunk.writeInstruction(
+                        Instruction.DefineFunction(
+                            chunkIndex = ctx.chunks.lastIndex,
+                            typeConstant = chunk.addConstant(
+                                CompiledFile.CompiledConstant.TypeConst(
+                                    ctx.resolved.getExpectedType(declaration.info.breadcrumbs).asValue()
+                                )
+                            ),
+                            capturedValues = capturedValues.size
                         )
                     )
                 }
@@ -412,7 +430,7 @@ object Compiler {
                 NodeTag.IsPattern::class,
             )
         ) {
-            compileValueReference(comesFrom, chunk, ctx)
+            compileValueReference(comesFrom.source, chunk, ctx)
             return
         }
 
@@ -443,11 +461,11 @@ object Compiler {
     }
 
     private fun compileValueReference(
-        valueComesFrom: NodeTag.ValueComesFrom,
+        source: Breadcrumbs,
         chunk: CompiledFile.MutableInstructionChunk,
         ctx: CompilerContext,
     ) {
-        val valueReference = findValueReference(valueComesFrom.source, ctx)
+        val valueReference = findValueReference(source, ctx)
         chunk.writeInstruction(
             if (valueReference.effectDepth > 0) {
                 Instruction.ReadLocalThroughEffectScope(valueReference.effectDepth, valueReference.foundIndex)
