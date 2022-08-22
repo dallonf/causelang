@@ -1,3 +1,0 @@
-fn main() {
-    cause Print("Hello World")
-}

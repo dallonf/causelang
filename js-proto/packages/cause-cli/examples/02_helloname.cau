@@ -1,5 +1,0 @@
-fn main() {
-  cause Print("What is your name?")
-  let name = cause Prompt()
-  cause Print(append("Hello, ", name))
-}

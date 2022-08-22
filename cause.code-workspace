@@ -8,10 +8,7 @@
       "path": "future-examples"
     },
     {
-      "path": "js-proto/packages/proto-compiler"
-    },
-    {
-      "path": "js-proto/packages/cause-cli"
+      "path": "ktcause"
     }
   ]
 }
