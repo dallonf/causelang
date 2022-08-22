@@ -1,6 +1,6 @@
-import core/math { add }
-import lib/reactiveUi {Component, template!}
-import lib/reactiveCore {Value, Computed}
+import core/math ( add )
+import lib/reactiveUi (Component, template!)
+import lib/reactiveCore (Value, Computed)
 
 let CounterApp = Component.new!(
     setup({
@@ -9,7 +9,7 @@ let CounterApp = Component.new!(
     }),
     render({
         let increment = fn() {
-            state.counter.set!($->add(1))
+            state.update!(set counter = ->add(1))
         }
         template!("
             <div>

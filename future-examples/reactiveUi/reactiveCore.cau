@@ -1,3 +1,5 @@
+// TODO: this is well out of date with my current thinking around syntax
+
 protected object ObservableTag<T>(protected tag: Tag)
 protected object SubscriptionTag<T>(protected tag: Tag, observableTag: ObservableTag<T>)
 
