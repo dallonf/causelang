@@ -1,29 +1,22 @@
-fn main() {
-  let result = loop(0, fn(counter) {
-    cause Print("current value: "->append(toString(cause ReadCounter())))
-    cause Print("Type up/down/quit:")
-    let input = (cause Prompt())->toLowerCase()
-    branch {
-      if input->equals("up") => counter->add(1)
-      if input->equals("down") => counter->add(-1)
-      if input->equals("quit") => cause BreakLoop(counter)
-      else {
-        cause Print("invalid input: "->append(input))
-        counter
-      }
-    }
-  }
-  cause Print("Counter quit with value: "->append(result))
-}
+import core/math (add)
+import cli/console (Print, Prompt)
 
-//probably part of the standard library
-signal BreakLoop<T>(value: T): Never
+function main() {
+	let result = {
+		with label LOOP
+		let variable counter = 0
+		loop {
+			cause Print("current value: ${counter.to_string()}")
+			cause Print("Type up/down/quit:")
+			let input = (cause Prompt()).to_lower_case()
+			branch with input {
+				equals "up" => set counter = ->add(1)
+				equals "down" => set counter = ->add(-1)
+				equals "quit" => return to LOOP counter
+				else => cause Print("invalid input: ${input}")
+			}
+		}
+	}
 
-fn loop<T>(startValue: T, loopFn: fn(value: T): T): T  {
-  {
-    fn innerLoop(value: T) innerLoop(loopFn(value))
-    innerLoop(startValue)
-  } effect BreakLoop(let value) {
-    break value
-  }
+	cause Print("Counter quit with value: ${result.to_string()}")
 }
