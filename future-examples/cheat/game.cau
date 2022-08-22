@@ -1,122 +1,127 @@
 import core/math
 import core/collection
 import ./deck
-import ./cards {Card, Rank}
+import ./cards (Card, Rank)
 
-signal GameUpdate(playerHands: List<List<Card>>, discardPileSize: Int)
+signal GameUpdate(player_hands: List<List<Card>>, discard_pile_size: Count)
 // TODO: at one point I was thinking that the naming convention for signals
-// would not be verbs, but descriptions of a verb
-// maybe WaitingForPlay
-signal WaitForPlay(playerId: Int): object (cards: List<Card>)
-signal WaitForResponse(playerId: Int, previousPlay: HistoricalPlay): Response
+// would not be verbs, but descriptions of a verb.
+// maybe WaitingForPlay?
+// also notice the anonymous object as a return type:
+signal WaitForPlay(player_id: Count): object (cards: List<Card>)
+signal WaitForResponse(player_id: Int, previous_play: HistoricalPlay): option(
+  Play,
+  CheatAccusation,
+)
 signal Penalty(
-  reason: option (symbol CaughtCheating, symbol BadAccusation),
-  playerId: Int,
-  discardPile: List<Card>,
+  reason: option (object CaughtCheating, object BadAccusation),
+  player_id: Count,
 )
 
 object Play(
   cards: List<Card>
 )
-object Cheat(
-  fromPlayerId: Int
-)
-
-option Response(
-  Play,
-  Cheat,
+object CheatAccusation(
+  from_player_id: Count
 )
 
 object HistoricalPlay(
   // This effectively extends the Play type
-  params(Play),
-  playerId: Int,
+  fields(Play),
+  player_id: Count,
   rank: Rank,
 )
 
-fn winner(playerHands: List<List<Card>>): Option<Int> {
-  playerHands->collection.indexWhere(
-    fn(a) a->length() == 0
+fn winner(player_hands: List<List<Card>>): Option<Int> {
+  playerHands->collection.find_index_where(
+    // like Kotlin, you can elide inline function parameters and use `it` instead
+    fn it.empty()
   )
 }
 
-fn nextRank(this: Rank) {
-  let newRankNumber = Int(this)->add(1)
-  if newRankNumber->greaterThan(Int(Rank.king)) {
+fn next_rank(this: Rank) {
+  let new_rank_number = this.value->math.add(1)
+  if new_rank_number->math.greater_than(Rank.king.value) {
     return Rank.ace
   }
-  Rank.new(newRankNumber)
+  Rank.new(new_rank_number)
 }
 
-fn cheatGame(numPlayers: Int) causes GameUpdate, WaitForPlay, WaitForResponse {
-  // let var allows the variable to be swapped to another immutable value
-  let var currentPlayer = 0
-  let var currentRank = Rank.ace
-  let var playerHands = List<List<Card>>(
+fn cheat_game(num_players: Count) causes GameUpdate, WaitForPlay, WaitForResponse, from(Deck.shuffle) {
+  let variable current_player = 0
+  let variable current_rank = Rank.ace
+  let variable player_hands = List<List<Card>>(
     params(
-      range(numPlayers)->collection.map(fn(_) { List() })
+      range(num_players)->collection.map(fn List())
     )
   )
-  let var drawPile = deck.standard().shuffle()
-  let var discardPile = List<Card>()
+  let variable draw_pile = deck.standard().shuffle()
+  let variable discard_pile = List<Card>()
   
   { // Deal out cards
-    let var receivingPlayer = 0
-    loop match Some(let card) = drawPile->collection.head() {
-      // x =-> is syntax sugar for `x = x->`
-      drawPile =-> newPile->collection.tail()
-      // `x =.` is likewise sugar for `x = x.`
-      playerHands =. update(receivingPlayer, fn(a) a.append(card))
-      receivingPlayer =->add(1)->math.mod(numPlayers)
+    let variable receiving_player = 0
+    loop {
+      branch with draw_pile.collection.first() {
+        matches let card: Card {
+          // `set x = ->` is syntax sugar for `set x = x->`
+          set draw_pile = ->newPile->collection.tail()
+          // `set x =.` is likewise sugar for `set x = x.`
+          set player_hands = .update_item(receiving_player, fn it.append(card))
+          set receiving_player =->add(1)->math.loop(num_players)
+        }
+        else => break
+      }
     }
   }
 
   signal MakePlay(play: Play): HistoricalPlay
 
-  {
-    cause GameUpdate(playerHands, discardPile->length())
+  effect MakePlay(let play) {
+    set player_hands = .update(current_player, fn it->collection.difference(play.cards))
+    set discard_pile = .append(params(play.cards))
+    set current_player = ->add(1)->math.loop(num_players)
+    HistoricalPlay(params(play), player_id=current_player, rank=current_rank)
+  }
+  
+  effect let penalty: Penalty {
+    set player_hands = .update(penalty.player_id, fn it->.append(params(discard_pile)))
+    set discard_pile = List()
+    // Bubble it back up for the caller to use
+    cause penalty
+  }
 
-    // First turn; you can't call cheat yet
-    let firstPlay = cause WaitForPlay(currentPlayer)
-    let var previousPlay: HistoricalPlay = cause MakePlay(firstPlay)
+  cause GameUpdate(player_hands, discard_pile->length())
 
-    // Game loop
-    loop {
-      cause GameUpdate(playerHands, discardPile->length())
+  // First turn; you can't call cheat yet
+  let first_play = cause WaitForPlay(current_player)
+  let variable previous_play: HistoricalPlay = cause MakePlay(first_play)
 
-      let response = cause WaitForResponse(currentPlayer, previousPlay)
-      let play = match response {
-        Play(let play) {
-          play
-        }
-        Cheat(let cheat) {
-          let isCheated = previousPlay.cards|>every(fn(a) a.rank == previousPlay.rank)
-          if isCheated {
-            cause Penalty(Penalty.CaughtCheating, previousPlay.playerId, discardPile)
-          } else {
-            cause Penalty(Penalty.BadAccusation, cheat.fromPlayerId, discardPile)
-          }
-          
-          // At this point, nobody can interrupt, since the previous move has already been called
-          cause WaitForPlay(currentPlayer)
-        }
+  // Game loop
+  loop {
+    cause GameUpdate(player_hands, discard_pile->length())
+
+    let response = cause WaitForResponse(current_player, previous_play)
+    let play = branch with response {
+      matches Play(let play) {
+        play
       }
-
-      previousPlay = cause MakePlay(play)
-
-      if match Some(let winner) as winner(playerHands) {
-        return Obj(winner=winner, playerHands)
+      matches Cheat(let cheat) {
+        let has_cheated = previous_play.cards->every(fn it.rank == previous_play.rank)
+        branch {
+          if has_cheated => cause Penalty(Penalty.CaughtCheating, previous_play.player_id, discard_pile)
+          else => cause Penalty(Penalty.BadAccusation, cheat.from_player_id, discard_pile)
+        }
+        
+        // At this point, nobody can interrupt, since the previous move has already been called
+        cause WaitForPlay(current_player)
       }
     }
-  } effect MakePlay(let play) {
-    playerHands =.update(currentPlayer, fn(a) a->collection.difference(play.cards))
-    discardPile =.append(params(play.cards))
-    currentPlayer =->add(1)->math.mod(numPlayers)
-    HistoricalPlay(params(play), playerId=currentPlayer, rank=currentRank)
-  } effect let e: Penalty {
-    playerHands =.update(e.playerId, fn(a) a->.append(params e.discardPile))
-    discardPile = List()
-    // Bubble it back up for the caller to use
-    cause e
+
+    previous_play = cause MakePlay(play)
+
+    branch with winner(player_hands) {
+      matches Not<Nothing> => return object (winner=winner, player_hands)
+      else => Action
+    }
   }
 }

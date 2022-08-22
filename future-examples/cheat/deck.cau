@@ -1,10 +1,10 @@
-import core/collection { flatMap, map }
-import ./cards as cards and {Card}
+import core/collection ( map_sublists, map )
+import ./cards and (Card)
 
-fn standard(): List<Card> {
-  cards.Suit.all->flatMap(fn(suit) {
-    cards.Rank.all->map(fn(rank) {
-      Card(rank=rank, suit=suit)
-    })
-  })
+function standard(): List<Card> {
+	cards.Suit.all->map_sublists(fn(suit) {
+		cards.Rank.all->map(fn(rank) {
+			Card(rank=rank, suit=suit)
+		})
+	})
 }

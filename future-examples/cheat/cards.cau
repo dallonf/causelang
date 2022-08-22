@@ -1,57 +1,66 @@
+import core/math (greater_than, less_than)
+
 object Card(
-  suit: Suit,
-  rank: Rank,
+	suit: Suit,
+	rank: Rank,
 )
 
 option Suit(
-  symbol Hearts,
-  symbol Clubs,
-  symbol Diamonds,
-  symbol Spades,
-)
-
-let Suit.all = List(
-  Suit.Hearts,
-  Suit.Clubs,
-  Suit.Diamonds,
-  Suit.Spades,
-)
-
-// A protected type means that it can't be instantiated
-// or mutated outside of this file
-type protected Rank: Int
-let Rank.ace = Rank(1)
-let Rank.jack = Rank(11)
-let Rank.queen = Rank(12)
-let Rank.king = Rank(13)
-
-fn Rank.new(i: Int) {
-  // Note no operators; everything is a function.
-  // Operators that benefit from binary ordering can be piped
-  if either(
-  // You cast like in Go, by using the typename as a function
-    i->greaterThan(Int(Rank.king)),
-    i->lessThan(Int(Rank.ace)),
-  ) {
-    // `return cause`, combined with `effect Panic(String): Never`,
-    // works like throw
-    return cause Panic("${i} is outside the range of card ranks")
-  }
-
-  Rank(i)
+	object Hearts,
+	object Clubs,
+	object Diamonds,
+	object Spades,
+) {
+	let all = List(
+		Hearts,
+		Clubs,
+		Diamonds,
+		Spades,
+	)
 }
 
-let Rank.all = List(
-  Rank.ace,
-  Rank(2),
-  Rank(3),
-  Rank(4),
-  Rank(5),
-  Rank(6),
-  Rank(7),
-  Rank(9),
-  Rank(10),
-  Rank.jack,
-  Rank.queen,
-  Rank.king
-)
+// A protected type means that it can't be instantiated
+// or mutated outside of this file - but it can be used
+protected object Rank(value: Count) {
+	let ace = Rank(1)
+	let jack = Rank(11)
+	let queen = Rank(12)
+	let king = Rank(13)
+
+	function to_count(this) {
+		this.value
+	}
+
+	function new(value: Count) {
+		// Note no operators; everything is a function.
+		// Functions that benefit from infix ordering can be piped
+		if either(
+			i->greater_than(king.value),
+			i->less_than(ace.value),
+		) {
+			// `return cause`, combined with `effect Panic(String): Never`,
+			// works like `throw` in other languages
+			// string interpolation works with ${}
+			// Counts can be automatically converted to Strings
+			return cause Panic("${i} is outside the range of card ranks")
+		}
+
+		Rank(i)
+	}
+
+	let all = List(
+		Rank.ace,
+		Rank(2),
+		Rank(3),
+		Rank(4),
+		Rank(5),
+		Rank(6),
+		Rank(7),
+		Rank(9),
+		Rank(10),
+		Rank.jack,
+		Rank.queen,
+		Rank.king
+	)
+}
+
