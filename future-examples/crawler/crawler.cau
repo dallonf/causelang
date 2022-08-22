@@ -1,0 +1,42 @@
+import core/collection ( map, map_sublists, UniqueSet )
+import cli/http
+import lib/html_parse
+
+signal CrawlerCacheCheck(url: String): object (already_crawled: Factual)
+
+fn main() {
+    let crawl_url = "http://dallonf.com"
+    let variable already_crawled_set = UniqueSet.new()
+
+    effect CrawlerCacheCheck(let url) {
+        let already_crawled = already_crawled_set.contains(url)
+        if not(already_crawled) {
+            set already_crawled_set = .add(url)
+        }
+        already_crawled
+    }
+
+    effect http.Error(let e) {
+        cause Panic(e)
+    } 
+
+    let links = crawl(crawl_url)
+    
+    cause Log(links)
+}
+
+fn crawl(url: String) {
+    let already_crawled = cause CrawlerCacheCheck(url)
+    check (already_crawled: Not<Nothing>) {
+        return already_crawled
+    }
+
+    let result = cause http.request("GET", url)
+    cause Assertion.Equal("text/html", result->http.header("Content-Type"))
+    let body = result.body
+    let links = html_parse.parse(body)
+        .find("a")
+        ->map(html_parse.attr("href"))
+
+    links->map_sublists(crawl)
+}

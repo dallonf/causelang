@@ -23,7 +23,7 @@ function main() {
 
 signal BreakLoop<T>(value: T): NeverContinues
 
-fn loop<T>(start_value: T, loop_fn: fn(value: T): T): T  {
+fn loop<T>(start_value: T, loop_fn: Function(value: T): T): T  {
 	effect BreakLoop<T>(let value) {
 		return value
 	}
