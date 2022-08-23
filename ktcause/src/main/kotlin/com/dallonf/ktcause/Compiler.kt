@@ -246,13 +246,11 @@ object Compiler {
                     ctx.chunks.add(newChunk.toInstructionChunk())
                     chunk.writeInstruction(
                         Instruction.DefineFunction(
-                            chunkIndex = ctx.chunks.lastIndex,
-                            typeConstant = chunk.addConstant(
+                            chunkIndex = ctx.chunks.lastIndex, typeConstant = chunk.addConstant(
                                 CompiledFile.CompiledConstant.TypeConst(
                                     ctx.resolved.getExpectedType(declaration.info.breadcrumbs).asValue()
                                 )
-                            ),
-                            capturedValues = capturedValues.size
+                            ), capturedValues = capturedValues.size
                         )
                     )
                 }
@@ -320,8 +318,8 @@ object Compiler {
             return
         }
 
-        val tag = ctx.getTag<NodeTag.IsSetStatement>(statement.info.breadcrumbs)!!
-        val valueReference = findValueReference(tag.sets, ctx)
+        val tag = ctx.getTag<NodeTag.SetsVariable>(statement.info.breadcrumbs)!!
+        val valueReference = findValueReference(tag.variable, ctx)
         if (valueReference.effectDepth > 0) {
             chunk.writeInstruction(
                 Instruction.WriteLocalThroughEffectScope(
@@ -425,19 +423,15 @@ object Compiler {
 
         if (ctx.hasTag(
                 comesFrom.source,
-                NodeTag.IsNamedValue::class,
-                NodeTag.IsFunction::class,
-                NodeTag.ParamForFunction::class,
-                NodeTag.IsPattern::class,
+                NodeTag.DeclarationForScope::class,
             )
         ) {
             compileValueReference(comesFrom.source, chunk, ctx)
             return
         }
 
-
-        // change this to an AssertionError when we're more stable
-        TODO("Wasn't able to resolve identifier to anything")
+        
+        error("Wasn't able to resolve identifier to anything")
     }
 
     private fun compileTopLevelReference(

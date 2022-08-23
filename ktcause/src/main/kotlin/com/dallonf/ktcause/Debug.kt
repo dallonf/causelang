@@ -159,7 +159,7 @@ object Debug {
                 )]
                 if (constraint != null) {
                     builder.appendLine(
-                        "Inferred type: ${
+                        "Constraint type: ${
                             debugSerializer.encodeToString(constraint)
                         }"
                     )

@@ -156,6 +156,17 @@ sealed interface AstNode {
                 error("Can't find key $entry for node: $this")
             }
         }
+
+        fun allDescendants(): Sequence<AstNode> {
+            return childNodes().values.asSequence().flatMap { thisNode ->
+                sequence {
+                    if (thisNode is Node) {
+                        yield(thisNode.node)
+                    }
+                    yieldAll(thisNode.allDescendants())
+                }
+            }
+        }
     }
 
     fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild>
@@ -163,6 +174,8 @@ sealed interface AstNode {
     val info: NodeInfo
 
     fun findNode(breadcrumbs: Breadcrumbs): AstNode = BreadcrumbWalkChild.Node(this).findNode(breadcrumbs)
+
+    fun allDescendants() = BreadcrumbWalkChild.Node(this).allDescendants()
 }
 
 data class Identifier(override val info: NodeInfo, val text: String) : AstNode {

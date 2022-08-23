@@ -44,6 +44,14 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(destination, ValueComesFrom(source = breadcrumbs))
     }
 
+    data class SetsVariable(val variable: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(variable, VariableSetBy(statement = breadcrumbs))
+    }
+
+    data class VariableSetBy(val statement: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(statement, SetsVariable(variable = breadcrumbs))
+    }
+
     data class UsesCapturedValue(val parentFunction: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
@@ -56,90 +64,8 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(value, ValueCapturedBy(function = breadcrumbs))
     }
 
-    data class Calls(val callee: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(callee, CalledBy(callExpression = breadcrumbs))
-    }
-
-    data class CalledBy(val callExpression: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(callExpression, Calls(callee = breadcrumbs))
-    }
-
-    data class CallsWithParameter(val parameter: Breadcrumbs, val index: Int) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) =
-            Pair(parameter, ParameterForCall(callExpression = breadcrumbs, index = index))
-    }
-
-    data class ParameterForCall(val callExpression: Breadcrumbs, val index: Int) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) =
-            Pair(callExpression, CallsWithParameter(parameter = breadcrumbs, index = index))
-    }
-
-    data class Causes(val signal: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(signal, CausedBy(causeExpression = breadcrumbs))
-    }
-
-    data class CausedBy(val causeExpression: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(causeExpression, Causes(signal = breadcrumbs))
-    }
-
-    data class GetsMember(val objectExpression: Breadcrumbs, val memberName: String) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    data class IsPrimitiveValue(val kind: LangPrimitiveKind) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    data class IsFunction(val name: String?) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    data class FunctionHasParam(val name: String, val param: Breadcrumbs, val typeReference: Breadcrumbs?) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) =
-            Pair(param, ParamForFunction(name, function = breadcrumbs, typeReference))
-
-    }
-
-    data class ParamForFunction(val name: String, val function: Breadcrumbs, val typeReference: Breadcrumbs?) :
-        NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) =
-            Pair(function, FunctionHasParam(name, param = breadcrumbs, typeReference))
-    }
-
     data class FunctionCanReturnTypeOf(val returnExpression: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    data class IsObjectType(val name: String) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    data class IsSignalType(val name: String, val resultTypeReference: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    data class TypeHasField(val name: String, val field: Breadcrumbs, val typeReference: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) =
-            Pair(field, FieldForObjectType(name, objectType = breadcrumbs, typeReference))
-    }
-
-    data class FieldForObjectType(val name: String, val objectType: Breadcrumbs, val typeReference: Breadcrumbs) :
-        NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) =
-            Pair(objectType, TypeHasField(name, field = breadcrumbs, typeReference))
-    }
-
-    data class IsOptionType(val name: String) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    data class OptionForOptionType(val optionType: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(optionType, OptionTypeHasOption(breadcrumbs))
-
-    }
-
-    data class OptionTypeHasOption(val typeReference: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(typeReference, OptionForOptionType(breadcrumbs))
     }
 
     object ReferenceNotInScope : NodeTag() {
@@ -159,66 +85,8 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
-    data class IsDeclarationStatement(val declaration: Breadcrumbs) : NodeTag() {
+    data class ParameterForCall(val callExprssion: Breadcrumbs, val index: Int) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    data class IsEffectStatement(val condition: Breadcrumbs, val effectBody: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    object IsExpression : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    data class IsNamedValue(val name: String, val value: Breadcrumbs, val typeDeclaration: Breadcrumbs?) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    object IsVariable : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    data class IsPattern(val name: String?, val typeReference: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    data class TypeAnnotated(val annotation: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(annotation, AnnotatesTypeFor(value = breadcrumbs))
-    }
-
-    data class AnnotatesTypeFor(val value: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(value, TypeAnnotated(annotation = breadcrumbs))
-    }
-
-    object IsBranch : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    enum class BranchOptionType { IF, ELSE }
-
-    data class BranchOptionFor(val branchExpression: Breadcrumbs, val type: BranchOptionType) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) =
-            Pair(branchExpression, HasBranchOption(branchOption = breadcrumbs, type = type))
-    }
-
-    data class HasBranchOption(val branchOption: Breadcrumbs, val type: BranchOptionType) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) =
-            Pair(branchOption, BranchOptionFor(branchExpression = breadcrumbs, type = type))
-    }
-
-    data class ConditionFor(val ifBranchOption: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(ifBranchOption, HasCondition(breadcrumbs))
-
-    }
-
-    data class HasCondition(val condition: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(condition, ConditionFor(breadcrumbs))
-    }
-
-    data class IsSetStatement(val sets: Breadcrumbs, val setTo: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-
     }
 }
 
@@ -383,16 +251,7 @@ object Analyzer {
     ) {
         val name = declaration.name.text
 
-        output.addTag(declaration.info.breadcrumbs, NodeTag.IsFunction(name = name))
-
         for (param in declaration.params) {
-            output.addTag(
-                param.info.breadcrumbs, NodeTag.ParamForFunction(
-                    name = param.name.text,
-                    function = declaration.info.breadcrumbs,
-                    typeReference = param.typeReference?.info?.breadcrumbs
-                )
-            )
             param.typeReference?.let { analyzeTypeReference(it, output, ctx) }
         }
 
@@ -422,44 +281,19 @@ object Analyzer {
     private fun analyzeNamedValueDeclaration(
         declaration: DeclarationNode.NamedValue, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        output.addTag(
-            declaration.info.breadcrumbs, NodeTag.IsNamedValue(
-                name = declaration.name.text,
-                typeDeclaration = declaration.typeAnnotation?.info?.breadcrumbs,
-                value = declaration.value.info.breadcrumbs
-            )
-        )
         output.addValueFlowTag(declaration.value.info.breadcrumbs, declaration.info.breadcrumbs)
 
         analyzeExpression(declaration.value, output, ctx)
         declaration.typeAnnotation?.let { typeAnnotation ->
             analyzeTypeReference(typeAnnotation, output, ctx)
-            output.addTag(typeAnnotation.info.breadcrumbs, NodeTag.AnnotatesTypeFor(declaration.info.breadcrumbs))
-        }
-
-        if (declaration.isVariable) {
-            output.addTag(declaration.info.breadcrumbs, NodeTag.IsVariable)
         }
     }
 
     private fun analyzeObjectTypeDeclaration(
         declaration: DeclarationNode.ObjectType, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        output.addTag(
-            declaration.info.breadcrumbs, NodeTag.IsObjectType(
-                name = declaration.name.text,
-            )
-        )
-
         declaration.fields?.let { fields ->
             for (field in fields) {
-                output.addTag(
-                    field.info.breadcrumbs, NodeTag.FieldForObjectType(
-                        field.name.text,
-                        objectType = declaration.info.breadcrumbs,
-                        typeReference = field.typeConstraint.info.breadcrumbs,
-                    )
-                )
                 analyzeTypeReference(field.typeConstraint, output, ctx)
             }
         }
@@ -468,21 +302,8 @@ object Analyzer {
     private fun analyzeSignalTypeDeclaration(
         declaration: DeclarationNode.SignalType, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        output.addTag(
-            declaration.info.breadcrumbs, NodeTag.IsSignalType(
-                name = declaration.name.text, resultTypeReference = declaration.result.info.breadcrumbs
-            )
-        )
-
         declaration.fields?.let { fields ->
             for (field in fields) {
-                output.addTag(
-                    field.info.breadcrumbs, NodeTag.FieldForObjectType(
-                        field.name.text,
-                        objectType = declaration.info.breadcrumbs,
-                        typeReference = field.typeConstraint.info.breadcrumbs,
-                    )
-                )
                 analyzeTypeReference(field.typeConstraint, output, ctx)
             }
         }
@@ -493,10 +314,8 @@ object Analyzer {
     private fun analyzeOptionTypeDeclaration(
         declaration: DeclarationNode.OptionType, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        output.addTag(declaration.info.breadcrumbs, NodeTag.IsOptionType(declaration.name.text))
         for (option in declaration.options) {
             analyzeTypeReference(option, output, ctx)
-            output.addTag(option.info.breadcrumbs, NodeTag.OptionForOptionType(declaration.info.breadcrumbs))
         }
     }
 
@@ -504,16 +323,6 @@ object Analyzer {
     private fun analyzeBody(body: BodyNode, output: AnalyzedNode, ctx: AnalyzerContext) {
         when (body) {
             is BodyNode.BlockBodyNode -> {
-                if (body.statements.isEmpty()) {
-                    // if there are no statements, the block can only be Action-typed.
-                    // Avoids issue with `statements.last()` below
-                    output.addTag(body.info.breadcrumbs, NodeTag.IsPrimitiveValue(LangPrimitiveKind.ACTION))
-                } else {
-                    // a block's return type is the last expression... or the type of any returns? hmmmmmm
-                    val lastStatementBreadcrumbs = body.statements.last().info.breadcrumbs
-                    output.addValueFlowTag(lastStatementBreadcrumbs, body.info.breadcrumbs)
-                }
-
                 var currentCtx = ctx.clone(body.info.breadcrumbs)
 
                 for (statementNode in body.statements) {
@@ -541,10 +350,6 @@ object Analyzer {
                                     currentCtx
                                 )
                             }
-                            output.addTag(
-                                statementNode.info.breadcrumbs,
-                                NodeTag.IsDeclarationStatement(declaration = statementNode.declaration.info.breadcrumbs)
-                            )
                         }
 
                         is StatementNode.EffectStatement -> {
@@ -562,18 +367,6 @@ object Analyzer {
                             }
 
                             analyzeTypeReference(statementNode.pattern.typeReference, output, currentCtx)
-                            output.addTag(
-                                statementNode.pattern.info.breadcrumbs, NodeTag.IsPattern(
-                                    name = statementNode.pattern.name?.text,
-                                    typeReference = statementNode.pattern.typeReference.info.breadcrumbs
-                                )
-                            )
-                            output.addTag(
-                                statementNode.info.breadcrumbs, NodeTag.IsEffectStatement(
-                                    condition = statementNode.pattern.info.breadcrumbs,
-                                    effectBody = statementNode.body.info.breadcrumbs
-                                )
-                            )
                             analyzeBody(statementNode.body, output, effectCtx)
                         }
 
@@ -592,20 +385,14 @@ object Analyzer {
     }
 
     private fun analyzeSetStatement(
-        statementNode: StatementNode.SetStatement,
-        output: AnalyzedNode,
-        ctx: AnalyzerContext
+        statementNode: StatementNode.SetStatement, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         analyzeExpression(statementNode.expression, output, ctx)
         val variable = ctx.currentScope.items[statementNode.identifier.text]
         if (variable == null) {
             output.addTag(statementNode.info.breadcrumbs, NodeTag.ReferenceNotInScope)
         } else {
-            output.addTag(
-                statementNode.info.breadcrumbs, NodeTag.IsSetStatement(
-                    sets = variable.origin, setTo = statementNode.expression.info.breadcrumbs
-                )
-            )
+            output.addTag(statementNode.info.breadcrumbs, NodeTag.SetsVariable(variable.origin))
             if (variable is CapturedValueScopeItem) {
                 output.addTag(statementNode.info.breadcrumbs, NodeTag.UsesCapturedValue(ctx.currentFunction!!))
             }
@@ -621,34 +408,22 @@ object Analyzer {
             is ExpressionNode.CallExpression -> analyzeCallExpression(expression, output, ctx)
             is ExpressionNode.MemberExpression -> analyzeMemberExpression(expression, output, ctx)
 
-            is ExpressionNode.StringLiteralExpression -> output.addTag(
-                expression.info.breadcrumbs, NodeTag.IsPrimitiveValue(LangPrimitiveKind.STRING)
-            )
-
-            is ExpressionNode.IntegerLiteralExpression -> output.addTag(
-                expression.info.breadcrumbs, NodeTag.IsPrimitiveValue(LangPrimitiveKind.INTEGER)
-            )
+            is ExpressionNode.StringLiteralExpression -> {}
+            is ExpressionNode.IntegerLiteralExpression -> {}
         }
-        output.addTag(expression.info.breadcrumbs, NodeTag.IsExpression)
     }
 
     private fun analyzeBranchExpressionNode(
         expression: ExpressionNode.BranchExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        output.addTag(expression.info.breadcrumbs, NodeTag.IsBranch)
         for (branchOption in expression.branches) {
-            val type = when (branchOption) {
+            when (branchOption) {
                 is BranchOptionNode.IfBranchOptionNode -> {
                     analyzeExpression(branchOption.condition, output, ctx)
-                    output.addTag(
-                        branchOption.condition.info.breadcrumbs, NodeTag.ConditionFor(branchOption.info.breadcrumbs)
-                    )
-                    NodeTag.BranchOptionType.IF
                 }
 
-                is BranchOptionNode.ElseBranchOptionNode -> NodeTag.BranchOptionType.ELSE
+                is BranchOptionNode.ElseBranchOptionNode -> {}
             }
-            output.addTag(expression.info.breadcrumbs, NodeTag.BranchOptionFor(branchOption.info.breadcrumbs, type))
             analyzeBody(branchOption.body, output, ctx)
         }
     }
@@ -680,30 +455,23 @@ object Analyzer {
     private fun analyzeCauseExpression(
         expression: ExpressionNode.CauseExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        output.addTag(expression.info.breadcrumbs, NodeTag.Causes(expression.signal.info.breadcrumbs))
         analyzeExpression(expression.signal, output, ctx)
     }
 
     private fun analyzeCallExpression(
         expression: ExpressionNode.CallExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        expression.parameters.forEachIndexed { i, parameterNode ->
+        for ((i, parameterNode) in expression.parameters.withIndex()) {
             analyzeExpression(parameterNode.value, output, ctx)
-            output.addValueFlowTag(parameterNode.value.info.breadcrumbs, parameterNode.info.breadcrumbs)
             output.addTag(parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(expression.info.breadcrumbs, i))
         }
 
         analyzeExpression(expression.callee, output, ctx)
-        output.addTag(expression.info.breadcrumbs, NodeTag.Calls(expression.callee.info.breadcrumbs))
     }
 
     private fun analyzeMemberExpression(
         expression: ExpressionNode.MemberExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         analyzeExpression(expression.objectExpression, output, ctx)
-        output.addTag(
-            expression.info.breadcrumbs,
-            NodeTag.GetsMember(expression.objectExpression.info.breadcrumbs, expression.memberIdentifier.text)
-        )
     }
 }
