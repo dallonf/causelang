@@ -1,11 +1,5 @@
 package com.dallonf.ktcause
 
-import com.dallonf.ktcause.CoreDescriptors
-import com.dallonf.ktcause.LangVm
-import com.dallonf.ktcause.RuntimeValue
-import com.dallonf.ktcause.types.CanonicalLangType
-import com.dallonf.ktcause.types.TypeReferenceConstraintLangType
-
 object CoreExports {
     const val BUILTINS_FILE = "core/builtin.cau"
     const val STRING_FILE = "core/string.cau"
@@ -14,7 +8,7 @@ object CoreExports {
     fun getCoreExport(fileName: String, exportName: String): RuntimeValue {
         if (fileName == BUILTINS_FILE) {
             if (setOf("Debug", "TypeError", "AssumptionBroken", "Anything", "AnySignal").contains(exportName)) {
-                val exportedType = CoreDescriptors.coreBuiltinFile.second.exports[exportName]!!.asConstraint()
+                val exportedType = CoreDescriptors.coreBuiltinFile.second.exports[exportName]!!.asConstraintReference()
 
                 return RuntimeValue.RuntimeTypeReference(exportedType)
             } else {

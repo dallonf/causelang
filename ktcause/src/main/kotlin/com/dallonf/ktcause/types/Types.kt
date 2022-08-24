@@ -54,10 +54,8 @@ sealed interface CanonicalLangType {
         override val id: CanonicalLangTypeId,
         val name: String,
         val fields: List<ObjectField>,
-        val result: ConstraintLangType,
+        val result: ConstraintReference,
     ) : CanonicalLangType {
-        fun getInstanceType() = InstanceValueLangType(this)
-
         override fun isUnique() = false
 
         override fun isPending() = result.isPending() || fields.any { it.valueConstraint.isPending() }
@@ -77,7 +75,7 @@ sealed interface CanonicalLangType {
     }
 
     @Serializable
-    data class ObjectField(val name: String, val valueConstraint: ConstraintLangType) {
+    data class ObjectField(val name: String, val valueConstraint: ConstraintReference) {
         fun asLangParameter() = LangParameter(name, valueConstraint)
     }
 
@@ -87,13 +85,13 @@ sealed interface CanonicalLangType {
 @Serializable
 data class LangParameter(
     val name: String,
-    val valueConstraint: ConstraintLangType,
+    val valueConstraint: ConstraintReference,
 )
 
-sealed interface LangType {
+sealed interface ValueLangType {
     @Serializable
     @SerialName("Pending")
-    object Pending : LangType, ValueLangType, ConstraintLangType {
+    object Pending : ValueLangType {
         override fun isPending() = true
     }
 
@@ -103,28 +101,29 @@ sealed interface LangType {
         is ErrorLangType -> this
         Pending -> ErrorLangType.NeverResolved
         is ResolvedValueLangType -> null
-        is ResolvedConstraintLangType -> null
     }
 
     fun getError(): ErrorLangType? = null
 
-    fun asValue(): ValueLangType = when (this) {
-        is Pending, is ResolvedValueLangType, is ErrorLangType -> this as ValueLangType
-        is ResolvedConstraintLangType -> ErrorLangType.ConstraintUsedAsValue(this)
+    fun expectConstraint(): ValueLangType {
+        return when (this) {
+            is ConstraintValueLangType, is Pending, is ErrorLangType -> this
+            is ResolvedValueLangType -> ErrorLangType.ValueUsedAsConstraint(this)
+        }
     }
 
-    fun asConstraint(): ConstraintLangType = when (this) {
-        is Pending, is ResolvedConstraintLangType, is ErrorLangType -> this as ConstraintLangType
-        is ResolvedValueLangType -> ErrorLangType.ValueUsedAsConstraint(this)
+    fun asConstraintReference(): ConstraintReference {
+        return when (this) {
+            is Pending -> ConstraintReference.Pending
+            is ErrorLangType -> ConstraintReference.Error(this)
+            is ConstraintValueLangType -> ConstraintReference.ResolvedConstraint(this)
+            is ResolvedValueLangType -> ConstraintReference.Error(ErrorLangType.ValueUsedAsConstraint(this))
+        }
     }
 }
 
-sealed interface ValueLangType : LangType
 
-sealed interface ConstraintLangType : LangType
-
-
-sealed interface ErrorLangType : LangType, ValueLangType, ConstraintLangType {
+sealed interface ErrorLangType : ValueLangType {
     override fun isPending() = false
 
     override fun getError() = this
@@ -179,7 +178,7 @@ sealed interface ErrorLangType : LangType, ValueLangType, ConstraintLangType {
 
     @Serializable
     @SerialName("MismatchedType")
-    data class MismatchedType(val expected: ResolvedConstraintLangType, val actual: ResolvedValueLangType) :
+    data class MismatchedType(val expected: ConstraintValueLangType, val actual: ResolvedValueLangType) :
         ErrorLangType
 
     @Serializable
@@ -207,12 +206,12 @@ sealed interface ErrorLangType : LangType, ValueLangType, ConstraintLangType {
     @SerialName("IncompatibleTypes")
     data class IncompatibleTypes(val types: List<IncompatibleType>) : ErrorLangType {
         @Serializable
-        data class IncompatibleType(val type: LangType, val position: SourcePosition)
+        data class IncompatibleType(val type: ValueLangType, val position: SourcePosition)
     }
 
     @Serializable
     @SerialName("ConstraintUsedAsValue")
-    data class ConstraintUsedAsValue(val type: ResolvedConstraintLangType) : ErrorLangType
+    data class ConstraintUsedAsValue(val type: ConstraintValueLangType) : ErrorLangType
 
     @Serializable
     @SerialName("ValueUsedAsConstraint")
@@ -238,57 +237,78 @@ sealed interface ErrorLangType : LangType, ValueLangType, ConstraintLangType {
 sealed interface ResolvedValueLangType : ValueLangType {
     override fun isPending() = false
 
-    fun isAssignableTo(constraint: ResolvedConstraintLangType): Boolean {
-        return when (constraint) {
-            is TypeReferenceConstraintLangType -> this is InstanceValueLangType && this.canonicalType.id == constraint.canonicalType.id
-            is CanonicalLangType -> this is InstanceValueLangType && this.canonicalType.id == constraint.id
-            is FunctionConstraintLangType -> this is FunctionValueLangType && this.returnConstraint == constraint.returnConstraint && this.params == constraint.params
-            is PrimitiveConstraintLangType -> this is PrimitiveValueLangType && this.kind == constraint.kind
-            is UniqueObjectLangType -> this is UniqueObjectLangType && this.canonicalType.id == constraint.canonicalType.id
-            is OptionConstraintLangType -> constraint.options.any {
-                if (it is ResolvedConstraintLangType)
-                    this.isAssignableTo(it)
-                else false
+    fun isAssignableTo(constraint: ConstraintValueLangType): Boolean {
+        return when (val constraintInstanceType = constraint.valueType) {
+            is InstanceValueLangType -> this is InstanceValueLangType && this.canonicalType.id == constraintInstanceType.canonicalType.id
+            is FunctionValueLangType -> this is FunctionValueLangType && this.returnConstraint == constraintInstanceType.returnConstraint && this.params == constraintInstanceType.params
+            is PrimitiveValueLangType -> this is PrimitiveValueLangType && this.kind == constraintInstanceType.kind
+            is UniqueObjectLangType -> this is UniqueObjectLangType && this.canonicalType.id == constraintInstanceType.canonicalType.id
+            is OptionValueLangType -> constraintInstanceType.options.any {
+                if (it is ConstraintReference.ResolvedConstraint) this.isAssignableTo(
+                    it.constraint
+                ) else false
             }
 
-            AnySignalConstraintLangType -> this is InstanceValueLangType && this.canonicalType is CanonicalLangType.SignalCanonicalLangType
-            AnythingConstraintLangType -> true
+            AnySignalValueLangType -> this is InstanceValueLangType && this.canonicalType is CanonicalLangType.SignalCanonicalLangType
+            AnythingValueLangType -> true
 
-            BadValueConstraintLangType -> this is BadValueLangType
-            NeverContinuesConstraintLangType -> this is NeverContinuesValueLangType
+            is ConstraintValueLangType -> this is ConstraintValueLangType && this.valueType.isAssignableTo(
+                constraintInstanceType
+            )
+
+            BadValueLangType -> this is BadValueLangType
+            NeverContinuesValueLangType -> this is NeverContinuesValueLangType
         }
     }
 
-    fun toConstraint(): ResolvedConstraintLangType
+    fun toConstraint() = ConstraintValueLangType(this)
 }
 
-sealed interface ResolvedConstraintLangType : ConstraintLangType {
-    override fun isPending() = false
+@Serializable
+@SerialName("Constraint")
+data class ConstraintValueLangType(val valueType: ResolvedValueLangType) : ResolvedValueLangType {
+    override fun isPending() = valueType.isPending()
+}
 
-    fun toInstanceType(): ResolvedValueLangType
+@Serializable
+sealed class ConstraintReference {
+    @Serializable
+    @SerialName("Resolved")
+    data class ResolvedConstraint(val constraint: ConstraintValueLangType) : ConstraintReference() {
+        val valueType
+            get() = constraint.valueType
+    }
+
+    @Serializable
+    @SerialName("Pending")
+    object Pending : ConstraintReference()
+
+    @Serializable
+    @SerialName("Error")
+    data class Error(val errorType: ErrorLangType) : ConstraintReference()
+
+    fun isPending() =
+        when (this) {
+            is Pending -> true
+            is ResolvedConstraint -> this.constraint.isPending()
+            else -> false
+        }
+
+
+    fun getError() = when (this) {
+        is Error -> this.errorType
+        is ResolvedConstraint -> this.constraint.getError()
+        else -> null
+    }
+
 }
 
 @Serializable
 @SerialName("Function")
 data class FunctionValueLangType(
-    val name: String?, val returnConstraint: ConstraintLangType, val params: List<LangParameter>
+    val name: String?, val returnConstraint: ConstraintReference, val params: List<LangParameter>
 ) : ResolvedValueLangType {
     override fun isPending(): Boolean = returnConstraint.isPending() || params.any() { it.valueConstraint.isPending() }
-
-    override fun toConstraint() = FunctionConstraintLangType(returnConstraint, params)
-
-    override fun getError(): ErrorLangType? =
-        returnConstraint.getError() ?: params.firstNotNullOfOrNull { it.valueConstraint.getError() }
-}
-
-@Serializable
-@SerialName("FunctionConstraint")
-data class FunctionConstraintLangType(val returnConstraint: ConstraintLangType, val params: List<LangParameter>) :
-    ResolvedConstraintLangType {
-
-    override fun isPending(): Boolean = returnConstraint.isPending() || params.any() { it.valueConstraint.isPending() }
-
-    override fun toInstanceType() = FunctionValueLangType(name = null, returnConstraint, params)
 
     override fun getError(): ErrorLangType? =
         returnConstraint.getError() ?: params.firstNotNullOfOrNull { it.valueConstraint.getError() }
@@ -312,35 +332,16 @@ enum class LangPrimitiveKind() {
     ACTION;
 
     fun toValueLangType() = PrimitiveValueLangType(this)
-    fun toConstraintLangType() = PrimitiveConstraintLangType(this)
+    fun toConstraintLangType() = ConstraintValueLangType(toValueLangType())
 }
 
 @Serializable
 @SerialName("Primitive")
-data class PrimitiveValueLangType(val kind: LangPrimitiveKind) : ResolvedValueLangType {
-    override fun toConstraint(): ResolvedConstraintLangType = PrimitiveConstraintLangType(kind)
-}
-
-
-@Serializable
-@SerialName("PrimitiveConstraint")
-data class PrimitiveConstraintLangType(val kind: LangPrimitiveKind) : ResolvedConstraintLangType {
-    override fun toInstanceType() = PrimitiveValueLangType(kind)
-}
-
-@Serializable
-@SerialName("TypeReferenceConstraint")
-data class TypeReferenceConstraintLangType(val canonicalType: CanonicalLangType) : ResolvedConstraintLangType {
-    override fun toInstanceType() = InstanceValueLangType(canonicalType)
-
-    override fun isPending() = canonicalType.isPending()
-    override fun getError() = canonicalType.getError()
-}
+data class PrimitiveValueLangType(val kind: LangPrimitiveKind) : ResolvedValueLangType
 
 @Serializable
 @SerialName("Instance")
 data class InstanceValueLangType(val canonicalType: CanonicalLangType) : ResolvedValueLangType {
-    override fun toConstraint() = TypeReferenceConstraintLangType(canonicalType)
 
     override fun isPending() = canonicalType.isPending()
     override fun getError() = canonicalType.getError()
@@ -348,79 +349,34 @@ data class InstanceValueLangType(val canonicalType: CanonicalLangType) : Resolve
 
 @Serializable
 @SerialName("UniqueObject")
-data class UniqueObjectLangType(val canonicalType: CanonicalLangType) : ResolvedConstraintLangType,
-    ResolvedValueLangType {
+data class UniqueObjectLangType(val canonicalType: CanonicalLangType) : ResolvedValueLangType {
     override fun isPending() = canonicalType.isPending()
 
     override fun getError() = canonicalType.getError()
-
-    override fun toInstanceType() = this
-
-    override fun toConstraint() = this
 }
 
 @Serializable
-@SerialName("OptionValue")
-data class OptionValueLangType(val options: List<ConstraintLangType>) : ResolvedValueLangType {
-    override fun toConstraint() = OptionConstraintLangType(options)
+@SerialName("Option")
+data class OptionValueLangType(val options: List<ConstraintReference>) : ResolvedValueLangType {
 
     override fun isPending() = options.any { it.isPending() }
     override fun getError() = options.firstNotNullOfOrNull { it.getError() }
 }
 
 @Serializable
-@SerialName("OptionConstraint")
-data class OptionConstraintLangType(val options: List<ConstraintLangType>) : ResolvedConstraintLangType {
-    override fun toInstanceType() = OptionValueLangType(options)
-
-    override fun isPending() = options.any { it.isPending() }
-    override fun getError() = options.firstNotNullOfOrNull { it.getError() }
-}
+@SerialName("Anything")
+object AnythingValueLangType : ResolvedValueLangType
 
 @Serializable
-@SerialName("AnythingValue")
-object AnythingValueLangType : ResolvedValueLangType {
-    override fun toConstraint() = AnythingConstraintLangType
-}
+@SerialName("AnySignal")
+object AnySignalValueLangType : ResolvedValueLangType
 
-@Serializable
-@SerialName("AnythingConstraint")
-object AnythingConstraintLangType : ResolvedConstraintLangType {
-    override fun toInstanceType() = AnythingValueLangType
-}
-
-@Serializable
-@SerialName("AnySignalValue")
-object AnySignalValueLangType : ResolvedValueLangType {
-    override fun toConstraint() = AnySignalConstraintLangType
-}
-
-@Serializable
-@SerialName("AnySignalConstraint")
-object AnySignalConstraintLangType : ResolvedConstraintLangType {
-    override fun toInstanceType() = AnySignalValueLangType
-}
 
 @Serializable
 @SerialName("BadValue")
-object BadValueLangType : ResolvedValueLangType {
-    override fun toConstraint() = BadValueConstraintLangType
-}
-
-@Serializable
-@SerialName("BadValueConstraint")
-object BadValueConstraintLangType : ResolvedConstraintLangType {
-    override fun toInstanceType() = BadValueLangType
-}
+object BadValueLangType : ResolvedValueLangType
 
 @Serializable
 @SerialName("NeverContinues")
-object NeverContinuesValueLangType : ResolvedValueLangType {
-    override fun toConstraint() = NeverContinuesConstraintLangType
-}
+object NeverContinuesValueLangType : ResolvedValueLangType
 
-@Serializable
-@SerialName("NeverContinuesConstraint")
-object NeverContinuesConstraintLangType : ResolvedConstraintLangType {
-    override fun toInstanceType() = NeverContinuesValueLangType
-}

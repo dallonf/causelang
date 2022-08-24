@@ -24,7 +24,7 @@ class EffectsBasicTest {
                         interceptThisTypeId,
                         interceptThisTypeId.name!!,
                         listOf(),
-                        result = LangPrimitiveKind.ACTION.toConstraintLangType()
+                        result = LangPrimitiveKind.ACTION.toConstraintLangType().asConstraintReference()
                     )
                 ),
                 chunks = listOf(),
@@ -68,9 +68,9 @@ class EffectsBasicTest {
                     greetTypeId to CanonicalLangType.SignalCanonicalLangType(
                         greetTypeId, greetTypeId.name!!, listOf(
                             CanonicalLangType.ObjectField(
-                                "name", LangPrimitiveKind.STRING.toConstraintLangType()
+                                "name", LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
                             )
-                        ), result = LangPrimitiveKind.ACTION.toConstraintLangType()
+                        ), result = LangPrimitiveKind.ACTION.toConstraintLangType().asConstraintReference()
                     )
                 ),
                 chunks = listOf(),
@@ -183,8 +183,7 @@ class EffectsBasicTest {
         )
 
         vm.executeFunction("project/test.cau", "main", listOf())
-            .let { TestUtils.expectValidCaused(it, vm.getTypeId("project/test.cau", "Extract")) }
-            .let {
+            .let { TestUtils.expectValidCaused(it, vm.getTypeId("project/test.cau", "Extract")) }.let {
                 assertEquals(
                     """
                     {
@@ -194,8 +193,7 @@ class EffectsBasicTest {
                             "value": "this should be extracted and not printed"
                         }
                     }
-                    """.trimIndent(),
-                    it.debug()
+                    """.trimIndent(), it.debug()
                 )
             }
         assertEquals(

@@ -1,3 +1,4 @@
+import TestUtils.addFileAndPrintCompileErrors
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
@@ -98,8 +99,10 @@ internal class ErrorHandlingBasicTest {
                     "error": {
                         "#type": "MismatchedType",
                         "expected": {
-                            "#type": "PrimitiveConstraint",
-                            "kind": "String"
+                            "valueType": {
+                                "#type": "Primitive",
+                                "kind": "String"
+                            }
                         },
                         "actual": {
                             "#type": "Primitive",
@@ -126,8 +129,10 @@ internal class ErrorHandlingBasicTest {
                 "error": {
                     "#type": "MismatchedType",
                     "expected": {
-                        "#type": "PrimitiveConstraint",
-                        "kind": "String"
+                        "valueType": {
+                            "#type": "Primitive",
+                            "kind": "String"
+                        }
                     },
                     "actual": {
                         "#type": "Primitive",
@@ -167,8 +172,10 @@ internal class ErrorHandlingBasicTest {
                     "error": {
                         "#type": "MismatchedType",
                         "expected": {
-                            "#type": "PrimitiveConstraint",
-                            "kind": "String"
+                            "valueType": {
+                                "#type": "Primitive",
+                                "kind": "String"
+                            }
                         },
                         "actual": {
                             "#type": "Primitive",
@@ -197,8 +204,10 @@ internal class ErrorHandlingBasicTest {
                     "error": {
                         "#type": "MismatchedType",
                         "expected": {
-                            "#type": "PrimitiveConstraint",
-                            "kind": "String"
+                            "valueType": {
+                                "#type": "Primitive",
+                                "kind": "String"
+                            }
                         },
                         "actual": {
                             "#type": "Primitive",
@@ -336,7 +345,7 @@ internal class ErrorHandlingBasicTest {
             """.trimIndent()
         )
         assertEquals(
-            vm.compileErrors.debug(), """
+            """
             [
                 {
                     "position": {
@@ -347,8 +356,10 @@ internal class ErrorHandlingBasicTest {
                     "error": {
                         "#type": "MismatchedType",
                         "expected": {
-                            "#type": "PrimitiveConstraint",
-                            "kind": "String"
+                            "valueType": {
+                                "#type": "Primitive",
+                                "kind": "String"
+                            }
                         },
                         "actual": {
                             "#type": "Primitive",
@@ -357,7 +368,8 @@ internal class ErrorHandlingBasicTest {
                     }
                 }
             ]
-            """.trimIndent()
+            """.trimIndent(),
+            vm.compileErrors.debug(),
         )
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
 

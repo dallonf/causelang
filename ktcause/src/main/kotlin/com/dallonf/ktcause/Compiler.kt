@@ -63,9 +63,10 @@ object Compiler {
                     val objectType = resolved.getExpectedType(declaration.info.breadcrumbs)
 
                     val error = objectType.getRuntimeError()
-                    if (objectType is TypeReferenceConstraintLangType) {
-                        types[objectType.canonicalType.id] = objectType.canonicalType
-                        exports[declaration.name.text] = CompiledFile.CompiledExport.Type(objectType.canonicalType.id)
+                    if (objectType is ConstraintValueLangType && objectType.valueType is InstanceValueLangType) {
+                        types[objectType.valueType.canonicalType.id] = objectType.valueType.canonicalType
+                        exports[declaration.name.text] =
+                            CompiledFile.CompiledExport.Type(objectType.valueType.canonicalType.id)
                     } else if (objectType is UniqueObjectLangType) {
                         types[objectType.canonicalType.id] = objectType.canonicalType
                         exports[declaration.name.text] = CompiledFile.CompiledExport.Type(objectType.canonicalType.id)
@@ -80,9 +81,10 @@ object Compiler {
                     val signalType = resolved.getExpectedType(declaration.info.breadcrumbs)
 
                     val error = signalType.getRuntimeError()
-                    if (signalType is TypeReferenceConstraintLangType) {
-                        types[signalType.canonicalType.id] = signalType.canonicalType
-                        exports[declaration.name.text] = CompiledFile.CompiledExport.Type(signalType.canonicalType.id)
+                    if (signalType is ConstraintValueLangType && signalType.valueType is InstanceValueLangType) {
+                        types[signalType.valueType.canonicalType.id] = signalType.valueType.canonicalType
+                        exports[declaration.name.text] =
+                            CompiledFile.CompiledExport.Type(signalType.valueType.canonicalType.id)
                     } else if (signalType is UniqueObjectLangType) {
                         types[signalType.canonicalType.id] = signalType.canonicalType
                         exports[declaration.name.text] = CompiledFile.CompiledExport.Type(signalType.canonicalType.id)
@@ -96,7 +98,7 @@ object Compiler {
                 is DeclarationNode.OptionType -> {
                     val optionType = resolved.getExpectedType(declaration.info.breadcrumbs)
                     val error = optionType.getRuntimeError()
-                    if (optionType is OptionConstraintLangType) {
+                    if (optionType is ConstraintValueLangType && optionType.valueType is OptionValueLangType) {
                         exports[declaration.name.text] = CompiledFile.CompiledExport.Value(null, optionType)
                     } else if (error != null) {
                         exports[declaration.name.text] = CompiledFile.CompiledExport.Error(error)
@@ -248,7 +250,7 @@ object Compiler {
                         Instruction.DefineFunction(
                             chunkIndex = ctx.chunks.lastIndex, typeConstant = chunk.addConstant(
                                 CompiledFile.CompiledConstant.TypeConst(
-                                    ctx.resolved.getExpectedType(declaration.info.breadcrumbs).asValue()
+                                    ctx.resolved.getExpectedType(declaration.info.breadcrumbs)
                                 )
                             ), capturedValues = capturedValues.size
                         )
@@ -430,7 +432,7 @@ object Compiler {
             return
         }
 
-        
+
         error("Wasn't able to resolve identifier to anything")
     }
 
@@ -523,10 +525,15 @@ object Compiler {
         }
 
         when (val calleeType = ctx.resolved.getExpectedType(expression.callee.info.breadcrumbs)) {
-            is TypeReferenceConstraintLangType -> {
-                when (calleeType.canonicalType) {
-                    is CanonicalLangType.SignalCanonicalLangType -> chunk.writeInstruction(Instruction.Construct(arity = expression.parameters.size))
-                    is CanonicalLangType.ObjectCanonicalLangType -> chunk.writeInstruction(Instruction.Construct(arity = expression.parameters.size))
+            is ConstraintValueLangType -> {
+                when (calleeType.valueType) {
+                    is InstanceValueLangType -> {
+                        when (calleeType.valueType.canonicalType) {
+                            is CanonicalLangType.SignalCanonicalLangType -> chunk.writeInstruction(Instruction.Construct(arity = expression.parameters.size))
+                            is CanonicalLangType.ObjectCanonicalLangType -> chunk.writeInstruction(Instruction.Construct(arity = expression.parameters.size))
+                        }
+                    }
+                    else -> error("Can't construct a $calleeType")
                 }
             }
 

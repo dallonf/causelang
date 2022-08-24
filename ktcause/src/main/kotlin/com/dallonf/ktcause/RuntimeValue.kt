@@ -16,7 +16,7 @@ sealed class RuntimeValue {
     // TODO: probably want to make it harder to make an invalid RuntimeObject
     data class RuntimeObject(val typeDescriptor: CanonicalLangType, val values: List<RuntimeValue>) : RuntimeValue()
 
-    data class RuntimeTypeReference(val type: ConstraintLangType) : RuntimeValue()
+    data class RuntimeTypeReference(val type: ConstraintReference) : RuntimeValue()
 
     data class RuntimeUniqueObject(val typeId: CanonicalLangTypeId) : RuntimeValue()
 
@@ -32,13 +32,10 @@ sealed class RuntimeValue {
         val capturedValues: List<RuntimeValue>
     ) : RuntimeValue()
 
-    fun isAssignableTo(constraint: ConstraintLangType): kotlin.Boolean {
-        return when (constraint) {
-            is LangType.Pending -> false
-            is ErrorLangType -> false
-
-            is FunctionConstraintLangType -> this is Function && this.type.isAssignableTo(constraint)
-            is PrimitiveConstraintLangType -> when (constraint.kind) {
+    fun isAssignableTo(constraint: ConstraintValueLangType): kotlin.Boolean {
+        return when (val valueType = constraint.valueType) {
+            is FunctionValueLangType -> this is Function && this.type.isAssignableTo(constraint)
+            is PrimitiveValueLangType -> when (valueType.kind) {
                 LangPrimitiveKind.STRING -> this is String
                 LangPrimitiveKind.INTEGER -> this is Integer
                 LangPrimitiveKind.FLOAT -> this is Float
@@ -46,25 +43,33 @@ sealed class RuntimeValue {
                 LangPrimitiveKind.ACTION -> this is Action
             }
 
-            is OptionConstraintLangType -> constraint.options.any {
-                if (it is ResolvedConstraintLangType)
-                    this.isAssignableTo(it)
-                else false
+            is OptionValueLangType -> valueType.options.any {
+                this.isAssignableTo(it)
             }
 
-            is AnySignalConstraintLangType -> this is RuntimeObject && this.typeDescriptor is CanonicalLangType.SignalCanonicalLangType
-            is AnythingConstraintLangType -> true
+            is AnySignalValueLangType -> this is RuntimeObject && this.typeDescriptor is CanonicalLangType.SignalCanonicalLangType
+            is AnythingValueLangType -> true
 
-            is UniqueObjectLangType -> this is RuntimeUniqueObject && this.typeId == constraint.canonicalType.id
+            is UniqueObjectLangType -> this is RuntimeUniqueObject && this.typeId == valueType.canonicalType.id
 
-            is BadValueConstraintLangType -> this is BadValue
+            is BadValueLangType -> this is BadValue
 
-            is TypeReferenceConstraintLangType -> this is RuntimeObject && this.typeDescriptor.id == constraint.canonicalType.id
+            is InstanceValueLangType -> this is RuntimeObject && this.typeDescriptor.id == valueType.canonicalType.id
+
+            // this could _theoretically_ be a thing in some scenarios, but none that I can think of off the top of
+            // my head
+            is ConstraintValueLangType -> TODO()
 
 
             // No associated runtime values
-            NeverContinuesConstraintLangType -> false
+            NeverContinuesValueLangType -> false
         }
+    }
+
+    fun isAssignableTo(constraint: ConstraintReference) = when (constraint) {
+        is ConstraintReference.Pending -> false
+        is ConstraintReference.Error -> false
+        is ConstraintReference.ResolvedConstraint -> isAssignableTo(constraint.constraint)
     }
 
     fun validate(): RuntimeValue {
@@ -138,12 +143,17 @@ sealed class RuntimeValue {
 
             is RuntimeValue.RuntimeTypeReference -> buildJsonObject {
                 put("#type", "RuntimeTypeReference")
-                if (this@RuntimeValue.type is TypeReferenceConstraintLangType) {
-                    val id = when (val canonicalType = this@RuntimeValue.type.canonicalType) {
+                val idShortcut = (this@RuntimeValue.type as? ConstraintReference.ResolvedConstraint)?.let {
+                    this@RuntimeValue.type.valueType as? InstanceValueLangType
+                }?.let {
+                    when (val canonicalType = it.canonicalType) {
                         is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.id
                         is CanonicalLangType.SignalCanonicalLangType -> canonicalType.id
                     }
-                    put("id", id.toString())
+                }
+
+                if (idShortcut != null) {
+                    put("id", idShortcut.toString())
                 } else {
                     put("descriptor", Debug.debugSerializer.encodeToJsonElement(this@RuntimeValue.type))
                 }

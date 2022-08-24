@@ -21,20 +21,9 @@ object Debug {
             subclass(OptionValueLangType::class)
             subclass(AnythingValueLangType::class)
             subclass(AnySignalValueLangType::class)
+            subclass(ConstraintValueLangType::class)
             subclass(BadValueLangType::class)
             subclass(NeverContinuesValueLangType::class)
-        }
-
-        fun PolymorphicModuleBuilder<ResolvedConstraintLangType>.registerResolvedConstraintLangTypeSubclasses() {
-            subclass(FunctionConstraintLangType::class)
-            subclass(PrimitiveConstraintLangType::class)
-            subclass(TypeReferenceConstraintLangType::class)
-            subclass(OptionConstraintLangType::class)
-            subclass(UniqueObjectLangType::class)
-            subclass(AnythingConstraintLangType::class)
-            subclass(AnySignalConstraintLangType::class)
-            subclass(BadValueConstraintLangType::class)
-            subclass(NeverContinuesConstraintLangType::class)
         }
 
         fun PolymorphicModuleBuilder<ErrorLangType>.registerErrorValueLangTypeSubclasses() {
@@ -68,27 +57,10 @@ object Debug {
             registerResolvedValueLangTypeSubclasses()
         }
 
-        polymorphic(ResolvedConstraintLangType::class) {
-            registerResolvedConstraintLangTypeSubclasses()
-        }
-
-        polymorphic(LangType::class) {
-            registerErrorValueLangTypeSubclasses()
-            registerResolvedValueLangTypeSubclasses()
-            registerResolvedConstraintLangTypeSubclasses()
-            subclass(LangType.Pending::class)
-        }
-
         polymorphic(ValueLangType::class) {
             registerErrorValueLangTypeSubclasses()
-            subclass(LangType.Pending::class)
             registerResolvedValueLangTypeSubclasses()
-        }
-
-        polymorphic(ConstraintLangType::class) {
-            registerErrorValueLangTypeSubclasses()
-            subclass(LangType.Pending::class)
-            registerResolvedConstraintLangTypeSubclasses()
+            subclass(ValueLangType.Pending::class)
         }
 
         polymorphic(CanonicalLangType::class) {

@@ -86,9 +86,10 @@ class LangVm {
 
         val found = requireNotNull(descriptor.exports[name]) { "$filePath doesn't have an export called $name." }
 
-        return when (found) {
-            is TypeReferenceConstraintLangType -> found.canonicalType.id
-            else -> throw VmError("$name isn't a type.")
+        if (found is ConstraintValueLangType && found.valueType is InstanceValueLangType) {
+            return found.valueType.canonicalType.id
+        } else {
+            throw VmError("$name isn't a canonical type.")
         }
     }
 
@@ -300,9 +301,12 @@ class LangVm {
                     }
 
                     is Instruction.Construct -> {
-                        val constructorType = stack.removeLast().let {
-                            if (it is RuntimeValue.RuntimeTypeReference && it.type is TypeReferenceConstraintLangType) it.type
-                            else throw InternalVmError("Tried to construct a $it.")
+                        val constructorType = stack.removeLast().let { stackValue ->
+                            (stackValue as? RuntimeValue.RuntimeTypeReference)?.let {
+                                it.type as? ConstraintReference.ResolvedConstraint
+                            }?.let {
+                                it.valueType as? InstanceValueLangType
+                            } ?: throw InternalVmError("Tried to construct a $stackValue.")
                         }
 
                         val params = mutableListOf<RuntimeValue>()
@@ -480,7 +484,9 @@ class LangVm {
                 if (canonicalType.isUnique()) {
                     RuntimeValue.RuntimeUniqueObject(canonicalType.id)
                 } else {
-                    RuntimeValue.RuntimeTypeReference(TypeReferenceConstraintLangType(canonicalType))
+                    RuntimeValue.RuntimeTypeReference(
+                        InstanceValueLangType(canonicalType).toConstraint().asConstraintReference()
+                    )
                 }
             }
 

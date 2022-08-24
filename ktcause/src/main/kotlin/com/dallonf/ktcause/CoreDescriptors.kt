@@ -9,22 +9,27 @@ object CoreDescriptors {
         val types = mapOf(
             CanonicalLangType.SignalCanonicalLangType(
                 CanonicalLangTypeId(filename, name = "Debug", number = 0u), name = "Debug", fields = listOf(
-                    CanonicalLangType.ObjectField("value", AnythingConstraintLangType)
-                ), result = LangPrimitiveKind.ACTION.toConstraintLangType()
+                    CanonicalLangType.ObjectField("value", AnythingValueLangType.toConstraint().asConstraintReference())
+                ), result = LangPrimitiveKind.ACTION.toConstraintLangType().asConstraintReference()
             ).toPair(), CanonicalLangType.SignalCanonicalLangType(
                 CanonicalLangTypeId(filename, name = "TypeError", number = 0u),
                 name = "TypeError",
-                fields = listOf(CanonicalLangType.ObjectField("badValue", BadValueConstraintLangType)),
-                result = NeverContinuesConstraintLangType
+                fields = listOf(
+                    CanonicalLangType.ObjectField(
+                        "badValue",
+                        BadValueLangType.toConstraint().asConstraintReference()
+                    )
+                ),
+                result = NeverContinuesValueLangType.toConstraint().asConstraintReference()
             ).toPair(), CanonicalLangType.SignalCanonicalLangType(
                 CanonicalLangTypeId(filename, name = "AssumptionBroken", number = 0.toUByte()),
                 name = "AssumptionBroken",
                 fields = listOf(
                     CanonicalLangType.ObjectField(
-                        "message", LangPrimitiveKind.STRING.toConstraintLangType()
+                        "message", LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
                     )
                 ),
-                result = NeverContinuesConstraintLangType
+                result = NeverContinuesValueLangType.toConstraint().asConstraintReference()
             ).toPair()
         )
 
@@ -36,11 +41,11 @@ object CoreDescriptors {
             put("True", LangPrimitiveKind.BOOLEAN.toValueLangType())
             put("False", LangPrimitiveKind.BOOLEAN.toValueLangType())
             put("Action", LangPrimitiveKind.ACTION.toConstraintLangType())
-            put("Anything", AnythingConstraintLangType)
-            put("AnySignal", AnySignalConstraintLangType)
+            put("Anything", AnythingValueLangType.toConstraint())
+            put("AnySignal", AnySignalValueLangType.toConstraint())
 
             for ((id, type) in types.filter { it.key.name != null && it.key.parentName == null }) {
-                put(id.name!!, TypeReferenceConstraintLangType(type))
+                put(id.name!!, InstanceValueLangType(type).toConstraint())
             }
         }, types = types)
 
@@ -57,20 +62,41 @@ object CoreDescriptors {
                 filename to Resolver.ExternalFileDescriptor(
                     exports = mapOf(
                         "append" to FunctionValueLangType(
-                            name = "append", params = listOf(
-                                LangParameter("this", LangPrimitiveKind.STRING.toConstraintLangType()),
-                                LangParameter("other", LangPrimitiveKind.STRING.toConstraintLangType()),
-                            ), returnConstraint = LangPrimitiveKind.STRING.toConstraintLangType()
+                            name = "append",
+                            params = listOf(
+                                LangParameter(
+                                    "this",
+                                    LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                                ),
+                                LangParameter(
+                                    "other",
+                                    LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                                ),
+                            ),
+                            returnConstraint = LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
                         ), "equals" to FunctionValueLangType(
-                            name = "stringEquals", params = listOf(
-                                LangParameter("this", LangPrimitiveKind.STRING.toConstraintLangType()),
-                                LangParameter("other", LangPrimitiveKind.STRING.toConstraintLangType()),
-                            ), returnConstraint = LangPrimitiveKind.BOOLEAN.toConstraintLangType()
+                            name = "stringEquals",
+                            params = listOf(
+                                LangParameter(
+                                    "this",
+                                    LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                                ),
+                                LangParameter(
+                                    "other",
+                                    LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                                ),
+                            ),
+                            returnConstraint = LangPrimitiveKind.BOOLEAN.toConstraintLangType().asConstraintReference()
                         ),
                         "integer_to_string" to FunctionValueLangType(
-                            name = "integer_to_string", params = listOf(
-                                LangParameter("this", LangPrimitiveKind.INTEGER.toConstraintLangType()),
-                            ), returnConstraint = LangPrimitiveKind.STRING.toConstraintLangType()
+                            name = "integer_to_string",
+                            params = listOf(
+                                LangParameter(
+                                    "this",
+                                    LangPrimitiveKind.INTEGER.toConstraintLangType().asConstraintReference()
+                                ),
+                            ),
+                            returnConstraint = LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
                         )
                     ), types = mapOf()
                 )
@@ -85,10 +111,16 @@ object CoreDescriptors {
                     exports = mapOf(
                         "add" to FunctionValueLangType(
                             name = "add", params = listOf(
-                                LangParameter("this", LangPrimitiveKind.INTEGER.toConstraintLangType()),
-                                LangParameter("other", LangPrimitiveKind.INTEGER.toConstraintLangType()),
+                                LangParameter(
+                                    "this",
+                                    LangPrimitiveKind.INTEGER.toConstraintLangType().asConstraintReference()
+                                ),
+                                LangParameter(
+                                    "other",
+                                    LangPrimitiveKind.INTEGER.toConstraintLangType().asConstraintReference()
+                                ),
                             ),
-                            returnConstraint = LangPrimitiveKind.INTEGER.toConstraintLangType()
+                            returnConstraint = LangPrimitiveKind.INTEGER.toConstraintLangType().asConstraintReference()
                         )
                     ),
                     types = mapOf()

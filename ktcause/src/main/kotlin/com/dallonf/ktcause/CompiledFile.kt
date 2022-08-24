@@ -10,7 +10,7 @@ data class CompiledFile(
     val exports: Map<String, CompiledExport>,
 ) {
     fun toFileDescriptor(): Resolver.ExternalFileDescriptor {
-        val exportDescriptors = mutableMapOf<String, LangType>()
+        val exportDescriptors = mutableMapOf<String, ValueLangType>()
         for ((exportName, export) in exports) {
             when (export) {
                 is CompiledExport.Type -> {
@@ -20,7 +20,7 @@ data class CompiledFile(
                     exportDescriptors[exportName] = if (canonicalType.isUnique()) {
                         UniqueObjectLangType(canonicalType)
                     } else {
-                        TypeReferenceConstraintLangType(canonicalType)
+                        ConstraintValueLangType(InstanceValueLangType(canonicalType))
                     }
                 }
 
@@ -31,6 +31,7 @@ data class CompiledFile(
                 is CompiledExport.Function -> {
                     exportDescriptors[exportName] = export.type
                 }
+
                 is CompiledExport.Value -> TODO()
             }
         }
@@ -78,13 +79,14 @@ data class CompiledFile(
         data class FloatConst(val value: Double) : CompiledConstant
         data class ErrorConst(val sourcePosition: SourcePosition, val error: ErrorLangType) :
             CompiledConstant
+
         data class TypeConst(val type: ValueLangType) : CompiledConstant
     }
 
     sealed interface CompiledExport {
         data class Error(val error: ErrorLangType) : CompiledExport
         data class Type(val typeId: CanonicalLangTypeId) : CompiledExport
-        data class Function(val chunkIndex: Int, val type: LangType) : CompiledExport
-        data class Value(val constant: CompiledConstant?, val type: LangType) : CompiledExport
+        data class Function(val chunkIndex: Int, val type: ValueLangType) : CompiledExport
+        data class Value(val constant: CompiledConstant?, val type: ValueLangType) : CompiledExport
     }
 }

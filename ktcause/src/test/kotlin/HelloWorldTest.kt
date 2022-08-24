@@ -19,21 +19,23 @@ internal class HelloWorldTest {
 
         val result1 = vm.executeFunction("project/hello.cau", "main", listOf()).expectCausedSignal()
         assertEquals(
-            result1.debug(), """
+            """
                 {
                     "#type": "core/builtin.cau:Debug",
                     "value": "Hello world!"
                 }
-            """.trimIndent()
+            """.trimIndent(),
+            result1.debug()
         )
 
         val result2 = vm.resumeExecution(RuntimeValue.Action).expectReturnValue()
         assertEquals(
-            result2.debug(), """
+            """
                 {
                     "#type": "Action"
                 }
-            """.trimIndent()
+            """.trimIndent(),
+            result2.debug(),
         )
     }
 }
