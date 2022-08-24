@@ -263,30 +263,31 @@ object Resolver {
                                     Callee(calleeType.params, calleeType.returnConstraint, strictParams = false)
                                 }
 
-                                is ConstraintValueLangType -> when (val constructedInstanceType =
-                                    calleeType.valueType) {
-                                    is InstanceValueLangType -> {
-                                        val fields = when (val canonicalType = constructedInstanceType.canonicalType) {
+                                is ConstraintValueLangType -> {
+                                    val canonicalType = calleeType.tryGetCanonicalType()
+                                    if (canonicalType != null) {
+
+                                        val fields = when (canonicalType) {
                                             is CanonicalLangType.SignalCanonicalLangType -> canonicalType.fields
                                             is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.fields
                                         }
 
+                                        val resultType = if (canonicalType.isUnique()) {
+                                            calleeType.toConstraint().asConstraintReference()
+                                        } else {
+                                            calleeType.asConstraintReference()
+                                        }
+
                                         Callee(
                                             fields.map { it.asLangParameter() },
-                                            calleeType.asConstraintReference(),
+                                            resultType,
                                             strictParams = true
                                         )
-                                    }
-
-                                    else -> {
+                                    } else {
                                         resolveWith(ErrorLangType.NotCallable)
                                         return@eachPendingNode
                                     }
                                 }
-
-                                is UniqueObjectLangType -> Callee(
-                                    emptyList(), calleeType.toConstraint().asConstraintReference(), strictParams = true
-                                )
 
                                 is ResolvedValueLangType -> {
                                     resolveWith(ErrorLangType.NotCallable)
@@ -575,11 +576,7 @@ object Resolver {
                             }
 
                             knownCanonicalTypes[id] = objectType
-                            if (objectType.fields.isEmpty()) {
-                                resolveWith(UniqueObjectLangType(objectType))
-                            } else {
-                                resolveWith(ConstraintValueLangType(InstanceValueLangType(objectType)))
-                            }
+                            resolveWith(ConstraintValueLangType(InstanceValueLangType(objectType)))
                         }
 
                         is DeclarationNode.SignalType -> {

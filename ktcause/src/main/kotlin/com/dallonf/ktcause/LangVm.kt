@@ -301,11 +301,10 @@ class LangVm {
                     }
 
                     is Instruction.Construct -> {
-                        val constructorType = stack.removeLast().let { stackValue ->
+                        val constructorTypeValue = stack.removeLast()
+                        val constructorType = constructorTypeValue.let { stackValue ->
                             (stackValue as? RuntimeValue.RuntimeTypeReference)?.let {
-                                it.type as? ConstraintReference.ResolvedConstraint
-                            }?.let {
-                                it.valueType as? InstanceValueLangType
+                                it.type as? InstanceValueLangType
                             } ?: throw InternalVmError("Tried to construct a $stackValue.")
                         }
 
@@ -315,8 +314,13 @@ class LangVm {
                         }
                         params.reverse()
 
-                        val obj = RuntimeValue.RuntimeObject(constructorType.canonicalType, params)
-                        stack.addLast(obj)
+                        if (constructorType.canonicalType.isUnique()) {
+                            stack.addLast(constructorTypeValue)
+                        } else {
+                            val obj = RuntimeValue.RuntimeObject(constructorType.canonicalType, params)
+                            stack.addLast(obj)
+                        }
+
                     }
 
                     is Instruction.CallFunction -> {
@@ -373,7 +377,7 @@ class LangVm {
 
                         val type = (typeValue as RuntimeValue.RuntimeTypeReference).type
 
-                        stack.addLast(RuntimeValue.Boolean(value.isAssignableTo(type)))
+                        stack.addLast(RuntimeValue.Boolean(value.isAssignableTo(type.toConstraint())))
                     }
 
                     is Instruction.Jump -> {
@@ -481,13 +485,10 @@ class LangVm {
             is CompiledFile.CompiledExport.Type -> {
                 val canonicalType =
                     requireNotNull(file.types[export.typeId]) { "The file ${file.path} exports a type of ${export.typeId} but doesn't define it" }
-                if (canonicalType.isUnique()) {
-                    RuntimeValue.RuntimeUniqueObject(canonicalType.id)
-                } else {
-                    RuntimeValue.RuntimeTypeReference(
-                        InstanceValueLangType(canonicalType).toConstraint().asConstraintReference()
-                    )
-                }
+
+                RuntimeValue.RuntimeTypeReference(
+                    InstanceValueLangType(canonicalType)
+                )
             }
 
             is CompiledFile.CompiledExport.Function -> {

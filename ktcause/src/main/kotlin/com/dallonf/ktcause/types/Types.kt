@@ -239,10 +239,15 @@ sealed interface ResolvedValueLangType : ValueLangType {
 
     fun isAssignableTo(constraint: ConstraintValueLangType): Boolean {
         return when (val constraintInstanceType = constraint.valueType) {
-            is InstanceValueLangType -> this is InstanceValueLangType && this.canonicalType.id == constraintInstanceType.canonicalType.id
+            is InstanceValueLangType -> {
+                this is InstanceValueLangType && this.canonicalType.id == constraintInstanceType.canonicalType.id ||
+                        // handle unique types
+                        (this is ConstraintValueLangType && this.tryGetCanonicalType()
+                            ?.let { it.isUnique() && it.id == constraintInstanceType.canonicalType.id } ?: false)
+            }
+
             is FunctionValueLangType -> this is FunctionValueLangType && this.returnConstraint == constraintInstanceType.returnConstraint && this.params == constraintInstanceType.params
             is PrimitiveValueLangType -> this is PrimitiveValueLangType && this.kind == constraintInstanceType.kind
-            is UniqueObjectLangType -> this is UniqueObjectLangType && this.canonicalType.id == constraintInstanceType.canonicalType.id
             is OptionValueLangType -> constraintInstanceType.options.any {
                 if (it is ConstraintReference.ResolvedConstraint) this.isAssignableTo(
                     it.asConstraintValue()
@@ -268,6 +273,14 @@ sealed interface ResolvedValueLangType : ValueLangType {
 @SerialName("Constraint")
 data class ConstraintValueLangType(val valueType: ResolvedValueLangType) : ResolvedValueLangType {
     override fun isPending() = valueType.isPending()
+
+    fun tryGetCanonicalType(): CanonicalLangType? {
+        return if (valueType is InstanceValueLangType) {
+            valueType.canonicalType
+        } else {
+            null
+        }
+    }
 }
 
 @Serializable
@@ -343,14 +356,6 @@ data class PrimitiveValueLangType(val kind: LangPrimitiveKind) : ResolvedValueLa
 data class InstanceValueLangType(val canonicalType: CanonicalLangType) : ResolvedValueLangType {
 
     override fun isPending() = canonicalType.isPending()
-    override fun getError() = canonicalType.getError()
-}
-
-@Serializable
-@SerialName("UniqueObject")
-data class UniqueObjectLangType(val canonicalType: CanonicalLangType) : ResolvedValueLangType {
-    override fun isPending() = canonicalType.isPending()
-
     override fun getError() = canonicalType.getError()
 }
 

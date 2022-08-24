@@ -32,7 +32,7 @@ class OptionsAndUniqueObjects {
         assertEquals(
             """
             {
-                "#type": "RuntimeUniqueObject",
+                "#type": "RuntimeTypeReference",
                 "id": "project/test.cau:Two"
             }
             """.trimIndent(), result.debug()
@@ -56,7 +56,7 @@ class OptionsAndUniqueObjects {
         assertEquals(
             """
             {
-                "#type": "RuntimeUniqueObject",
+                "#type": "RuntimeTypeReference",
                 "id": "project/test.cau:Test"
             }
             """.trimIndent(), result.debug()
@@ -80,7 +80,7 @@ class OptionsAndUniqueObjects {
         assertEquals(
             """
             {
-                "#type": "RuntimeUniqueObject",
+                "#type": "RuntimeTypeReference",
                 "id": "project/test.cau:Test"
             }
             """.trimIndent(), result.debug()
@@ -114,23 +114,28 @@ class OptionsAndUniqueObjects {
                     "error": {
                         "#type": "MismatchedType",
                         "expected": {
-                            "#type": "UniqueObject",
-                            "canonicalType": {
-                                "#type": "Object",
-                                "id": "project/test.cau:Test2",
-                                "name": "Test2",
-                                "fields": [
-                                ]
+                            "valueType": {
+                                "#type": "Instance",
+                                "canonicalType": {
+                                    "#type": "Object",
+                                    "id": "project/test.cau:Test2",
+                                    "name": "Test2",
+                                    "fields": [
+                                    ]
+                                }
                             }
                         },
                         "actual": {
-                            "#type": "UniqueObject",
-                            "canonicalType": {
-                                "#type": "Object",
-                                "id": "project/test.cau:Test1",
-                                "name": "Test1",
-                                "fields": [
-                                ]
+                            "#type": "Constraint",
+                            "valueType": {
+                                "#type": "Instance",
+                                "canonicalType": {
+                                    "#type": "Object",
+                                    "id": "project/test.cau:Test1",
+                                    "name": "Test1",
+                                    "fields": [
+                                    ]
+                                }
                             }
                         }
                     }
@@ -172,7 +177,7 @@ class OptionsAndUniqueObjects {
         assertEquals(
             """
             {
-                "#type": "RuntimeUniqueObject",
+                "#type": "RuntimeTypeReference",
                 "id": "project/test.cau:Diamonds"
             }
             """.trimIndent(), result.debug()
@@ -211,29 +216,37 @@ class OptionsAndUniqueObjects {
                     "error": {
                         "#type": "MismatchedType",
                         "expected": {
-                            "#type": "OptionConstraint",
-                            "options": [
-                                {
-                                    "#type": "UniqueObject",
-                                    "canonicalType": {
-                                        "#type": "Object",
-                                        "id": "project/test.cau:Hearts",
-                                        "name": "Hearts",
-                                        "fields": [
-                                        ]
+                            "valueType": {
+                                "#type": "Option",
+                                "options": [
+                                    {
+                                        "#type": "Resolved",
+                                        "valueType": {
+                                            "#type": "Instance",
+                                            "canonicalType": {
+                                                "#type": "Object",
+                                                "id": "project/test.cau:Hearts",
+                                                "name": "Hearts",
+                                                "fields": [
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "#type": "Resolved",
+                                        "valueType": {
+                                            "#type": "Instance",
+                                            "canonicalType": {
+                                                "#type": "Object",
+                                                "id": "project/test.cau:Diamonds",
+                                                "name": "Diamonds",
+                                                "fields": [
+                                                ]
+                                            }
+                                        }
                                     }
-                                },
-                                {
-                                    "#type": "UniqueObject",
-                                    "canonicalType": {
-                                        "#type": "Object",
-                                        "id": "project/test.cau:Diamonds",
-                                        "name": "Diamonds",
-                                        "fields": [
-                                        ]
-                                    }
-                                }
-                            ]
+                                ]
+                            }
                         },
                         "actual": {
                             "#type": "Primitive",
@@ -257,29 +270,37 @@ class OptionsAndUniqueObjects {
                 "error": {
                     "#type": "MismatchedType",
                     "expected": {
-                        "#type": "OptionConstraint",
-                        "options": [
-                            {
-                                "#type": "UniqueObject",
-                                "canonicalType": {
-                                    "#type": "Object",
-                                    "id": "project/test.cau:Hearts",
-                                    "name": "Hearts",
-                                    "fields": [
-                                    ]
+                        "valueType": {
+                            "#type": "Option",
+                            "options": [
+                                {
+                                    "#type": "Resolved",
+                                    "valueType": {
+                                        "#type": "Instance",
+                                        "canonicalType": {
+                                            "#type": "Object",
+                                            "id": "project/test.cau:Hearts",
+                                            "name": "Hearts",
+                                            "fields": [
+                                            ]
+                                        }
+                                    }
+                                },
+                                {
+                                    "#type": "Resolved",
+                                    "valueType": {
+                                        "#type": "Instance",
+                                        "canonicalType": {
+                                            "#type": "Object",
+                                            "id": "project/test.cau:Diamonds",
+                                            "name": "Diamonds",
+                                            "fields": [
+                                            ]
+                                        }
+                                    }
                                 }
-                            },
-                            {
-                                "#type": "UniqueObject",
-                                "canonicalType": {
-                                    "#type": "Object",
-                                    "id": "project/test.cau:Diamonds",
-                                    "name": "Diamonds",
-                                    "fields": [
-                                    ]
-                                }
-                            }
-                        ]
+                            ]
+                        }
                     },
                     "actual": {
                         "#type": "Primitive",
