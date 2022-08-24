@@ -249,8 +249,6 @@ object Analyzer {
     private fun analyzeFunctionDeclaration(
         declaration: DeclarationNode.Function, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        val name = declaration.name.text
-
         for (param in declaration.params) {
             param.typeReference?.let { analyzeTypeReference(it, output, ctx) }
         }
@@ -274,6 +272,7 @@ object Analyzer {
         )
         for (param in declaration.params) {
             newCtx.currentScope.items[param.name.text] = LocalScopeItem(param.info.breadcrumbs)
+            output.addTag(param.info.breadcrumbs, NodeTag.DeclarationForScope(newCtx.currentScopePosition))
         }
         analyzeBody(declaration.body, output, newCtx)
     }

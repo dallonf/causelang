@@ -109,6 +109,7 @@ object Resolver {
                                 track(CONSTRAINT)
                             }
                         }
+                        is DeclarationNode.Function.FunctionParameterNode -> track(CONSTRAINT)
 
                         is BranchOptionNode.IfBranchOptionNode -> track(CONSTRAINT, node.condition)
 
@@ -122,7 +123,10 @@ object Resolver {
 
                         is ExpressionNode -> track(INFERRED)
 
-                        is StatementNode.EffectStatement -> track(INFERRED)
+                        is StatementNode.EffectStatement -> {
+                            track(INFERRED)
+                            track(CONSTRAINT, node.body)
+                        }
 
                         is StatementNode.SetStatement -> track(INFERRED)
 
@@ -143,6 +147,10 @@ object Resolver {
             fun getResolvedTypeOf(breadcrumbs: Breadcrumbs): LangType {
                 val foundConstraint = resolvedTypes[ResolutionKey(CONSTRAINT, breadcrumbs)]
 
+                if (foundConstraint is ErrorLangType) {
+                    return ErrorLangType.ProxyError.from(foundConstraint, getSourcePosition(breadcrumbs))
+                }
+
                 if (foundConstraint != null) {
                     return if (foundConstraint is ResolvedConstraintLangType) {
                         foundConstraint.toInstanceType()
@@ -154,6 +162,10 @@ object Resolver {
                 val foundValue = resolvedTypes[ResolutionKey(
                     INFERRED, breadcrumbs
                 )]
+
+                if (foundValue is ErrorLangType) {
+                    return ErrorLangType.ProxyError.from(foundValue, getSourcePosition(breadcrumbs))
+                }
 
                 if (foundValue != null) {
                     return foundValue
@@ -198,15 +210,13 @@ object Resolver {
                                 return@eachPendingNode
                             }
 
-                            when (val sourceType = getResolvedTypeOf(comesFromTag.source).asConstraint()) {
-                                is LangType.Pending -> {}
-                                is ErrorLangType -> resolveWithProxyError(sourceType, comesFromTag.source)
-                                is ResolvedConstraintLangType -> resolveWith(sourceType)
-                            }
+                            resolveWith(getResolvedTypeOf(comesFromTag.source).asConstraint())
                         }
 
                         is ExpressionNode.StringLiteralExpression -> resolveWith(LangPrimitiveKind.STRING.toValueLangType())
                         is ExpressionNode.IntegerLiteralExpression -> resolveWith(LangPrimitiveKind.INTEGER.toValueLangType())
+
+                        is ExpressionNode.BlockExpressionNode -> resolveWith(getResolvedTypeOf(node.block))
 
                         is ExpressionNode.IdentifierExpression -> {
                             val comesFromTag = pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
@@ -225,12 +235,7 @@ object Resolver {
                                 }
                             }
 
-                            when (val sourceType = getResolvedTypeOf(comesFromTag.source)) {
-                                is LangType.Pending -> {}
-                                is ResolvedValueLangType -> resolveWith(sourceType)
-                                is ResolvedConstraintLangType -> resolveWith((sourceType))
-                                is ErrorLangType -> resolveWithProxyError(sourceType, comesFromTag.source)
-                            }
+                            resolveWith(getResolvedTypeOf(comesFromTag.source))
                         }
 
                         is ExpressionNode.CallExpression -> {
@@ -241,7 +246,8 @@ object Resolver {
                             )
                             val (expectedParams, returnConstraint, strictParams) = when (val calleeType =
                                 getResolvedTypeOf(node.callee)) {
-                                is LangType.Pending -> {
+                                is LangType.Pending, is ErrorLangType -> {
+                                    resolveWith(calleeType)
                                     return@eachPendingNode
                                 }
 
@@ -269,21 +275,14 @@ object Resolver {
                                     resolveWith(ErrorLangType.NotCallable)
                                     return@eachPendingNode
                                 }
-
-                                is ErrorLangType -> {
-                                    resolveWithProxyError(calleeType, node.callee)
-                                    return@eachPendingNode
-                                }
                             }
 
                             val params = arrayOfNulls<LangType>(expectedParams.size)
                             node.parameters.forEachIndexed { i, paramNode ->
                                 val paramType = getResolvedTypeOf(paramNode)
-                                if (strictParams) {
-                                    (paramType as? ErrorLangType)?.let { argumentType ->
-                                        resolveWithProxyError(argumentType, paramNode)
-                                        return@eachPendingNode
-                                    }
+                                if (strictParams && paramType is ErrorLangType) {
+                                    resolveWith(paramType)
+                                    return@eachPendingNode
                                 }
                                 params[i] = paramType
                             }
@@ -315,9 +314,17 @@ object Resolver {
                             }
                         }
 
+                        is ExpressionNode.CallExpression.ParameterNode -> {
+                            resolveWith(getResolvedTypeOf(node.value).asValue())
+                        }
+
                         is ExpressionNode.CauseExpression -> {
                             val signalType = when (val signalType = getResolvedTypeOf(node.signal)) {
-                                is LangType.Pending -> return@eachPendingNode
+                                is LangType.Pending, is ErrorLangType -> {
+                                    resolveWith(signalType)
+                                    return@eachPendingNode
+                                }
+
                                 is InstanceValueLangType -> signalType.canonicalType
 
                                 is ResolvedValueLangType -> {
@@ -329,22 +336,13 @@ object Resolver {
                                     resolveWith(ErrorLangType.NotCausable)
                                     return@eachPendingNode
                                 }
-
-                                is ErrorLangType -> {
-                                    resolveWithProxyError(signalType, node.signal)
-                                    return@eachPendingNode
-                                }
                             }
 
                             when (signalType) {
                                 is CanonicalLangType.SignalCanonicalLangType -> {
                                     when (signalType.result) {
-                                        is LangType.Pending -> {}
-                                        is ErrorLangType -> resolveWithProxyError(
-                                            signalType.result, node.signal
-                                        )
-
                                         is ResolvedConstraintLangType -> resolveWith(signalType.result.toInstanceType())
+                                        else -> resolveWith(signalType.result)
                                     }
                                 }
 
@@ -394,7 +392,7 @@ object Resolver {
                         is ExpressionNode.MemberExpression -> {
                             val obj = getResolvedTypeOf(node.objectExpression)
                             when (obj) {
-                                is LangType.Pending -> {}
+                                is LangType.Pending, is ErrorLangType -> resolveWith(obj)
                                 is ResolvedConstraintLangType -> resolveWith(ErrorLangType.ImplementationTodo("Can't get members of a type"))
 
                                 // TODO: it's kinda weird that the resolution of
@@ -409,10 +407,11 @@ object Resolver {
                                     if (referencedField != null) {
                                         when (val constraint = referencedField.valueConstraint) {
                                             is LangType.Pending -> {}
-                                            is ResolvedConstraintLangType -> resolveWith(constraint.toInstanceType())
                                             is ErrorLangType -> resolveWithProxyError(
                                                 constraint, node.objectExpression
                                             )
+
+                                            is ResolvedConstraintLangType -> resolveWith(constraint.toInstanceType())
                                         }
                                     } else {
                                         resolveWith(ErrorLangType.DoesNotHaveMember)
@@ -422,18 +421,11 @@ object Resolver {
                                 is ResolvedValueLangType -> {
                                     resolveWith(ErrorLangType.DoesNotHaveAnyMembers)
                                 }
-
-
-                                is ErrorLangType -> resolveWithProxyError(obj, node.objectExpression)
                             }
                         }
 
                         is StatementNode.ExpressionStatement -> {
-                            when (val expressionType = getResolvedTypeOf(node.expression).asValue()) {
-                                is LangType.Pending -> {}
-                                is ErrorLangType -> resolveWithProxyError(expressionType, node.expression)
-                                is ResolvedValueLangType -> resolveWith(expressionType)
-                            }
+                            resolveWith(getResolvedTypeOf(node.expression).asValue())
                         }
 
                         is StatementNode.EffectStatement -> {
@@ -443,14 +435,13 @@ object Resolver {
                                         it.canonicalType
                                     } else {
                                         when (it) {
-                                            is AnySignalValueLangType -> {
-                                                return@result AnythingConstraintLangType
+                                            is LangType.Pending, is ErrorLangType -> {
+                                                resolveWith(it)
+                                                return@eachPendingNode
                                             }
 
-                                            is LangType.Pending -> return@eachPendingNode
-                                            is ErrorLangType -> {
-                                                resolveWithProxyError(it, node.pattern.typeReference)
-                                                return@eachPendingNode
+                                            is AnySignalValueLangType -> {
+                                                return@result AnythingConstraintLangType
                                             }
 
                                             is ResolvedValueLangType -> {
@@ -472,11 +463,17 @@ object Resolver {
                                 resultType
                             }
 
+                            iterationResolvedReferences.add(
+                                ResolutionKey(
+                                    CONSTRAINT,
+                                    node.body.info.breadcrumbs
+                                ) to resultType
+                            )
+
                             val bodyResult = getResolvedTypeOf(node.body).asValue().let {
                                 when (it) {
-                                    is LangType.Pending -> return@eachPendingNode
-                                    is ErrorLangType -> {
-                                        resolveWithProxyError(it, node.body)
+                                    is LangType.Pending, is ErrorLangType -> {
+                                        resolveWith(it)
                                         return@eachPendingNode
                                     }
 
@@ -484,15 +481,7 @@ object Resolver {
                                 }
                             }
 
-                            if (bodyResult.isAssignableTo(resultType)) {
-                                resolveWith(LangPrimitiveKind.ACTION.toValueLangType())
-                            } else {
-                                resolveWith(
-                                    ErrorLangType.MismatchedType(
-                                        expected = resultType, actual = bodyResult
-                                    )
-                                )
-                            }
+                            resolveWith(LangPrimitiveKind.ACTION.toValueLangType())
                         }
 
                         is StatementNode.SetStatement -> {
@@ -514,9 +503,8 @@ object Resolver {
                             }
 
                             val expectedType = when (val variableValue = getResolvedTypeOf(variable).asValue()) {
-                                is LangType.Pending -> return@eachPendingNode
-                                is ErrorLangType -> {
-                                    resolveWithProxyError(variableValue, variable)
+                                is LangType.Pending, is ErrorLangType -> {
+                                    resolveWith(variableValue)
                                     return@eachPendingNode
                                 }
 
@@ -524,9 +512,8 @@ object Resolver {
                             }
 
                             val newValue = when (val newValue = getResolvedTypeOf(node.expression).asValue()) {
-                                is LangType.Pending -> return@eachPendingNode
-                                is ErrorLangType -> {
-                                    resolveWithProxyError(newValue, node.expression)
+                                is LangType.Pending, is ErrorLangType -> {
+                                    resolveWith(newValue)
                                     return@eachPendingNode
                                 }
 
@@ -540,19 +527,22 @@ object Resolver {
                             }
                         }
 
+                        is BodyNode.BlockBodyNode -> {
+                            val lastStatement = node.statements.lastOrNull()
+                            if (lastStatement is StatementNode.ExpressionStatement) {
+                                resolveWith(getResolvedTypeOf(lastStatement).asValue())
+                            } else {
+                                resolveWith(LangPrimitiveKind.ACTION.toValueLangType())
+                            }
+                        }
+
+                        is DeclarationNode.NamedValue -> resolveWith(getResolvedTypeOf(node.value))
 
                         is DeclarationNode.ObjectType -> {
                             val id = CanonicalLangTypeId(path, null, node.name.text, 0u)
                             // TODO: increment number to resolve dupes
                             val fields = node.fields?.map { field ->
-                                val fieldType = when (val resolvedFieldType =
-                                    getResolvedTypeOf(field.typeConstraint).asConstraint()) {
-                                    is ErrorLangType -> ErrorLangType.ProxyError.from(
-                                        resolvedFieldType, getSourcePosition(field.typeConstraint)
-                                    )
-
-                                    else -> resolvedFieldType
-                                }
+                                val fieldType = getResolvedTypeOf(field.typeConstraint).asConstraint()
                                 CanonicalLangType.ObjectField(field.name.text, fieldType)
                             } ?: emptyList()
                             val objectType = CanonicalLangType.ObjectCanonicalLangType(id, node.name.text, fields)
@@ -574,23 +564,10 @@ object Resolver {
                             val id = CanonicalLangTypeId(path, null, node.name.text, 0u)
                             // TODO: increment number to resolve dupes
                             val fields = node.fields?.map { field ->
-                                val fieldType = when (val resolvedFieldType =
-                                    getResolvedTypeOf(field.typeConstraint).asConstraint()) {
-                                    is ErrorLangType -> ErrorLangType.ProxyError.from(
-                                        resolvedFieldType, getSourcePosition(field.typeConstraint)
-                                    )
-
-                                    else -> resolvedFieldType
-                                }
+                                val fieldType = getResolvedTypeOf(field.typeConstraint).asConstraint()
                                 CanonicalLangType.ObjectField(field.name.text, fieldType)
                             } ?: emptyList()
-                            val result = when (val resolvedResultType = getResolvedTypeOf(node.result).asConstraint()) {
-                                is ErrorLangType -> ErrorLangType.ProxyError.from(
-                                    resolvedResultType, getSourcePosition(node.result)
-                                )
-
-                                else -> resolvedResultType
-                            }
+                            val result = getResolvedTypeOf(node.result).asConstraint()
 
                             val signalType =
                                 CanonicalLangType.SignalCanonicalLangType(id, node.name.text, fields, result)
@@ -605,14 +582,9 @@ object Resolver {
                         }
 
                         is DeclarationNode.OptionType -> {
-                            val options = node.options.map(fun(it): ConstraintLangType =
-                                when (val resolvedType = getResolvedTypeOf(it).asConstraint()) {
-                                    is ErrorLangType -> ErrorLangType.ProxyError.from(
-                                        resolvedType, getSourcePosition(it)
-                                    )
-
-                                    else -> resolvedType
-                                })
+                            val options = node.options.map {
+                                getResolvedTypeOf(it).asConstraint()
+                            }
                             resolveWith(OptionConstraintLangType(options))
                         }
 
@@ -665,12 +637,11 @@ object Resolver {
                         is DeclarationNode.NamedValue -> {
                             val annotation = requireNotNull(node.typeAnnotation)
 
-                            when (val foundType = getResolvedTypeOf(annotation).asConstraint()) {
-                                is LangType.Pending -> {}
-                                is ResolvedConstraintLangType -> resolveWith(foundType)
+                            resolveWith(getResolvedTypeOf(annotation).asConstraint())
+                        }
 
-                                is ErrorLangType -> resolveWithProxyError(foundType, node.typeAnnotation)
-                            }
+                        is DeclarationNode.Function.FunctionParameterNode -> {
+                            node.typeReference?.let { resolveWith(getResolvedTypeOf(it).asConstraint()) }
                         }
 
                         is ExpressionNode.CallExpression.ParameterNode -> {
@@ -678,7 +649,7 @@ object Resolver {
                             val (callBreadcrumbs, index) = paramTag
                             val call = fileNode.findNode(callBreadcrumbs) as ExpressionNode.CallExpression
                             when (val callType = getResolvedTypeOf(call.callee)) {
-                                is LangType.Pending -> {}
+                                is LangType.Pending, is ErrorLangType -> resolveWith(callType)
                                 is ResolvedValueLangType, is ResolvedConstraintLangType -> {
                                     val params = when (callType) {
                                         is FunctionValueLangType -> callType.params
@@ -698,8 +669,6 @@ object Resolver {
                                         resolveWith(param.valueConstraint)
                                     }
                                 }
-
-                                is ErrorLangType -> resolveWithProxyError(callType, call.callee)
                             }
                         }
 
