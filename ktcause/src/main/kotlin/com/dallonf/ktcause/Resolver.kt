@@ -33,7 +33,7 @@ data class ResolvedFile(
         // Something's gone wrong, print debugging information
 
         val debug = debugContext()?.getNodeContext(breadcrumbs)
-        error("Couldn't find any type for $breadcrumbs" + (debug ?: ""))
+        error("Couldn't find any type for $breadcrumbs" + (debug?.let { ": $it" } ?: ""))
     }
 
     fun getExpectedType(breadcrumbs: Breadcrumbs): LangType {
@@ -109,9 +109,17 @@ object Resolver {
                                 track(CONSTRAINT)
                             }
                         }
+
+                        is PatternNode -> track(CONSTRAINT)
+
+                        is DeclarationNode.Import.MappingNode -> track(INFERRED)
+
                         is DeclarationNode.Function.FunctionParameterNode -> track(CONSTRAINT)
 
-                        is BranchOptionNode.IfBranchOptionNode -> track(CONSTRAINT, node.condition)
+                        is BranchOptionNode.IfBranchOptionNode -> {
+                            resolvedTypes[ResolutionKey(CONSTRAINT, node.condition.info.breadcrumbs)] =
+                                LangPrimitiveKind.BOOLEAN.toConstraintLangType()
+                        }
 
                         is ExpressionNode.CallExpression -> {
                             track(INFERRED)
@@ -203,7 +211,7 @@ object Resolver {
                 val pendingNodeTags = nodeTags[pendingKey.breadcrumbs] ?: emptyList()
                 when (pendingKey.type) {
                     INFERRED -> when (node) {
-                        is TypeReferenceNode -> {
+                        is TypeReferenceNode.IdentifierTypeReferenceNode -> {
                             val comesFromTag = pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
                             if (comesFromTag == null) {
                                 resolveWith(ErrorLangType.NotInScope)
@@ -430,7 +438,7 @@ object Resolver {
 
                         is StatementNode.EffectStatement -> {
                             val resultType = run result@{
-                                val conditionType = getResolvedTypeOf(node.pattern.typeReference).asValue().let {
+                                val conditionType = getResolvedTypeOf(node.pattern).asValue().let {
                                     if (it is InstanceValueLangType && it.canonicalType is CanonicalLangType.SignalCanonicalLangType) {
                                         it.canonicalType
                                     } else {
@@ -480,6 +488,13 @@ object Resolver {
                                     is ResolvedValueLangType -> it
                                 }
                             }
+
+                            iterationResolvedReferences.add(
+                                ResolutionKey(
+                                    INFERRED,
+                                    node.body.info.breadcrumbs
+                                ) to bodyResult
+                            )
 
                             resolveWith(LangPrimitiveKind.ACTION.toValueLangType())
                         }
@@ -535,6 +550,8 @@ object Resolver {
                                 resolveWith(LangPrimitiveKind.ACTION.toValueLangType())
                             }
                         }
+
+                        is BodyNode.SingleExpressionBodyNode -> resolveWith(getResolvedTypeOf(node.expression))
 
                         is DeclarationNode.NamedValue -> resolveWith(getResolvedTypeOf(node.value))
 
@@ -670,6 +687,10 @@ object Resolver {
                                     }
                                 }
                             }
+                        }
+
+                        is PatternNode -> {
+                            resolveWith(getResolvedTypeOf(node.typeReference).asConstraint())
                         }
 
                         else -> {}

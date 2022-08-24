@@ -360,8 +360,11 @@ object Analyzer {
                             )
 
                             statementNode.pattern.name?.let {
-                                effectCtx.currentScope.items.put(
-                                    it.text, LocalScopeItem(statementNode.pattern.info.breadcrumbs)
+                                effectCtx.currentScope.items[it.text] =
+                                    LocalScopeItem(statementNode.pattern.info.breadcrumbs)
+                                output.addTag(
+                                    statementNode.pattern.info.breadcrumbs,
+                                    NodeTag.DeclarationForScope(effectCtx.currentScopePosition)
                                 )
                             }
 
