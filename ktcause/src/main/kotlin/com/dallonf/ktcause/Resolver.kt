@@ -154,14 +154,15 @@ object Resolver {
             fun getResolvedTypeOf(breadcrumbs: Breadcrumbs): ValueLangType {
                 val foundConstraint = resolvedTypes[ResolutionKey(CONSTRAINT, breadcrumbs)]
 
-                if (foundConstraint is ErrorLangType) {
-                    return ErrorLangType.ProxyError.from(foundConstraint, getSourcePosition(breadcrumbs))
-                }
-
                 if (foundConstraint != null) {
                     return when (foundConstraint) {
+                        is ValueLangType.Pending -> foundConstraint
+                        is ErrorLangType -> ErrorLangType.ProxyError.from(
+                            foundConstraint,
+                            getSourcePosition(breadcrumbs)
+                        )
+
                         is ConstraintValueLangType -> foundConstraint.valueType
-                        is ValueLangType.Pending, is ErrorLangType -> foundConstraint
                         is ResolvedValueLangType -> ErrorLangType.ValueUsedAsConstraint(foundConstraint)
                     }
                 }
@@ -356,7 +357,7 @@ object Resolver {
                                             signalType.result.errorType, node.signal
                                         )
 
-                                        is ConstraintReference.ResolvedConstraint -> resolveWith(signalType.result.constraint.valueType)
+                                        is ConstraintReference.ResolvedConstraint -> resolveWith(signalType.result.valueType)
                                     }
                                 }
 
@@ -425,7 +426,7 @@ object Resolver {
                                                 constraint.errorType, node.objectExpression
                                             )
 
-                                            is ConstraintReference.ResolvedConstraint -> resolveWith(constraint.constraint.valueType)
+                                            is ConstraintReference.ResolvedConstraint -> resolveWith(constraint.valueType)
                                         }
                                     } else {
                                         resolveWith(ErrorLangType.DoesNotHaveMember)
@@ -472,7 +473,7 @@ object Resolver {
                                         return@eachPendingNode
                                     }
 
-                                    is ConstraintReference.ResolvedConstraint -> result.constraint
+                                    is ConstraintReference.ResolvedConstraint -> result.asConstraintValue()
                                 }
                                 resultType
                             }
@@ -621,9 +622,7 @@ object Resolver {
                             val returnConstraint = when (returnType) {
                                 is ValueLangType.Pending -> ConstraintReference.Pending
                                 is ErrorLangType -> ConstraintReference.Error(returnType)
-                                is ResolvedValueLangType -> ConstraintReference.ResolvedConstraint(
-                                    ConstraintValueLangType(returnType)
-                                )
+                                is ResolvedValueLangType -> ConstraintReference.ResolvedConstraint(returnType)
                             }
                             val params = node.params.map { paramNode ->
                                 val typeReference =
@@ -697,7 +696,7 @@ object Resolver {
                                                     getSourcePosition(call)
                                                 )
 
-                                                is ConstraintReference.ResolvedConstraint -> param.valueConstraint.constraint
+                                                is ConstraintReference.ResolvedConstraint -> param.valueConstraint.asConstraintValue()
                                             }
                                         )
                                     }

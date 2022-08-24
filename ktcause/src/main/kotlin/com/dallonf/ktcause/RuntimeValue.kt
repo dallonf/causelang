@@ -66,10 +66,10 @@ sealed class RuntimeValue {
         }
     }
 
-    fun isAssignableTo(constraint: ConstraintReference) = when (constraint) {
+    fun isAssignableTo(constraint: ConstraintReference): kotlin.Boolean = when (constraint) {
         is ConstraintReference.Pending -> false
         is ConstraintReference.Error -> false
-        is ConstraintReference.ResolvedConstraint -> isAssignableTo(constraint.constraint)
+        is ConstraintReference.ResolvedConstraint -> isAssignableTo(constraint.asConstraintValue())
     }
 
     fun validate(): RuntimeValue {

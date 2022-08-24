@@ -116,7 +116,7 @@ sealed interface ValueLangType {
         return when (this) {
             is Pending -> ConstraintReference.Pending
             is ErrorLangType -> ConstraintReference.Error(this)
-            is ConstraintValueLangType -> ConstraintReference.ResolvedConstraint(this)
+            is ConstraintValueLangType -> ConstraintReference.ResolvedConstraint(this.valueType)
             is ResolvedValueLangType -> ConstraintReference.Error(ErrorLangType.ValueUsedAsConstraint(this))
         }
     }
@@ -245,7 +245,7 @@ sealed interface ResolvedValueLangType : ValueLangType {
             is UniqueObjectLangType -> this is UniqueObjectLangType && this.canonicalType.id == constraintInstanceType.canonicalType.id
             is OptionValueLangType -> constraintInstanceType.options.any {
                 if (it is ConstraintReference.ResolvedConstraint) this.isAssignableTo(
-                    it.constraint
+                    it.asConstraintValue()
                 ) else false
             }
 
@@ -274,9 +274,8 @@ data class ConstraintValueLangType(val valueType: ResolvedValueLangType) : Resol
 sealed class ConstraintReference {
     @Serializable
     @SerialName("Resolved")
-    data class ResolvedConstraint(val constraint: ConstraintValueLangType) : ConstraintReference() {
-        val valueType
-            get() = constraint.valueType
+    data class ResolvedConstraint(val valueType: ResolvedValueLangType) : ConstraintReference() {
+        fun asConstraintValue() = valueType.toConstraint()
     }
 
     @Serializable
@@ -290,14 +289,14 @@ sealed class ConstraintReference {
     fun isPending() =
         when (this) {
             is Pending -> true
-            is ResolvedConstraint -> this.constraint.isPending()
+            is ResolvedConstraint -> this.valueType.isPending()
             else -> false
         }
 
 
     fun getError() = when (this) {
         is Error -> this.errorType
-        is ResolvedConstraint -> this.constraint.getError()
+        is ResolvedConstraint -> this.valueType.getError()
         else -> null
     }
 
