@@ -16,7 +16,7 @@ sealed class RuntimeValue {
     // TODO: probably want to make it harder to make an invalid RuntimeObject
     data class RuntimeObject(val typeDescriptor: CanonicalLangType, val values: List<RuntimeValue>) : RuntimeValue()
 
-    data class RuntimeTypeReference(val type: ResolvedValueLangType) : RuntimeValue()
+    data class RuntimeTypeConstraint(val valueType: ResolvedValueLangType) : RuntimeValue()
 
     // TODO: definitely don't want these to come from anywhere but the core modules
     data class NativeFunction(val name: kotlin.String, val function: (List<RuntimeValue>) -> RuntimeValue) :
@@ -70,7 +70,7 @@ sealed class RuntimeValue {
 
     fun validate(): RuntimeValue {
         return when (this) {
-            is BadValue, is Action, is String, is Integer, is Float, is Boolean, is RuntimeTypeReference, is NativeFunction, is Function -> this
+            is BadValue, is Action, is String, is Integer, is Float, is Boolean, is RuntimeTypeConstraint, is NativeFunction, is Function -> this
             is RuntimeObject -> {
                 // TODO: we shouldn't make a brand new object if it's all valid
                 val newValues = mutableListOf<RuntimeValue>()
@@ -89,7 +89,7 @@ sealed class RuntimeValue {
     fun isValid(): kotlin.Boolean {
         return when (this) {
             is BadValue -> false
-            is Action, is String, is Integer, is Float, is Boolean, is RuntimeTypeReference, is NativeFunction, is Function -> true
+            is Action, is String, is Integer, is Float, is Boolean, is RuntimeTypeConstraint, is NativeFunction, is Function -> true
             is RuntimeObject -> this.values.all { it.isValid() }
         }
     }
@@ -137,9 +137,9 @@ sealed class RuntimeValue {
                 }
             }
 
-            is RuntimeValue.RuntimeTypeReference -> buildJsonObject {
-                put("#type", "RuntimeTypeReference")
-                val idShortcut = (this@RuntimeValue.type as? InstanceValueLangType)?.let {
+            is RuntimeValue.RuntimeTypeConstraint -> buildJsonObject {
+                put("#type", "RuntimeTypeConstraint")
+                val idShortcut = (this@RuntimeValue.valueType as? InstanceValueLangType)?.let {
                         when (val canonicalType = it.canonicalType) {
                             is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.id
                             is CanonicalLangType.SignalCanonicalLangType -> canonicalType.id
@@ -149,7 +149,7 @@ sealed class RuntimeValue {
                 if (idShortcut != null) {
                     put("id", idShortcut.toString())
                 } else {
-                    put("descriptor", Debug.debugSerializer.encodeToJsonElement(this@RuntimeValue.type))
+                    put("descriptor", Debug.debugSerializer.encodeToJsonElement(this@RuntimeValue.valueType))
                 }
             }
 

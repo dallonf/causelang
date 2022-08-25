@@ -32,7 +32,7 @@ class OptionsAndUniqueObjects {
         assertEquals(
             """
             {
-                "#type": "RuntimeTypeReference",
+                "#type": "RuntimeTypeConstraint",
                 "id": "project/test.cau:Two"
             }
             """.trimIndent(), result.debug()
@@ -56,7 +56,7 @@ class OptionsAndUniqueObjects {
         assertEquals(
             """
             {
-                "#type": "RuntimeTypeReference",
+                "#type": "RuntimeTypeConstraint",
                 "id": "project/test.cau:Test"
             }
             """.trimIndent(), result.debug()
@@ -80,7 +80,7 @@ class OptionsAndUniqueObjects {
         assertEquals(
             """
             {
-                "#type": "RuntimeTypeReference",
+                "#type": "RuntimeTypeConstraint",
                 "id": "project/test.cau:Test"
             }
             """.trimIndent(), result.debug()
@@ -177,7 +177,7 @@ class OptionsAndUniqueObjects {
         assertEquals(
             """
             {
-                "#type": "RuntimeTypeReference",
+                "#type": "RuntimeTypeConstraint",
                 "id": "project/test.cau:Diamonds"
             }
             """.trimIndent(), result.debug()
@@ -333,5 +333,49 @@ class OptionsAndUniqueObjects {
             """
             """.trimIndent(), vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue().debug()
         )
+    }
+
+    @Test
+    fun uniqueSignals() {
+        val vm = LangVm()
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
+                signal UniqueSignal: Action
+                
+                function main() {
+                    effect (let s: UniqueSignal) {
+                        cause Debug("unique signal intercepted")
+                        cause s
+                    }
+                    
+                    cause UniqueSignal
+                    cause Debug("done")
+                }
+            """.trimIndent()
+        )
+
+        vm.executeFunction("project/test.cau", "main", listOf())
+            .let { TestUtils.expectValidCaused(it, vm.getBuiltinTypeId("Debug")) }
+            .let { assertEquals(RuntimeValue.String("unique signal intercepted"), it.values[0]) }
+
+        vm.resumeExecution(RuntimeValue.Action)
+            .let { TestUtils.expectValidCaused(it, vm.getTypeId("project/test.cau", "UniqueSignal")) }
+            .let {
+                assertEquals(
+                    """
+                    {
+                        "#type": "project/test.cau:UniqueSignal"
+                    }
+                    """.trimIndent(),
+                    it.debug()
+                )
+            }
+
+        vm.resumeExecution(RuntimeValue.Action)
+            .let { TestUtils.expectValidCaused(it, vm.getBuiltinTypeId("Debug")) }
+            .let { assertEquals(RuntimeValue.String("done"), it.values[0]) }
+
+        vm.resumeExecution(RuntimeValue.Action).expectReturnValue()
+            .let { assertEquals(RuntimeValue.Action, it) }
     }
 }

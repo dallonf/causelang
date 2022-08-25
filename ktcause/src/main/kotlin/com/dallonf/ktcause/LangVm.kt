@@ -6,7 +6,6 @@ import com.dallonf.ktcause.parse.parse
 import com.dallonf.ktcause.types.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.put
 
 class LangVm {
     open class VmError(message: String) : Error(message)
@@ -303,8 +302,8 @@ class LangVm {
                     is Instruction.Construct -> {
                         val constructorTypeValue = stack.removeLast()
                         val constructorType = constructorTypeValue.let { stackValue ->
-                            (stackValue as? RuntimeValue.RuntimeTypeReference)?.let {
-                                it.type as? InstanceValueLangType
+                            (stackValue as? RuntimeValue.RuntimeTypeConstraint)?.let {
+                                it.valueType as? InstanceValueLangType
                             } ?: throw InternalVmError("Tried to construct a $stackValue.")
                         }
 
@@ -375,7 +374,7 @@ class LangVm {
                             throw VmError("I tried to check the type of ${value.debug()}, but the type reference has an error: ${typeValue.debug()}")
                         }
 
-                        val type = (typeValue as RuntimeValue.RuntimeTypeReference).type
+                        val type = (typeValue as RuntimeValue.RuntimeTypeConstraint).valueType
 
                         stack.addLast(RuntimeValue.Boolean(value.isAssignableTo(type.toConstraint())))
                     }
@@ -398,6 +397,13 @@ class LangVm {
                         val signal = stack.removeLast().let {
                             when (it) {
                                 is RuntimeValue.RuntimeObject -> it
+                                is RuntimeValue.RuntimeTypeConstraint -> {
+                                    if (it.valueType is InstanceValueLangType) {
+                                        RuntimeValue.RuntimeObject(it.valueType.canonicalType, emptyList())
+                                    } else {
+                                        throw InternalVmError("Can't cause $it.")
+                                    }
+                                }
                                 is RuntimeValue.BadValue -> throw VmError("I tried to cause a signal, but it has an error: $it")
                                 else -> throw InternalVmError("Can't cause $it.")
                             }
@@ -486,7 +492,7 @@ class LangVm {
                 val canonicalType =
                     requireNotNull(file.types[export.typeId]) { "The file ${file.path} exports a type of ${export.typeId} but doesn't define it" }
 
-                RuntimeValue.RuntimeTypeReference(
+                RuntimeValue.RuntimeTypeConstraint(
                     InstanceValueLangType(canonicalType)
                 )
             }

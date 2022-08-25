@@ -17,11 +17,7 @@ data class CompiledFile(
                     val canonicalType = types[export.typeId]
                     requireNotNull(canonicalType) { "$path describes a type (${export.typeId}) but doesn't define it" }
 
-                    exportDescriptors[exportName] = if (canonicalType.isUnique()) {
-                        UniqueObjectLangType(canonicalType)
-                    } else {
-                        ConstraintValueLangType(InstanceValueLangType(canonicalType))
-                    }
+                    exportDescriptors[exportName] = ConstraintValueLangType(InstanceValueLangType(canonicalType))
                 }
 
                 is CompiledExport.Error -> {

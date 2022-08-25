@@ -344,6 +344,13 @@ object Resolver {
 
                                 is InstanceValueLangType -> signalType.canonicalType
 
+                                is ConstraintValueLangType -> signalType.tryGetCanonicalType()?.let {
+                                    if (it.isUnique()) it else null
+                                } ?: run {
+                                    resolveWith(ErrorLangType.NotCausable)
+                                    return@eachPendingNode
+                                }
+
                                 is ResolvedValueLangType -> {
                                     resolveWith(ErrorLangType.NotCausable)
                                     return@eachPendingNode

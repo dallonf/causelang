@@ -1,7 +1,6 @@
 package com.dallonf.ktcause
 
 import com.dallonf.ktcause.types.ConstraintValueLangType
-import com.dallonf.ktcause.types.ResolvedValueLangType
 
 object CoreExports {
     const val BUILTINS_FILE = "core/builtin.cau"
@@ -13,7 +12,7 @@ object CoreExports {
             if (setOf("Debug", "TypeError", "AssumptionBroken", "Anything", "AnySignal").contains(exportName)) {
                 val exportedType = CoreDescriptors.coreBuiltinFile.second.exports[exportName] as ConstraintValueLangType
 
-                return RuntimeValue.RuntimeTypeReference(exportedType.valueType)
+                return RuntimeValue.RuntimeTypeConstraint(exportedType.valueType)
             } else {
                 throw LangVm.InternalVmError("There is no builtin named $exportName.")
             }

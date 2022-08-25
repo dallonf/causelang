@@ -56,7 +56,7 @@ sealed interface CanonicalLangType {
         val fields: List<ObjectField>,
         val result: ConstraintReference,
     ) : CanonicalLangType {
-        override fun isUnique() = false
+        override fun isUnique() = fields.isEmpty()
 
         override fun isPending() = result.isPending() || fields.any { it.valueConstraint.isPending() }
         override fun getError() = result.getError() ?: fields.firstNotNullOfOrNull { it.valueConstraint.getError() }
