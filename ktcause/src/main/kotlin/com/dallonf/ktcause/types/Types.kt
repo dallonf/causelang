@@ -79,7 +79,7 @@ sealed interface CanonicalLangType {
         fun asLangParameter() = LangParameter(name, valueConstraint)
     }
 
-    fun toPair() = id to this
+    fun asConstraintReference() = ConstraintReference.ResolvedConstraint(InstanceValueLangType(this))
 }
 
 @Serializable
@@ -118,6 +118,14 @@ sealed interface ValueLangType {
             is ErrorLangType -> ConstraintReference.Error(this)
             is ConstraintValueLangType -> ConstraintReference.ResolvedConstraint(this.valueType)
             is ResolvedValueLangType -> ConstraintReference.Error(ErrorLangType.ValueUsedAsConstraint(this))
+        }
+    }
+
+    fun letIfResolved(f: (ResolvedValueLangType) -> ValueLangType): ValueLangType {
+        return if (this is ResolvedValueLangType) {
+            f(this)
+        } else {
+            this
         }
     }
 }
@@ -178,8 +186,7 @@ sealed interface ErrorLangType : ValueLangType {
 
     @Serializable
     @SerialName("MismatchedType")
-    data class MismatchedType(val expected: ConstraintValueLangType, val actual: ResolvedValueLangType) :
-        ErrorLangType
+    data class MismatchedType(val expected: ConstraintValueLangType, val actual: ResolvedValueLangType) : ErrorLangType
 
     @Serializable
     @SerialName("MissingParameters")
@@ -248,21 +255,18 @@ sealed interface ResolvedValueLangType : ValueLangType {
 
             is FunctionValueLangType -> this is FunctionValueLangType && this.returnConstraint == constraintInstanceType.returnConstraint && this.params == constraintInstanceType.params
             is PrimitiveValueLangType -> this is PrimitiveValueLangType && this.kind == constraintInstanceType.kind
-            is OptionValueLangType -> constraintInstanceType.options.any {
-                if (it is ConstraintReference.ResolvedConstraint) this.isAssignableTo(
-                    it.asConstraintValue()
-                ) else false
-            }
+            is OptionValueLangType -> constraintInstanceType.isSupersetOf(this)
 
             AnySignalValueLangType -> this is InstanceValueLangType && this.canonicalType is CanonicalLangType.SignalCanonicalLangType
             AnythingValueLangType -> true
 
+            ActionValueLangType -> this is ActionValueLangType
+            BadValueLangType -> this is BadValueLangType
+            NeverContinuesValueLangType -> this is NeverContinuesValueLangType
+
             is ConstraintValueLangType -> this is ConstraintValueLangType && this.valueType.isAssignableTo(
                 constraintInstanceType
             )
-
-            BadValueLangType -> this is BadValueLangType
-            NeverContinuesValueLangType -> this is NeverContinuesValueLangType
         }
     }
 
@@ -288,7 +292,7 @@ sealed class ConstraintReference {
     @Serializable
     @SerialName("Resolved")
     data class ResolvedConstraint(val valueType: ResolvedValueLangType) : ConstraintReference() {
-        fun asConstraintValue() = valueType.toConstraint()
+        fun asResolvedConstraintValue() = valueType.toConstraint()
     }
 
     @Serializable
@@ -299,12 +303,11 @@ sealed class ConstraintReference {
     @SerialName("Error")
     data class Error(val errorType: ErrorLangType) : ConstraintReference()
 
-    fun isPending() =
-        when (this) {
-            is Pending -> true
-            is ResolvedConstraint -> this.valueType.isPending()
-            else -> false
-        }
+    fun isPending() = when (this) {
+        is Pending -> true
+        is ResolvedConstraint -> this.valueType.isPending()
+        else -> false
+    }
 
 
     fun getError() = when (this) {
@@ -313,6 +316,17 @@ sealed class ConstraintReference {
         else -> null
     }
 
+    fun asConstraintValueWhat() = when (this) {
+        is ResolvedConstraint -> this.asResolvedConstraintValue()
+        is Pending -> ValueLangType.Pending
+        is Error -> this.errorType
+    }
+
+    fun asValueType() = when (this) {
+        is ResolvedConstraint -> this.valueType
+        is Pending -> ValueLangType.Pending
+        is Error -> this.errorType
+    }
 }
 
 @Serializable
@@ -335,13 +349,7 @@ enum class LangPrimitiveKind() {
     INTEGER,
 
     @SerialName("Float")
-    FLOAT,
-
-    @SerialName("Boolean")
-    BOOLEAN,
-
-    @SerialName("Action")
-    ACTION;
+    FLOAT;
 
     fun toValueLangType() = PrimitiveValueLangType(this)
     fun toConstraintLangType() = ConstraintValueLangType(toValueLangType())
@@ -365,7 +373,38 @@ data class OptionValueLangType(val options: List<ConstraintReference>) : Resolve
 
     override fun isPending() = options.any { it.isPending() }
     override fun getError() = options.firstNotNullOfOrNull { it.getError() }
+
+    fun isSupersetOf(otherType: ResolvedValueLangType): Boolean {
+        // TODO: flatten
+        val possibleValues = when (otherType) {
+            is OptionValueLangType -> otherType.options.map { option -> option.asValueType() }
+            else -> listOf(otherType)
+        }
+
+        var pendingTrue = false
+        val result = possibleValues.all { possibleValue ->
+            when (possibleValue) {
+                is ValueLangType.Pending -> {
+                    pendingTrue = true
+                    true
+                }
+
+                is ErrorLangType -> false
+                is ResolvedValueLangType -> options.any { option ->
+                    if (option is ConstraintReference.ResolvedConstraint) possibleValue.isAssignableTo(option.asResolvedConstraintValue()) else false
+                }
+            }
+        }
+        if (result && pendingTrue) {
+            error("Value is pending; can't tell if it was truly assignable")
+        }
+        return result
+    }
 }
+
+@Serializable
+@SerialName("Action")
+object ActionValueLangType : ResolvedValueLangType
 
 @Serializable
 @SerialName("Anything")

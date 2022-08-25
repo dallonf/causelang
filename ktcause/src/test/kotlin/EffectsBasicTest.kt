@@ -5,6 +5,7 @@ import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RuntimeValue
+import com.dallonf.ktcause.types.ActionValueLangType
 import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 import com.dallonf.ktcause.types.LangPrimitiveKind
@@ -24,7 +25,7 @@ class EffectsBasicTest {
                         interceptThisTypeId,
                         interceptThisTypeId.name!!,
                         listOf(),
-                        result = LangPrimitiveKind.ACTION.toConstraintLangType().asConstraintReference()
+                        result = ActionValueLangType.toConstraint().asConstraintReference()
                     )
                 ),
                 chunks = listOf(),
@@ -70,7 +71,7 @@ class EffectsBasicTest {
                             CanonicalLangType.ObjectField(
                                 "name", LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
                             )
-                        ), result = LangPrimitiveKind.ACTION.toConstraintLangType().asConstraintReference()
+                        ), result = ActionValueLangType.toConstraint().asConstraintReference()
                     )
                 ),
                 chunks = listOf(),

@@ -3,10 +3,7 @@ import com.dallonf.ktcause.CompiledFile
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.RuntimeValue
-import com.dallonf.ktcause.types.CanonicalLangType
-import com.dallonf.ktcause.types.CanonicalLangTypeId
-import com.dallonf.ktcause.types.LangParameter
-import com.dallonf.ktcause.types.LangPrimitiveKind
+import com.dallonf.ktcause.types.*
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -30,7 +27,7 @@ class IoTest {
                             LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
                         )
                     ),
-                    result = LangPrimitiveKind.ACTION.toConstraintLangType().asConstraintReference()
+                    result = ActionValueLangType.toConstraint().asConstraintReference()
                 )
             )
             put(

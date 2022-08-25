@@ -23,6 +23,6 @@ class BranchesTest {
         )
 
         val result = vm.executeFunction("project/test.cau", "main", listOf())
-        assertEquals(result.expectReturnValue(), RuntimeValue.String("yup"))
+        assertEquals(RuntimeValue.String("yup"), result.expectReturnValue())
     }
 }

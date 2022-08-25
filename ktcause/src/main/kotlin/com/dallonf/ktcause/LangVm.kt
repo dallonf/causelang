@@ -71,7 +71,7 @@ class LangVm {
     }
 
     private fun getFileDescriptor(filePath: String): Resolver.ExternalFileDescriptor {
-        return if (filePath == "core/builtin.cau") {
+        return if (filePath == CoreExports.BUILTINS_FILE) {
             CoreDescriptors.coreBuiltinFile.second
         } else if (filePath.startsWith("core/")) {
             CoreDescriptors.coreFiles.find { it.first == filePath }?.second
@@ -92,7 +92,7 @@ class LangVm {
         }
     }
 
-    fun getBuiltinTypeId(name: String) = getTypeId("core/builtin.cau", name)
+    fun getBuiltinTypeId(name: String) = getTypeId(CoreExports.BUILTINS_FILE, name)
 
     fun executeFunction(filePath: String, functionName: String, parameters: List<RuntimeValue>): RunResult {
         val file = requireNotNull(files[filePath]) { "I don't know about any file at $filePath." }
@@ -376,7 +376,7 @@ class LangVm {
 
                         val type = (typeValue as RuntimeValue.RuntimeTypeConstraint).valueType
 
-                        stack.addLast(RuntimeValue.Boolean(value.isAssignableTo(type.toConstraint())))
+                        stack.addLast(CoreExports.getBinaryAnswer(value.isAssignableTo(type.toConstraint())))
                     }
 
                     is Instruction.Jump -> {
@@ -388,7 +388,7 @@ class LangVm {
                         if (condition is RuntimeValue.BadValue) {
                             throw VmError(condition.debug())
                         }
-                        if (condition == RuntimeValue.Boolean(false)) {
+                        if (condition == CoreExports.getBinaryAnswer(false)) {
                             callFrame.instruction = instruction.instruction
                         }
                     }
@@ -404,6 +404,7 @@ class LangVm {
                                         throw InternalVmError("Can't cause $it.")
                                     }
                                 }
+
                                 is RuntimeValue.BadValue -> throw VmError("I tried to cause a signal, but it has an error: $it")
                                 else -> throw InternalVmError("Can't cause $it.")
                             }

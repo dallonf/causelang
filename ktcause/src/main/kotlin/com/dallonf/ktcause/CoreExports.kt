@@ -7,9 +7,17 @@ object CoreExports {
     const val STRING_FILE = "core/string.cau"
     const val MATH_FILE = "core/math.cau"
 
+    fun getBinaryAnswer(boolean: Boolean): RuntimeValue {
+        return if (boolean) {
+            getCoreExport(BUILTINS_FILE, "True")
+        } else {
+            getCoreExport(BUILTINS_FILE, "False")
+        }
+    }
+
     fun getCoreExport(fileName: String, exportName: String): RuntimeValue {
         if (fileName == BUILTINS_FILE) {
-            if (setOf("Debug", "TypeError", "AssumptionBroken", "Anything", "AnySignal").contains(exportName)) {
+            if (setOf("Debug", "TypeError", "AssumptionBroken", "Anything", "AnySignal", "True", "False").contains(exportName)) {
                 val exportedType = CoreDescriptors.coreBuiltinFile.second.exports[exportName] as ConstraintValueLangType
 
                 return RuntimeValue.RuntimeTypeConstraint(exportedType.valueType)
@@ -36,7 +44,7 @@ object CoreExports {
                         val val2 = params[1] as? RuntimeValue.String
                             ?: throw LangVm.VmError("I was expecting the inputs to append to be strings.")
 
-                        RuntimeValue.Boolean(val1.value == val2.value)
+                        getBinaryAnswer(val1 == val2)
                     }
                 }
 

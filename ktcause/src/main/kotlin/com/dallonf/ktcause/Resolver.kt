@@ -87,6 +87,8 @@ object Resolver {
         val resolvedTypes = mutableMapOf<ResolutionKey, ValueLangType>()
         val knownCanonicalTypes = mutableMapOf<CanonicalLangTypeId, CanonicalLangType>()
 
+        val builtins = CoreDescriptors.coreBuiltinFile.second.exports
+
         // Seed the crawler with everything the compiler will want to know about
         run {
             for (node in fileNode.allDescendants()) {
@@ -117,7 +119,7 @@ object Resolver {
 
                         is BranchOptionNode.IfBranchOptionNode -> {
                             resolvedTypes[ResolutionKey(CONSTRAINT, node.condition.info.breadcrumbs)] =
-                                LangPrimitiveKind.BOOLEAN.toConstraintLangType()
+                                builtins["BinaryAnswer"]!!
                         }
 
                         is ExpressionNode.CallExpression -> {
@@ -158,8 +160,7 @@ object Resolver {
                     return when (foundConstraint) {
                         is ValueLangType.Pending -> foundConstraint
                         is ErrorLangType -> ErrorLangType.ProxyError.from(
-                            foundConstraint,
-                            getSourcePosition(breadcrumbs)
+                            foundConstraint, getSourcePosition(breadcrumbs)
                         )
 
                         is ConstraintValueLangType -> foundConstraint.valueType
@@ -279,9 +280,7 @@ object Resolver {
                                         }
 
                                         Callee(
-                                            fields.map { it.asLangParameter() },
-                                            resultType,
-                                            strictParams = true
+                                            fields.map { it.asLangParameter() }, resultType, strictParams = true
                                         )
                                     } else {
                                         resolveWith(ErrorLangType.NotCallable)
@@ -375,7 +374,7 @@ object Resolver {
 
                         is ExpressionNode.BranchExpressionNode -> {
                             if (node.branches.isEmpty()) {
-                                resolveWith(LangPrimitiveKind.ACTION.toValueLangType())
+                                resolveWith(ActionValueLangType)
                             }
 
                             val elseBranches = node.branches.mapNotNull { it as? BranchOptionNode.ElseBranchOptionNode }
@@ -481,7 +480,7 @@ object Resolver {
                                         return@eachPendingNode
                                     }
 
-                                    is ConstraintReference.ResolvedConstraint -> result.asConstraintValue()
+                                    is ConstraintReference.ResolvedConstraint -> result.asConstraintValueWhat()
                                 }
                                 resultType
                             }
@@ -509,7 +508,7 @@ object Resolver {
                                 ) to bodyResult
                             )
 
-                            resolveWith(LangPrimitiveKind.ACTION.toValueLangType())
+                            resolveWith(ActionValueLangType)
                         }
 
                         is StatementNode.SetStatement -> {
@@ -549,7 +548,7 @@ object Resolver {
                             }
 
                             if (newValue.isAssignableTo(expectedType)) {
-                                resolveWith(LangPrimitiveKind.ACTION.toValueLangType())
+                                resolveWith(ActionValueLangType)
                             } else {
                                 resolveWith(ErrorLangType.MismatchedType(expectedType, newValue))
                             }
@@ -560,7 +559,7 @@ object Resolver {
                             if (lastStatement is StatementNode.ExpressionStatement) {
                                 resolveWith(getResolvedTypeOf(lastStatement))
                             } else {
-                                resolveWith(LangPrimitiveKind.ACTION.toValueLangType())
+                                resolveWith(ActionValueLangType)
                             }
                         }
 
@@ -696,11 +695,10 @@ object Resolver {
                                             when (param.valueConstraint) {
                                                 is ConstraintReference.Pending -> ValueLangType.Pending
                                                 is ConstraintReference.Error -> ErrorLangType.ProxyError.from(
-                                                    param.valueConstraint.errorType,
-                                                    getSourcePosition(call)
+                                                    param.valueConstraint.errorType, getSourcePosition(call)
                                                 )
 
-                                                is ConstraintReference.ResolvedConstraint -> param.valueConstraint.asConstraintValue()
+                                                is ConstraintReference.ResolvedConstraint -> param.valueConstraint.asConstraintValueWhat()
                                             }
                                         )
                                     }

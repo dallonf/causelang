@@ -6,12 +6,12 @@ import kotlinx.serialization.json.*
 
 sealed class RuntimeValue {
     object Action : RuntimeValue()
+
     data class BadValue(val position: SourcePosition, val error: ErrorLangType) : RuntimeValue()
 
     data class String(val value: kotlin.String) : RuntimeValue()
     data class Integer(val value: Long) : RuntimeValue()
     data class Float(val value: Double) : RuntimeValue()
-    data class Boolean(val value: kotlin.Boolean) : RuntimeValue()
 
     // TODO: probably want to make it harder to make an invalid RuntimeObject
     data class RuntimeObject(val typeDescriptor: CanonicalLangType, val values: List<RuntimeValue>) : RuntimeValue()
@@ -32,13 +32,13 @@ sealed class RuntimeValue {
 
     fun isAssignableTo(constraint: ConstraintValueLangType): kotlin.Boolean {
         return when (val valueType = constraint.valueType) {
+            is ActionValueLangType -> this is Action
+
             is FunctionValueLangType -> this is Function && this.type.isAssignableTo(constraint)
             is PrimitiveValueLangType -> when (valueType.kind) {
                 LangPrimitiveKind.STRING -> this is String
                 LangPrimitiveKind.INTEGER -> this is Integer
                 LangPrimitiveKind.FLOAT -> this is Float
-                LangPrimitiveKind.BOOLEAN -> this is Boolean
-                LangPrimitiveKind.ACTION -> this is Action
             }
 
             is OptionValueLangType -> valueType.options.any {
@@ -65,12 +65,12 @@ sealed class RuntimeValue {
     fun isAssignableTo(constraint: ConstraintReference): kotlin.Boolean = when (constraint) {
         is ConstraintReference.Pending -> false
         is ConstraintReference.Error -> false
-        is ConstraintReference.ResolvedConstraint -> isAssignableTo(constraint.asConstraintValue())
+        is ConstraintReference.ResolvedConstraint -> isAssignableTo(constraint.asResolvedConstraintValue())
     }
 
     fun validate(): RuntimeValue {
         return when (this) {
-            is BadValue, is Action, is String, is Integer, is Float, is Boolean, is RuntimeTypeConstraint, is NativeFunction, is Function -> this
+            is Action, is BadValue, is String, is Integer, is Float, is RuntimeTypeConstraint, is NativeFunction, is Function -> this
             is RuntimeObject -> {
                 // TODO: we shouldn't make a brand new object if it's all valid
                 val newValues = mutableListOf<RuntimeValue>()
@@ -89,7 +89,7 @@ sealed class RuntimeValue {
     fun isValid(): kotlin.Boolean {
         return when (this) {
             is BadValue -> false
-            is Action, is String, is Integer, is Float, is Boolean, is RuntimeTypeConstraint, is NativeFunction, is Function -> true
+            is Action, is String, is Integer, is Float, is RuntimeTypeConstraint, is NativeFunction, is Function -> true
             is RuntimeObject -> this.values.all { it.isValid() }
         }
     }
@@ -108,7 +108,6 @@ sealed class RuntimeValue {
 
             is RuntimeValue.Float -> JsonPrimitive(this.value)
             is RuntimeValue.Integer -> JsonPrimitive(this.value)
-            is RuntimeValue.Boolean -> JsonPrimitive(this.value)
 
             is RuntimeValue.NativeFunction -> buildJsonObject {
                 put("#type", "NativeFunction")
@@ -140,11 +139,11 @@ sealed class RuntimeValue {
             is RuntimeValue.RuntimeTypeConstraint -> buildJsonObject {
                 put("#type", "RuntimeTypeConstraint")
                 val idShortcut = (this@RuntimeValue.valueType as? InstanceValueLangType)?.let {
-                        when (val canonicalType = it.canonicalType) {
-                            is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.id
-                            is CanonicalLangType.SignalCanonicalLangType -> canonicalType.id
-                        }
+                    when (val canonicalType = it.canonicalType) {
+                        is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.id
+                        is CanonicalLangType.SignalCanonicalLangType -> canonicalType.id
                     }
+                }
 
                 if (idShortcut != null) {
                     put("id", idShortcut.toString())
