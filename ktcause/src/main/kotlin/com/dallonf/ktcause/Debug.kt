@@ -38,11 +38,14 @@ object Debug {
             subclass(ErrorLangType.MissingParameters::class)
             subclass(ErrorLangType.ExcessParameter::class)
             subclass(ErrorLangType.UnknownParameter::class)
+            subclass(ErrorLangType.MissingElseBranch::class)
+            subclass(ErrorLangType.TooManyElseBranches::class)
             subclass(ErrorLangType.ConstraintUsedAsValue::class)
             subclass(ErrorLangType.ValueUsedAsConstraint::class)
             subclass(ErrorLangType.DoesNotHaveAnyMembers::class)
             subclass(ErrorLangType.DoesNotHaveMember::class)
             subclass(ErrorLangType.NotVariable::class)
+            subclass(ErrorLangType.OuterVariable::class)
             subclass(ErrorLangType.OuterVariable::class)
         }
 
