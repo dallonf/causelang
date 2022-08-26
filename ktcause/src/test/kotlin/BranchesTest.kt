@@ -1,3 +1,4 @@
+import TestUtils.addFileAndPrintCompileErrors
 import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.RuntimeValue
@@ -24,5 +25,41 @@ class BranchesTest {
 
         val result = vm.executeFunction("project/test.cau", "main", listOf())
         assertEquals(RuntimeValue.String("yup"), result.expectReturnValue())
+    }
+
+    @Test
+    fun branchWithOptionType() {
+        val vm = LangVm()
+        vm.addFileAndPrintCompileErrors(
+            "project/test.cau", """
+                object Hearts
+                object Diamonds
+                object Spades
+                object Clubs
+                option Suit(Hearts, Diamonds, Spades, Clubs)
+                
+                function main() {
+                    process_suit(Hearts)
+                    process_suit(Diamonds)
+                    process_suit(Clubs)
+                }                
+                
+                function process_suit(this: Suit) {
+                    branch with this {
+                        is Hearts => cause Debug("Hearts")
+                        is Diamonds => cause Debug("Diamonds")
+                        else => cause Debug("something else")
+                    }
+                }
+            """.trimIndent()
+        )
+
+        TestUtils.runMainExpectingDebugs(
+            vm, "project/test.cau", listOf(
+                "Hearts",
+                "Diamonds",
+                "something else"
+            )
+        )
     }
 }

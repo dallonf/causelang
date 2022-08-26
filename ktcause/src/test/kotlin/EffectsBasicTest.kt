@@ -37,7 +37,7 @@ class EffectsBasicTest {
                 import test/test (InterceptThis)
                 
                 function main() {
-                    effect (_: InterceptThis) {
+                    effect (InterceptThis) {
                         cause Debug("Intercepted an InterceptThis signal")
                     }
                     

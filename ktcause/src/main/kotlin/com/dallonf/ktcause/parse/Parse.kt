@@ -367,8 +367,12 @@ private fun parseBranchExpression(
     val options = expression.branchOption()
         .mapIndexed { i, it -> parseBranchOption(it, breadcrumbs.appendName("branches").appendIndex(i), ctx) }
 
+    val withExpression = expression.branchWith()?.let {
+        parseExpression(it.expression(), breadcrumbs.appendName("withValue"), ctx)
+    }
+
     return ExpressionNode.BranchExpressionNode(
-        NodeInfo(expression.getRange(), breadcrumbs), options
+        NodeInfo(expression.getRange(), breadcrumbs), withExpression, options
     )
 }
 
@@ -382,6 +386,14 @@ private fun parseBranchOption(
                 info,
                 parseExpression(child.expression(), breadcrumbs.appendName("condition"), ctx),
                 parseBody(child.body(), breadcrumbs.appendName("body"), ctx),
+            )
+        }
+
+        is IsBranchOptionContext -> {
+            BranchOptionNode.IsBranchOptionNode(
+                info,
+                parsePattern(child.pattern(), breadcrumbs.appendName("pattern"), ctx),
+                parseBody(child.body(), breadcrumbs.appendName("body"), ctx)
             )
         }
 
@@ -491,7 +503,7 @@ private fun parsePositionalParameter(
 
 private fun parsePattern(pattern: PatternContext, breadcrumbs: Breadcrumbs, ctx: ParserContext): PatternNode {
     return when (val child = pattern.getChild(0)) {
-        is PlaceholderPatternContext -> PatternNode(
+        is TypeReferencePatternContext -> PatternNode(
             NodeInfo(pattern.getRange(), breadcrumbs),
             name = null,
             typeReference = parseTypeReference(child.typeReference(), breadcrumbs.appendName("typeReference"), ctx)

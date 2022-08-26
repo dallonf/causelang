@@ -24,6 +24,7 @@ ELSE : 'else' ;
 FN : 'fn' ;
 FUNCTION : 'function' ;
 IF : 'if' ;
+IS : 'is' ;
 IMPORT : 'import' ;
 LET : 'let' ;
 OBJECT : 'object' ;
@@ -31,6 +32,7 @@ OPTION : 'option' ;
 SET : 'set' ;
 SIGNAL : 'signal' ;
 VARIABLE : 'variable' ;
+WITH : 'with' ;
 PATH : [a-zA-Z0-9_\-]+ '/' [a-zA-Z_\-/]+ ;
 IDENTIFIER : [a-zA-Z_] [a-zA-Z0-9_]* ; // TODO: need moar emoji
 
@@ -76,7 +78,8 @@ expression : (blockExpression | branchExpression | causeExpression | stringLiter
     expressionSuffix* ;
 
 blockExpression : block ;
-branchExpression : BRANCH NEWLINE* CURLY_OPEN NEWLINE* (branchOption (NEWLINE+ branchOption)*)? NEWLINE* CURLY_CLOSE ;
+branchExpression : BRANCH NEWLINE* branchWith? NEWLINE* CURLY_OPEN NEWLINE* (branchOption (NEWLINE+ branchOption)*)? NEWLINE* CURLY_CLOSE ;
+    branchWith: WITH NEWLINE* expression ;
 causeExpression : CAUSE NEWLINE* expression ;
 stringLiteralExpression : STRING_LITERAL ;
 integerLiteralExpression : INT_LITERAL ;
@@ -90,10 +93,11 @@ callPositionalParameter : expression ;
 
 memberExpressionSuffix : DOT NEWLINE* IDENTIFIER ;
 
-branchOption : ifBranchOption | elseBranchOption ;
+branchOption : ifBranchOption | isBranchOption | elseBranchOption ;
 ifBranchOption : IF expression body ;
+isBranchOption : IS pattern body ;
 elseBranchOption : ELSE body ;
 
-pattern : placeholderPattern | captureValuePattern ;
-placeholderPattern : UNDERSCORE NEWLINE* COLON NEWLINE* typeReference ;
+pattern : captureValuePattern | typeReferencePattern ;
 captureValuePattern : LET NEWLINE* IDENTIFIER NEWLINE* COLON NEWLINE* typeReference ;
+typeReferencePattern : typeReference ;

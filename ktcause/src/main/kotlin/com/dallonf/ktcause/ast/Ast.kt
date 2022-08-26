@@ -358,7 +358,7 @@ sealed interface ExpressionNode : AstNode {
     }
 
     data class BranchExpressionNode(
-        override val info: NodeInfo, val branches: List<BranchOptionNode>
+        override val info: NodeInfo, val withValue: ExpressionNode?, val branches: List<BranchOptionNode>
     ) : ExpressionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("branches", branches)
@@ -416,6 +416,15 @@ sealed interface BranchOptionNode : AstNode {
     ) : BranchOptionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("condition", condition)
+            put("body", body)
+        }
+    }
+
+    data class IsBranchOptionNode(
+        override val info: NodeInfo, val pattern: PatternNode, override val body: BodyNode
+    ) : BranchOptionNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            put("pattern", pattern)
             put("body", body)
         }
     }
