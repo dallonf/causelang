@@ -67,9 +67,6 @@ object Compiler {
                         types[objectType.valueType.canonicalType.id] = objectType.valueType.canonicalType
                         exports[declaration.name.text] =
                             CompiledFile.CompiledExport.Type(objectType.valueType.canonicalType.id)
-                    } else if (objectType is UniqueObjectLangType) {
-                        types[objectType.canonicalType.id] = objectType.canonicalType
-                        exports[declaration.name.text] = CompiledFile.CompiledExport.Type(objectType.canonicalType.id)
                     } else if (error != null) {
                         exports[declaration.name.text] = CompiledFile.CompiledExport.Error(error)
                     } else {
@@ -85,9 +82,6 @@ object Compiler {
                         types[signalType.valueType.canonicalType.id] = signalType.valueType.canonicalType
                         exports[declaration.name.text] =
                             CompiledFile.CompiledExport.Type(signalType.valueType.canonicalType.id)
-                    } else if (signalType is UniqueObjectLangType) {
-                        types[signalType.canonicalType.id] = signalType.canonicalType
-                        exports[declaration.name.text] = CompiledFile.CompiledExport.Type(signalType.canonicalType.id)
                     } else if (error != null) {
                         exports[declaration.name.text] = CompiledFile.CompiledExport.Error(error)
                     } else {
@@ -287,10 +281,10 @@ object Compiler {
                 effectChunk.writeInstruction(Instruction.ReadLocal(0))
                 compileValueFlowReference(statement.pattern.typeReference, effectChunk, ctx)
                 effectChunk.writeInstruction(Instruction.IsAssignableTo)
-                val rejectEffectJump = effectChunk.writeInstruction(Instruction.NoOp)
+                val rejectEffectJump = effectChunk.writeJumpIfFalsePlaceholder()
                 compileBody(statement.body, effectChunk, ctx)
                 effectChunk.writeInstruction(Instruction.FinishEffect)
-                effectChunk.instructions[rejectEffectJump] = Instruction.JumpIfFalse(effectChunk.instructions.size)
+                rejectEffectJump.fill(effectChunk.instructions.size)
             }
         }
 
@@ -379,26 +373,60 @@ object Compiler {
         chunk: CompiledFile.MutableInstructionChunk,
         ctx: CompilerContext
     ) {
-        val elseBranch = expression.branches.firstNotNullOfOrNull { it as? BranchOptionNode.ElseBranchOptionNode }
-        val ifBranches = expression.branches.mapNotNull { it as? BranchOptionNode.IfBranchOptionNode }
-
-        val remainingBranchJumps = mutableListOf<Int>()
-        for (ifBranch in ifBranches) {
-            compileExpression(ifBranch.condition, chunk, ctx)
-            val skipBodyInstruction = chunk.writeInstruction(Instruction.NoOp)
-            compileBody(ifBranch.body, chunk, ctx)
-            remainingBranchJumps.add(chunk.writeInstruction(Instruction.NoOp))
-            chunk.instructions[skipBodyInstruction] = Instruction.JumpIfFalse(chunk.instructions.size)
+        ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY))
+        val withValueIndex = expression.withValue?.let {
+            compileExpression(it, chunk, ctx)
+            val index = ctx.nextScopeIndex()
+            ctx.scopeStack.last().namedValueIndices[it.info.breadcrumbs] = index
+            index
         }
+
+        val remainingBranchJumps = mutableListOf<CompiledFile.MutableInstructionChunk.JumpPlaceholder>()
+        for (branch in expression.branches) {
+            when (branch) {
+                is BranchOptionNode.IfBranchOptionNode -> {
+                    compileExpression(branch.condition, chunk, ctx)
+                    val skipBodyInstruction = chunk.writeJumpIfFalsePlaceholder()
+                    compileBody(branch.body, chunk, ctx)
+                    remainingBranchJumps.add(chunk.writeJumpPlaceholder())
+                    skipBodyInstruction.fill(chunk.instructions.size)
+                }
+
+                is BranchOptionNode.IsBranchOptionNode -> {
+                    if (withValueIndex != null) {
+                        chunk.writeInstruction(Instruction.ReadLocal(withValueIndex))
+                        compileValueFlowReference(branch.pattern.typeReference, chunk, ctx)
+                        chunk.writeInstruction(Instruction.IsAssignableTo)
+                        val skipBodyInstruction = chunk.writeJumpIfFalsePlaceholder()
+
+                        ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY))
+                        chunk.writeInstruction(Instruction.ReadLocal(withValueIndex))
+                        ctx.scopeStack.last().namedValueIndices[branch.pattern.info.breadcrumbs] = ctx.nextScopeIndex()
+
+                        compileBody(branch.body, chunk, ctx)
+
+                        chunk.writeInstruction(Instruction.PopScope(ctx.scopeStack.last().size()))
+                        ctx.scopeStack.removeLast()
+                        remainingBranchJumps.add(chunk.writeJumpPlaceholder())
+
+                        skipBodyInstruction.fill()
+                    }
+                }
+
+                is BranchOptionNode.ElseBranchOptionNode -> compileBody(branch.body, chunk, ctx)
+            }
+        }
+        val elseBranch = expression.branches.firstNotNullOfOrNull { it as? BranchOptionNode.ElseBranchOptionNode }
         if (elseBranch != null) {
-            compileBody(elseBranch.body, chunk, ctx)
-        } else {
             chunk.writeInstruction(Instruction.PushAction)
         }
 
         for (jump in remainingBranchJumps) {
-            chunk.instructions[jump] = Instruction.Jump(chunk.instructions.size)
+            jump.fill(chunk.instructions.size)
         }
+
+        chunk.writeInstruction(Instruction.PopScope(ctx.scopeStack.last().size()))
+        ctx.scopeStack.removeLast()
     }
 
     private fun compileValueFlowReference(
@@ -528,24 +556,34 @@ object Compiler {
             is ConstraintValueLangType -> {
                 when (calleeType.valueType) {
                     is InstanceValueLangType -> {
-                        when (calleeType.valueType.canonicalType) {
-                            is CanonicalLangType.SignalCanonicalLangType -> chunk.writeInstruction(Instruction.Construct(arity = expression.parameters.size))
-                            is CanonicalLangType.ObjectCanonicalLangType -> chunk.writeInstruction(Instruction.Construct(arity = expression.parameters.size))
+                        if (calleeType.valueType.canonicalType.isUnique()) {
+                            // ignore this, unique objects don't need to be constructed.
+                            // Kiiind of abusing PopScope here to keep the value in place while popping
+                            // any erroneous params
+                            chunk.writeInstruction(Instruction.PopScope(expression.parameters.size))
+                        } else {
+                            when (calleeType.valueType.canonicalType) {
+                                is CanonicalLangType.SignalCanonicalLangType -> chunk.writeInstruction(
+                                    Instruction.Construct(
+                                        arity = expression.parameters.size
+                                    )
+                                )
+
+                                is CanonicalLangType.ObjectCanonicalLangType -> chunk.writeInstruction(
+                                    Instruction.Construct(
+                                        arity = expression.parameters.size
+                                    )
+                                )
+                            }
                         }
                     }
+
                     else -> error("Can't construct a $calleeType")
                 }
             }
 
             is FunctionValueLangType -> {
                 chunk.writeInstruction(Instruction.CallFunction(arity = expression.parameters.size))
-            }
-
-            is UniqueObjectLangType -> {
-                // ignore this, unique objects don't need to be constructed.
-                // Kiiind of abusing PopScope here to keep the value in place while popping
-                // any erroneous params
-                chunk.writeInstruction(Instruction.PopScope(expression.parameters.size))
             }
 
             // any other case should have been handled by the resolver as an

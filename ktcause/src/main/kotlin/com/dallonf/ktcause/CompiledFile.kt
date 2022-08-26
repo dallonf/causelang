@@ -41,6 +41,17 @@ data class CompiledFile(
         val constantTable: MutableList<CompiledConstant> = mutableListOf(),
         val instructions: MutableList<Instruction> = mutableListOf(),
     ) {
+
+        data class JumpPlaceholder(
+            private val chunk: MutableInstructionChunk,
+            private val index: Int,
+            private val makeInstruction: (Int) -> Instruction
+        ) {
+            fun fill(jumpTo: Int? = null) {
+                chunk.instructions[index] = makeInstruction(jumpTo ?: chunk.instructions.size)
+            }
+        }
+
         fun toInstructionChunk() = InstructionChunk(constantTable.toList(), instructions.toList())
 
         fun addConstant(constant: CompiledConstant): Int {
@@ -57,15 +68,23 @@ data class CompiledFile(
 
         fun addConstant(constant: String): Int = addConstant(CompiledConstant.StringConst(constant))
 
-        fun writeInstruction(instruction: Instruction): Int {
+        fun writeInstruction(instruction: Instruction) {
             instructions.add(instruction)
-            return instructions.lastIndex
         }
 
-        fun writeLiteral(constant: CompiledConstant): Int {
+        fun writeLiteral(constant: CompiledConstant) {
             val index = addConstant(constant)
             writeInstruction(Instruction.Literal(index))
-            return instructions.lastIndex
+        }
+
+        fun writeJumpPlaceholder(): JumpPlaceholder {
+            instructions.add(Instruction.NoOp)
+            return JumpPlaceholder(this, instructions.lastIndex) { Instruction.Jump(it) }
+        }
+
+        fun writeJumpIfFalsePlaceholder(): JumpPlaceholder {
+            instructions.add(Instruction.NoOp)
+            return JumpPlaceholder(this, instructions.lastIndex) { Instruction.JumpIfFalse(it) }
         }
     }
 

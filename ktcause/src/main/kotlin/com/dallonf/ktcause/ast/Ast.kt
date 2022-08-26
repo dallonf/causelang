@@ -362,6 +362,7 @@ sealed interface ExpressionNode : AstNode {
     ) : ExpressionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("branches", branches)
+            withValue?.let { put("withValue", it) }
         }
     }
 

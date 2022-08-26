@@ -213,6 +213,23 @@ object Analyzer {
         }
     }
 
+    private fun analyzePattern(
+        pattern: PatternNode,
+        output: AnalyzedNode,
+        ctx: AnalyzerContext,
+    ) {
+        pattern.name?.let {
+            ctx.currentScope.items[it.text] =
+                LocalScopeItem(pattern.info.breadcrumbs)
+            output.addTag(
+                pattern.info.breadcrumbs,
+                NodeTag.DeclarationForScope(ctx.currentScopePosition)
+            )
+        }
+
+        analyzeTypeReference(pattern.typeReference, output, ctx)
+    }
+
     private fun analyzeDeclaration(declaration: DeclarationNode, output: AnalyzedNode, ctx: AnalyzerContext) {
         when (declaration) {
             is DeclarationNode.Import -> analyzeImportDeclaration(declaration, output, ctx)
@@ -359,16 +376,7 @@ object Analyzer {
                                 currentCtx.currentFunction
                             )
 
-                            statementNode.pattern.name?.let {
-                                effectCtx.currentScope.items[it.text] =
-                                    LocalScopeItem(statementNode.pattern.info.breadcrumbs)
-                                output.addTag(
-                                    statementNode.pattern.info.breadcrumbs,
-                                    NodeTag.DeclarationForScope(effectCtx.currentScopePosition)
-                                )
-                            }
-
-                            analyzeTypeReference(statementNode.pattern.typeReference, output, currentCtx)
+                            analyzePattern(statementNode.pattern, output, effectCtx)
                             analyzeBody(statementNode.body, output, effectCtx)
                         }
 
@@ -418,15 +426,22 @@ object Analyzer {
     private fun analyzeBranchExpressionNode(
         expression: ExpressionNode.BranchExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
+        expression.withValue?.let { analyzeExpression(it, output, ctx) }
+
         for (branchOption in expression.branches) {
+            val newCtx = ctx.clone(branchOption.info.breadcrumbs)
             when (branchOption) {
                 is BranchOptionNode.IfBranchOptionNode -> {
-                    analyzeExpression(branchOption.condition, output, ctx)
+                    analyzeExpression(branchOption.condition, output, newCtx)
+                }
+
+                is BranchOptionNode.IsBranchOptionNode -> {
+                    analyzePattern(branchOption.pattern, output, newCtx)
                 }
 
                 is BranchOptionNode.ElseBranchOptionNode -> {}
             }
-            analyzeBody(branchOption.body, output, ctx)
+            analyzeBody(branchOption.body, output, newCtx)
         }
     }
 

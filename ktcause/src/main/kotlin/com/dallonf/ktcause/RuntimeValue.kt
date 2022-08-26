@@ -16,7 +16,15 @@ sealed class RuntimeValue {
     // TODO: probably want to make it harder to make an invalid RuntimeObject
     data class RuntimeObject(val typeDescriptor: CanonicalLangType, val values: List<RuntimeValue>) : RuntimeValue()
 
-    data class RuntimeTypeConstraint(val valueType: ResolvedValueLangType) : RuntimeValue()
+    data class RuntimeTypeConstraint(val valueType: ResolvedValueLangType) : RuntimeValue() {
+        fun tryGetCanonicalType(): CanonicalLangType? {
+            return if (valueType is InstanceValueLangType) {
+                valueType.canonicalType
+            } else {
+                null
+            }
+        }
+    }
 
     // TODO: definitely don't want these to come from anywhere but the core modules
     data class NativeFunction(val name: kotlin.String, val function: (List<RuntimeValue>) -> RuntimeValue) :
@@ -50,7 +58,8 @@ sealed class RuntimeValue {
 
             is BadValueLangType -> this is BadValue
 
-            is InstanceValueLangType -> this is RuntimeObject && this.typeDescriptor.id == valueType.canonicalType.id
+            is InstanceValueLangType -> (this is RuntimeObject && this.typeDescriptor.id == valueType.canonicalType.id) || (valueType.canonicalType.isUnique() && this is RuntimeTypeConstraint && (this.tryGetCanonicalType()
+                ?.let { it.id == valueType.canonicalType.id } ?: false))
 
             // this could _theoretically_ be a thing in some scenarios, but none that I can think of off the top of
             // my head

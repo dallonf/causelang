@@ -73,6 +73,9 @@ object TestUtils {
             result = vm.resumeExecution(RuntimeValue.Action)
         }
 
+        if (debugs < expected.size) {
+            error("Premature return after $debugs Debugs")
+        }
         assertEquals(RuntimeValue.Action, result.expectReturnValue())
     }
 }
