@@ -375,40 +375,42 @@ object Resolver {
                         is ExpressionNode.BranchExpressionNode -> {
                             if (node.branches.isEmpty()) {
                                 resolveWith(ActionValueLangType)
+                                return@eachPendingNode
+                            }
+
+                            var withValue = node.withValue?.let { OptionValueLangType.from(getResolvedTypeOf(it)) }
+                            val possibleReturnValues = mutableListOf<Pair<AstNode?, ValueLangType>>()
+
+                            for (branch in node.branches) {
+                                when (branch) {
+                                    is BranchOptionNode.IfBranchOptionNode -> {}
+                                    is BranchOptionNode.IsBranchOptionNode -> {
+                                        if (withValue != null) {
+                                            withValue = withValue.subtract(getResolvedTypeOf(branch.pattern))
+                                        } else {
+                                            TODO()
+                                        }
+                                    }
+
+                                    is BranchOptionNode.ElseBranchOptionNode -> {
+                                        withValue = null
+                                    }
+                                }
+                                possibleReturnValues.add(branch to getResolvedTypeOf(branch.body))
+                            }
+
+                            if (withValue != null && withValue.options.isNotEmpty()) {
+                                possibleReturnValues.add(null to ErrorLangType.MissingElseBranch)
                             }
 
                             val elseBranches = node.branches.mapNotNull { it as? BranchOptionNode.ElseBranchOptionNode }
                             if (elseBranches.size > 1) {
-                                resolveWith(ErrorLangType.TooManyElseBranches)
-                                return@eachPendingNode
-                            }
-                            if (elseBranches.isEmpty()) {
-                                resolveWith(ErrorLangType.MissingElseBranch)
-                                return@eachPendingNode
+                                possibleReturnValues.add(null to ErrorLangType.TooManyElseBranches)
                             }
 
-                            val branchValueTypes = node.branches.map {
-                                Pair(it, getResolvedTypeOf(it.body))
-                            }
-
-                            if (branchValueTypes.all { !it.second.isPending() }) {
-                                val nonErrorValueTypes = branchValueTypes.filter { it.second.getError() == null }
-                                if (nonErrorValueTypes.isEmpty()) {
-                                    resolveWith(branchValueTypes[0].second)
-                                    return@eachPendingNode
-                                }
-
-                                val firstNonErrorValueType = nonErrorValueTypes[0].second
-                                if (nonErrorValueTypes.all { it.second.getError() != null || it.second == firstNonErrorValueType }) {
-                                    resolveWith(firstNonErrorValueType)
-                                } else {
-                                    resolveWith(ErrorLangType.IncompatibleTypes(branchValueTypes.map {
-                                        ErrorLangType.IncompatibleTypes.IncompatibleType(
-                                            it.second, getSourcePosition(it.first)
-                                        )
-                                    }))
-                                }
-                            }
+                            resolveWith(OptionValueLangType(possibleReturnValues.map { (node, returnValue) ->
+                                returnValue.letIfResolved { it.toConstraint() }.asConstraintReference()
+                            }).normalize())
                         }
 
                         is ExpressionNode.MemberExpression -> {
@@ -480,7 +482,7 @@ object Resolver {
                                         return@eachPendingNode
                                     }
 
-                                    is ConstraintReference.ResolvedConstraint -> result.asConstraintValueWhat()
+                                    is ConstraintReference.ResolvedConstraint -> result.asConstraintValue()
                                 }
                                 resultType
                             }
@@ -698,7 +700,7 @@ object Resolver {
                                                     param.valueConstraint.errorType, getSourcePosition(call)
                                                 )
 
-                                                is ConstraintReference.ResolvedConstraint -> param.valueConstraint.asConstraintValueWhat()
+                                                is ConstraintReference.ResolvedConstraint -> param.valueConstraint.asConstraintValue()
                                             }
                                         )
                                     }

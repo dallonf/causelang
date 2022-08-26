@@ -545,7 +545,7 @@ object Compiler {
 
         compileExpression(expression.callee, chunk, ctx)
 
-        ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
+        (ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs) as? ErrorLangType.NotCallable)?.let { error ->
             // Don't call; pop all the arguments and the callee off the stack and then push an error
             chunk.writeInstruction(Instruction.Pop(expression.parameters.size + 1))
             compileBadValue(expression, error, chunk, ctx)

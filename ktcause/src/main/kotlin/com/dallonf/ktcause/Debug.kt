@@ -14,6 +14,7 @@ import kotlin.math.max
 object Debug {
     val serializersModule = SerializersModule {
         fun PolymorphicModuleBuilder<ResolvedValueLangType>.registerResolvedValueLangTypeSubclasses() {
+            subclass(ActionValueLangType::class)
             subclass(FunctionValueLangType::class)
             subclass(PrimitiveValueLangType::class)
             subclass(InstanceValueLangType::class)

@@ -316,7 +316,7 @@ sealed class ConstraintReference {
         else -> null
     }
 
-    fun asConstraintValueWhat() = when (this) {
+    fun asConstraintValue() = when (this) {
         is ResolvedConstraint -> this.asResolvedConstraintValue()
         is Pending -> ValueLangType.Pending
         is Error -> this.errorType
@@ -371,13 +371,22 @@ data class InstanceValueLangType(val canonicalType: CanonicalLangType) : Resolve
 @SerialName("Option")
 data class OptionValueLangType(val options: List<ConstraintReference>) : ResolvedValueLangType {
 
+    companion object {
+        fun from(type: ValueLangType): OptionValueLangType {
+            return if (type is OptionValueLangType) {
+                type
+            } else {
+                OptionValueLangType(listOf(type.asConstraintReference()))
+            }
+        }
+    }
+
     override fun isPending() = options.any { it.isPending() }
     override fun getError() = options.firstNotNullOfOrNull { it.getError() }
 
     fun isSupersetOf(otherType: ResolvedValueLangType): Boolean {
-        // TODO: flatten
         val possibleValues = when (otherType) {
-            is OptionValueLangType -> otherType.options.map { option -> option.asValueType() }
+            is OptionValueLangType -> otherType.normalize().options.map { option -> option.asValueType() }
             else -> listOf(otherType)
         }
 
@@ -400,6 +409,47 @@ data class OptionValueLangType(val options: List<ConstraintReference>) : Resolve
         }
         return result
     }
+
+    fun normalize(): OptionValueLangType {
+        val allPossibleValues = options.flatMap {
+            when (val value = it.asValueType()) {
+                is OptionValueLangType -> value.normalize().options.asSequence()
+                else -> sequenceOf(it)
+            }
+        }
+
+        // TODO: dedupe
+
+        return OptionValueLangType(allPossibleValues)
+    }
+
+    fun subtract(otherType: ValueLangType): OptionValueLangType {
+        val possibleValues = when (otherType) {
+            is OptionValueLangType -> otherType.normalize().options.map { option -> option.asValueType() }
+            else -> listOf(otherType)
+        }
+
+        val remainingOptions = options.filter { option ->
+            val optionValue = option.asValueType()
+            if (optionValue is ResolvedValueLangType) {
+                possibleValues.none { possibleValue ->
+                    if (possibleValue is ResolvedValueLangType) {
+                        optionValue.isAssignableTo(possibleValue.toConstraint())
+                    } else {
+                        // don't count error or pending
+                        false
+                    }
+                }
+            } else {
+                // keep error and pending options around
+                true
+            }
+        }
+
+        return OptionValueLangType(remainingOptions)
+    }
+
+
 }
 
 @Serializable
