@@ -417,8 +417,28 @@ object Compiler {
             }
         }
         val elseBranch = expression.branches.firstNotNullOfOrNull { it as? BranchOptionNode.ElseBranchOptionNode }
-        if (elseBranch != null) {
-            chunk.writeInstruction(Instruction.PushAction)
+        if (elseBranch == null) {
+            val returnType = ctx.resolved.getInferredType(expression.info.breadcrumbs)
+            val error = returnType.getRuntimeError() ?: ErrorLangType.MissingElseBranch(
+                null
+            )
+            chunk.writeLiteral(
+                CompiledFile.CompiledConstant.ErrorConst(
+                    SourcePosition.Source(
+                        ctx.resolved.path, expression.info.breadcrumbs, expression.info.position
+                    ), error
+                )
+            )
+
+            // If we're supposed to return an Action or NeverContinues, then this should be an immediate error
+            // because the BadValue has nowhere to go
+            val returnOptions = returnType as? OptionValueLangType
+            if (returnOptions?.let { returnOptionsNotNull ->
+                    returnOptionsNotNull.options.asSequence().map { it.asValueType() }
+                        .all { it is ValueLangType.Pending || it is ErrorLangType || it is ActionValueLangType || it is NeverContinuesValueLangType }
+                } == true) {
+                compileTypeErrorFromStackBadValue(chunk)
+            }
         }
 
         for (jump in remainingBranchJumps) {
@@ -545,10 +565,23 @@ object Compiler {
 
         compileExpression(expression.callee, chunk, ctx)
 
-        (ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs) as? ErrorLangType.NotCallable)?.let { error ->
+        val errorPreventingCall = run {
+            val error = ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)
+            if (error is ErrorLangType.NotCallable) {
+                return@run error
+            }
+            val calleeType = ctx.resolved.getInferredType(expression.callee.info.breadcrumbs)
+            if (calleeType is ConstraintValueLangType || calleeType.getRuntimeError() != null) {
+                return@run error
+            }
+
+            null
+        }
+
+        errorPreventingCall?.let {
             // Don't call; pop all the arguments and the callee off the stack and then push an error
             chunk.writeInstruction(Instruction.Pop(expression.parameters.size + 1))
-            compileBadValue(expression, error, chunk, ctx)
+            compileBadValue(expression, errorPreventingCall, chunk, ctx)
             return
         }
 

@@ -128,6 +128,14 @@ sealed interface ValueLangType {
             this
         }
     }
+
+    fun letIfError(f: (ErrorLangType) -> ValueLangType): ValueLangType {
+        return if (this is ErrorLangType) {
+            f(this)
+        } else {
+            this
+        }
+    }
 }
 
 
@@ -202,12 +210,12 @@ sealed interface ErrorLangType : ValueLangType {
     object UnknownParameter : ErrorLangType
 
     @Serializable
-    @SerialName("TooManyElseBranches")
-    object TooManyElseBranches : ErrorLangType
+    @SerialName("MissingElseBranch")
+    data class MissingElseBranch(val options: OptionValueLangType?) : ErrorLangType
 
     @Serializable
-    @SerialName("MissingElseBranch")
-    object MissingElseBranch : ErrorLangType
+    @SerialName("UnreachableBranch")
+    data class UnreachableBranch(val options: OptionValueLangType?) : ErrorLangType
 
     @Serializable
     @SerialName("IncompatibleTypes")
@@ -449,6 +457,20 @@ data class OptionValueLangType(val options: List<ConstraintReference>) : Resolve
         return OptionValueLangType(remainingOptions)
     }
 
+    fun isEmpty(): Boolean {
+        return options.isEmpty()
+    }
+
+    fun proxyAllErrors(sourcePosition: SourcePosition.Source): ValueLangType {
+        return if (this.getError() != null) {
+            OptionValueLangType(this.options.map { option ->
+                option.asConstraintValue().letIfError { ErrorLangType.ProxyError.from(it, sourcePosition) }
+                    .asConstraintReference()
+            })
+        } else {
+            this
+        }
+    }
 
 }
 

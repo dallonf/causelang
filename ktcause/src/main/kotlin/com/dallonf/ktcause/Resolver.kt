@@ -172,6 +172,10 @@ object Resolver {
                     INFERRED, breadcrumbs
                 )]
 
+                if (foundValue is OptionValueLangType) {
+                    return foundValue.proxyAllErrors(getSourcePosition(breadcrumbs))
+                }
+
                 if (foundValue is ErrorLangType) {
                     return ErrorLangType.ProxyError.from(foundValue, getSourcePosition(breadcrumbs))
                 }
@@ -378,37 +382,94 @@ object Resolver {
                                 return@eachPendingNode
                             }
 
-                            var withValue = node.withValue?.let { OptionValueLangType.from(getResolvedTypeOf(it)) }
-                            val possibleReturnValues = mutableListOf<Pair<AstNode?, ValueLangType>>()
+                            var withValue = OptionValueLangType.from(node.withValue?.let { getResolvedTypeOf(it) }
+                                ?: AnythingValueLangType)
+                            if (withValue.isPending()) {
+                                return@eachPendingNode
+                            }
 
-                            for (branch in node.branches) {
+                            val possibleReturnValues = mutableListOf<ValueLangType>()
+
+                            val branchesBeforeElse =
+                                node.branches.takeWhile { it !is BranchOptionNode.ElseBranchOptionNode }
+                            for (branch in branchesBeforeElse) {
+                                var resolvedType = getResolvedTypeOf(branch.body)
                                 when (branch) {
-                                    is BranchOptionNode.IfBranchOptionNode -> {}
-                                    is BranchOptionNode.IsBranchOptionNode -> {
-                                        if (withValue != null) {
-                                            withValue = withValue.subtract(getResolvedTypeOf(branch.pattern))
-                                        } else {
-                                            TODO()
+                                    is BranchOptionNode.IfBranchOptionNode -> {
+                                        if (withValue.isEmpty()) {
+                                            resolvedType = ErrorLangType.UnreachableBranch(withValue)
                                         }
                                     }
 
-                                    is BranchOptionNode.ElseBranchOptionNode -> {
-                                        withValue = null
+                                    is BranchOptionNode.IsBranchOptionNode -> {
+                                        val patternType = getResolvedTypeOf(branch.pattern)
+                                        if (patternType is ResolvedValueLangType) {
+                                            if (withValue.isSupersetOf(patternType)) {
+                                                withValue = withValue.subtract(patternType)
+                                            } else {
+                                                resolvedType = ErrorLangType.UnreachableBranch(withValue)
+                                            }
+                                        }
                                     }
+
+                                    is BranchOptionNode.ElseBranchOptionNode -> error("else branch in branches before else")
                                 }
-                                possibleReturnValues.add(branch to getResolvedTypeOf(branch.body))
+
+                                iterationResolvedReferences.add(
+                                    ResolutionKey(
+                                        INFERRED,
+                                        branch.info.breadcrumbs
+                                    ) to resolvedType
+                                )
+                                possibleReturnValues.add(resolvedType.letIfError {
+                                    ErrorLangType.ProxyError.from(
+                                        it,
+                                        getSourcePosition(branch)
+                                    )
+                                })
                             }
 
-                            if (withValue != null && withValue.options.isNotEmpty()) {
-                                possibleReturnValues.add(null to ErrorLangType.MissingElseBranch)
+                            val elseBranch =
+                                node.branches.firstNotNullOfOrNull { it as? BranchOptionNode.ElseBranchOptionNode }
+                            if (elseBranch != null) {
+                                withValue = OptionValueLangType(emptyList())
+                                val resolvedType = getResolvedTypeOf(elseBranch.body)
+                                iterationResolvedReferences.add(
+                                    ResolutionKey(
+                                        INFERRED,
+                                        elseBranch.info.breadcrumbs
+                                    ) to resolvedType
+                                )
+                                possibleReturnValues.add(resolvedType.letIfError {
+                                    ErrorLangType.ProxyError.from(
+                                        it,
+                                        getSourcePosition(elseBranch)
+                                    )
+                                })
                             }
 
-                            val elseBranches = node.branches.mapNotNull { it as? BranchOptionNode.ElseBranchOptionNode }
-                            if (elseBranches.size > 1) {
-                                possibleReturnValues.add(null to ErrorLangType.TooManyElseBranches)
+                            val branchesAfterElse = node.branches.drop(branchesBeforeElse.size + 1)
+                            for (branch in branchesAfterElse) {
+                                val unreachableError = ErrorLangType.UnreachableBranch(null)
+                                iterationResolvedReferences.add(
+                                    ResolutionKey(
+                                        INFERRED,
+                                        branch.info.breadcrumbs
+                                    ) to unreachableError
+                                )
+                                possibleReturnValues.add(
+                                    ErrorLangType.ProxyError.from(
+                                        unreachableError,
+                                        getSourcePosition(branch)
+                                    )
+                                )
                             }
 
-                            resolveWith(OptionValueLangType(possibleReturnValues.map { (node, returnValue) ->
+                            if (withValue.options.isNotEmpty()) {
+                                possibleReturnValues.add(ErrorLangType.MissingElseBranch(withValue))
+                            }
+
+                            resolveWith(OptionValueLangType(possibleReturnValues.map { returnValue ->
                                 returnValue.letIfResolved { it.toConstraint() }.asConstraintReference()
                             }).normalize())
                         }

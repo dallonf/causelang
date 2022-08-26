@@ -40,7 +40,7 @@ object Debug {
             subclass(ErrorLangType.ExcessParameter::class)
             subclass(ErrorLangType.UnknownParameter::class)
             subclass(ErrorLangType.MissingElseBranch::class)
-            subclass(ErrorLangType.TooManyElseBranches::class)
+            subclass(ErrorLangType.UnreachableBranch::class)
             subclass(ErrorLangType.ConstraintUsedAsValue::class)
             subclass(ErrorLangType.ValueUsedAsConstraint::class)
             subclass(ErrorLangType.DoesNotHaveAnyMembers::class)

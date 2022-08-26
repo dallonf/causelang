@@ -130,12 +130,52 @@ class BranchesTest {
 
         assertEquals(
             """
+            [
+                {
+                    "position": {
+                        "path": "project/test.cau",
+                        "breadcrumbs": "declarations.7.body.statements.0.expression",
+                        "position": "12:4-15:5"
+                    },
+                    "error": {
+                        "#type": "MissingElseBranch",
+                        "options": {
+                            "options": [
+                                {
+                                    "#type": "Resolved",
+                                    "valueType": {
+                                        "#type": "Instance",
+                                        "canonicalType": {
+                                            "#type": "Object",
+                                            "id": "project/test.cau:Spades",
+                                            "name": "Spades",
+                                            "fields": [
+                                            ]
+                                        }
+                                    }
+                                },
+                                {
+                                    "#type": "Resolved",
+                                    "valueType": {
+                                        "#type": "Instance",
+                                        "canonicalType": {
+                                            "#type": "Object",
+                                            "id": "project/test.cau:Clubs",
+                                            "name": "Clubs",
+                                            "fields": [
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
             """.trimIndent(),
             vm.compileErrors.debug()
         )
 
-        vm.executeFunction("project/test.cau", "main", listOf()).let {
-            expectTypeError(it, vm)
-        }
+        expectTypeError(vm.executeFunction("project/test.cau", "main", listOf()), vm)
     }
 }
