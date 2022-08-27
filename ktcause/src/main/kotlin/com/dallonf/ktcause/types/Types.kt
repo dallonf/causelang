@@ -218,10 +218,13 @@ sealed interface ErrorLangType : ValueLangType {
     data class UnreachableBranch(val options: OptionValueLangType?) : ErrorLangType
 
     @Serializable
-    @SerialName("IncompatibleTypes")
-    data class IncompatibleTypes(val types: List<IncompatibleType>) : ErrorLangType {
+    @SerialName("ActionIncompatibleWithValueTypes")
+    data class ActionIncompatibleWithValueTypes(
+        val actions: List<SourcePosition>,
+        val types: List<ValueType>
+    ) : ErrorLangType {
         @Serializable
-        data class IncompatibleType(val type: ValueLangType, val position: SourcePosition)
+        data class ValueType(val type: ValueLangType, val position: SourcePosition)
     }
 
     @Serializable

@@ -1,3 +1,4 @@
+import com.dallonf.ktcause.Debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RunResult
@@ -21,7 +22,7 @@ object TestUtils {
         }
     }
 
-    fun LangVm.addFileAndPrintCompileErrors(path: String, source: String) {
+    fun LangVm.addFileAndPrintCompileErrors(path: String, source: String): Debug.DebugContext {
         val debugCtx = addFile(path, source)
         val errorsForFile = compileErrors.filter { it.position.path == path }
         if (errorsForFile.isNotEmpty()) {
@@ -32,6 +33,7 @@ object TestUtils {
                 println("------------------------------");
             }
         }
+        return debugCtx
     }
 
     fun LangVm.addFileExpectingNoCompileErrors(path: String, source: String) {

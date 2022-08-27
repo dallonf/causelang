@@ -1,6 +1,7 @@
 import TestUtils.addFileAndPrintCompileErrors
 import TestUtils.addFileExpectingNoCompileErrors
 import TestUtils.expectTypeError
+import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RuntimeValue
@@ -58,9 +59,7 @@ class BranchesTest {
 
         TestUtils.runMainExpectingDebugs(
             vm, "project/test.cau", listOf(
-                "Hearts",
-                "Diamonds",
-                "something else"
+                "Hearts", "Diamonds", "something else"
             )
         )
     }
@@ -96,10 +95,7 @@ class BranchesTest {
 
         TestUtils.runMainExpectingDebugs(
             vm, "project/test.cau", listOf(
-                "Hearts",
-                "Diamonds",
-                "Spades",
-                "Clubs"
+                "Hearts", "Diamonds", "Spades", "Clubs"
             )
         )
     }
@@ -172,10 +168,151 @@ class BranchesTest {
                     }
                 }
             ]
-            """.trimIndent(),
-            vm.compileErrors.debug()
+            """.trimIndent(), vm.compileErrors.debug()
         )
 
         expectTypeError(vm.executeFunction("project/test.cau", "main", listOf()), vm)
+    }
+
+    @Test
+    fun continueOnErrorIfBranchReturnsAValue() {
+        val vm = LangVm()
+        vm.addFileAndPrintCompileErrors(
+            "project/test.cau", """
+                object Hearts
+                object Diamonds
+                object Spades
+                object Clubs
+                option Suit(Hearts, Diamonds, Spades, Clubs)
+                
+                function main() {
+                    let result = suit_to_string(Spades)
+                    cause Debug(result)
+                }                
+                
+                function suit_to_string(this: Suit) {
+                    branch with this {
+                        is Hearts => "Hearts"
+                        is Diamonds => "Diamonds"
+                    }
+                }
+            """.trimIndent()
+        )
+
+        vm.executeFunction("project/test.cau", "main", listOf()).expectCausedSignal().let {
+            assertEquals(
+                """
+                {
+                    "#type": "core/builtin.cau:Debug",
+                    "value": {
+                        "#type": "BadValue",
+                        "position": {
+                            "#type": "SourcePosition",
+                            "path": "project/test.cau",
+                            "breadcrumbs": "declarations.7.body.statements.0.expression",
+                            "position": "13:4-16:5"
+                        },
+                        "error": {
+                            "#type": "MissingElseBranch",
+                            "options": null
+                        }
+                    }
+                }
+                """.trimIndent(), it.debug()
+            )
+        }
+    }
+
+    @Test
+    fun errorIfExhaustiveButSomeBranchesReturnValueAndOthersReturnAction() {
+        val vm = LangVm()
+        vm.addFile(
+            "project/test.cau", """
+                object Hearts
+                object Diamonds
+                object Spades
+                object Clubs
+                option Suit(Hearts, Diamonds, Spades, Clubs)
+                
+                function main() {
+                    let result = suit_to_string(Clubs)
+                    cause Debug(result)
+                }                
+                
+                function suit_to_string(this: Suit) {
+                    branch with this {
+                        is Hearts => "Hearts"
+                        is Diamonds => cause Debug("Diamonds")
+                        is Spades => "Spades"
+                        is Clubs => cause Debug("Clubs")
+                    }
+                }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            """
+            [
+                {
+                    "position": {
+                        "path": "project/test.cau",
+                        "breadcrumbs": "declarations.7.body.statements.0.expression",
+                        "position": "13:4-18:5"
+                    },
+                    "error": {
+                        "#type": "ActionIncompatibleWithValueTypes",
+                        "actions": [
+                            {
+                                "#type": "SourcePosition",
+                                "path": "project/test.cau",
+                                "breadcrumbs": "declarations.7.body.statements.0.expression.branches.1",
+                                "position": "15:8-15:46"
+                            },
+                            {
+                                "#type": "SourcePosition",
+                                "path": "project/test.cau",
+                                "breadcrumbs": "declarations.7.body.statements.0.expression.branches.3",
+                                "position": "17:8-17:40"
+                            }
+                        ],
+                        "types": [
+                            {
+                                "type": {
+                                    "#type": "Primitive",
+                                    "kind": "String"
+                                },
+                                "position": {
+                                    "#type": "SourcePosition",
+                                    "path": "project/test.cau",
+                                    "breadcrumbs": "declarations.7.body.statements.0.expression.branches.0",
+                                    "position": "14:8-14:29"
+                                }
+                            },
+                            {
+                                "type": {
+                                    "#type": "Primitive",
+                                    "kind": "String"
+                                },
+                                "position": {
+                                    "#type": "SourcePosition",
+                                    "path": "project/test.cau",
+                                    "breadcrumbs": "declarations.7.body.statements.0.expression.branches.2",
+                                    "position": "16:8-16:29"
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+            """.trimIndent(), vm.compileErrors.debug()
+        )
+
+        vm.executeFunction("project/test.cau", "main", listOf()).let {
+            TestUtils.expectValidCaused(it, vm.getBuiltinTypeId("Debug"))
+        }.let {
+            assertEquals(RuntimeValue.String("Clubs"), it.values[0])
+        }
+
+        vm.resumeExecution(RuntimeValue.Action).let { TestUtils.expectTypeError(it, vm) }
     }
 }

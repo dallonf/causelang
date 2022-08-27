@@ -388,7 +388,9 @@ object Resolver {
                                 return@eachPendingNode
                             }
 
-                            val possibleReturnValues = mutableListOf<ValueLangType>()
+                            data class PossibleReturnValue(val value: ValueLangType, val source: SourcePosition?)
+
+                            val possibleReturnValues = mutableListOf<PossibleReturnValue>()
 
                             val branchesBeforeElse =
                                 node.branches.takeWhile { it !is BranchOptionNode.ElseBranchOptionNode }
@@ -415,18 +417,19 @@ object Resolver {
                                     is BranchOptionNode.ElseBranchOptionNode -> error("else branch in branches before else")
                                 }
 
+                                val sourcePosition = getSourcePosition(branch)
                                 iterationResolvedReferences.add(
                                     ResolutionKey(
                                         INFERRED,
-                                        branch.info.breadcrumbs
+                                        sourcePosition.breadcrumbs
                                     ) to resolvedType
                                 )
-                                possibleReturnValues.add(resolvedType.letIfError {
+                                possibleReturnValues.add(PossibleReturnValue(resolvedType.letIfError {
                                     ErrorLangType.ProxyError.from(
                                         it,
-                                        getSourcePosition(branch)
+                                        sourcePosition
                                     )
-                                })
+                                }, sourcePosition))
                             }
 
                             val elseBranch =
@@ -440,37 +443,64 @@ object Resolver {
                                         elseBranch.info.breadcrumbs
                                     ) to resolvedType
                                 )
-                                possibleReturnValues.add(resolvedType.letIfError {
+                                possibleReturnValues.add(PossibleReturnValue(resolvedType.letIfError {
                                     ErrorLangType.ProxyError.from(
                                         it,
                                         getSourcePosition(elseBranch)
                                     )
-                                })
+                                }, source = null))
                             }
 
                             val branchesAfterElse = node.branches.drop(branchesBeforeElse.size + 1)
                             for (branch in branchesAfterElse) {
                                 val unreachableError = ErrorLangType.UnreachableBranch(null)
+                                val sourcePosition = getSourcePosition(branch)
                                 iterationResolvedReferences.add(
                                     ResolutionKey(
                                         INFERRED,
-                                        branch.info.breadcrumbs
+                                        sourcePosition.breadcrumbs
                                     ) to unreachableError
                                 )
                                 possibleReturnValues.add(
-                                    ErrorLangType.ProxyError.from(
-                                        unreachableError,
-                                        getSourcePosition(branch)
+                                    PossibleReturnValue(
+                                        ErrorLangType.ProxyError.from(
+                                            unreachableError,
+                                            sourcePosition
+                                        ), sourcePosition
                                     )
                                 )
                             }
 
                             if (withValue.options.isNotEmpty()) {
-                                possibleReturnValues.add(ErrorLangType.MissingElseBranch(withValue))
+                                possibleReturnValues.add(
+                                    PossibleReturnValue(
+                                        ErrorLangType.MissingElseBranch(withValue),
+                                        source = null
+                                    )
+                                )
                             }
 
-                            resolveWith(OptionValueLangType(possibleReturnValues.map { returnValue ->
-                                returnValue.letIfResolved { it.toConstraint() }.asConstraintReference()
+                            val actionReturns = possibleReturnValues.filter { it.value is ActionValueLangType }
+                            if (actionReturns.isNotEmpty()) {
+                                val nonActionReturns = possibleReturnValues.filter {
+                                    it.value is ResolvedValueLangType && it.value !is ActionValueLangType && it.value !is NeverContinuesValueLangType
+                                }
+                                if (nonActionReturns.isNotEmpty()) {
+                                    resolveWith(ErrorLangType.ActionIncompatibleWithValueTypes(
+                                        actions = actionReturns.map { it.source!! },
+                                        types = nonActionReturns.map {
+                                            ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                                it.value,
+                                                it.source!!
+                                            )
+                                        }
+                                    ))
+                                    return@eachPendingNode
+                                }
+                            }
+
+                            resolveWith(OptionValueLangType(possibleReturnValues.map { (value, _) ->
+                                value.letIfResolved { it.toConstraint() }.asConstraintReference()
                             }).normalize())
                         }
 

@@ -447,6 +447,18 @@ object Compiler {
 
         chunk.writeInstruction(Instruction.PopScope(ctx.scopeStack.last().size()))
         ctx.scopeStack.removeLast()
+
+        (ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs) as? ErrorLangType.ActionIncompatibleWithValueTypes)?.let {
+            // This specific type of error should cause an immediate failure,
+            // because you might have expected a side effect but gotten a value instead
+            chunk.writeLiteral(
+                CompiledFile.CompiledConstant.ErrorConst(
+                    SourcePosition.Source(ctx.resolved.path, expression.info.breadcrumbs, expression.info.position),
+                    it
+                )
+            )
+            compileTypeErrorFromStackBadValue(chunk)
+        }
     }
 
     private fun compileValueFlowReference(

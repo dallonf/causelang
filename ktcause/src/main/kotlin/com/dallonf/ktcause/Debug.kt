@@ -41,6 +41,7 @@ object Debug {
             subclass(ErrorLangType.UnknownParameter::class)
             subclass(ErrorLangType.MissingElseBranch::class)
             subclass(ErrorLangType.UnreachableBranch::class)
+            subclass(ErrorLangType.ActionIncompatibleWithValueTypes::class)
             subclass(ErrorLangType.ConstraintUsedAsValue::class)
             subclass(ErrorLangType.ValueUsedAsConstraint::class)
             subclass(ErrorLangType.DoesNotHaveAnyMembers::class)
