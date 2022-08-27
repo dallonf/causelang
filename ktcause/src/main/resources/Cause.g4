@@ -22,6 +22,7 @@ CAUSE : 'cause' ;
 EFFECT : 'effect' ;
 ELSE : 'else' ;
 FN : 'fn' ;
+FOR : 'for' ;
 FUNCTION : 'function' ;
 IF : 'if' ;
 IS : 'is' ;
@@ -71,7 +72,7 @@ statement : effectStatement | setStatement | declarationStatement | expressionSt
 
 expressionStatement : expression ;
 declarationStatement : declaration ;
-effectStatement : EFFECT NEWLINE* PAREN_OPEN NEWLINE* pattern NEWLINE* PAREN_CLOSE body ;
+effectStatement : EFFECT NEWLINE* FOR NEWLINE* pattern NEWLINE* body ;
 setStatement : SET NEWLINE* IDENTIFIER NEWLINE* EQUALS NEWLINE* expression ;
 
 expression : (blockExpression | branchExpression | causeExpression | stringLiteralExpression | integerLiteralExpression | identifierExpression)
@@ -99,5 +100,5 @@ isBranchOption : IS pattern body ;
 elseBranchOption : ELSE body ;
 
 pattern : captureValuePattern | typeReferencePattern ;
-captureValuePattern : LET NEWLINE* IDENTIFIER NEWLINE* COLON NEWLINE* typeReference ;
+captureValuePattern : typeReference NEWLINE* AS NEWLINE* IDENTIFIER ;
 typeReferencePattern : typeReference ;

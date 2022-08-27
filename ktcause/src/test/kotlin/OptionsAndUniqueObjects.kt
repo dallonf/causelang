@@ -343,7 +343,7 @@ class OptionsAndUniqueObjects {
                 signal UniqueSignal: Action
                 
                 function main() {
-                    effect (let s: UniqueSignal) {
+                    effect for UniqueSignal as s {
                         cause Debug("unique signal intercepted")
                         cause s
                     }

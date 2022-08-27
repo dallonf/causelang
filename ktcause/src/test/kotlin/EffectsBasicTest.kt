@@ -37,7 +37,7 @@ class EffectsBasicTest {
                 import test/test (InterceptThis)
                 
                 function main() {
-                    effect (InterceptThis) {
+                    effect for InterceptThis {
                         cause Debug("Intercepted an InterceptThis signal")
                     }
                     
@@ -84,7 +84,7 @@ class EffectsBasicTest {
                 import test/test (Greet)
                 
                 function main() {
-                    effect (let s: Greet) {
+                    effect for Greet as s {
                         cause Debug(append("Howdy, ", s.name))
                     }
                     
@@ -114,8 +114,8 @@ class EffectsBasicTest {
                 signal Greet(name: String): String
                 
                 function main() {
-                    effect (let e: Greet) {
-                        append("Howdy, ", e.name)
+                    effect for Greet as s {
+                        append("Howdy, ", s.name)
                     }
                     
                     let greeting = cause Greet("partner")
@@ -146,11 +146,11 @@ class EffectsBasicTest {
                 signal TestSignal2(value: Integer): Action
                 
                 function main() {
-                    effect (let e: TestSignal1) {
-                        cause Debug(append("One ", e.value))
+                    effect for TestSignal1 as s {
+                        cause Debug(append("One ", s.value))
                     }
-                    effect (let e: TestSignal2) {
-                        cause Debug(append("Two ", integer_to_string(e.value)))
+                    effect for TestSignal2 as s {
+                        cause Debug(append("Two ", integer_to_string(s.value)))
                     }
                     
                     cause TestSignal1("hello")
@@ -174,7 +174,7 @@ class EffectsBasicTest {
                 signal Extract(value: Anything): Action
                 
                 function main() {
-                    effect (let s: AnySignal) {
+                    effect for AnySignal as s {
                         cause Extract(s)
                     }
                     
@@ -213,7 +213,7 @@ class EffectsBasicTest {
                 function main() {
                     let variable x = 1
                     
-                    effect (let s: SetX) {
+                    effect for SetX as s {
                         set x = s.value
                     }
                     

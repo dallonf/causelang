@@ -333,9 +333,11 @@ object Compiler {
         expression: ExpressionNode, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
     ) {
         when (expression) {
+            is ExpressionNode.IdentifierExpression -> compileIdentifierExpression(expression, chunk, ctx)
             is ExpressionNode.BlockExpressionNode -> compileBlockExpression(expression, chunk, ctx)
             is ExpressionNode.BranchExpressionNode -> compileBranchExpression(expression, chunk, ctx)
-            is ExpressionNode.IdentifierExpression -> compileValueFlowReference(expression, chunk, ctx)
+
+
             is ExpressionNode.CauseExpression -> compileCauseExpression(expression, chunk, ctx)
             is ExpressionNode.CallExpression -> compileCallExpression(expression, chunk, ctx)
             is ExpressionNode.MemberExpression -> compileMemberExpression(expression, chunk, ctx)
@@ -357,6 +359,22 @@ object Compiler {
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
             chunk.writeInstruction(Instruction.Pop())
             compileBadValue(expression, error, chunk, ctx)
+        }
+    }
+
+    private fun compileIdentifierExpression(
+        expression: ExpressionNode, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+    ) {
+        compileValueFlowReference(expression, chunk, ctx)
+
+        ctx.resolved.getInferredType(expression.info.breadcrumbs).let {
+            if (it is ActionValueLangType) {
+                // special case: Action type references are automatically
+                // converted to Action values so that you can use `Action`
+                // as a keyword
+                chunk.writeInstruction(Instruction.Pop(1))
+                chunk.writeInstruction(Instruction.PushAction)
+            }
         }
     }
 
@@ -453,8 +471,7 @@ object Compiler {
             // because you might have expected a side effect but gotten a value instead
             chunk.writeLiteral(
                 CompiledFile.CompiledConstant.ErrorConst(
-                    SourcePosition.Source(ctx.resolved.path, expression.info.breadcrumbs, expression.info.position),
-                    it
+                    SourcePosition.Source(ctx.resolved.path, expression.info.breadcrumbs, expression.info.position), it
                 )
             )
             compileTypeErrorFromStackBadValue(chunk)

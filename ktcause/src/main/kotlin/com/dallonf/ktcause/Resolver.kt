@@ -248,7 +248,16 @@ object Resolver {
                                 }
                             }
 
-                            resolveWith(getResolvedTypeOf(comesFromTag.source))
+                            val resolvedType = getResolvedTypeOf(comesFromTag.source)
+
+                            // special case: using `Action` as a keyword creates an Action value,
+                            // not a reference to the type
+                            if (resolvedType is ConstraintValueLangType && resolvedType.valueType == ActionValueLangType) {
+                                resolveWith(ActionValueLangType)
+                                return@eachPendingNode
+                            }
+
+                            resolveWith(resolvedType)
                         }
 
                         is ExpressionNode.CallExpression -> {

@@ -17,7 +17,21 @@ object CoreExports {
 
     fun getCoreExport(fileName: String, exportName: String): RuntimeValue {
         if (fileName == BUILTINS_FILE) {
-            if (setOf("Debug", "TypeError", "AssumptionBroken", "Anything", "AnySignal", "True", "False").contains(exportName)) {
+            if (setOf(
+                    "String",
+                    "Integer",
+                    "Float",
+                    "BinaryAnswer",
+                    "Action",
+                    "Debug",
+                    "TypeError",
+                    "AssumptionBroken",
+                    "Anything",
+                    "AnySignal",
+                    "True",
+                    "False"
+                ).contains(exportName)
+            ) {
                 val exportedType = CoreDescriptors.coreBuiltinFile.second.exports[exportName] as ConstraintValueLangType
 
                 return RuntimeValue.RuntimeTypeConstraint(exportedType.valueType)

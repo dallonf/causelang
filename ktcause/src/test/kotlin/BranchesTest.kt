@@ -315,4 +315,31 @@ class BranchesTest {
 
         vm.resumeExecution(RuntimeValue.Action).let { TestUtils.expectTypeError(it, vm) }
     }
+
+    @Test
+    fun capturesMatchingValues() {
+        val vm = LangVm()
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
+                import core/string (integer_to_string)
+                
+                object Nothing
+                option MaybeInteger(Nothing, Integer)
+                
+                function main() {
+                    print_number(Nothing)
+                    print_number(42)
+                }                
+                
+                function print_number(this: MaybeInteger) {
+                    branch with this {
+                        is Integer as i => cause Debug(integer_to_string(i))
+                        is Nothing => Action
+                    }
+                }
+            """.trimIndent()
+        )
+
+        TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf("42"))
+    }
 }
