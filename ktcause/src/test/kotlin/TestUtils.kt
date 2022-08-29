@@ -4,9 +4,7 @@ import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RunResult
 import com.dallonf.ktcause.RuntimeValue
 import com.dallonf.ktcause.types.CanonicalLangTypeId
-import kotlin.math.sign
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 
 object TestUtils {
 
@@ -60,6 +58,10 @@ object TestUtils {
     }
 
     fun runMainExpectingDebugs(vm: LangVm, path: String, expected: List<String>) {
+        runMainExpectingDebugValues(vm, path, expected.map { RuntimeValue.String(it) })
+    }
+
+    fun runMainExpectingDebugValues(vm: LangVm, path: String, expected: List<RuntimeValue>) {
         var result = vm.executeFunction(path, "main", listOf())
         val debugType = vm.getTypeId("core/builtin.cau", "Debug")
         var debugs = 0
@@ -68,8 +70,8 @@ object TestUtils {
                 throw AssertionError("Excess signal! ${result.debug()}")
             }
             assertEquals(debugType, result.signal.typeDescriptor.id)
-            val expectedMessage = expected[debugs]
-            assertEquals(RuntimeValue.String(expectedMessage), result.signal.values[0])
+            val expectedValue = expected[debugs]
+            assertEquals(expectedValue, result.signal.values[0])
 
             debugs += 1
             result = vm.resumeExecution(RuntimeValue.Action)

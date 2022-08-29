@@ -121,6 +121,10 @@ sealed interface ValueLangType {
         }
     }
 
+    fun valueToConstraintReference(): ConstraintReference {
+        return this.letIfResolved { it.toConstraint() }.asConstraintReference()
+    }
+
     fun letIfResolved(f: (ResolvedValueLangType) -> ValueLangType): ValueLangType {
         return if (this is ResolvedValueLangType) {
             f(this)
@@ -397,7 +401,7 @@ data class OptionValueLangType(val options: List<ConstraintReference>) : Resolve
 
     fun isSupersetOf(otherType: ResolvedValueLangType): Boolean {
         val possibleValues = when (otherType) {
-            is OptionValueLangType -> otherType.normalize().options.map { option -> option.asValueType() }
+            is OptionValueLangType -> otherType.simplify().options.map { option -> option.asValueType() }
             else -> listOf(otherType)
         }
 
@@ -421,22 +425,37 @@ data class OptionValueLangType(val options: List<ConstraintReference>) : Resolve
         return result
     }
 
-    fun normalize(): OptionValueLangType {
-        val allPossibleValues = options.flatMap {
+    fun simplify(): OptionValueLangType {
+        var allPossibleValues = options.flatMap {
             when (val value = it.asValueType()) {
-                is OptionValueLangType -> value.normalize().options.asSequence()
+                is OptionValueLangType -> value.simplify().options.asSequence()
                 else -> sequenceOf(it)
             }
         }
 
         // TODO: dedupe
 
+        // if NeverContinues is part of the option, but only a part, then remove it
+        val nonNeverContinues = allPossibleValues.filter { it.asValueType() !is NeverContinuesValueLangType }
+        if (nonNeverContinues.isNotEmpty()) {
+            allPossibleValues = nonNeverContinues
+        }
+
         return OptionValueLangType(allPossibleValues)
     }
 
-    fun subtract(otherType: ValueLangType): OptionValueLangType {
+    fun simplifyToValue(): ValueLangType {
+        val simplified = simplify()
+        return if (simplified.options.size == 1) {
+            simplified.options[0].asValueType()
+        } else {
+            simplified
+        }
+    }
+
+    fun narrow(otherType: ValueLangType): OptionValueLangType {
         val possibleValues = when (otherType) {
-            is OptionValueLangType -> otherType.normalize().options.map { option -> option.asValueType() }
+            is OptionValueLangType -> otherType.simplify().options.map { option -> option.asValueType() }
             else -> listOf(otherType)
         }
 
@@ -458,6 +477,11 @@ data class OptionValueLangType(val options: List<ConstraintReference>) : Resolve
         }
 
         return OptionValueLangType(remainingOptions)
+    }
+
+    fun expand(otherType: ValueLangType): OptionValueLangType {
+        val newValues = options + listOf(otherType.letIfResolved { it.toConstraint() }.asConstraintReference())
+        return OptionValueLangType(newValues).simplify()
     }
 
     fun isEmpty(): Boolean {

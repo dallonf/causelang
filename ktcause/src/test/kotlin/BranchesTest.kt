@@ -177,7 +177,7 @@ class BranchesTest {
     @Test
     fun continueOnErrorIfBranchReturnsAValue() {
         val vm = LangVm()
-        vm.addFileAndPrintCompileErrors(
+        vm.addFile(
             "project/test.cau", """
                 object Hearts
                 object Diamonds
@@ -209,12 +209,88 @@ class BranchesTest {
                         "position": {
                             "#type": "SourcePosition",
                             "path": "project/test.cau",
-                            "breadcrumbs": "declarations.7.body.statements.0.expression",
-                            "position": "13:4-16:5"
+                            "breadcrumbs": "declarations.6.body.statements.1.expression.signal.parameters.0",
+                            "position": "9:16-9:22"
                         },
                         "error": {
-                            "#type": "MissingElseBranch",
-                            "options": null
+                            "#type": "ProxyError",
+                            "actualError": {
+                                "#type": "MissingElseBranch",
+                                "options": {
+                                    "options": [
+                                        {
+                                            "#type": "Resolved",
+                                            "valueType": {
+                                                "#type": "Instance",
+                                                "canonicalType": {
+                                                    "#type": "Object",
+                                                    "id": "project/test.cau:Spades",
+                                                    "name": "Spades",
+                                                    "fields": [
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "#type": "Resolved",
+                                            "valueType": {
+                                                "#type": "Instance",
+                                                "canonicalType": {
+                                                    "#type": "Object",
+                                                    "id": "project/test.cau:Clubs",
+                                                    "name": "Clubs",
+                                                    "fields": [
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "proxyChain": [
+                                {
+                                    "#type": "SourcePosition",
+                                    "path": "project/test.cau",
+                                    "breadcrumbs": "declarations.6.body.statements.1.expression.signal.parameters.0.value",
+                                    "position": "9:16-9:22"
+                                },
+                                {
+                                    "#type": "SourcePosition",
+                                    "path": "project/test.cau",
+                                    "breadcrumbs": "declarations.6.body.statements.0.declaration",
+                                    "position": "8:4-8:39"
+                                },
+                                {
+                                    "#type": "SourcePosition",
+                                    "path": "project/test.cau",
+                                    "breadcrumbs": "declarations.6.body.statements.0.declaration.value",
+                                    "position": "8:17-8:39"
+                                },
+                                {
+                                    "#type": "SourcePosition",
+                                    "path": "project/test.cau",
+                                    "breadcrumbs": "declarations.6.body.statements.0.declaration.value.callee",
+                                    "position": "8:17-8:31"
+                                },
+                                {
+                                    "#type": "SourcePosition",
+                                    "path": "project/test.cau",
+                                    "breadcrumbs": "declarations.7.body",
+                                    "position": "12:36-17:1"
+                                },
+                                {
+                                    "#type": "SourcePosition",
+                                    "path": "project/test.cau",
+                                    "breadcrumbs": "declarations.7.body.statements.0",
+                                    "position": "13:4-16:5"
+                                },
+                                {
+                                    "#type": "SourcePosition",
+                                    "path": "project/test.cau",
+                                    "breadcrumbs": "declarations.7.body.statements.0.expression",
+                                    "position": "13:4-16:5"
+                                }
+                            ]
                         }
                     }
                 }

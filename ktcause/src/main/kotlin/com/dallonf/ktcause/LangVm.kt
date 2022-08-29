@@ -80,16 +80,20 @@ class LangVm {
         }.let { requireNotNull(it) { "I couldn't find a file called $filePath" } }
     }
 
-    fun getTypeId(filePath: String, name: String): CanonicalLangTypeId {
+    fun getType(filePath: String, name: String): CanonicalLangType {
         val descriptor = getFileDescriptor(filePath)
 
         val found = requireNotNull(descriptor.exports[name]) { "$filePath doesn't have an export called $name." }
 
         if (found is ConstraintValueLangType && found.valueType is InstanceValueLangType) {
-            return found.valueType.canonicalType.id
+            return found.valueType.canonicalType
         } else {
             throw VmError("$name isn't a canonical type.")
         }
+    }
+
+    fun getTypeId(filePath: String, name: String): CanonicalLangTypeId {
+        return getType(filePath, name).id
     }
 
     fun getBuiltinTypeId(name: String) = getTypeId(CoreExports.BUILTINS_FILE, name)
@@ -518,6 +522,8 @@ class LangVm {
         }
         return value
     }
+
+
 }
 
 sealed interface RunResult {

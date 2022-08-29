@@ -28,7 +28,9 @@ data class CompiledFile(
                     exportDescriptors[exportName] = export.type
                 }
 
-                is CompiledExport.Value -> TODO()
+                is CompiledExport.Value -> {
+                    // TODO
+                }
             }
         }
 
@@ -92,8 +94,7 @@ data class CompiledFile(
         data class StringConst(val value: String) : CompiledConstant
         data class IntegerConst(val value: Long) : CompiledConstant
         data class FloatConst(val value: Double) : CompiledConstant
-        data class ErrorConst(val sourcePosition: SourcePosition, val error: ErrorLangType) :
-            CompiledConstant
+        data class ErrorConst(val sourcePosition: SourcePosition, val error: ErrorLangType) : CompiledConstant
 
         data class TypeConst(val type: ValueLangType) : CompiledConstant
     }
