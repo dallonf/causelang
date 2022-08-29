@@ -213,9 +213,7 @@ private fun parseObjectFields(
 }
 
 private fun parseOptionDeclaration(
-    declaration: OptionDeclarationContext,
-    breadcrumbs: Breadcrumbs,
-    ctx: ParserContext
+    declaration: OptionDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): DeclarationNode.OptionType {
     val name = parseIdentifier(declaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
     val optionsBreadcrumbs = breadcrumbs.appendName("options")
@@ -223,9 +221,7 @@ private fun parseOptionDeclaration(
         .mapIndexed { option, it -> parseTypeReference(it, optionsBreadcrumbs.appendIndex(option), ctx) }
 
     return DeclarationNode.OptionType(
-        NodeInfo(declaration.getRange(), breadcrumbs),
-        name,
-        options
+        NodeInfo(declaration.getRange(), breadcrumbs), name, options
     )
 }
 
@@ -283,15 +279,12 @@ private fun parseEffectStatement(
 }
 
 private fun parseSetStatement(
-    statement: SetStatementContext,
-    breadcrumbs: Breadcrumbs,
-    ctx: ParserContext
+    statement: SetStatementContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): StatementNode.SetStatement {
     val identifier = parseIdentifier(statement.IDENTIFIER().symbol, breadcrumbs.appendName("identifier"), ctx)
     val expression = parseExpression(statement.expression(), breadcrumbs.appendName("expression"), ctx)
     return StatementNode.SetStatement(
-        NodeInfo(statement.getRange(), breadcrumbs),
-        identifier, expression
+        NodeInfo(statement.getRange(), breadcrumbs), identifier, expression
     )
 }
 
@@ -322,6 +315,7 @@ private fun parseExpression(
             is BlockExpressionContext -> parseBlockExpression(child, innerBreadcrumbs, ctx)
             is BranchExpressionContext -> parseBranchExpression(child, innerBreadcrumbs, ctx)
             is CauseExpressionContext -> parseCauseExpression(child, innerBreadcrumbs, ctx)
+            is ReturnExpressionContext -> parseReturnExpression(child, innerBreadcrumbs, ctx)
             is StringLiteralExpressionContext -> parseStringLiteralExpression(child, innerBreadcrumbs, ctx)
             is IntegerLiteralExpressionContext -> parseIntegerLiteralExpression(child, innerBreadcrumbs, ctx)
             is IdentifierExpressionContext -> parseIdentifierExpression(child, innerBreadcrumbs, ctx)
@@ -405,6 +399,13 @@ private fun parseBranchOption(
 
         else -> error("Unexpected branch option type")
     }
+}
+
+private fun parseReturnExpression(
+    expression: ReturnExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+): ExpressionNode {
+    return ExpressionNode.ReturnExpression(NodeInfo(expression.getRange(), breadcrumbs),
+        expression.expression()?.let { parseExpression(it, breadcrumbs.appendName("value"), ctx) })
 }
 
 private fun parseStringLiteralExpression(

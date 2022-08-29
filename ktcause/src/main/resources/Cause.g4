@@ -30,6 +30,7 @@ IMPORT : 'import' ;
 LET : 'let' ;
 OBJECT : 'object' ;
 OPTION : 'option' ;
+RETURN : 'return' ;
 SET : 'set' ;
 SIGNAL : 'signal' ;
 VARIABLE : 'variable' ;
@@ -75,13 +76,14 @@ declarationStatement : declaration ;
 effectStatement : EFFECT NEWLINE* FOR NEWLINE* pattern NEWLINE* body ;
 setStatement : SET NEWLINE* IDENTIFIER NEWLINE* EQUALS NEWLINE* expression ;
 
-expression : (blockExpression | branchExpression | causeExpression | stringLiteralExpression | integerLiteralExpression | identifierExpression)
+expression : (blockExpression | branchExpression | causeExpression | returnExpression | stringLiteralExpression | integerLiteralExpression | identifierExpression)
     expressionSuffix* ;
 
 blockExpression : block ;
 branchExpression : BRANCH NEWLINE* branchWith? NEWLINE* CURLY_OPEN NEWLINE* (branchOption (NEWLINE+ branchOption)*)? NEWLINE* CURLY_CLOSE ;
     branchWith: WITH NEWLINE* expression ;
 causeExpression : CAUSE NEWLINE* expression ;
+returnExpression : RETURN expression? ; // no newline supported here
 stringLiteralExpression : STRING_LITERAL ;
 integerLiteralExpression : INT_LITERAL ;
 identifierExpression : IDENTIFIER ;

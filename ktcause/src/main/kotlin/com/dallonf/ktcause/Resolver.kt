@@ -429,14 +429,12 @@ object Resolver {
                                 val sourcePosition = getSourcePosition(branch)
                                 iterationResolvedReferences.add(
                                     ResolutionKey(
-                                        INFERRED,
-                                        sourcePosition.breadcrumbs
+                                        INFERRED, sourcePosition.breadcrumbs
                                     ) to resolvedType
                                 )
                                 possibleReturnValues.add(PossibleReturnValue(resolvedType.letIfError {
                                     ErrorLangType.ProxyError.from(
-                                        it,
-                                        sourcePosition
+                                        it, sourcePosition
                                     )
                                 }, sourcePosition))
                             }
@@ -448,14 +446,12 @@ object Resolver {
                                 val resolvedType = getResolvedTypeOf(elseBranch.body)
                                 iterationResolvedReferences.add(
                                     ResolutionKey(
-                                        INFERRED,
-                                        elseBranch.info.breadcrumbs
+                                        INFERRED, elseBranch.info.breadcrumbs
                                     ) to resolvedType
                                 )
                                 possibleReturnValues.add(PossibleReturnValue(resolvedType.letIfError {
                                     ErrorLangType.ProxyError.from(
-                                        it,
-                                        getSourcePosition(elseBranch)
+                                        it, getSourcePosition(elseBranch)
                                     )
                                 }, source = null))
                             }
@@ -466,15 +462,13 @@ object Resolver {
                                 val sourcePosition = getSourcePosition(branch)
                                 iterationResolvedReferences.add(
                                     ResolutionKey(
-                                        INFERRED,
-                                        sourcePosition.breadcrumbs
+                                        INFERRED, sourcePosition.breadcrumbs
                                     ) to unreachableError
                                 )
                                 possibleReturnValues.add(
                                     PossibleReturnValue(
                                         ErrorLangType.ProxyError.from(
-                                            unreachableError,
-                                            sourcePosition
+                                            unreachableError, sourcePosition
                                         ), sourcePosition
                                     )
                                 )
@@ -483,8 +477,7 @@ object Resolver {
                             if (withValue.options.isNotEmpty()) {
                                 possibleReturnValues.add(
                                     PossibleReturnValue(
-                                        ErrorLangType.MissingElseBranch(withValue),
-                                        source = null
+                                        ErrorLangType.MissingElseBranch(withValue), source = null
                                     )
                                 )
                             }
@@ -495,15 +488,14 @@ object Resolver {
                                     it.value is ResolvedValueLangType && it.value !is ActionValueLangType && it.value !is NeverContinuesValueLangType
                                 }
                                 if (nonActionReturns.isNotEmpty()) {
-                                    resolveWith(ErrorLangType.ActionIncompatibleWithValueTypes(
-                                        actions = actionReturns.map { it.source!! },
-                                        types = nonActionReturns.map {
-                                            ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
-                                                it.value,
-                                                it.source!!
-                                            )
-                                        }
-                                    ))
+                                    resolveWith(
+                                        ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
+                                            types = nonActionReturns.map {
+                                                ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                                    it.value, it.source!!
+                                                )
+                                            })
+                                    )
                                     return@eachPendingNode
                                 }
                             }
@@ -511,6 +503,10 @@ object Resolver {
                             resolveWith(OptionValueLangType(possibleReturnValues.map { (value, _) ->
                                 value.letIfResolved { it.toConstraint() }.asConstraintReference()
                             }).normalize())
+                        }
+
+                        is ExpressionNode.ReturnExpression -> {
+                            resolveWith(NeverContinuesValueLangType)
                         }
 
                         is ExpressionNode.MemberExpression -> {
@@ -657,12 +653,23 @@ object Resolver {
                         }
 
                         is BodyNode.BlockBodyNode -> {
-                            val lastStatement = node.statements.lastOrNull()
-                            if (lastStatement is StatementNode.ExpressionStatement) {
-                                resolveWith(getResolvedTypeOf(lastStatement))
-                            } else {
-                                resolveWith(ActionValueLangType)
+                            var lastType: ValueLangType = ActionValueLangType
+                            for (statement in node.statements) {
+                                if (lastType == NeverContinuesValueLangType) {
+                                    iterationResolvedReferences.add(
+                                        ResolutionKey(
+                                            INFERRED, statement.info.breadcrumbs
+                                        ) to NeverContinuesValueLangType
+                                    )
+                                }
+                                lastType = if (statement is StatementNode.ExpressionStatement) {
+                                    getResolvedTypeOf(statement)
+                                } else {
+                                    ActionValueLangType
+                                }
                             }
+
+                            resolveWith(lastType)
                         }
 
                         is BodyNode.SingleExpressionBodyNode -> resolveWith(getResolvedTypeOf(node.expression))

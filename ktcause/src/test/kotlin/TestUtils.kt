@@ -65,7 +65,7 @@ object TestUtils {
         var debugs = 0
         while (result is RunResult.Caused) {
             if (debugs >= expected.size) {
-                error("Excess signal! ${result.debug()}")
+                throw AssertionError("Excess signal! ${result.debug()}")
             }
             assertEquals(debugType, result.signal.typeDescriptor.id)
             val expectedMessage = expected[debugs]
@@ -76,7 +76,7 @@ object TestUtils {
         }
 
         if (debugs < expected.size) {
-            error("Premature return after $debugs Debugs")
+            throw AssertionError("Premature return after $debugs Debugs")
         }
         assertEquals(RuntimeValue.Action, result.expectReturnValue())
     }

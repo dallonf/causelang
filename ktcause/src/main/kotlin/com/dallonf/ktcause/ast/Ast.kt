@@ -407,6 +407,13 @@ sealed interface ExpressionNode : AstNode {
     data class IntegerLiteralExpression(override val info: NodeInfo, val value: Long) : ExpressionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
     }
+
+    data class ReturnExpression(override val info: NodeInfo, val value: ExpressionNode?) : ExpressionNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            value?.let { put("value", it) }
+        }
+
+    }
 }
 
 sealed interface BranchOptionNode : AstNode {

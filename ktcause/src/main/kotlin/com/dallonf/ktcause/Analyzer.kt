@@ -1,7 +1,6 @@
 package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.*
-import com.dallonf.ktcause.types.LangPrimitiveKind
 
 data class AnalyzedNode(
     val nodeTags: MutableMap<Breadcrumbs, MutableList<NodeTag>> = mutableMapOf(),
@@ -65,7 +64,13 @@ sealed class NodeTag {
     }
 
     data class FunctionCanReturnTypeOf(val returnExpression: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
+        override fun inverse(breadcrumbs: Breadcrumbs) =
+            Pair(returnExpression, ReturnsFromFunction(function = breadcrumbs))
+    }
+
+    data class ReturnsFromFunction(val function: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) =
+            Pair(function, FunctionCanReturnTypeOf(returnExpression = breadcrumbs))
     }
 
     object ReferenceNotInScope : NodeTag() {
@@ -219,11 +224,9 @@ object Analyzer {
         ctx: AnalyzerContext,
     ) {
         pattern.name?.let {
-            ctx.currentScope.items[it.text] =
-                LocalScopeItem(pattern.info.breadcrumbs)
+            ctx.currentScope.items[it.text] = LocalScopeItem(pattern.info.breadcrumbs)
             output.addTag(
-                pattern.info.breadcrumbs,
-                NodeTag.DeclarationForScope(ctx.currentScopePosition)
+                pattern.info.breadcrumbs, NodeTag.DeclarationForScope(ctx.currentScopePosition)
             )
         }
 
@@ -412,14 +415,17 @@ object Analyzer {
     private fun analyzeExpression(expression: ExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext) {
         when (expression) {
             is ExpressionNode.BlockExpressionNode -> analyzeBlockExpression(expression, output, ctx)
-            is ExpressionNode.BranchExpressionNode -> analyzeBranchExpressionNode(expression, output, ctx)
-            is ExpressionNode.IdentifierExpression -> analyzeIdentifierExpression(expression, output, ctx)
-            is ExpressionNode.CauseExpression -> analyzeCauseExpression(expression, output, ctx)
-            is ExpressionNode.CallExpression -> analyzeCallExpression(expression, output, ctx)
-            is ExpressionNode.MemberExpression -> analyzeMemberExpression(expression, output, ctx)
 
+            is ExpressionNode.CauseExpression -> analyzeCauseExpression(expression, output, ctx)
+            is ExpressionNode.BranchExpressionNode -> analyzeBranchExpressionNode(expression, output, ctx)
+            is ExpressionNode.ReturnExpression -> analyzeReturnExpression(expression, output, ctx)
+
+            is ExpressionNode.IdentifierExpression -> analyzeIdentifierExpression(expression, output, ctx)
             is ExpressionNode.StringLiteralExpression -> {}
             is ExpressionNode.IntegerLiteralExpression -> {}
+
+            is ExpressionNode.CallExpression -> analyzeCallExpression(expression, output, ctx)
+            is ExpressionNode.MemberExpression -> analyzeMemberExpression(expression, output, ctx)
         }
     }
 
@@ -490,5 +496,15 @@ object Analyzer {
         expression: ExpressionNode.MemberExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         analyzeExpression(expression.objectExpression, output, ctx)
+    }
+
+    private fun analyzeReturnExpression(
+        expression: ExpressionNode.ReturnExpression, output: AnalyzedNode, ctx: AnalyzerContext
+    ) {
+
+        expression.value?.let { value ->
+            analyzeExpression(value, output, ctx)
+            ctx.currentFunction?.let { output.addTag(value.info.breadcrumbs, NodeTag.ReturnsFromFunction(it)) }
+        }
     }
 }

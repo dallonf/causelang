@@ -159,6 +159,9 @@ object Compiler {
             compileStatement(
                 statement, chunk, ctx, isLastStatement = i == block.statements.lastIndex
             )
+            if (ctx.resolved.getInferredType(statement.info.breadcrumbs) is NeverContinuesValueLangType) {
+                return
+            }
         }
 
         val scope = ctx.scopeStack.removeLast()
@@ -333,15 +336,16 @@ object Compiler {
         expression: ExpressionNode, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
     ) {
         when (expression) {
-            is ExpressionNode.IdentifierExpression -> compileIdentifierExpression(expression, chunk, ctx)
             is ExpressionNode.BlockExpressionNode -> compileBlockExpression(expression, chunk, ctx)
+
             is ExpressionNode.BranchExpressionNode -> compileBranchExpression(expression, chunk, ctx)
-
-
             is ExpressionNode.CauseExpression -> compileCauseExpression(expression, chunk, ctx)
+            is ExpressionNode.ReturnExpression -> compileReturnExpression(expression, chunk, ctx)
+
             is ExpressionNode.CallExpression -> compileCallExpression(expression, chunk, ctx)
             is ExpressionNode.MemberExpression -> compileMemberExpression(expression, chunk, ctx)
 
+            is ExpressionNode.IdentifierExpression -> compileIdentifierExpression(expression, chunk, ctx)
             is ExpressionNode.StringLiteralExpression -> chunk.writeLiteral(
                 CompiledFile.CompiledConstant.StringConst(
                     expression.text
@@ -652,6 +656,20 @@ object Compiler {
             // error on the CallExpression itself, which was checked above
             else -> throw AssertionError()
         }
+    }
+
+    private fun compileReturnExpression(
+        expression: ExpressionNode.ReturnExpression,
+        chunk: CompiledFile.MutableInstructionChunk,
+        ctx: CompilerContext
+    ) {
+        if (expression.value != null) {
+            compileExpression(expression.value, chunk, ctx)
+        } else {
+            chunk.writeInstruction(Instruction.PushAction)
+        }
+
+        chunk.writeInstruction(Instruction.Return)
     }
 
     private fun compileMemberExpression(
