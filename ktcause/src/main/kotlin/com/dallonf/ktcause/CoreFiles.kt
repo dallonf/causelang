@@ -84,11 +84,6 @@ object CoreFiles {
                     LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                 )
             )
-            put(
-                "WholeNumber", CompiledExport.Constraint(
-                    LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
-                )
-            )
             put("Action", CompiledExport.Constraint(ActionValueLangType.valueToConstraintReference()))
             put("Anything", CompiledExport.Constraint(AnythingValueLangType.valueToConstraintReference()))
             put(
@@ -156,44 +151,6 @@ object CoreFiles {
                 })
             }
 
-            listOf<Pair<String, (Long, Long) -> Long>>(
-                "add_whole" to { x, y -> x + y },
-                "subtract_whole" to { x, y -> x - y },
-                "multiply_whole" to { x, y -> x * y },
-                "divide_whole" to { x, y -> x / y },
-            ).forEach { (name, fn) ->
-                put(name, CompiledExport.NativeFunction(
-                    FunctionValueLangType(
-                        name = name, params = listOf(
-                            LangParameter(
-                                "this", LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
-                            ),
-                            LangParameter(
-                                "other", LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
-                            ),
-                        ), returnConstraint = LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
-                    )
-                ) { (val1, val2) ->
-                    require(val1 is RuntimeValue.WholeNumber)
-                    require(val2 is RuntimeValue.WholeNumber)
-
-                    RuntimeValue.WholeNumber(fn(val1.value, val2.value))
-                })
-            }
-
-            put("to_number", CompiledExport.NativeFunction(
-                FunctionValueLangType(
-                    "to_number", params = listOf(
-                        LangParameter(
-                            "this", LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
-                        )
-                    ), returnConstraint = LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
-                )
-            ) { (thisVal) ->
-                require(thisVal is RuntimeValue.WholeNumber)
-                RuntimeValue.Number(thisVal.value)
-            })
-
             listOf<Pair<String, (BigDecimal) -> Long>>(
                 "round" to {
                     it.round(
@@ -219,15 +176,17 @@ object CoreFiles {
             ).forEach { (name, fn) ->
                 put(name, CompiledExport.NativeFunction(
                     FunctionValueLangType(
-                        name = name, params = listOf(
+                        name = name,
+                        params = listOf(
                             LangParameter(
                                 "this", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                             ),
-                        ), returnConstraint = LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
+                        ),
+                        returnConstraint = LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                     )
                 ) { (thisVal) ->
                     require(thisVal is RuntimeValue.Number)
-                    RuntimeValue.WholeNumber(fn(thisVal.value))
+                    RuntimeValue.Number(fn(thisVal.value))
                 })
             }
         }
@@ -267,19 +226,6 @@ object CoreFiles {
                 )
             ) { (thisVal) ->
                 require(thisVal is RuntimeValue.Number)
-                RuntimeValue.String(thisVal.value.toString())
-            })
-
-            put("whole_number_to_string", CompiledExport.NativeFunction(
-                FunctionValueLangType(
-                    name = "whole_number_to_string", params = listOf(
-                        LangParameter(
-                            "this", LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
-                        )
-                    ), returnConstraint = LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
-                )
-            ) { (thisVal) ->
-                require(thisVal is RuntimeValue.WholeNumber)
                 RuntimeValue.String(thisVal.value.toString())
             })
         }

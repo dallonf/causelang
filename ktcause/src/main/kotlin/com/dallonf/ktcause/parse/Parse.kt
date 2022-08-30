@@ -318,8 +318,7 @@ private fun parseExpression(
             is CauseExpressionContext -> parseCauseExpression(child, innerBreadcrumbs, ctx)
             is ReturnExpressionContext -> parseReturnExpression(child, innerBreadcrumbs, ctx)
             is StringLiteralExpressionContext -> parseStringLiteralExpression(child, innerBreadcrumbs, ctx)
-            is DecimalLiteralExpressionContext -> parseDecimalLiteralExpression(child, innerBreadcrumbs, ctx)
-            is IntegerLiteralExpressionContext -> parseIntegerLiteralExpression(child, innerBreadcrumbs, ctx)
+            is NumberLiteralExpressionContext -> parseNumberLiteralExpression(child, innerBreadcrumbs, ctx)
             is IdentifierExpressionContext -> parseIdentifierExpression(child, innerBreadcrumbs, ctx)
             else -> throw Error("unexpected expression type")
         }
@@ -421,24 +420,13 @@ private fun parseStringLiteralExpression(
     )
 }
 
-private fun parseDecimalLiteralExpression(
-    expression: DecimalLiteralExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): ExpressionNode.DecimalLiteralExpression {
-    val text = expression.DECIMAL_LITERAL().text
+private fun parseNumberLiteralExpression(
+    expression: NumberLiteralExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+): ExpressionNode.NumberLiteralExpression {
+    val text = expression.NUMBER_LITERAL().text
     val number = text.replace("_", "").toBigDecimal()
 
-    return ExpressionNode.DecimalLiteralExpression(
-        NodeInfo(expression.getRange(), breadcrumbs), number
-    )
-}
-
-private fun parseIntegerLiteralExpression(
-    expression: IntegerLiteralExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): ExpressionNode.IntegerLiteralExpression {
-    val text = expression.INTEGER_LITERAL().text
-    val number = text.replace("_", "").toLong()
-
-    return ExpressionNode.IntegerLiteralExpression(
+    return ExpressionNode.NumberLiteralExpression(
         NodeInfo(expression.getRange(), breadcrumbs), number
     )
 }

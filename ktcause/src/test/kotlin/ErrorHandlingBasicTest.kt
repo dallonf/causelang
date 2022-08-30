@@ -106,7 +106,7 @@ internal class ErrorHandlingBasicTest {
                         },
                         "actual": {
                             "#type": "Primitive",
-                            "kind": "WholeNumber"
+                            "kind": "Number"
                         }
                     }
                 }
@@ -136,7 +136,7 @@ internal class ErrorHandlingBasicTest {
                     },
                     "actual": {
                         "#type": "Primitive",
-                        "kind": "WholeNumber"
+                        "kind": "Number"
                     }
                 }
             }
@@ -179,7 +179,7 @@ internal class ErrorHandlingBasicTest {
                         },
                         "actual": {
                             "#type": "Primitive",
-                            "kind": "WholeNumber"
+                            "kind": "Number"
                         }
                     }
                 }
@@ -211,7 +211,7 @@ internal class ErrorHandlingBasicTest {
                         },
                         "actual": {
                             "#type": "Primitive",
-                            "kind": "WholeNumber"
+                            "kind": "Number"
                         }
                     }
                 }
@@ -363,7 +363,7 @@ internal class ErrorHandlingBasicTest {
                         },
                         "actual": {
                             "#type": "Primitive",
-                            "kind": "WholeNumber"
+                            "kind": "Number"
                         }
                     }
                 }

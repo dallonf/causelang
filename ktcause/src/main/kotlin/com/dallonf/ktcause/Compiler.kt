@@ -352,13 +352,8 @@ object Compiler {
                 )
             )
 
-            is ExpressionNode.DecimalLiteralExpression -> chunk.writeLiteral(
+            is ExpressionNode.NumberLiteralExpression -> chunk.writeLiteral(
                 CompiledFile.CompiledConstant.NumberConst(
-                    expression.value
-                )
-            )
-            is ExpressionNode.IntegerLiteralExpression -> chunk.writeLiteral(
-                CompiledFile.CompiledConstant.WholeNumberConst(
                     expression.value
                 )
             )

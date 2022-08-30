@@ -250,7 +250,7 @@ class OptionsAndUniqueObjects {
                         },
                         "actual": {
                             "#type": "Primitive",
-                            "kind": "WholeNumber"
+                            "kind": "Number"
                         }
                     }
                 }
@@ -304,7 +304,7 @@ class OptionsAndUniqueObjects {
                     },
                     "actual": {
                         "#type": "Primitive",
-                        "kind": "WholeNumber"
+                        "kind": "Number"
                     }
                 }
             }

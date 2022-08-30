@@ -14,7 +14,7 @@ class ObjectTypesTest {
             "project/test.cau", """
                 object Card(
                     suit: String,
-                    rank: WholeNumber,
+                    rank: Number,
                 )
                 
                 function main(): Card {
@@ -43,7 +43,7 @@ class ObjectTypesTest {
             "project/test.cau", """
                 object Card(
                     suit: String,
-                    rank: WholeNumber,
+                    rank: Number,
                 )
                 
                 function main(): String {

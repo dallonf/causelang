@@ -422,8 +422,7 @@ object Analyzer {
 
             is ExpressionNode.IdentifierExpression -> analyzeIdentifierExpression(expression, output, ctx)
             is ExpressionNode.StringLiteralExpression -> {}
-            is ExpressionNode.DecimalLiteralExpression -> {}
-            is ExpressionNode.IntegerLiteralExpression -> {}
+            is ExpressionNode.NumberLiteralExpression -> {}
 
             is ExpressionNode.CallExpression -> analyzeCallExpression(expression, output, ctx)
             is ExpressionNode.MemberExpression -> analyzeMemberExpression(expression, output, ctx)

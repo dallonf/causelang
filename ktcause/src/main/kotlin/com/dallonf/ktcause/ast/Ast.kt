@@ -406,11 +406,7 @@ sealed interface ExpressionNode : AstNode {
     }
 
 
-    data class DecimalLiteralExpression(override val info: NodeInfo, val value: BigDecimal) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
-    }
-
-    data class IntegerLiteralExpression(override val info: NodeInfo, val value: Long) : ExpressionNode {
+    data class NumberLiteralExpression(override val info: NodeInfo, val value: BigDecimal) : ExpressionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
     }
 

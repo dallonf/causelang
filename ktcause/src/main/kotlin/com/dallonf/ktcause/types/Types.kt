@@ -361,11 +361,7 @@ enum class LangPrimitiveKind() {
     STRING,
 
     @SerialName("Number")
-    NUMBER,
-
-    @SerialName("WholeNumber")
-    WHOLE_NUMBER;
-
+    NUMBER;
 
     fun toValueLangType() = PrimitiveValueLangType(this)
     fun toConstraintLangType() = ConstraintValueLangType(toValueLangType())

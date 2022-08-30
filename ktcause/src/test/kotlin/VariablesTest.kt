@@ -23,7 +23,7 @@ class VariablesTest {
         val result = vm.executeFunction("project/test.cau", "main", listOf()).let {
             TestUtils.expectValidCaused(it, vm.getBuiltinTypeId("Debug"))
         }
-        assertEquals(RuntimeValue.WholeNumber(2), result.values[0])
+        assertEquals(RuntimeValue.Number(2), result.values[0])
     }
 
     @Test
