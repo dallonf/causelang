@@ -129,6 +129,7 @@ object CoreFiles {
                 "subtract" to { x, y -> x - y },
                 "multiply" to { x, y -> x * y },
                 "divide" to { x, y -> x / y },
+                "remainder" to { x, y -> x % y }
             ).forEach { (name, fn) ->
                 put(name, CompiledExport.NativeFunction(
                     FunctionValueLangType(
@@ -143,11 +144,11 @@ object CoreFiles {
                         ),
                         returnConstraint = LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                     )
-                ) { (val1, val2) ->
-                    require(val1 is RuntimeValue.Number)
-                    require(val2 is RuntimeValue.Number)
+                ) { (x, y) ->
+                    require(x is RuntimeValue.Number)
+                    require(y is RuntimeValue.Number)
 
-                    RuntimeValue.Number(fn(val1.value, val2.value))
+                    RuntimeValue.Number(fn(x.value, y.value))
                 })
             }
 

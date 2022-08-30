@@ -107,12 +107,17 @@ class LangVm {
             requireNotNull(export as? CompiledFile.CompiledExport.Function) { "$functionName isn't a function, so I can't execute it." }
 
         require(function.type is FunctionValueLangType)
-        if (parameters.isNotEmpty() || function.type.params.isNotEmpty()) {
-            TODO("I don't support executing a function with arguments right now.")
+        if (parameters.size != function.type.params.size) {
+            throw IllegalArgumentException("This function needs ${function.type.params.size} parameters, but I only received ${parameters.size}")
+        }
+
+        val stack = ArrayDeque<RuntimeValue>()
+        for (param in parameters) {
+            stack.addLast(param)
         }
 
         callFrame = CallFrame(
-            file, file.chunks[function.chunkIndex], callParent = null, causeParent = null, stack = ArrayDeque()
+            file, file.chunks[function.chunkIndex], callParent = null, causeParent = null, stack
         )
 
         return execute()
@@ -472,7 +477,6 @@ class LangVm {
                             callFrame.callParent.stack.addLast(value)
                             this.callFrame = callFrame.callParent
                         } else {
-                            assert(stack.size == 0)
                             return RunResult.Returned(value)
                         }
                     }

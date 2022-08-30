@@ -24,7 +24,7 @@ class MathTest {
     }
 
     @Test
-    fun roundingAndConversion() {
+    fun rounding() {
         val vm = LangVm()
         vm.addFileExpectingNoCompileErrors(
             "project/test.cau", """
@@ -66,5 +66,53 @@ class MathTest {
                 RuntimeValue.Number(4),
             )
         )
+    }
+
+    @Test
+    fun naiveFizzBuzz() {
+        val vm = LangVm()
+        vm.addFileExpectingNoCompileErrors(
+            "project/test.cau", """
+                import core/string (number_to_string)
+                import core/math (remainder)
+                
+                function fizz_buzz(input: Number): String { 
+                    branch {
+                        if equals(remainder(input, 15), 0) => "FizzBuzz"
+                        if equals(remainder(input, 3), 0) => "Fizz"
+                        if equals(remainder(input, 5), 0) => "Buzz"
+                        else => number_to_string(input)
+                    }
+                }
+            """.trimIndent()
+        )
+
+        val list = (1..20).map { i ->
+            vm.executeFunction("project/test.cau", "fizz_buzz", listOf(RuntimeValue.Number(i.toBigDecimal())))
+                .expectReturnValue().let { (it as RuntimeValue.String).value }
+        }
+        val expected = listOf<String>(
+            "1",
+            "2",
+            "Fizz",
+            "4",
+            "Buzz",
+            "Fizz",
+            "7",
+            "8",
+            "Fizz",
+            "Buzz",
+            "11",
+            "Fizz",
+            "13",
+            "14",
+            "FizzBuzz",
+            "16",
+            "17",
+            "Fizz",
+            "19",
+            "Buzz"
+        )
+        assertEquals(expected, list)
     }
 }
