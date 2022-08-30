@@ -59,8 +59,8 @@ object CoreDescriptors {
 
         val descriptor = Resolver.ExternalFileDescriptor(exports = buildMap {
             put("String", LangPrimitiveKind.STRING.toConstraintLangType())
-            put("Integer", LangPrimitiveKind.INTEGER.toConstraintLangType())
-            put("Float", LangPrimitiveKind.FLOAT.toConstraintLangType())
+            put("Number", LangPrimitiveKind.NUMBER.toConstraintLangType())
+            put("Count", LangPrimitiveKind.COUNT.toConstraintLangType())
             put(
                 "BinaryAnswer", OptionValueLangType(
                     listOf(trueType.asConstraintReference(), falseType.asConstraintReference())
@@ -115,7 +115,15 @@ object CoreDescriptors {
                             name = "integer_to_string",
                             params = listOf(
                                 LangParameter(
-                                    "this", LangPrimitiveKind.INTEGER.toConstraintLangType().asConstraintReference()
+                                    "this", LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                                ),
+                            ),
+                            returnConstraint = LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                        ), "number_to_string" to FunctionValueLangType(
+                            name = "number_to_string",
+                            params = listOf(
+                                LangParameter(
+                                    "this", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                                 ),
                             ),
                             returnConstraint = LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
@@ -135,13 +143,25 @@ object CoreDescriptors {
                             name = "add",
                             params = listOf(
                                 LangParameter(
-                                    "this", LangPrimitiveKind.INTEGER.toConstraintLangType().asConstraintReference()
+                                    "this", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                                 ),
                                 LangParameter(
-                                    "other", LangPrimitiveKind.INTEGER.toConstraintLangType().asConstraintReference()
+                                    "other", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                                 ),
                             ),
-                            returnConstraint = LangPrimitiveKind.INTEGER.toConstraintLangType().asConstraintReference()
+                            returnConstraint = LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                        ),
+                        "add_count" to FunctionValueLangType(
+                            name = "add",
+                            params = listOf(
+                                LangParameter(
+                                    "this", LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                                ),
+                                LangParameter(
+                                    "other", LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                                ),
+                            ),
+                            returnConstraint = LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
                         )
                     ), types = mapOf()
                 )

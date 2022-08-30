@@ -360,11 +360,12 @@ enum class LangPrimitiveKind() {
     @SerialName("String")
     STRING,
 
-    @SerialName("Integer")
-    INTEGER,
+    @SerialName("Number")
+    NUMBER,
 
-    @SerialName("Float")
-    FLOAT;
+    @SerialName("Count")
+    COUNT;
+
 
     fun toValueLangType() = PrimitiveValueLangType(this)
     fun toConstraintLangType() = ConstraintValueLangType(toValueLangType())

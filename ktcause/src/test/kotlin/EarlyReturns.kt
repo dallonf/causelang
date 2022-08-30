@@ -1,4 +1,3 @@
-import TestUtils.addFileAndPrintCompileErrors
 import TestUtils.addFileExpectingNoCompileErrors
 import TestUtils.runMainExpectingDebugValues
 import com.dallonf.ktcause.LangVm
@@ -33,23 +32,23 @@ class EarlyReturns {
                 import core/math ( add )
                 
                 object Nothing
-                option MaybeInteger(Integer, Nothing) 
+                option MaybeNumber(Number, Nothing) 
                 
                 function main() {
-                    cause Debug(maybe_add(1, 2))
-                    cause Debug(maybe_add(1, Nothing))
-                    cause Debug(maybe_add(Nothing, 2))
+                    cause Debug(maybe_add(1.0, 2.0))
+                    cause Debug(maybe_add(1.0, Nothing))
+                    cause Debug(maybe_add(Nothing, 2.0))
                     cause Debug(maybe_add(Nothing, Nothing))
                 }
                 
-                function maybe_add(this: MaybeInteger, other: MaybeInteger): MaybeInteger {
+                function maybe_add(this: MaybeNumber, other: MaybeNumber): MaybeInteger {
                     let this = branch with this {
                         is Nothing => return Nothing
-                        is Integer as i => i
+                        is Number as i => i
                     }
                     let other = branch with other {
                         is Nothing => return Nothing
-                        is Integer as i => i
+                        is Number as i => i
                     }
                     
                     add(this, other)
@@ -61,7 +60,7 @@ class EarlyReturns {
             InstanceValueLangType(vm.getType("project/test.cau", "Nothing"))
         )
         runMainExpectingDebugValues(vm, "project/test.cau", listOf(
-            RuntimeValue.Integer(3),
+            RuntimeValue.Number(3.0),
             nothing,
             nothing,
             nothing

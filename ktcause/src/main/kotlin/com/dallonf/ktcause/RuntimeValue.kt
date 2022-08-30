@@ -10,8 +10,8 @@ sealed class RuntimeValue {
     data class BadValue(val position: SourcePosition, val error: ErrorLangType) : RuntimeValue()
 
     data class String(val value: kotlin.String) : RuntimeValue()
-    data class Integer(val value: Long) : RuntimeValue()
-    data class Float(val value: Double) : RuntimeValue()
+    data class Number(val value: Double) : RuntimeValue()
+    data class Count(val value: Long) : RuntimeValue()
 
     // TODO: probably want to make it harder to make an invalid RuntimeObject
     data class RuntimeObject(val typeDescriptor: CanonicalLangType, val values: List<RuntimeValue>) : RuntimeValue()
@@ -45,8 +45,8 @@ sealed class RuntimeValue {
             is FunctionValueLangType -> this is Function && this.type.isAssignableTo(constraint)
             is PrimitiveValueLangType -> when (valueType.kind) {
                 LangPrimitiveKind.STRING -> this is String
-                LangPrimitiveKind.INTEGER -> this is Integer
-                LangPrimitiveKind.FLOAT -> this is Float
+                LangPrimitiveKind.COUNT -> this is Count
+                LangPrimitiveKind.NUMBER -> this is Number
             }
 
             is OptionValueLangType -> valueType.options.any {
@@ -79,7 +79,7 @@ sealed class RuntimeValue {
 
     fun validate(): RuntimeValue {
         return when (this) {
-            is Action, is BadValue, is String, is Integer, is Float, is RuntimeTypeConstraint, is NativeFunction, is Function -> this
+            is Action, is BadValue, is String, is Count, is Number, is RuntimeTypeConstraint, is NativeFunction, is Function -> this
             is RuntimeObject -> {
                 // TODO: we shouldn't make a brand new object if it's all valid
                 val newValues = mutableListOf<RuntimeValue>()
@@ -98,39 +98,39 @@ sealed class RuntimeValue {
     fun isValid(): kotlin.Boolean {
         return when (this) {
             is BadValue -> false
-            is Action, is String, is Integer, is Float, is RuntimeTypeConstraint, is NativeFunction, is Function -> true
+            is Action, is String, is Count, is Number, is RuntimeTypeConstraint, is NativeFunction, is Function -> true
             is RuntimeObject -> this.values.all { it.isValid() }
         }
     }
 
     internal open fun toJson(): JsonElement {
         return when (this) {
-            is RuntimeValue.Action -> buildJsonObject {
+            is Action -> buildJsonObject {
                 put("#type", JsonPrimitive("Action"))
             }
 
-            is RuntimeValue.BadValue -> buildJsonObject {
+            is BadValue -> buildJsonObject {
                 put("#type", "BadValue")
                 put("position", Debug.debugSerializer.encodeToJsonElement(this@RuntimeValue.position))
                 put("error", Debug.debugSerializer.encodeToJsonElement(this@RuntimeValue.error))
             }
 
-            is RuntimeValue.Float -> JsonPrimitive(this.value)
-            is RuntimeValue.Integer -> JsonPrimitive(this.value)
+            is Number -> JsonPrimitive(this.value)
+            is Count -> JsonPrimitive(this.value)
 
-            is RuntimeValue.NativeFunction -> buildJsonObject {
+            is NativeFunction -> buildJsonObject {
                 put("#type", "NativeFunction")
                 put("name", this@RuntimeValue.name)
             }
 
-            is RuntimeValue.Function -> buildJsonObject {
+            is Function -> buildJsonObject {
                 put("#type", "Function")
                 if (name != null) {
                     put("name", name)
                 }
             }
 
-            is RuntimeValue.RuntimeObject -> {
+            is RuntimeObject -> {
                 val objectTypeFields = when (val type = this.typeDescriptor) {
                     is CanonicalLangType.SignalCanonicalLangType -> type.fields
                     is CanonicalLangType.ObjectCanonicalLangType -> type.fields
@@ -145,7 +145,7 @@ sealed class RuntimeValue {
                 }
             }
 
-            is RuntimeValue.RuntimeTypeConstraint -> buildJsonObject {
+            is RuntimeTypeConstraint -> buildJsonObject {
                 put("#type", "RuntimeTypeConstraint")
                 val idShortcut = (this@RuntimeValue.valueType as? InstanceValueLangType)?.let {
                     when (val canonicalType = it.canonicalType) {
@@ -161,7 +161,7 @@ sealed class RuntimeValue {
                 }
             }
 
-            is RuntimeValue.String -> JsonPrimitive(this.value)
+            is String -> JsonPrimitive(this.value)
         }
     }
 }

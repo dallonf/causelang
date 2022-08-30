@@ -250,7 +250,7 @@ class OptionsAndUniqueObjects {
                         },
                         "actual": {
                             "#type": "Primitive",
-                            "kind": "Integer"
+                            "kind": "Count"
                         }
                     }
                 }
@@ -304,7 +304,7 @@ class OptionsAndUniqueObjects {
                     },
                     "actual": {
                         "#type": "Primitive",
-                        "kind": "Integer"
+                        "kind": "Count"
                     }
                 }
             }
@@ -318,13 +318,13 @@ class OptionsAndUniqueObjects {
         val vm = LangVm()
         vm.addFileExpectingNoCompileErrors(
             "project/test.cau", """
-                option MaybeInteger(
+                option MaybeNumber(
                     object None,
-                    object Some(value: Integer),
+                    object Some(value: Number),
                 )
                 
-                function main(): MaybeInteger {
-                    MaybeInteger.Some(4)
+                function main(): MaybeNumber {
+                    MaybeNumber.Some(4)
                 }
             """.trimIndent()
         )

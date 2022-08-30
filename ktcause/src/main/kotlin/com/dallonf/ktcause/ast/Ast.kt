@@ -404,7 +404,12 @@ sealed interface ExpressionNode : AstNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
     }
 
-    data class IntegerLiteralExpression(override val info: NodeInfo, val value: Long) : ExpressionNode {
+
+    data class NumberLiteralExpression(override val info: NodeInfo, val value: Double) : ExpressionNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
+    }
+
+    data class CountLiteralExpression(override val info: NodeInfo, val value: Long) : ExpressionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
     }
 

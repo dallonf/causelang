@@ -1,4 +1,3 @@
-import TestUtils.addFileAndPrintCompileErrors
 import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
@@ -24,7 +23,7 @@ class VariablesTest {
         val result = vm.executeFunction("project/test.cau", "main", listOf()).let {
             TestUtils.expectValidCaused(it, vm.getBuiltinTypeId("Debug"))
         }
-        assertEquals(RuntimeValue.Integer(2), result.values[0])
+        assertEquals(RuntimeValue.Count(2), result.values[0])
     }
 
     @Test

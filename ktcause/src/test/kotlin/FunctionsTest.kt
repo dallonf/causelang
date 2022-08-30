@@ -114,9 +114,9 @@ class FunctionsTest {
                 import core/math (add)                   
                                 
                 function main(): Integer {
-                    let base = 1
+                    let base = 1.0
                     function next() {
-                        add(base, 2)
+                        add(base, 2.0)
                     }
                     next()
                 }
@@ -124,6 +124,6 @@ class FunctionsTest {
         )
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
-        assertEquals(RuntimeValue.Integer(3), result)
+        assertEquals(RuntimeValue.Number(3.0), result)
     }
 }

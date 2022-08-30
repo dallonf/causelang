@@ -19,8 +19,8 @@ object CoreExports {
         if (fileName == BUILTINS_FILE) {
             if (setOf(
                     "String",
-                    "Integer",
-                    "Float",
+                    "Number",
+                    "Count",
                     "BinaryAnswer",
                     "Action",
                     "Debug",
@@ -62,10 +62,19 @@ object CoreExports {
                     }
                 }
 
-                "integer_to_string" -> {
+                "count_to_string" -> {
                     return RuntimeValue.NativeFunction("integer_to_string") { params ->
-                        val value = params[0] as? RuntimeValue.Integer
-                            ?: throw LangVm.VmError("I was expecting the input to be an integer.")
+                        val value = params[0] as? RuntimeValue.Count
+                            ?: throw LangVm.VmError("I was expecting the input to be a Count.")
+
+                        RuntimeValue.String(value.value.toString())
+                    }
+                }
+
+                "number_to_string" -> {
+                    return RuntimeValue.NativeFunction("number_to_string") { params ->
+                        val value = params[0] as? RuntimeValue.Number
+                            ?: throw LangVm.VmError("I was expecting the input to be a Number.")
 
                         RuntimeValue.String(value.value.toString())
                     }
@@ -79,10 +88,19 @@ object CoreExports {
             when (exportName) {
                 "add" -> {
                     return RuntimeValue.NativeFunction("add") { params ->
-                        val val1 = params[0] as RuntimeValue.Integer
-                        val val2 = params[1] as RuntimeValue.Integer
+                        val val1 = params[0] as RuntimeValue.Number
+                        val val2 = params[1] as RuntimeValue.Number
 
-                        RuntimeValue.Integer(val1.value + val2.value)
+                        RuntimeValue.Number(val1.value + val2.value)
+                    }
+                }
+
+                "add_count" -> {
+                    return RuntimeValue.NativeFunction("add_count") { params ->
+                        val val1 = params[0] as RuntimeValue.Count
+                        val val2 = params[1] as RuntimeValue.Count
+
+                        RuntimeValue.Count(val1.value + val2.value)
                     }
                 }
 

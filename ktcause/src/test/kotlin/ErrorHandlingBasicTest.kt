@@ -106,7 +106,7 @@ internal class ErrorHandlingBasicTest {
                         },
                         "actual": {
                             "#type": "Primitive",
-                            "kind": "Integer"
+                            "kind": "Count"
                         }
                     }
                 }
@@ -136,7 +136,7 @@ internal class ErrorHandlingBasicTest {
                     },
                     "actual": {
                         "#type": "Primitive",
-                        "kind": "Integer"
+                        "kind": "Count"
                     }
                 }
             }
@@ -179,7 +179,7 @@ internal class ErrorHandlingBasicTest {
                         },
                         "actual": {
                             "#type": "Primitive",
-                            "kind": "Integer"
+                            "kind": "Count"
                         }
                     }
                 }
@@ -211,7 +211,7 @@ internal class ErrorHandlingBasicTest {
                         },
                         "actual": {
                             "#type": "Primitive",
-                            "kind": "Integer"
+                            "kind": "Count"
                         }
                     }
                 }
@@ -363,7 +363,7 @@ internal class ErrorHandlingBasicTest {
                         },
                         "actual": {
                             "#type": "Primitive",
-                            "kind": "Integer"
+                            "kind": "Count"
                         }
                     }
                 }

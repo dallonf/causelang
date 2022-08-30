@@ -1,9 +1,7 @@
-import TestUtils.addFileAndPrintCompileErrors
 import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.CompiledFile
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
-import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RuntimeValue
 import com.dallonf.ktcause.types.ActionValueLangType
 import com.dallonf.ktcause.types.CanonicalLangType
@@ -140,28 +138,28 @@ class EffectsBasicTest {
         val vm = LangVm()
         vm.addFileExpectingNoCompileErrors(
             "project/test.cau", """
-                import core/string (append, integer_to_string)
+                import core/string (append, number_to_string)
                 
                 signal TestSignal1(value: String): Action
-                signal TestSignal2(value: Integer): Action
+                signal TestSignal2(value: Number): Action
                 
                 function main() {
                     effect for TestSignal1 as s {
                         cause Debug(append("One ", s.value))
                     }
                     effect for TestSignal2 as s {
-                        cause Debug(append("Two ", integer_to_string(s.value)))
+                        cause Debug(append("Two ", number_to_string(s.value)))
                     }
                     
                     cause TestSignal1("hello")
-                    cause TestSignal2(42)
+                    cause TestSignal2(42.0)
                 }
             """.trimIndent()
         )
 
         TestUtils.runMainExpectingDebugs(
             vm, "project/test.cau", listOf(
-                "One hello", "Two 42"
+                "One hello", "Two 42.0"
             )
         )
     }
@@ -208,17 +206,17 @@ class EffectsBasicTest {
         val vm = LangVm()
         vm.addFileExpectingNoCompileErrors(
             "project/test.cau", """
-                signal SetX(value: Integer): Action
+                signal SetX(value: Number): Action
                 
                 function main() {
-                    let variable x = 1
+                    let variable x = 1.0
                     
                     effect for SetX as s {
                         set x = s.value
                     }
                     
                     function update() {
-                        cause SetX(2)
+                        cause SetX(2.0)
                     }
                     
                     update()
@@ -229,6 +227,6 @@ class EffectsBasicTest {
         )
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
-        assertEquals(RuntimeValue.Integer(2), result)
+        assertEquals(RuntimeValue.Number(2.0), result)
     }
 }

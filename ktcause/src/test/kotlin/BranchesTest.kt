@@ -397,25 +397,25 @@ class BranchesTest {
         val vm = LangVm()
         vm.addFileExpectingNoCompileErrors(
             "project/test.cau", """
-                import core/string (integer_to_string)
+                import core/string (number_to_string)
                 
                 object Nothing
-                option MaybeInteger(Nothing, Integer)
+                option MaybeNumber(Nothing, Number)
                 
                 function main() {
                     print_number(Nothing)
-                    print_number(42)
+                    print_number(42.0)
                 }                
                 
-                function print_number(this: MaybeInteger) {
+                function print_number(this: MaybeNumber) {
                     branch with this {
-                        is Integer as i => cause Debug(integer_to_string(i))
+                        is Number as i => cause Debug(number_to_string(i))
                         is Nothing => Action
                     }
                 }
             """.trimIndent()
         )
 
-        TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf("42"))
+        TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf("42.0"))
     }
 }
