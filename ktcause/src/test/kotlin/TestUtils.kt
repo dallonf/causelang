@@ -64,22 +64,16 @@ object TestUtils {
     fun runMainExpectingDebugValues(vm: LangVm, path: String, expected: List<RuntimeValue>) {
         var result = vm.executeFunction(path, "main", listOf())
         val debugType = vm.getTypeId("core/builtin.cau", "Debug")
-        var debugs = 0
-        while (result is RunResult.Caused) {
-            if (debugs >= expected.size) {
-                throw AssertionError("Excess signal! ${result.debug()}")
-            }
-            assertEquals(debugType, result.signal.typeDescriptor.id)
-            val expectedValue = expected[debugs]
-            assertEquals(expectedValue, result.signal.values[0])
 
-            debugs += 1
+        val debugs = mutableListOf<RuntimeValue>()
+        while (result is RunResult.Caused) {
+            assertEquals(debugType, result.signal.typeDescriptor.id)
+            debugs.add(result.signal.values[0])
+
             result = vm.resumeExecution(RuntimeValue.Action)
         }
-
-        if (debugs < expected.size) {
-            throw AssertionError("Premature return after $debugs Debugs")
-        }
+        
         assertEquals(RuntimeValue.Action, result.expectReturnValue())
+        assertEquals(expected, debugs)
     }
 }

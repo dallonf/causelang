@@ -2,6 +2,10 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.CompiledFile.CompiledExport
 import com.dallonf.ktcause.types.*
+import java.math.BigDecimal
+import java.math.BigInteger
+import java.math.MathContext
+import java.math.RoundingMode
 
 object CoreFiles {
     fun getBinaryAnswer(boolean: Boolean): RuntimeValue {
@@ -125,41 +129,108 @@ object CoreFiles {
         val filename = "core/math.cau"
 
         val exports = buildMap<String, CompiledExport> {
-            put("add", CompiledExport.NativeFunction(
-                FunctionValueLangType(
-                    name = "add", params = listOf(
-                        LangParameter(
-                            "this", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
-                        ),
-                        LangParameter(
-                            "other", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
-                        ),
-                    ), returnConstraint = LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
-                )
-            ) { (val1, val2) ->
-                require(val1 is RuntimeValue.Number)
-                require(val2 is RuntimeValue.Number)
 
-                RuntimeValue.Number(val1.value + val2.value)
-            })
+            listOf<Pair<String, (BigDecimal, BigDecimal) -> BigDecimal>>(
+                "add" to { x, y -> x + y },
+                "subtract" to { x, y -> x - y },
+                "multiply" to { x, y -> x * y },
+                "divide" to { x, y -> x / y },
+            ).forEach { (name, fn) ->
+                put(name, CompiledExport.NativeFunction(
+                    FunctionValueLangType(
+                        name = name,
+                        params = listOf(
+                            LangParameter(
+                                "this", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                            ),
+                            LangParameter(
+                                "other", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                            ),
+                        ),
+                        returnConstraint = LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                    )
+                ) { (val1, val2) ->
+                    require(val1 is RuntimeValue.Number)
+                    require(val2 is RuntimeValue.Number)
 
-            put("add_count", CompiledExport.NativeFunction(
+                    RuntimeValue.Number(fn(val1.value, val2.value))
+                })
+            }
+
+            listOf<Pair<String, (Long, Long) -> Long>>(
+                "add_count" to { x, y -> x + y },
+                "subtract_count" to { x, y -> x - y },
+                "multiply_count" to { x, y -> x * y },
+                "divide_count" to { x, y -> x / y },
+            ).forEach { (name, fn) ->
+                put(name, CompiledExport.NativeFunction(
+                    FunctionValueLangType(
+                        name = name, params = listOf(
+                            LangParameter(
+                                "this", LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                            ),
+                            LangParameter(
+                                "other", LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                            ),
+                        ), returnConstraint = LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                    )
+                ) { (val1, val2) ->
+                    require(val1 is RuntimeValue.Count)
+                    require(val2 is RuntimeValue.Count)
+
+                    RuntimeValue.Count(fn(val1.value, val2.value))
+                })
+            }
+
+            put("to_number", CompiledExport.NativeFunction(
                 FunctionValueLangType(
-                    name = "add_count", params = listOf(
+                    "to_number", params = listOf(
                         LangParameter(
                             "this", LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
-                        ),
-                        LangParameter(
-                            "other", LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
-                        ),
-                    ), returnConstraint = LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                        )
+                    ), returnConstraint = LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                 )
-            ) { (val1, val2) ->
-                require(val1 is RuntimeValue.Count)
-                require(val2 is RuntimeValue.Count)
-
-                RuntimeValue.Count(val1.value + val2.value)
+            ) { (thisVal) ->
+                require(thisVal is RuntimeValue.Count)
+                RuntimeValue.Number(thisVal.value)
             })
+
+            listOf<Pair<String, (BigDecimal) -> Long>>(
+                "round_to_count" to {
+                    it.round(
+                        MathContext(
+                            1, RoundingMode.HALF_UP
+                        )
+                    ).toLong()
+                },
+                "floor_to_count" to {
+                    it.round(
+                        MathContext(
+                            1, RoundingMode.FLOOR
+                        )
+                    ).toLong()
+                },
+                "ceiling_to_count" to {
+                    it.round(
+                        MathContext(
+                            1, RoundingMode.CEILING
+                        )
+                    ).toLong()
+                },
+            ).forEach { (name, fn) ->
+                put(name, CompiledExport.NativeFunction(
+                    FunctionValueLangType(
+                        name = name, params = listOf(
+                            LangParameter(
+                                "this", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                            ),
+                        ), returnConstraint = LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                    )
+                ) { (thisVal) ->
+                    require(thisVal is RuntimeValue.Number)
+                    RuntimeValue.Count(fn(thisVal.value))
+                })
+            }
         }
 
         CompiledFile(filename, types = emptyMap(), chunks = emptyList(), exports)
