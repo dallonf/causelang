@@ -3,6 +3,7 @@ package com.dallonf.ktcause
 import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
 import kotlinx.serialization.json.*
+import java.math.BigDecimal
 
 sealed class RuntimeValue {
     object Action : RuntimeValue()
@@ -10,7 +11,16 @@ sealed class RuntimeValue {
     data class BadValue(val position: SourcePosition, val error: ErrorLangType) : RuntimeValue()
 
     data class String(val value: kotlin.String) : RuntimeValue()
-    data class Number(val value: Double) : RuntimeValue()
+    data class Number(val value: BigDecimal) : RuntimeValue() {
+        constructor(value: Double) : this(value.toBigDecimal())
+        constructor(value: Long) : this(value.toBigDecimal())
+
+        override fun equals(other: Any?): Boolean {
+            if (other !is Number) return false
+            return value.compareTo(other.value) == 0
+        }
+    }
+
     data class Count(val value: Long) : RuntimeValue()
 
     // TODO: probably want to make it harder to make an invalid RuntimeObject
@@ -26,9 +36,9 @@ sealed class RuntimeValue {
         }
     }
 
-    // TODO: definitely don't want these to come from anywhere but the core modules
-    data class NativeFunction(val name: kotlin.String, val function: (List<RuntimeValue>) -> RuntimeValue) :
-        RuntimeValue()
+    data class NativeFunction internal constructor(
+        val name: kotlin.String, val function: (List<RuntimeValue>) -> RuntimeValue
+    ) : RuntimeValue()
 
     data class Function(
         val name: kotlin.String?,
@@ -37,6 +47,49 @@ sealed class RuntimeValue {
         val type: FunctionValueLangType,
         val capturedValues: List<RuntimeValue>
     ) : RuntimeValue()
+
+    companion object {
+        fun fromExport(
+            file: CompiledFile, exportName: kotlin.String
+        ): RuntimeValue {
+            val export =
+                requireNotNull(file.exports[exportName]) { "The file ${file.path} doesn't export anything (at least non-private) called $exportName." }
+
+            val value = when (export) {
+                is CompiledFile.CompiledExport.Constraint -> {
+                    val valueType = export.constraint.asValueType()
+                    valueType.getRuntimeError()?.let {
+                        BadValue(SourcePosition.Export(file.path, exportName), it)
+                    } ?: RuntimeTypeConstraint(valueType as ResolvedValueLangType)
+                }
+
+                is CompiledFile.CompiledExport.Function -> {
+                    if (export.type is FunctionValueLangType) {
+                        val functionName = export.type.name ?: exportName
+                        Function(
+                            functionName, file, export.chunkIndex, export.type, capturedValues = listOf()
+                        )
+                    } else {
+                        BadValue(
+                            SourcePosition.Export(
+                                file.path, exportName
+                            ), export.type.getRuntimeError()!!
+                        )
+                    }
+                }
+
+                is CompiledFile.CompiledExport.NativeFunction -> {
+                    NativeFunction(export.type.name ?: exportName, export.function)
+                }
+
+                is CompiledFile.CompiledExport.Value -> TODO()
+                is CompiledFile.CompiledExport.Error -> {
+                    BadValue(SourcePosition.Export(file.path, exportName), export.error)
+                }
+            }
+            return value
+        }
+    }
 
     fun isAssignableTo(constraint: ConstraintValueLangType): kotlin.Boolean {
         return when (val valueType = constraint.valueType) {

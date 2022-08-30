@@ -86,9 +86,9 @@ object Resolver {
         debugContext: Debug.DebugContext? = null,
     ): Pair<ResolvedFile, List<ResolverError>> {
         val allOtherFiles = otherFiles.toMutableMap().also {
-            val core = CoreDescriptors.coreBuiltinFile
-            it[core.first] = core.second
-            it.putAll(CoreDescriptors.coreFiles)
+            for (file in CoreFiles.all) {
+                it[file.path] = file.toFileDescriptor()
+            }
         }.toMap()
 
         val nodeTags = analyzed.nodeTags
@@ -96,7 +96,7 @@ object Resolver {
         val resolvedTypes = mutableMapOf<ResolutionKey, ValueLangType>()
         val knownCanonicalTypes = mutableMapOf<CanonicalLangTypeId, CanonicalLangType>()
 
-        val builtins = CoreDescriptors.coreBuiltinFile.second.exports
+        val builtins = CoreFiles.builtin.toFileDescriptor().exports
 
         // Seed the crawler with everything the compiler will want to know about
         run {

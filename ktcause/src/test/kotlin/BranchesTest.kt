@@ -13,9 +13,7 @@ class BranchesTest {
     fun branchExpressionReturnsValue() {
         val vm = LangVm()
         vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
-                import core/string (equals)
-                
+            "project/test.cau", """                
                 function main() {
                     branch {
                         if equals("red", "blue") => "nope"

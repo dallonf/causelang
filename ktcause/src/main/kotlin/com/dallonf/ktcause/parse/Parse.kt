@@ -1,6 +1,6 @@
 package com.dallonf.ktcause.parse
 
-import com.dallonf.ktcause.CoreDescriptors
+import com.dallonf.ktcause.CoreFiles
 import com.dallonf.ktcause.antlr.*
 import com.dallonf.ktcause.antlr.CauseParser.*
 import com.dallonf.ktcause.ast.*
@@ -28,7 +28,8 @@ fun parse(source: String): FileNode {
 }
 
 fun generateCoreBuiltinsImport(breadcrumbs: Breadcrumbs): DeclarationNode.Import {
-    val (coreBuiltinFilepath, coreBuiltinFile) = CoreDescriptors.coreBuiltinFile
+    val coreBuiltinFilepath = CoreFiles.builtin.path
+    val coreBuiltinFile = CoreFiles.builtin.toFileDescriptor()
     val coreBuiltinNames = coreBuiltinFile.exports.map { (key, _) -> key }
     val position = DocumentRange(DocumentPosition(0, 0), DocumentPosition(0, 0))
     return DeclarationNode.Import(NodeInfo(position, breadcrumbs),
@@ -424,7 +425,7 @@ private fun parseNumberLiteralExpression(
     expression: NumberLiteralExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ExpressionNode.NumberLiteralExpression {
     val text = expression.NUMBER_LITERAL().text
-    val number = text.replace("_", "").toDouble()
+    val number = text.replace("_", "").toBigDecimal()
 
     return ExpressionNode.NumberLiteralExpression(
         NodeInfo(expression.getRange(), breadcrumbs), number

@@ -66,7 +66,7 @@ object Compiler {
                     if (objectType is ConstraintValueLangType && objectType.valueType is InstanceValueLangType) {
                         types[objectType.valueType.canonicalType.id] = objectType.valueType.canonicalType
                         exports[declaration.name.text] =
-                            CompiledFile.CompiledExport.Type(objectType.valueType.canonicalType.id)
+                            CompiledFile.CompiledExport.Constraint(objectType.asConstraintReference())
                     } else if (error != null) {
                         exports[declaration.name.text] = CompiledFile.CompiledExport.Error(error)
                     } else {
@@ -81,7 +81,7 @@ object Compiler {
                     if (signalType is ConstraintValueLangType && signalType.valueType is InstanceValueLangType) {
                         types[signalType.valueType.canonicalType.id] = signalType.valueType.canonicalType
                         exports[declaration.name.text] =
-                            CompiledFile.CompiledExport.Type(signalType.valueType.canonicalType.id)
+                            CompiledFile.CompiledExport.Constraint(signalType.asConstraintReference())
                     } else if (error != null) {
                         exports[declaration.name.text] = CompiledFile.CompiledExport.Error(error)
                     } else {

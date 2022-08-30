@@ -9,38 +9,30 @@ import kotlin.test.assertEquals
 
 class IoTest {
     fun ioFile(): CompiledFile {
-        val printId = CanonicalLangTypeId(
-            "test/io.cau", name = "Print", number = 0u
+        val print = CanonicalLangType.SignalCanonicalLangType(
+            CanonicalLangTypeId(
+                "test/io.cau", name = "Print", number = 0u
+            ), "Print", fields = listOf(
+                CanonicalLangType.ObjectField(
+                    "message", LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                )
+            ), result = ActionValueLangType.toConstraint().asConstraintReference()
         )
-        val promptId = CanonicalLangTypeId(
-            "test/io.cau", name = "Prompt", number = 0u
+        val prompt = CanonicalLangType.SignalCanonicalLangType(
+            CanonicalLangTypeId(
+                "test/io.cau", name = "Prompt", number = 0u
+            ),
+            "Prompt",
+            fields = listOf(),
+            result = LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
         )
 
         return CompiledFile("test/io.cau", types = buildMap {
-            put(
-                printId, CanonicalLangType.SignalCanonicalLangType(
-                    printId,
-                    "Print",
-                    fields = listOf(
-                        CanonicalLangType.ObjectField(
-                            "message",
-                            LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
-                        )
-                    ),
-                    result = ActionValueLangType.toConstraint().asConstraintReference()
-                )
-            )
-            put(
-                promptId, CanonicalLangType.SignalCanonicalLangType(
-                    promptId,
-                    "Prompt",
-                    fields = listOf(),
-                    result = LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
-                )
-            )
+            put(print.id, print)
+            put(prompt.id, prompt)
         }, chunks = emptyList(), exports = buildMap {
-            put("Print", CompiledFile.CompiledExport.Type(printId))
-            put("Prompt", CompiledFile.CompiledExport.Type(promptId))
+            put("Print", CompiledFile.CompiledExport.Constraint(print.asConstraintReference()))
+            put("Prompt", CompiledFile.CompiledExport.Constraint(prompt.asConstraintReference()))
         })
     }
 
@@ -61,8 +53,7 @@ class IoTest {
         )
 
         val result1 = TestUtils.expectValidCaused(
-            vm.executeFunction("project/test.cau", "main", listOf()),
-            vm.getTypeId("test/io.cau", "Print")
+            vm.executeFunction("project/test.cau", "main", listOf()), vm.getTypeId("test/io.cau", "Print")
         )
         assertEquals(
             result1.debug(), """
@@ -74,8 +65,7 @@ class IoTest {
         )
 
         val result2 = TestUtils.expectValidCaused(
-            vm.resumeExecution(RuntimeValue.Action),
-            vm.getTypeId("test/io.cau", "Prompt")
+            vm.resumeExecution(RuntimeValue.Action), vm.getTypeId("test/io.cau", "Prompt")
         )
         assertEquals(
             result2.debug(), """
@@ -86,8 +76,7 @@ class IoTest {
         )
 
         val result3 = TestUtils.expectValidCaused(
-            vm.resumeExecution(RuntimeValue.String("Bob")),
-            vm.getTypeId("test/io.cau", "Print")
+            vm.resumeExecution(RuntimeValue.String("Bob")), vm.getTypeId("test/io.cau", "Print")
         )
         assertEquals(
             result3.debug(), """
@@ -120,16 +109,13 @@ class IoTest {
         )
 
         TestUtils.expectValidCaused(
-            vm.executeFunction("project/test.cau", "main", listOf()),
-            vm.getTypeId("test/io.cau", "Print")
+            vm.executeFunction("project/test.cau", "main", listOf()), vm.getTypeId("test/io.cau", "Print")
         )
         TestUtils.expectValidCaused(
-            vm.resumeExecution(RuntimeValue.Action),
-            vm.getTypeId("test/io.cau", "Prompt")
+            vm.resumeExecution(RuntimeValue.Action), vm.getTypeId("test/io.cau", "Prompt")
         )
         val finalPrint = TestUtils.expectValidCaused(
-            vm.resumeExecution(RuntimeValue.String("Bob")),
-            vm.getTypeId("test/io.cau", "Print")
+            vm.resumeExecution(RuntimeValue.String("Bob")), vm.getTypeId("test/io.cau", "Print")
         )
         assertEquals(finalPrint.values[0], RuntimeValue.String("Hello, Bob"))
 
@@ -156,12 +142,10 @@ class IoTest {
         )
 
         TestUtils.expectValidCaused(
-            vm.executeFunction("project/test.cau", "main", listOf()),
-            vm.getTypeId("test/io.cau", "Prompt")
+            vm.executeFunction("project/test.cau", "main", listOf()), vm.getTypeId("test/io.cau", "Prompt")
         )
         val finalPrint = TestUtils.expectValidCaused(
-            vm.resumeExecution(RuntimeValue.String("Bob")),
-            vm.getTypeId("test/io.cau", "Print")
+            vm.resumeExecution(RuntimeValue.String("Bob")), vm.getTypeId("test/io.cau", "Print")
         )
         assertEquals(finalPrint.values[0], RuntimeValue.String("Hello, Bob"))
         assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturnValue(), RuntimeValue.Action)

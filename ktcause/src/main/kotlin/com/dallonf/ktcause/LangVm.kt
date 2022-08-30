@@ -45,6 +45,12 @@ class LangVm {
         val position: SourcePosition, val error: ErrorLangType, val proxyChain: List<SourcePosition>
     )
 
+    init {
+        for (coreFile in CoreFiles.all) {
+            files[coreFile.path] = coreFile
+        }
+    }
+
     fun addCompiledFile(file: CompiledFile) {
         files[file.path] = file
     }
@@ -71,13 +77,7 @@ class LangVm {
     }
 
     private fun getFileDescriptor(filePath: String): Resolver.ExternalFileDescriptor {
-        return if (filePath == CoreExports.BUILTINS_FILE) {
-            CoreDescriptors.coreBuiltinFile.second
-        } else if (filePath.startsWith("core/")) {
-            CoreDescriptors.coreFiles.find { it.first == filePath }?.second
-        } else {
-            files[filePath]?.toFileDescriptor()
-        }.let { requireNotNull(it) { "I couldn't find a file called $filePath" } }
+        return requireNotNull(files[filePath]?.toFileDescriptor()) { "I couldn't find a file called $filePath" }
     }
 
     fun getType(filePath: String, name: String): CanonicalLangType {
@@ -96,7 +96,7 @@ class LangVm {
         return getType(filePath, name).id
     }
 
-    fun getBuiltinTypeId(name: String) = getTypeId(CoreExports.BUILTINS_FILE, name)
+    fun getBuiltinTypeId(name: String) = getTypeId(CoreFiles.builtin.path, name)
 
     fun executeFunction(filePath: String, functionName: String, parameters: List<RuntimeValue>): RunResult {
         val file = requireNotNull(files[filePath]) { "I don't know about any file at $filePath." }
@@ -227,16 +227,12 @@ class LangVm {
                             }
                         }
 
-                        if (filePath.startsWith("core/")) {
-                            val value = CoreExports.getCoreExport(filePath, exportName)
-                            stack.addLast(value)
-                        } else {
-                            val file =
-                                requireNotNull(files[filePath]) { throw InternalVmError("I couldn't find the file: $filePath.") }
 
-                            val value = getExportAsRuntimeValue(exportName, file)
-                            stack.addLast(value)
-                        }
+                        val file =
+                            requireNotNull(files[filePath]) { throw InternalVmError("I couldn't find the file: $filePath.") }
+
+                        val value = RuntimeValue.fromExport(file, exportName)
+                        stack.addLast(value)
                     }
 
                     is Instruction.ImportSameFile -> {
@@ -244,7 +240,7 @@ class LangVm {
                             requireNotNull(getConstant(instruction.exportNameConstant) as? CompiledFile.CompiledConstant.StringConst) {
                                 throw InternalVmError("Can't get exportName")
                             }.value
-                        val value = getExportAsRuntimeValue(exportName, callFrame.file)
+                        val value = RuntimeValue.fromExport(callFrame.file, exportName)
                         stack.addLast(value)
                     }
 
@@ -380,7 +376,7 @@ class LangVm {
 
                         val type = (typeValue as RuntimeValue.RuntimeTypeConstraint).valueType
 
-                        stack.addLast(CoreExports.getBinaryAnswer(value.isAssignableTo(type.toConstraint())))
+                        stack.addLast(CoreFiles.getBinaryAnswer(value.isAssignableTo(type.toConstraint())))
                     }
 
                     is Instruction.Jump -> {
@@ -392,7 +388,7 @@ class LangVm {
                         if (condition is RuntimeValue.BadValue) {
                             throw VmError(condition.debug())
                         }
-                        if (condition == CoreExports.getBinaryAnswer(false)) {
+                        if (condition == CoreFiles.getBinaryAnswer(false)) {
                             callFrame.instruction = instruction.instruction
                         }
                     }
@@ -485,45 +481,6 @@ class LangVm {
             }
         }
     }
-
-    private fun getExportAsRuntimeValue(
-        exportName: String, file: CompiledFile
-    ): RuntimeValue {
-        val export =
-            requireNotNull(file.exports[exportName]) { "The file ${file.path} doesn't export anything (at least non-private) called $exportName." }
-
-        val value = when (export) {
-            is CompiledFile.CompiledExport.Type -> {
-                val canonicalType =
-                    requireNotNull(file.types[export.typeId]) { "The file ${file.path} exports a type of ${export.typeId} but doesn't define it" }
-
-                RuntimeValue.RuntimeTypeConstraint(
-                    InstanceValueLangType(canonicalType)
-                )
-            }
-
-            is CompiledFile.CompiledExport.Function -> {
-                if (export.type is FunctionValueLangType) {
-                    val functionName = export.type.name ?: exportName
-                    RuntimeValue.Function(functionName, file, export.chunkIndex, export.type, capturedValues = listOf())
-                } else {
-                    RuntimeValue.BadValue(
-                        SourcePosition.Export(
-                            file.path, exportName
-                        ), export.type.getRuntimeError()!!
-                    )
-                }
-            }
-
-            is CompiledFile.CompiledExport.Value -> TODO()
-            is CompiledFile.CompiledExport.Error -> {
-                RuntimeValue.BadValue(SourcePosition.Export(file.path, exportName), export.error)
-            }
-        }
-        return value
-    }
-
-
 }
 
 sealed interface RunResult {

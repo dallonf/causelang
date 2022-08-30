@@ -15,19 +15,20 @@ class EffectsBasicTest {
     fun interceptSignal() {
         val vm = LangVm()
         val interceptThisTypeId = CanonicalLangTypeId("test/test.cau", name = "InterceptThis", number = 0u)
+        val interceptThisType = CanonicalLangType.SignalCanonicalLangType(
+            interceptThisTypeId,
+            interceptThisTypeId.name!!,
+            listOf(),
+            result = ActionValueLangType.toConstraint().asConstraintReference()
+        )
         vm.addCompiledFile(
             CompiledFile(
                 "test/test.cau",
                 types = mapOf(
-                    interceptThisTypeId to CanonicalLangType.SignalCanonicalLangType(
-                        interceptThisTypeId,
-                        interceptThisTypeId.name!!,
-                        listOf(),
-                        result = ActionValueLangType.toConstraint().asConstraintReference()
-                    )
+                    interceptThisTypeId to interceptThisType
                 ),
                 chunks = listOf(),
-                exports = mapOf(interceptThisTypeId.name!! to CompiledFile.CompiledExport.Type(interceptThisTypeId))
+                exports = mapOf(interceptThisTypeId.name!! to CompiledFile.CompiledExport.Constraint(interceptThisType.asConstraintReference()))
             )
         )
         vm.addFileExpectingNoCompileErrors(
@@ -60,20 +61,21 @@ class EffectsBasicTest {
     fun getValuesFromCapturedSignal() {
         val vm = LangVm()
         val greetTypeId = CanonicalLangTypeId("test/test.cau", name = "Greet", number = 0u)
+        val greetType = CanonicalLangType.SignalCanonicalLangType(
+            greetTypeId, greetTypeId.name!!, listOf(
+                CanonicalLangType.ObjectField(
+                    "name", LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                )
+            ), result = ActionValueLangType.toConstraint().asConstraintReference()
+        )
         vm.addCompiledFile(
             CompiledFile(
                 "test/test.cau",
                 types = mapOf(
-                    greetTypeId to CanonicalLangType.SignalCanonicalLangType(
-                        greetTypeId, greetTypeId.name!!, listOf(
-                            CanonicalLangType.ObjectField(
-                                "name", LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
-                            )
-                        ), result = ActionValueLangType.toConstraint().asConstraintReference()
-                    )
+                    greetTypeId to greetType
                 ),
                 chunks = listOf(),
-                exports = mapOf(greetTypeId.name!! to CompiledFile.CompiledExport.Type(greetTypeId))
+                exports = mapOf(greetTypeId.name!! to CompiledFile.CompiledExport.Constraint(greetType.asConstraintReference()))
             )
         )
         vm.addFileExpectingNoCompileErrors(
@@ -227,6 +229,6 @@ class EffectsBasicTest {
         )
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
-        assertEquals(RuntimeValue.Number(2.0), result)
+        assertEquals(RuntimeValue.Number(2), result)
     }
 }

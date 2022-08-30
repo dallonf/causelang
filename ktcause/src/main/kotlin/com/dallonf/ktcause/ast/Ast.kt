@@ -8,6 +8,7 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import java.math.BigDecimal
 
 
 data class DocumentPosition(val line: Int, val column: Int) {
@@ -405,7 +406,7 @@ sealed interface ExpressionNode : AstNode {
     }
 
 
-    data class NumberLiteralExpression(override val info: NodeInfo, val value: Double) : ExpressionNode {
+    data class NumberLiteralExpression(override val info: NodeInfo, val value: BigDecimal) : ExpressionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
     }
 

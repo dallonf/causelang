@@ -59,11 +59,13 @@ class EarlyReturns {
         val nothing = RuntimeValue.RuntimeTypeConstraint(
             InstanceValueLangType(vm.getType("project/test.cau", "Nothing"))
         )
-        runMainExpectingDebugValues(vm, "project/test.cau", listOf(
-            RuntimeValue.Number(3.0),
-            nothing,
-            nothing,
-            nothing
-        ))
+        runMainExpectingDebugValues(
+            vm, "project/test.cau", listOf(
+                RuntimeValue.Number(3),
+                nothing,
+                nothing,
+                nothing
+            )
+        )
     }
 }

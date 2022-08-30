@@ -2,6 +2,7 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
+import java.math.BigDecimal
 
 data class CompiledFile(
     val path: String,
@@ -13,11 +14,8 @@ data class CompiledFile(
         val exportDescriptors = mutableMapOf<String, ValueLangType>()
         for ((exportName, export) in exports) {
             when (export) {
-                is CompiledExport.Type -> {
-                    val canonicalType = types[export.typeId]
-                    requireNotNull(canonicalType) { "$path describes a type (${export.typeId}) but doesn't define it" }
-
-                    exportDescriptors[exportName] = ConstraintValueLangType(InstanceValueLangType(canonicalType))
+                is CompiledExport.Constraint -> {
+                    exportDescriptors[exportName] = export.constraint.asConstraintValue()
                 }
 
                 is CompiledExport.Error -> {
@@ -25,6 +23,10 @@ data class CompiledFile(
                 }
 
                 is CompiledExport.Function -> {
+                    exportDescriptors[exportName] = export.type
+                }
+
+                is CompiledExport.NativeFunction -> {
                     exportDescriptors[exportName] = export.type
                 }
 
@@ -92,7 +94,7 @@ data class CompiledFile(
 
     sealed interface CompiledConstant {
         data class StringConst(val value: String) : CompiledConstant
-        data class NumberConst(val value: Double) : CompiledConstant
+        data class NumberConst(val value: BigDecimal) : CompiledConstant
         data class CountConst(val value: Long) : CompiledConstant
         data class ErrorConst(val sourcePosition: SourcePosition, val error: ErrorLangType) : CompiledConstant
 
@@ -101,8 +103,13 @@ data class CompiledFile(
 
     sealed interface CompiledExport {
         data class Error(val error: ErrorLangType) : CompiledExport
-        data class Type(val typeId: CanonicalLangTypeId) : CompiledExport
+        data class Constraint(val constraint: ConstraintReference) : CompiledExport
         data class Function(val chunkIndex: Int, val type: ValueLangType) : CompiledExport
+        data class NativeFunction internal constructor(
+            val type: FunctionValueLangType,
+            val function: (List<RuntimeValue>) -> RuntimeValue,
+        ) : CompiledExport
+
         data class Value(val constant: CompiledConstant?, val type: ValueLangType) : CompiledExport
     }
 }
