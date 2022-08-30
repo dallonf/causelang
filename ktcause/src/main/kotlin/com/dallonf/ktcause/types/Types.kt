@@ -363,8 +363,8 @@ enum class LangPrimitiveKind() {
     @SerialName("Number")
     NUMBER,
 
-    @SerialName("Count")
-    COUNT;
+    @SerialName("WholeNumber")
+    WHOLE_NUMBER;
 
 
     fun toValueLangType() = PrimitiveValueLangType(this)

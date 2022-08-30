@@ -19,9 +19,13 @@ sealed class RuntimeValue {
             if (other !is Number) return false
             return value.compareTo(other.value) == 0
         }
+
+        override fun hashCode(): Int {
+            return value.hashCode()
+        }
     }
 
-    data class Count(val value: Long) : RuntimeValue()
+    data class WholeNumber(val value: Long) : RuntimeValue()
 
     // TODO: probably want to make it harder to make an invalid RuntimeObject
     data class RuntimeObject(val typeDescriptor: CanonicalLangType, val values: List<RuntimeValue>) : RuntimeValue()
@@ -98,7 +102,7 @@ sealed class RuntimeValue {
             is FunctionValueLangType -> this is Function && this.type.isAssignableTo(constraint)
             is PrimitiveValueLangType -> when (valueType.kind) {
                 LangPrimitiveKind.STRING -> this is String
-                LangPrimitiveKind.COUNT -> this is Count
+                LangPrimitiveKind.WHOLE_NUMBER -> this is WholeNumber
                 LangPrimitiveKind.NUMBER -> this is Number
             }
 
@@ -132,7 +136,7 @@ sealed class RuntimeValue {
 
     fun validate(): RuntimeValue {
         return when (this) {
-            is Action, is BadValue, is String, is Count, is Number, is RuntimeTypeConstraint, is NativeFunction, is Function -> this
+            is Action, is BadValue, is String, is WholeNumber, is Number, is RuntimeTypeConstraint, is NativeFunction, is Function -> this
             is RuntimeObject -> {
                 // TODO: we shouldn't make a brand new object if it's all valid
                 val newValues = mutableListOf<RuntimeValue>()
@@ -151,7 +155,7 @@ sealed class RuntimeValue {
     fun isValid(): kotlin.Boolean {
         return when (this) {
             is BadValue -> false
-            is Action, is String, is Count, is Number, is RuntimeTypeConstraint, is NativeFunction, is Function -> true
+            is Action, is String, is WholeNumber, is Number, is RuntimeTypeConstraint, is NativeFunction, is Function -> true
             is RuntimeObject -> this.values.all { it.isValid() }
         }
     }
@@ -169,7 +173,7 @@ sealed class RuntimeValue {
             }
 
             is Number -> JsonPrimitive(this.value)
-            is Count -> JsonPrimitive(this.value)
+            is WholeNumber -> JsonPrimitive(this.value)
 
             is NativeFunction -> buildJsonObject {
                 put("#type", "NativeFunction")

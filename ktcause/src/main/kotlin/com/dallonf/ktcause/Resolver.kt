@@ -239,8 +239,8 @@ object Resolver {
                         }
 
                         is ExpressionNode.StringLiteralExpression -> resolveWith(LangPrimitiveKind.STRING.toValueLangType())
-                        is ExpressionNode.CountLiteralExpression -> resolveWith(LangPrimitiveKind.COUNT.toValueLangType())
-                        is ExpressionNode.NumberLiteralExpression -> resolveWith(LangPrimitiveKind.NUMBER.toValueLangType())
+                        is ExpressionNode.IntegerLiteralExpression -> resolveWith(LangPrimitiveKind.WHOLE_NUMBER.toValueLangType())
+                        is ExpressionNode.DecimalLiteralExpression -> resolveWith(LangPrimitiveKind.NUMBER.toValueLangType())
 
                         is ExpressionNode.BlockExpressionNode -> resolveWith(getResolvedTypeOf(node.block))
 

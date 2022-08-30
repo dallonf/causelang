@@ -352,13 +352,13 @@ object Compiler {
                 )
             )
 
-            is ExpressionNode.NumberLiteralExpression -> chunk.writeLiteral(
+            is ExpressionNode.DecimalLiteralExpression -> chunk.writeLiteral(
                 CompiledFile.CompiledConstant.NumberConst(
                     expression.value
                 )
             )
-            is ExpressionNode.CountLiteralExpression -> chunk.writeLiteral(
-                CompiledFile.CompiledConstant.CountConst(
+            is ExpressionNode.IntegerLiteralExpression -> chunk.writeLiteral(
+                CompiledFile.CompiledConstant.WholeNumberConst(
                     expression.value
                 )
             )

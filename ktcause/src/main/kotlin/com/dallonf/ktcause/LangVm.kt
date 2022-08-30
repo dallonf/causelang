@@ -199,7 +199,7 @@ class LangVm {
                     is Instruction.Literal -> {
                         val newValue = when (val constant = getConstant(instruction.constant)) {
                             is CompiledFile.CompiledConstant.StringConst -> RuntimeValue.String(constant.value)
-                            is CompiledFile.CompiledConstant.CountConst -> RuntimeValue.Count(constant.value)
+                            is CompiledFile.CompiledConstant.WholeNumberConst -> RuntimeValue.WholeNumber(constant.value)
                             is CompiledFile.CompiledConstant.NumberConst -> RuntimeValue.Number(constant.value)
                             is CompiledFile.CompiledConstant.TypeConst -> throw InternalVmError("This isn't supposed to be used as a literal: $constant")
                             is CompiledFile.CompiledConstant.ErrorConst -> RuntimeValue.BadValue(

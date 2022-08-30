@@ -24,20 +24,20 @@ class MathTest {
     }
 
     @Test
-    fun fourFunctionCount() {
+    fun fourFunctionWhole() {
         val vm = LangVm()
         vm.addFileExpectingNoCompileErrors(
             "project/test.cau", """
-                import core/math (add_count, subtract_count, multiply_count, divide_count)
+                import core/math (add_whole, subtract_whole, multiply_whole, divide_whole)
                             
                 function main() {
-                    divide_count(multiply_count(subtract_count(add_count(1, 2), 5), 6), 3)
+                    divide_whole(multiply_whole(subtract_whole(add_whole(1, 2), 5), 6), 3)
                 }
             """.trimIndent()
         )
 
         vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue().let {
-            assertEquals(RuntimeValue.Count(-4), it)
+            assertEquals(RuntimeValue.WholeNumber(-4), it)
         }
     }
 
@@ -46,43 +46,45 @@ class MathTest {
         val vm = LangVm()
         vm.addFileExpectingNoCompileErrors(
             "project/test.cau", """
-                import core/math (round_to_count, floor_to_count, ceiling_to_count, to_number)
+                import core/math (round, floor, ceiling, to_number)
                             
                 function main() {
                     cause Debug(to_number(3))
-                    cause Debug(round_to_count(1.2))
-                    cause Debug(round_to_count(2.5))
-                    cause Debug(round_to_count(3.7))
-                    cause Debug(round_to_count(4.0))
-                    cause Debug(floor_to_count(1.2))
-                    cause Debug(floor_to_count(2.5))
-                    cause Debug(floor_to_count(3.7))
-                    cause Debug(floor_to_count(4.0))
-                    cause Debug(ceiling_to_count(1.2))
-                    cause Debug(ceiling_to_count(2.5))
-                    cause Debug(ceiling_to_count(3.7))
-                    cause Debug(ceiling_to_count(4.0))
+                    cause Debug(round(1.2))
+                    cause Debug(round(2.5))
+                    cause Debug(round(3.7))
+                    cause Debug(round(4.0))
+                    cause Debug(floor(1.2))
+                    cause Debug(floor(2.5))
+                    cause Debug(floor(3.7))
+                    cause Debug(floor(4.0))
+                    cause Debug(ceiling(1.2))
+                    cause Debug(ceiling(2.5))
+                    cause Debug(ceiling(3.7))
+                    cause Debug(ceiling(4.0))
                 }
             """.trimIndent()
         )
 
-        TestUtils.runMainExpectingDebugValues(vm, "project/test.cau", listOf(
-            RuntimeValue.Number(3),
-            // rounding
-            RuntimeValue.Count(1),
-            RuntimeValue.Count(3),
-            RuntimeValue.Count(4),
-            RuntimeValue.Count(4),
-            // flooring
-            RuntimeValue.Count(1),
-            RuntimeValue.Count(2),
-            RuntimeValue.Count(3),
-            RuntimeValue.Count(4),
-            // ceiling...ing
-            RuntimeValue.Count(2),
-            RuntimeValue.Count(3),
-            RuntimeValue.Count(4),
-            RuntimeValue.Count(4),
-        ))
+        TestUtils.runMainExpectingDebugValues(
+            vm, "project/test.cau", listOf(
+                RuntimeValue.Number(3),
+                // rounding
+                RuntimeValue.WholeNumber(1),
+                RuntimeValue.WholeNumber(3),
+                RuntimeValue.WholeNumber(4),
+                RuntimeValue.WholeNumber(4),
+                // flooring
+                RuntimeValue.WholeNumber(1),
+                RuntimeValue.WholeNumber(2),
+                RuntimeValue.WholeNumber(3),
+                RuntimeValue.WholeNumber(4),
+                // ceiling...ing
+                RuntimeValue.WholeNumber(2),
+                RuntimeValue.WholeNumber(3),
+                RuntimeValue.WholeNumber(4),
+                RuntimeValue.WholeNumber(4),
+            )
+        )
     }
 }

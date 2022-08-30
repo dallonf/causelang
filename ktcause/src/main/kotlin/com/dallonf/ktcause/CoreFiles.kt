@@ -3,7 +3,6 @@ package com.dallonf.ktcause
 import com.dallonf.ktcause.CompiledFile.CompiledExport
 import com.dallonf.ktcause.types.*
 import java.math.BigDecimal
-import java.math.BigInteger
 import java.math.MathContext
 import java.math.RoundingMode
 
@@ -86,8 +85,8 @@ object CoreFiles {
                 )
             )
             put(
-                "Count", CompiledExport.Constraint(
-                    LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                "WholeNumber", CompiledExport.Constraint(
+                    LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
                 )
             )
             put("Action", CompiledExport.Constraint(ActionValueLangType.valueToConstraintReference()))
@@ -158,27 +157,27 @@ object CoreFiles {
             }
 
             listOf<Pair<String, (Long, Long) -> Long>>(
-                "add_count" to { x, y -> x + y },
-                "subtract_count" to { x, y -> x - y },
-                "multiply_count" to { x, y -> x * y },
-                "divide_count" to { x, y -> x / y },
+                "add_whole" to { x, y -> x + y },
+                "subtract_whole" to { x, y -> x - y },
+                "multiply_whole" to { x, y -> x * y },
+                "divide_whole" to { x, y -> x / y },
             ).forEach { (name, fn) ->
                 put(name, CompiledExport.NativeFunction(
                     FunctionValueLangType(
                         name = name, params = listOf(
                             LangParameter(
-                                "this", LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                                "this", LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
                             ),
                             LangParameter(
-                                "other", LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                                "other", LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
                             ),
-                        ), returnConstraint = LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                        ), returnConstraint = LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
                     )
                 ) { (val1, val2) ->
-                    require(val1 is RuntimeValue.Count)
-                    require(val2 is RuntimeValue.Count)
+                    require(val1 is RuntimeValue.WholeNumber)
+                    require(val2 is RuntimeValue.WholeNumber)
 
-                    RuntimeValue.Count(fn(val1.value, val2.value))
+                    RuntimeValue.WholeNumber(fn(val1.value, val2.value))
                 })
             }
 
@@ -186,31 +185,31 @@ object CoreFiles {
                 FunctionValueLangType(
                     "to_number", params = listOf(
                         LangParameter(
-                            "this", LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                            "this", LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
                         )
                     ), returnConstraint = LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                 )
             ) { (thisVal) ->
-                require(thisVal is RuntimeValue.Count)
+                require(thisVal is RuntimeValue.WholeNumber)
                 RuntimeValue.Number(thisVal.value)
             })
 
             listOf<Pair<String, (BigDecimal) -> Long>>(
-                "round_to_count" to {
+                "round" to {
                     it.round(
                         MathContext(
                             1, RoundingMode.HALF_UP
                         )
                     ).toLong()
                 },
-                "floor_to_count" to {
+                "floor" to {
                     it.round(
                         MathContext(
                             1, RoundingMode.FLOOR
                         )
                     ).toLong()
                 },
-                "ceiling_to_count" to {
+                "ceiling" to {
                     it.round(
                         MathContext(
                             1, RoundingMode.CEILING
@@ -224,11 +223,11 @@ object CoreFiles {
                             LangParameter(
                                 "this", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                             ),
-                        ), returnConstraint = LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                        ), returnConstraint = LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
                     )
                 ) { (thisVal) ->
                     require(thisVal is RuntimeValue.Number)
-                    RuntimeValue.Count(fn(thisVal.value))
+                    RuntimeValue.WholeNumber(fn(thisVal.value))
                 })
             }
         }
@@ -271,16 +270,16 @@ object CoreFiles {
                 RuntimeValue.String(thisVal.value.toString())
             })
 
-            put("count_to_string", CompiledExport.NativeFunction(
+            put("whole_number_to_string", CompiledExport.NativeFunction(
                 FunctionValueLangType(
-                    name = "count_to_string", params = listOf(
+                    name = "whole_number_to_string", params = listOf(
                         LangParameter(
-                            "this", LangPrimitiveKind.COUNT.toConstraintLangType().asConstraintReference()
+                            "this", LangPrimitiveKind.WHOLE_NUMBER.toConstraintLangType().asConstraintReference()
                         )
                     ), returnConstraint = LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
                 )
             ) { (thisVal) ->
-                require(thisVal is RuntimeValue.Count)
+                require(thisVal is RuntimeValue.WholeNumber)
                 RuntimeValue.String(thisVal.value.toString())
             })
         }

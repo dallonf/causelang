@@ -14,8 +14,8 @@ UNDERSCORE : '_' ;
 DOT : '.' ;
 
 STRING_LITERAL : '"' .*? '"' ;
-NUMBER_LITERAL : [0-9] [0-9_]* DOT [0-9]+ ;
-COUNT_LITERAL : [0-9][0-9_]* ;
+DECIMAL_LITERAL : [0-9] [0-9_]* DOT [0-9]+ ;
+INTEGER_LITERAL : [0-9][0-9_]* ;
 
 AS : 'as' ;
 BRANCH : 'branch' ;
@@ -77,7 +77,7 @@ declarationStatement : declaration ;
 effectStatement : EFFECT NEWLINE* FOR NEWLINE* pattern NEWLINE* body ;
 setStatement : SET NEWLINE* IDENTIFIER NEWLINE* EQUALS NEWLINE* expression ;
 
-expression : (blockExpression | branchExpression | causeExpression | returnExpression | stringLiteralExpression | numberLiteralExpression | countLiteralExpression | identifierExpression)
+expression : (blockExpression | branchExpression | causeExpression | returnExpression | stringLiteralExpression | decimalLiteralExpression | integerLiteralExpression | identifierExpression)
     expressionSuffix* ;
 
 blockExpression : block ;
@@ -86,8 +86,8 @@ branchExpression : BRANCH NEWLINE* branchWith? NEWLINE* CURLY_OPEN NEWLINE* (bra
 causeExpression : CAUSE NEWLINE* expression ;
 returnExpression : RETURN expression? ; // no newline supported here
 stringLiteralExpression : STRING_LITERAL ;
-numberLiteralExpression : NUMBER_LITERAL ;
-countLiteralExpression : COUNT_LITERAL ;
+decimalLiteralExpression : DECIMAL_LITERAL ;
+integerLiteralExpression : INTEGER_LITERAL ;
 identifierExpression : IDENTIFIER ;
 
 expressionSuffix : callExpressionSuffix | memberExpressionSuffix ;

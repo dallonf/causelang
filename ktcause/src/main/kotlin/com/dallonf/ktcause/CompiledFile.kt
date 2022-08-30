@@ -95,7 +95,7 @@ data class CompiledFile(
     sealed interface CompiledConstant {
         data class StringConst(val value: String) : CompiledConstant
         data class NumberConst(val value: BigDecimal) : CompiledConstant
-        data class CountConst(val value: Long) : CompiledConstant
+        data class WholeNumberConst(val value: Long) : CompiledConstant
         data class ErrorConst(val sourcePosition: SourcePosition, val error: ErrorLangType) : CompiledConstant
 
         data class TypeConst(val type: ValueLangType) : CompiledConstant
