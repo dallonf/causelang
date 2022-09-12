@@ -1,5 +1,3 @@
-import TestUtils.addFileAndPrintCompileErrors
-import TestUtils.addFileExpectingNoCompileErrors
 import TestUtils.expectTypeError
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
@@ -11,18 +9,20 @@ import kotlin.test.assertEquals
 class BranchesTest {
     @Test
     fun branchExpressionReturnsValue() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """                
-                function main() {
-                    branch {
-                        if equals("red", "blue") => "nope"
-                        if equals("red", "red") => "yup"
-                        else => "wut"
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """                
+                    function main() {
+                        branch {
+                            if equals("red", "blue") => "nope"
+                            if equals("red", "red") => "yup"
+                            else => "wut"
+                        }
                     }
-                }
-            """.trimIndent()
-        )
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         val result = vm.executeFunction("project/test.cau", "main", listOf())
         assertEquals(RuntimeValue.String("yup"), result.expectReturnValue())
@@ -30,30 +30,32 @@ class BranchesTest {
 
     @Test
     fun branchWithOptionType() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
-                object Hearts
-                object Diamonds
-                object Spades
-                object Clubs
-                option Suit(Hearts, Diamonds, Spades, Clubs)
-                
-                function main() {
-                    process_suit(Hearts)
-                    process_suit(Diamonds)
-                    process_suit(Clubs)
-                }                
-                
-                function process_suit(this: Suit) {
-                    branch with this {
-                        is Hearts => cause Debug("Hearts")
-                        is Diamonds => cause Debug("Diamonds")
-                        else => cause Debug("something else")
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    object Hearts
+                    object Diamonds
+                    object Spades
+                    object Clubs
+                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    
+                    function main() {
+                        process_suit(Hearts)
+                        process_suit(Diamonds)
+                        process_suit(Clubs)
+                    }                
+                    
+                    function process_suit(this: Suit) {
+                        branch with this {
+                            is Hearts => cause Debug("Hearts")
+                            is Diamonds => cause Debug("Diamonds")
+                            else => cause Debug("something else")
+                        }
                     }
-                }
-            """.trimIndent()
-        )
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         TestUtils.runMainExpectingDebugs(
             vm, "project/test.cau", listOf(

@@ -8,14 +8,16 @@ import kotlin.test.assertEquals
 internal class HelloWorldTest {
     @Test
     fun helloWorld() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/hello.cau", """
-                function main() {
-                    cause Debug("Hello world!")
-                }
-            """.trimIndent()
-        )
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """
+                    function main() {
+                        cause Debug("Hello world!")
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         val result1 = vm.executeFunction("project/hello.cau", "main", listOf()).expectCausedSignal()
         assertEquals(
@@ -24,8 +26,7 @@ internal class HelloWorldTest {
                     "#type": "core/builtin.cau:Debug",
                     "value": "Hello world!"
                 }
-            """.trimIndent(),
-            result1.debug()
+            """.trimIndent(), result1.debug()
         )
 
         val result2 = vm.resumeExecution(RuntimeValue.Action).expectReturnValue()

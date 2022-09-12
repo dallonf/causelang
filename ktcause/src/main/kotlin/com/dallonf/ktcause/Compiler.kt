@@ -105,7 +105,7 @@ object Compiler {
             }
         }
 
-        return CompiledFile(resolved.path, types, ctx.chunks, exports)
+        return CompiledFile(resolved.path, types, ctx.chunks, exports, resolved.debugContext())
     }
 
     private fun compileFunction(

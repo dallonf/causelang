@@ -9,6 +9,7 @@ data class CompiledFile(
     val types: Map<CanonicalLangTypeId, CanonicalLangType>,
     val chunks: List<InstructionChunk>,
     val exports: Map<String, CompiledExport>,
+    val debugCtx: Debug.DebugContext? = null
 ) {
     fun toFileDescriptor(): Resolver.ExternalFileDescriptor {
         val exportDescriptors = mutableMapOf<String, ValueLangType>()

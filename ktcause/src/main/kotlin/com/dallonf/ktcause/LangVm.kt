@@ -7,17 +7,17 @@ import com.dallonf.ktcause.types.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class LangVm {
+class LangVm(val codeBundle: CodeBundle) {
+    constructor(buildBundle: CodeBundleBuilder.() -> Unit) : this(CodeBundleBuilder().let { builder ->
+        buildBundle(builder)
+        builder.build()
+    })
+
     open class VmError(message: String) : Error(message)
     class InternalVmError(message: String) :
         VmError("$message This probably isn't your fault. This shouldn't happen if the compiler is working properly.")
 
-    private val files = mutableMapOf<String, CompiledFile>()
-    private val _compileErrors = mutableListOf<Resolver.ResolverError>()
     private var callFrame: CallFrame? = null
-
-    val compileErrors: List<Resolver.ResolverError>
-        get() = _compileErrors
 
     private data class RuntimeEffect(
         val file: CompiledFile,
@@ -38,68 +38,17 @@ class LangVm {
         var instruction: Int = 0
         var pendingSignal: RuntimeValue.RuntimeObject? = null
 
-        fun executionParent() = causeParent ?: callParent
+        val executionParent
+            get() = causeParent ?: callParent
     }
 
     data class ErrorTrace(
         val position: SourcePosition, val error: ErrorLangType, val proxyChain: List<SourcePosition>
     )
 
-    init {
-        for (coreFile in CoreFiles.all) {
-            files[coreFile.path] = coreFile
-        }
-    }
-
-    fun addCompiledFile(file: CompiledFile) {
-        files[file.path] = file
-    }
-
-    fun addFile(filePath: String, source: String): Debug.DebugContext {
-        val astNode = parse(source)
-        val analyzedFile = Analyzer.analyzeFile(astNode)
-        // TODO: need a step between here and compilation to allow for loading other files
-
-        val otherFiles = files.mapValues { (path, compiledFile) -> compiledFile.toFileDescriptor() }
-        val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
-            filePath,
-            astNode,
-            analyzedFile,
-            otherFiles,
-            debugContext = Debug.DebugContext(source = source, ast = astNode, analyzed = analyzedFile)
-        )
-        _compileErrors.addAll(resolverErrors)
-
-        val compiledFile = Compiler.compile(astNode, analyzedFile, resolvedFile)
-        addCompiledFile(compiledFile)
-
-        return Debug.DebugContext(source = source, ast = astNode, analyzed = analyzedFile, resolved = resolvedFile)
-    }
-
-    private fun getFileDescriptor(filePath: String): Resolver.ExternalFileDescriptor {
-        return requireNotNull(files[filePath]?.toFileDescriptor()) { "I couldn't find a file called $filePath" }
-    }
-
-    fun getType(filePath: String, name: String): CanonicalLangType {
-        val descriptor = getFileDescriptor(filePath)
-
-        val found = requireNotNull(descriptor.exports[name]) { "$filePath doesn't have an export called $name." }
-
-        if (found is ConstraintValueLangType && found.valueType is InstanceValueLangType) {
-            return found.valueType.canonicalType
-        } else {
-            throw VmError("$name isn't a canonical type.")
-        }
-    }
-
-    fun getTypeId(filePath: String, name: String): CanonicalLangTypeId {
-        return getType(filePath, name).id
-    }
-
-    fun getBuiltinTypeId(name: String) = getTypeId(CoreFiles.builtin.path, name)
 
     fun executeFunction(filePath: String, functionName: String, parameters: List<RuntimeValue>): RunResult {
-        val file = requireNotNull(files[filePath]) { "I don't know about any file at $filePath." }
+        val file = codeBundle.requireFile(filePath)
         val export =
             requireNotNull(file.exports[functionName]) { "The file at $filePath doesn't contain anything (at least that's not private) called $functionName." }
 
@@ -232,9 +181,7 @@ class LangVm {
                         }
 
 
-                        val file =
-                            requireNotNull(files[filePath]) { throw InternalVmError("I couldn't find the file: $filePath.") }
-
+                        val file = codeBundle.requireFile(filePath)
                         val value = RuntimeValue.fromExport(file, exportName)
                         stack.addLast(value)
                     }

@@ -9,40 +9,33 @@ import kotlin.test.assertEquals
 object TestUtils {
 
     fun expectNoCompileErrors(vm: LangVm) {
-        if (vm.compileErrors.isNotEmpty()) {
-            throw AssertionError("Compile errors: ${vm.compileErrors.debug()}")
+        val (_, compileErrors) = vm.codeBundle
+        if (compileErrors.isNotEmpty()) {
+            printCompileErrors(vm)
+            throw AssertionError("Compile errors: ${compileErrors.debug()}")
         }
     }
 
     fun printCompileErrors(vm: LangVm) {
-        if (vm.compileErrors.isNotEmpty()) {
-            println("Compile errors: ${vm.compileErrors.debug()}")
-        }
-    }
-
-    fun LangVm.addFileAndPrintCompileErrors(path: String, source: String): Debug.DebugContext {
-        val debugCtx = addFile(path, source)
-        val errorsForFile = compileErrors.filter { it.position.path == path }
-        if (errorsForFile.isNotEmpty()) {
-            println("Compile errors in file:\n")
-            for (error in errorsForFile) {
+        val (files, compileErrors) = vm.codeBundle
+        if (compileErrors.isNotEmpty()) {
+            println("Compile errors:\n")
+            for (error in compileErrors) {
                 println(error.debug())
-                println(debugCtx.getNodeContext(error.position.breadcrumbs))
-                println("------------------------------");
+                val file = files[error.position.path]!!
+                if (file.debugCtx != null) {
+                    println(file.debugCtx!!.getNodeContext(error.position.breadcrumbs))
+                } else {
+                    println("Can't show error for ${file.path}")
+                }
             }
         }
-        return debugCtx
-    }
-
-    fun LangVm.addFileExpectingNoCompileErrors(path: String, source: String) {
-        addFileAndPrintCompileErrors(path, source)
-        expectNoCompileErrors(this)
     }
 
     // TODO: it's kinda weird that there's two ways to get almost the same runtime error, hm?
     fun expectTypeError(result: RunResult, vm: LangVm): RuntimeValue.BadValue {
         require(result is RunResult.Caused)
-        assertEquals(vm.getTypeId("core/builtin.cau", "TypeError"), result.signal.typeDescriptor.id)
+        assertEquals(vm.codeBundle.getTypeId("core/builtin.cau", "TypeError"), result.signal.typeDescriptor.id)
         return result.signal.values[0] as RuntimeValue.BadValue
     }
 
@@ -63,7 +56,7 @@ object TestUtils {
 
     fun runMainExpectingDebugValues(vm: LangVm, path: String, expected: List<RuntimeValue>) {
         var result = vm.executeFunction(path, "main", listOf())
-        val debugType = vm.getTypeId("core/builtin.cau", "Debug")
+        val debugType = vm.codeBundle.getTypeId("core/builtin.cau", "Debug")
 
         val debugs = mutableListOf<RuntimeValue>()
         while (result is RunResult.Caused) {

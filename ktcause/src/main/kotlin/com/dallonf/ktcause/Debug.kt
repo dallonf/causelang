@@ -100,7 +100,7 @@ object Debug {
             val position = node?.info?.position
 
             if (node != null && position != null) {
-                builder.appendLine("${node::class.simpleName} at $position")
+                builder.appendLine("${node::class.simpleName} at $position${resolved?.let { " in ${resolved.path}" } ?: ""}")
             }
 
             if (position != null && source != null) {
@@ -121,17 +121,13 @@ object Debug {
             }
 
             if (resolved != null) {
-                builder.appendLine(
-                    "Inferred type: ${
-                        resolved.resolvedTypes[ResolutionKey(
-                            ResolutionType.INFERRED,
-                            breadcrumbs
-                        )]?.let { debugSerializer.encodeToString(it) }
-                    }"
-                )
+                builder.appendLine("Inferred type: ${
+                    resolved.resolvedTypes[ResolutionKey(
+                        ResolutionType.INFERRED, breadcrumbs
+                    )]?.let { debugSerializer.encodeToString(it) }
+                }")
                 val constraint = resolved.resolvedTypes[ResolutionKey(
-                    ResolutionType.CONSTRAINT,
-                    breadcrumbs
+                    ResolutionType.CONSTRAINT, breadcrumbs
                 )]
                 if (constraint != null) {
                     builder.appendLine(
