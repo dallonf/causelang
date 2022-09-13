@@ -775,18 +775,30 @@ object Resolver {
                         }
 
                         is DeclarationNode.Import.MappingNode -> {
-                            val referenceFileTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.ReferencesFile }
-                            val exportName = node.sourceName.text
-                            val file = allOtherFiles[referenceFileTag.path] ?: run {
-                                resolveWith(ErrorLangType.FileNotFound)
-                                return@eachPendingNode
-                            }
-                            val export = file.exports[exportName] ?: run {
-                                resolveWith(ErrorLangType.ExportNotFound)
-                                return@eachPendingNode
+                            val referenceFileTag =
+                                pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.ReferencesFile }
+                            if (referenceFileTag != null) {
+                                val exportName = node.sourceName.text
+                                val file = allOtherFiles[referenceFileTag.path] ?: run {
+                                    resolveWith(ErrorLangType.FileNotFound)
+                                    return@eachPendingNode
+                                }
+                                val export = file.exports[exportName] ?: run {
+                                    resolveWith(ErrorLangType.ExportNotFound)
+                                    return@eachPendingNode
+                                }
+
+                                resolveWith(export)
                             }
 
-                            resolveWith(export)
+                            val comesFromTag = pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
+                            val badFileTag =
+                                comesFromTag?.source.let { source -> nodeTags[source]?.firstNotNullOfOrNull { it as? NodeTag.BadFileReference } }
+
+                            if (badFileTag != null) {
+                                resolveWith(ErrorLangType.ImportPathInvalid)
+                                return@eachPendingNode
+                            }
                         }
 
                         else -> {}

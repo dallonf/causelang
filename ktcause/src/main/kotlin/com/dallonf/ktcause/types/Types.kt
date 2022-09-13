@@ -161,6 +161,10 @@ sealed interface ErrorLangType : ValueLangType {
     object FileNotFound : ErrorLangType
 
     @Serializable
+    @SerialName("ImportPathInvalid")
+    object ImportPathInvalid : ErrorLangType
+
+    @Serializable
     @SerialName("ExportNotFound")
     object ExportNotFound : ErrorLangType
 

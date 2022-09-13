@@ -31,6 +31,7 @@ object Debug {
             subclass(ErrorLangType.NotInScope::class)
             subclass(ErrorLangType.FileNotFound::class)
             subclass(ErrorLangType.ExportNotFound::class)
+            subclass(ErrorLangType.ImportPathInvalid::class)
             subclass(ErrorLangType.ProxyError::class)
             subclass(ErrorLangType.NotCallable::class)
             subclass(ErrorLangType.NotCausable::class)

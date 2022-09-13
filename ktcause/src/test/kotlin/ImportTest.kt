@@ -162,4 +162,68 @@ class ImportTest {
 
         TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf("hearts"))
     }
+
+    @Test
+    fun cantGoUpIndefinitely() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                import ../core/math (subtract)
+                import ./inner/a (four)
+                
+                function main() {
+                    subtract(four(), 1)
+                }
+                """.trimIndent()
+            )
+
+            addFile(
+                "project/inner/a.cau", """
+                import ../../core/math (add)
+                import ../../../../../what (what)
+                
+                function four() {
+                    add(2, 2)
+                }
+                """.trimIndent()
+            )
+        }
+
+        assertEquals(
+            """
+            [
+                {
+                    "position": {
+                        "path": "project/inner/a.cau",
+                        "breadcrumbs": "declarations.1.mappings.0",
+                        "position": "1:24-1:27"
+                    },
+                    "error": {
+                        "#type": "ImportPathInvalid"
+                    }
+                },
+                {
+                    "position": {
+                        "path": "project/inner/a.cau",
+                        "breadcrumbs": "declarations.2.mappings.0",
+                        "position": "2:28-2:32"
+                    },
+                    "error": {
+                        "#type": "ImportPathInvalid"
+                    }
+                },
+                {
+                    "position": {
+                        "path": "project/test.cau",
+                        "breadcrumbs": "declarations.1.mappings.0",
+                        "position": "1:21-1:29"
+                    },
+                    "error": {
+                        "#type": "ImportPathInvalid"
+                    }
+                }
+            ]
+            """.trimIndent(), vm.codeBundle.compileErrors.debug()
+        )
+    }
 }

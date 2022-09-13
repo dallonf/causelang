@@ -35,6 +35,10 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
+    object BadFileReference : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+    }
+
     data class ValueComesFrom(val source: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(source, ValueGoesTo(destination = breadcrumbs))
     }
@@ -258,9 +262,11 @@ object Analyzer {
             }
         }
         val path = run {
+            val filePathItems = ctx.path.split("/")
+            val projectRoot = filePathItems.take(1)
+
             val importedPathItems = importedPath.split("/")
             var currentPath = if (importedPathItems[0].let { it == "." || it == ".." }) {
-                val filePathItems = ctx.path.split("/")
                 filePathItems.dropLast(1)
             } else {
                 emptyList()
@@ -269,8 +275,17 @@ object Analyzer {
             for (importedPathItem in importedPathItems) {
                 when (importedPathItem) {
                     "." -> {}
-                    // TODO: don't allow going above the current project's root
-                    ".." -> currentPath = currentPath.dropLast(1)
+                    ".." -> {
+                        if (currentPath == projectRoot) {
+                            output.addTag(declaration.info.breadcrumbs, NodeTag.BadFileReference)
+                            for (mappingNode in declaration.mappings) {
+                                output.addValueFlowTag(declaration.info.breadcrumbs, mappingNode.info.breadcrumbs)
+                            }
+                            return
+                        }
+                        currentPath = currentPath.dropLast(1)
+                    }
+
                     else -> currentPath = currentPath + listOf(importedPathItem)
                 }
             }
