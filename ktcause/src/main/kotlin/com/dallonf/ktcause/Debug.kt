@@ -108,7 +108,7 @@ object Debug {
                 val fields = this.values.mapIndexed { i, value ->
                     "${fieldTypes[i].name} = ${value.debugMini()}"
                 }.joinToString(", ")
-                "[${this.typeDescriptor.id.name ?: "object"}] {${fields}}"
+                "[${this.typeDescriptor.id.name ?: "object"} { $fields }]"
             }
 
             is RuntimeValue.RuntimeTypeConstraint -> {

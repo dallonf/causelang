@@ -165,6 +165,10 @@ object Compiler {
     ) {
         ctx.scopeStack.addLast(CompilerScope(block.info.breadcrumbs, CompilerScope.ScopeType.BODY))
 
+        if (block.statements.isEmpty()) {
+            chunk.writeInstruction(Instruction.PushAction)
+        }
+
         for ((i, statement) in block.statements.withIndex()) {
             compileStatement(
                 statement, chunk, ctx, isLastStatement = i == block.statements.lastIndex
@@ -503,6 +507,7 @@ object Compiler {
         ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY, openLoop))
         compileBody(expression.body, chunk, ctx)
         ctx.scopeStack.removeLast()
+        chunk.writeInstruction(Instruction.Pop())
         chunk.writeInstruction(Instruction.Jump(startInstruction))
         for (placeholder in openLoop.endPlaceholders) {
             placeholder.fill()
