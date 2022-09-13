@@ -1,5 +1,7 @@
 package com.dallonf.ktcause
 
+import com.dallonf.ktcause.Debug.debug
+import com.dallonf.ktcause.Debug.debugMini
 import com.dallonf.ktcause.ast.Breadcrumbs
 import com.dallonf.ktcause.ast.FileNode
 import com.dallonf.ktcause.types.*
@@ -84,6 +86,52 @@ object Debug {
 
     fun RuntimeValue.debug(): kotlin.String {
         return Debug.debugSerializer.encodeToString(this.toJson())
+    }
+
+    fun RuntimeValue.debugMini(): kotlin.String {
+        return when (this) {
+            is RuntimeValue.Action -> "[Action]"
+            is RuntimeValue.BadValue -> "[BadValue: ${this.error::class.simpleName}]"
+            is RuntimeValue.Function -> if (this.name != null) {
+                "[Function: ${this.name}]"
+            } else {
+                "[Function]"
+            }
+
+            is RuntimeValue.NativeFunction -> "[NativeFunction: ${this.name}]"
+            is RuntimeValue.Number -> this.value.toString()
+            is RuntimeValue.RuntimeObject -> {
+                val fieldTypes = when (this.typeDescriptor) {
+                    is CanonicalLangType.ObjectCanonicalLangType -> this.typeDescriptor.fields
+                    is CanonicalLangType.SignalCanonicalLangType -> this.typeDescriptor.fields
+                }
+                val fields = this.values.mapIndexed { i, value ->
+                    "${fieldTypes[i].name} = ${value.debugMini()}"
+                }.joinToString(", ")
+                "[${this.typeDescriptor.id.name ?: "object"}] {${fields}}"
+            }
+
+            is RuntimeValue.RuntimeTypeConstraint -> {
+                val valueType = when (this.valueType) {
+                    ActionValueLangType -> "Action"
+                    AnySignalValueLangType -> "AnySignal"
+                    AnythingValueLangType -> "Anything"
+                    BadValueLangType -> "BadValue"
+                    is ConstraintValueLangType -> "TypeConstraint"
+                    is FunctionValueLangType -> "Function"
+                    is InstanceValueLangType -> this.valueType.canonicalType.id.name ?: "object"
+                    NeverContinuesValueLangType -> "NeverContinues"
+                    is OptionValueLangType -> "Option"
+                    is PrimitiveValueLangType -> when (this.valueType.kind) {
+                        LangPrimitiveKind.STRING -> "String"
+                        LangPrimitiveKind.NUMBER -> "Number"
+                    }
+                }
+                "[TypeConstraint: $valueType]"
+            }
+
+            is RuntimeValue.String -> debugSerializer.encodeToString(this.toJson())
+        }
     }
 
     data class DebugContext(

@@ -1,6 +1,7 @@
 package com.dallonf.ktcause
 
 import com.dallonf.ktcause.Debug.debug
+import com.dallonf.ktcause.Debug.debugMini
 import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.parse.parse
 import com.dallonf.ktcause.types.*
@@ -114,7 +115,7 @@ class LangVm(val codeBundle: CodeBundle) {
                 }
 
                 // TODO: VM play-by-play enabled optionally
-                val debugStack = stackJsonSerializer.encodeToString(stack.map { it.toJson() })
+                val debugStack = stack.map { it.debugMini() }.joinToString(", ")
                 println("stack: $debugStack")
                 println("instruction #${callFrame.instruction - 1}: $instruction")
 
