@@ -39,16 +39,13 @@ class CodeBundleBuilder {
     private val compiledFiles = mutableMapOf<String, CompiledFile>()
 
     data class PendingFile(
-        val path: String,
-        val ast: FileNode,
-        val analyzed: AnalyzedNode,
-        val debugContext: Debug.DebugContext
+        val path: String, val ast: FileNode, val analyzed: AnalyzedNode, val debugContext: Debug.DebugContext
     )
 
     private val pendingFiles = mutableListOf<PendingFile>()
 
     val requiredFilePaths: List<String>
-        get() = pendingFiles.flatMap { it.analyzed.filesReferenced }
+        get() = pendingFiles.flatMap { it.analyzed.filesReferenced }.filter { !it.startsWith("core/") }
 
     fun addCompiledFile(file: CompiledFile) {
         compiledFiles[file.path] = file
@@ -60,10 +57,7 @@ class CodeBundleBuilder {
         val debugCtx = Debug.DebugContext(source, astNode, analyzedFile)
         pendingFiles.add(
             PendingFile(
-                filePath,
-                astNode,
-                analyzedFile,
-                debugCtx
+                filePath, astNode, analyzedFile, debugCtx
             )
         )
         return debugCtx
@@ -85,11 +79,7 @@ class CodeBundleBuilder {
         ) {
             val otherFiles = referencedCompiledFiles.associate { it.path to it.toFileDescriptor() }
             val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
-                file.path,
-                file.ast,
-                file.analyzed,
-                otherFiles,
-                file.debugContext
+                file.path, file.ast, file.analyzed, otherFiles, file.debugContext
             )
             finalCompileErrors.addAll(resolverErrors)
             val compiledFile = Compiler.compile(file.ast, file.analyzed, resolvedFile)
@@ -119,10 +109,7 @@ class CodeBundleBuilder {
 
         // at this point, anything that remains won't have all the files they need, but let's go ahead and compile them anyway
         for (file in workingPendingFiles) {
-            compilePending(
-                file,
-                file.analyzed.filesReferenced.mapNotNull { path -> finalCompiledFiles[path] }
-            )
+            compilePending(file, file.analyzed.filesReferenced.mapNotNull { path -> finalCompiledFiles[path] })
         }
 
         return CodeBundle(finalCompiledFiles, finalCompileErrors)
