@@ -99,4 +99,67 @@ class ImportTest {
             """.trimIndent(), vm.codeBundle.compileErrors.debug()
         )
     }
+
+    @Test
+    fun relativeImports() {
+        val builder = CodeBundleBuilder()
+        builder.addFile(
+            "project/test.cau", """
+                import ./support ( print_hello )
+                
+                function main() {
+                    print_hello()
+                }
+            """.trimIndent()
+        )
+        assertEquals(listOf("project/support.cau"), builder.requiredFilePaths)
+        builder.addFile(
+            "project/support.cau", """
+                function print_hello() {
+                    cause Debug("Hello World")
+                }
+            """.trimIndent()
+        )
+
+        val vm = LangVm(builder.build())
+        TestUtils.expectNoCompileErrors(vm)
+
+        TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf("Hello World"))
+    }
+
+    @Test
+    fun relativeImportsAcrossDirectories() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import ./card/suit (hearts)
+                    
+                    function main() {
+                        hearts()
+                    }
+                """.trimIndent()
+            )
+
+            addFile(
+                "project/util.cau", """
+                    function print(message: String) {
+                        cause Debug(message)
+                    }
+                """.trimIndent()
+            )
+
+            addFile(
+                "project/card/suit.cau", """
+                    import ../util (print)
+                    
+                    function hearts() {
+                        print("hearts")
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf("hearts"))
+    }
 }

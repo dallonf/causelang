@@ -110,20 +110,22 @@ object Analyzer {
     }
 
     private data class AnalyzerContext(
+        val path: String,
         val currentScope: Scope,
         val fileRootScope: Scope,
         val currentScopePosition: Breadcrumbs,
         val currentFunction: Breadcrumbs?
     ) {
         fun clone(breadcrumbs: Breadcrumbs) =
-            AnalyzerContext(currentScope.extend(), fileRootScope, breadcrumbs, currentFunction)
+            AnalyzerContext(path, currentScope.extend(), fileRootScope, breadcrumbs, currentFunction)
     }
 
-    fun analyzeFile(astNode: FileNode): AnalyzedNode {
+    fun analyzeFile(filePath: String, astNode: FileNode): AnalyzedNode {
         val result = AnalyzedNode()
         val rootScope = Scope()
 
         val ctx = AnalyzerContext(
+            filePath,
             currentScope = rootScope,
             fileRootScope = rootScope,
             currentScopePosition = astNode.info.breadcrumbs,
@@ -247,7 +249,7 @@ object Analyzer {
     private fun analyzeImportDeclaration(
         declaration: DeclarationNode.Import, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        val path = run {
+        val importedPath = run {
             val it = declaration.path.path
             if (!it.endsWith(".cau")) {
                 "$it.cau"
@@ -255,6 +257,25 @@ object Analyzer {
                 it
             }
         }
+        val path = run {
+            val importedPathItems = importedPath.split("/")
+            var currentPath = if (importedPathItems[0].let { it == "." || it == ".." }) {
+                val filePathItems = ctx.path.split("/")
+                filePathItems.dropLast(1)
+            } else {
+                emptyList()
+            }
+
+            for (importedPathItem in importedPathItems) {
+                when (importedPathItem) {
+                    "." -> {}
+                    // TODO: don't allow going above the current project's root
+                    ".." -> currentPath = currentPath.dropLast(1)
+                    else -> currentPath = currentPath + listOf(importedPathItem)
+                }
+            }
+            currentPath
+        }.joinToString("/")
 
         output.addFileReference(path)
         output.addTag(declaration.info.breadcrumbs, NodeTag.ReferencesFile(path, null))
@@ -280,7 +301,7 @@ object Analyzer {
         )
 
         val newCtx = AnalyzerContext(
-            ctx.currentScope.copy(
+            ctx.path, ctx.currentScope.copy(
                 items = ctx.currentScope.items.mapValues { (key, value) ->
                     if (value is LocalScopeItem) {
                         CapturedValueScopeItem(value.origin)
@@ -358,6 +379,7 @@ object Analyzer {
                                 analyzeDeclaration(statementNode.declaration, output, currentCtx)
 
                                 currentCtx = AnalyzerContext(
+                                    currentCtx.path,
                                     currentCtx.currentScope.extend(),
                                     currentCtx.fileRootScope,
                                     currentCtx.currentScopePosition,
@@ -373,6 +395,7 @@ object Analyzer {
 
                         is StatementNode.EffectStatement -> {
                             val effectCtx = AnalyzerContext(
+                                currentCtx.path,
                                 currentCtx.currentScope.extend(),
                                 currentCtx.fileRootScope,
                                 statementNode.info.breadcrumbs,

@@ -35,7 +35,7 @@ SET : 'set' ;
 SIGNAL : 'signal' ;
 VARIABLE : 'variable' ;
 WITH : 'with' ;
-PATH : [a-zA-Z0-9_\-]+ '/' [a-zA-Z_\-/]+ ;
+PATH : [a-zA-Z0-9_\-.]+ '/' [a-zA-Z_\-/.]+ ;
 IDENTIFIER : [a-zA-Z_] [a-zA-Z0-9_]* ; // TODO: need moar emoji
 
 file : NEWLINE* (declaration (NEWLINE+ declaration)*)? NEWLINE* EOF ;

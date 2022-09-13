@@ -53,7 +53,7 @@ class CodeBundleBuilder {
 
     fun addFile(filePath: String, source: String): Debug.DebugContext {
         val astNode = parse(source)
-        val analyzedFile = Analyzer.analyzeFile(astNode)
+        val analyzedFile = Analyzer.analyzeFile(filePath, astNode)
         val debugCtx = Debug.DebugContext(source, astNode, analyzedFile)
         pendingFiles.add(
             PendingFile(
