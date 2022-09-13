@@ -66,32 +66,34 @@ class BranchesTest {
 
     @Test
     fun exhaustiveBranchDoesNotNeedElse() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
-                object Hearts
-                object Diamonds
-                object Spades
-                object Clubs
-                option Suit(Hearts, Diamonds, Spades, Clubs)
-                
-                function main() {
-                    process_suit(Hearts)
-                    process_suit(Diamonds)
-                    process_suit(Spades)
-                    process_suit(Clubs)
-                }                
-                
-                function process_suit(this: Suit) {
-                    branch with this {
-                        is Hearts => cause Debug("Hearts")
-                        is Diamonds => cause Debug("Diamonds")
-                        is Spades => cause Debug("Spades")
-                        is Clubs => cause Debug("Clubs")
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    object Hearts
+                    object Diamonds
+                    object Spades
+                    object Clubs
+                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    
+                    function main() {
+                        process_suit(Hearts)
+                        process_suit(Diamonds)
+                        process_suit(Spades)
+                        process_suit(Clubs)
+                    }                
+                    
+                    function process_suit(this: Suit) {
+                        branch with this {
+                            is Hearts => cause Debug("Hearts")
+                            is Diamonds => cause Debug("Diamonds")
+                            is Spades => cause Debug("Spades")
+                            is Clubs => cause Debug("Clubs")
+                        }
                     }
-                }
-            """.trimIndent()
-        )
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         TestUtils.runMainExpectingDebugs(
             vm, "project/test.cau", listOf(
@@ -102,28 +104,28 @@ class BranchesTest {
 
     @Test
     fun nonExhaustiveBranchErrors() {
-        val vm = LangVm()
-        vm.addFile(
-            "project/test.cau", """
-                object Hearts
-                object Diamonds
-                object Spades
-                object Clubs
-                option Suit(Hearts, Diamonds, Spades, Clubs)
-                
-                function main() {
-                    process_suit(Spades)
-                }                
-                
-                function process_suit(this: Suit) {
-                    branch with this {
-                        is Hearts => cause Debug("Hearts")
-                        is Diamonds => cause Debug("Diamonds")
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    object Hearts
+                    object Diamonds
+                    object Spades
+                    object Clubs
+                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    
+                    function main() {
+                        process_suit(Spades)
+                    }                
+                    
+                    function process_suit(this: Suit) {
+                        branch with this {
+                            is Hearts => cause Debug("Hearts")
+                            is Diamonds => cause Debug("Diamonds")
+                        }
                     }
-                }
-            """.trimIndent()
-        )
-
+                """.trimIndent()
+            )
+        }
         assertEquals(
             """
             [
@@ -168,7 +170,7 @@ class BranchesTest {
                     }
                 }
             ]
-            """.trimIndent(), vm.compileErrors.debug()
+            """.trimIndent(), vm.codeBundle.compileErrors.debug()
         )
 
         expectTypeError(vm.executeFunction("project/test.cau", "main", listOf()), vm)
@@ -176,28 +178,29 @@ class BranchesTest {
 
     @Test
     fun continueOnErrorIfBranchReturnsAValue() {
-        val vm = LangVm()
-        vm.addFile(
-            "project/test.cau", """
-                object Hearts
-                object Diamonds
-                object Spades
-                object Clubs
-                option Suit(Hearts, Diamonds, Spades, Clubs)
-                
-                function main() {
-                    let result = suit_to_string(Spades)
-                    cause Debug(result)
-                }                
-                
-                function suit_to_string(this: Suit) {
-                    branch with this {
-                        is Hearts => "Hearts"
-                        is Diamonds => "Diamonds"
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    object Hearts
+                    object Diamonds
+                    object Spades
+                    object Clubs
+                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    
+                    function main() {
+                        let result = suit_to_string(Spades)
+                        cause Debug(result)
+                    }                
+                    
+                    function suit_to_string(this: Suit) {
+                        branch with this {
+                            is Hearts => "Hearts"
+                            is Diamonds => "Diamonds"
+                        }
                     }
-                }
-            """.trimIndent()
-        )
+                """.trimIndent()
+            )
+        }
 
         vm.executeFunction("project/test.cau", "main", listOf()).expectCausedSignal().let {
             assertEquals(
@@ -301,30 +304,31 @@ class BranchesTest {
 
     @Test
     fun errorIfExhaustiveButSomeBranchesReturnValueAndOthersReturnAction() {
-        val vm = LangVm()
-        vm.addFile(
-            "project/test.cau", """
-                object Hearts
-                object Diamonds
-                object Spades
-                object Clubs
-                option Suit(Hearts, Diamonds, Spades, Clubs)
-                
-                function main() {
-                    let result = suit_to_string(Clubs)
-                    cause Debug(result)
-                }                
-                
-                function suit_to_string(this: Suit) {
-                    branch with this {
-                        is Hearts => "Hearts"
-                        is Diamonds => cause Debug("Diamonds")
-                        is Spades => "Spades"
-                        is Clubs => cause Debug("Clubs")
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    object Hearts
+                    object Diamonds
+                    object Spades
+                    object Clubs
+                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    
+                    function main() {
+                        let result = suit_to_string(Clubs)
+                        cause Debug(result)
+                    }                
+                    
+                    function suit_to_string(this: Suit) {
+                        branch with this {
+                            is Hearts => "Hearts"
+                            is Diamonds => cause Debug("Diamonds")
+                            is Spades => "Spades"
+                            is Clubs => cause Debug("Clubs")
+                        }
                     }
-                }
-            """.trimIndent()
-        )
+                """.trimIndent()
+            )
+        }
 
         assertEquals(
             """
@@ -380,11 +384,11 @@ class BranchesTest {
                     }
                 }
             ]
-            """.trimIndent(), vm.compileErrors.debug()
+            """.trimIndent(), vm.codeBundle.compileErrors.debug()
         )
 
         vm.executeFunction("project/test.cau", "main", listOf()).let {
-            TestUtils.expectValidCaused(it, vm.getBuiltinTypeId("Debug"))
+            TestUtils.expectValidCaused(it, vm.codeBundle.getBuiltinTypeId("Debug"))
         }.let {
             assertEquals(RuntimeValue.String("Clubs"), it.values[0])
         }
@@ -394,27 +398,29 @@ class BranchesTest {
 
     @Test
     fun capturesMatchingValues() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
-                import core/string (number_to_string)
-                
-                object Nothing
-                option MaybeNumber(Nothing, Number)
-                
-                function main() {
-                    print_number(Nothing)
-                    print_number(42.0)
-                }                
-                
-                function print_number(this: MaybeNumber) {
-                    branch with this {
-                        is Number as i => cause Debug(number_to_string(i))
-                        is Nothing => Action
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/string (number_to_string)
+                    
+                    object Nothing
+                    option MaybeNumber(Nothing, Number)
+                    
+                    function main() {
+                        print_number(Nothing)
+                        print_number(42.0)
+                    }                
+                    
+                    function print_number(this: MaybeNumber) {
+                        branch with this {
+                            is Number as i => cause Debug(number_to_string(i))
+                            is Nothing => Action
+                        }
                     }
-                }
-            """.trimIndent()
-        )
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf("42.0"))
     }

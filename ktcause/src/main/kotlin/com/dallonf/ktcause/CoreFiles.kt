@@ -124,13 +124,11 @@ object CoreFiles {
 
         val exports = buildMap<String, CompiledExport> {
 
-            listOf<Pair<String, (BigDecimal, BigDecimal) -> BigDecimal>>(
-                "add" to { x, y -> x + y },
+            listOf<Pair<String, (BigDecimal, BigDecimal) -> BigDecimal>>("add" to { x, y -> x + y },
                 "subtract" to { x, y -> x - y },
                 "multiply" to { x, y -> x * y },
                 "divide" to { x, y -> x / y },
-                "remainder" to { x, y -> x % y }
-            ).forEach { (name, fn) ->
+                "remainder" to { x, y -> x % y }).forEach { (name, fn) ->
                 put(name, CompiledExport.NativeFunction(
                     FunctionValueLangType(
                         name = name,

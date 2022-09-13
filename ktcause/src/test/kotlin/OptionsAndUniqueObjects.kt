@@ -1,5 +1,3 @@
-import TestUtils.addFileAndPrintCompileErrors
-import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
@@ -11,22 +9,24 @@ import kotlin.test.assertEquals
 class OptionsAndUniqueObjects {
     @Test
     fun defineUniqueObjectTypes() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
-                object One
-                object Two
-                object Three
-                
-                function main() {
-                    let one = One
-                    let two = Two
-                    let three = Three
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    object One
+                    object Two
+                    object Three
                     
-                    two
-                }
-            """.trimIndent()
-        )
+                    function main() {
+                        let one = One
+                        let two = Two
+                        let three = Three
+                        
+                        two
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(
@@ -41,16 +41,18 @@ class OptionsAndUniqueObjects {
 
     @Test
     fun doesntChokeOnInstantiatingUniqueType() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
                 object Test
                 
                 function main() {
                     Test()
                 }
             """.trimIndent()
-        )
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(
@@ -65,16 +67,18 @@ class OptionsAndUniqueObjects {
 
     @Test
     fun withParensIsStillUnique() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
                 object Test()
                 
                 function main() {
                     Test
                 }
             """.trimIndent()
-        )
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(
@@ -89,9 +93,9 @@ class OptionsAndUniqueObjects {
 
     @Test
     fun supportsTypeAnnotations() {
-        val vm = LangVm()
-        vm.addFile(
-            "project/test.cau", """
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
                 object Test1
                 object Test2
                 
@@ -100,7 +104,8 @@ class OptionsAndUniqueObjects {
                     let error: Test2 = Test1
                 }
             """.trimIndent()
-        )
+            )
+        }
 
         assertEquals(
             """
@@ -141,7 +146,7 @@ class OptionsAndUniqueObjects {
                     }
                 }
             ]
-            """.trimIndent(), vm.compileErrors.debug()
+            """.trimIndent(), vm.codeBundle.compileErrors.debug()
         )
 
 
@@ -151,9 +156,9 @@ class OptionsAndUniqueObjects {
 
     @Test
     fun defineOptionTypes() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
                 object Hearts
                 object Diamonds
                 object Clubs
@@ -171,7 +176,9 @@ class OptionsAndUniqueObjects {
                     card_suit
                 }
             """.trimIndent()
-        )
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(
@@ -186,23 +193,24 @@ class OptionsAndUniqueObjects {
 
     @Test
     fun optionTypesTypeCheck() {
-        val vm = LangVm()
-        vm.addFile(
-            "project/test.cau", """
-                object Hearts
-                object Diamonds
-                
-                option Suit(
-                    Hearts,
-                    Diamonds,
-                )
-                
-                function main() {
-                    let card_suit: Suit = 5
-                    card_suit
-                }
-            """.trimIndent()
-        )
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    object Hearts
+                    object Diamonds
+                    
+                    option Suit(
+                        Hearts,
+                        Diamonds,
+                    )
+                    
+                    function main() {
+                        let card_suit: Suit = 5
+                        card_suit
+                    }
+                """.trimIndent()
+            )
+        }
 
         assertEquals(
             """
@@ -255,7 +263,7 @@ class OptionsAndUniqueObjects {
                     }
                 }
             ]
-            """.trimIndent(), vm.compileErrors.debug()
+            """.trimIndent(), vm.codeBundle.compileErrors.debug()
         )
         assertEquals(
             """
@@ -315,9 +323,9 @@ class OptionsAndUniqueObjects {
     @Test
     @Ignore
     fun optionTypesWithShorthand() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
                 option MaybeNumber(
                     object None,
                     object Some(value: Number),
@@ -327,7 +335,9 @@ class OptionsAndUniqueObjects {
                     MaybeNumber.Some(4)
                 }
             """.trimIndent()
-        )
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         assertEquals(
             """
@@ -337,29 +347,31 @@ class OptionsAndUniqueObjects {
 
     @Test
     fun uniqueSignals() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
-                signal UniqueSignal: Action
-                
-                function main() {
-                    effect for UniqueSignal as s {
-                        cause Debug("unique signal intercepted")
-                        cause s
-                    }
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    signal UniqueSignal: Action
                     
-                    cause UniqueSignal
-                    cause Debug("done")
-                }
-            """.trimIndent()
-        )
+                    function main() {
+                        effect for UniqueSignal as s {
+                            cause Debug("unique signal intercepted")
+                            cause s
+                        }
+                        
+                        cause UniqueSignal
+                        cause Debug("done")
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         vm.executeFunction("project/test.cau", "main", listOf())
-            .let { TestUtils.expectValidCaused(it, vm.getBuiltinTypeId("Debug")) }
+            .let { TestUtils.expectValidCaused(it, vm.codeBundle.getBuiltinTypeId("Debug")) }
             .let { assertEquals(RuntimeValue.String("unique signal intercepted"), it.values[0]) }
 
         vm.resumeExecution(RuntimeValue.Action)
-            .let { TestUtils.expectValidCaused(it, vm.getTypeId("project/test.cau", "UniqueSignal")) }
+            .let { TestUtils.expectValidCaused(it, vm.codeBundle.getTypeId("project/test.cau", "UniqueSignal")) }
             .let {
                 assertEquals(
                     """
@@ -372,7 +384,7 @@ class OptionsAndUniqueObjects {
             }
 
         vm.resumeExecution(RuntimeValue.Action)
-            .let { TestUtils.expectValidCaused(it, vm.getBuiltinTypeId("Debug")) }
+            .let { TestUtils.expectValidCaused(it, vm.codeBundle.getBuiltinTypeId("Debug")) }
             .let { assertEquals(RuntimeValue.String("done"), it.values[0]) }
 
         vm.resumeExecution(RuntimeValue.Action).expectReturnValue()

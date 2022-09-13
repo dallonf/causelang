@@ -1,4 +1,3 @@
-import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.CompiledFile
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
@@ -38,22 +37,24 @@ class IoTest {
 
     @Test
     fun receiveValueFromInputEffect() {
-        val vm = LangVm()
-        vm.addCompiledFile(ioFile())
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
-                import core/string ( append )
-                import test/io ( Print, Prompt )
-            
-                function main() {
-                    cause Print("What is your name?")
-                    cause Print(append("Hello, ", cause Prompt()))
-                }
-            """.trimIndent()
-        )
+        val vm = LangVm {
+            addCompiledFile(ioFile())
+            addFile(
+                "project/test.cau", """
+                    import core/string ( append )
+                    import test/io ( Print, Prompt )
+                
+                    function main() {
+                        cause Print("What is your name?")
+                        cause Print(append("Hello, ", cause Prompt()))
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         val result1 = TestUtils.expectValidCaused(
-            vm.executeFunction("project/test.cau", "main", listOf()), vm.getTypeId("test/io.cau", "Print")
+            vm.executeFunction("project/test.cau", "main", listOf()), vm.codeBundle.getTypeId("test/io.cau", "Print")
         )
         assertEquals(
             result1.debug(), """
@@ -65,7 +66,7 @@ class IoTest {
         )
 
         val result2 = TestUtils.expectValidCaused(
-            vm.resumeExecution(RuntimeValue.Action), vm.getTypeId("test/io.cau", "Prompt")
+            vm.resumeExecution(RuntimeValue.Action), vm.codeBundle.getTypeId("test/io.cau", "Prompt")
         )
         assertEquals(
             result2.debug(), """
@@ -76,7 +77,7 @@ class IoTest {
         )
 
         val result3 = TestUtils.expectValidCaused(
-            vm.resumeExecution(RuntimeValue.String("Bob")), vm.getTypeId("test/io.cau", "Print")
+            vm.resumeExecution(RuntimeValue.String("Bob")), vm.codeBundle.getTypeId("test/io.cau", "Print")
         )
         assertEquals(
             result3.debug(), """
@@ -93,10 +94,10 @@ class IoTest {
 
     @Test
     fun assignReceivedValueToName() {
-        val vm = LangVm()
-        vm.addCompiledFile(ioFile())
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
+        val vm = LangVm {
+            addCompiledFile(ioFile())
+            addFile(
+                "project/test.cau", """
                 import core/string ( append )
                 import test/io ( Print, Prompt )
                 
@@ -106,16 +107,18 @@ class IoTest {
                    cause Print(append("Hello, ", name))
                 }
             """.trimIndent()
-        )
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         TestUtils.expectValidCaused(
-            vm.executeFunction("project/test.cau", "main", listOf()), vm.getTypeId("test/io.cau", "Print")
+            vm.executeFunction("project/test.cau", "main", listOf()), vm.codeBundle.getTypeId("test/io.cau", "Print")
         )
         TestUtils.expectValidCaused(
-            vm.resumeExecution(RuntimeValue.Action), vm.getTypeId("test/io.cau", "Prompt")
+            vm.resumeExecution(RuntimeValue.Action), vm.codeBundle.getTypeId("test/io.cau", "Prompt")
         )
         val finalPrint = TestUtils.expectValidCaused(
-            vm.resumeExecution(RuntimeValue.String("Bob")), vm.getTypeId("test/io.cau", "Print")
+            vm.resumeExecution(RuntimeValue.String("Bob")), vm.codeBundle.getTypeId("test/io.cau", "Print")
         )
         assertEquals(finalPrint.values[0], RuntimeValue.String("Hello, Bob"))
 
@@ -124,28 +127,30 @@ class IoTest {
 
     @Test
     fun inlineBlockExpression() {
-        val vm = LangVm()
-        vm.addCompiledFile(ioFile())
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
-                import core/string ( append )
-                import test/io ( Print, Prompt )
-                
-                function main() {
-                  let greeting = {
-                    let name = cause Prompt()
-                    append("Hello, ", name)
-                  }
-                  cause Print(greeting)
-                }
-            """.trimIndent()
-        )
+        val vm = LangVm {
+            addCompiledFile(ioFile())
+            addFile(
+                "project/test.cau", """
+                    import core/string ( append )
+                    import test/io ( Print, Prompt )
+                    
+                    function main() {
+                      let greeting = {
+                        let name = cause Prompt()
+                        append("Hello, ", name)
+                      }
+                      cause Print(greeting)
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         TestUtils.expectValidCaused(
-            vm.executeFunction("project/test.cau", "main", listOf()), vm.getTypeId("test/io.cau", "Prompt")
+            vm.executeFunction("project/test.cau", "main", listOf()), vm.codeBundle.getTypeId("test/io.cau", "Prompt")
         )
         val finalPrint = TestUtils.expectValidCaused(
-            vm.resumeExecution(RuntimeValue.String("Bob")), vm.getTypeId("test/io.cau", "Print")
+            vm.resumeExecution(RuntimeValue.String("Bob")), vm.codeBundle.getTypeId("test/io.cau", "Print")
         )
         assertEquals(finalPrint.values[0], RuntimeValue.String("Hello, Bob"))
         assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturnValue(), RuntimeValue.Action)

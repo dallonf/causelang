@@ -1,4 +1,3 @@
-import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.CompiledFile
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
@@ -13,7 +12,6 @@ import kotlin.test.assertEquals
 class EffectsBasicTest {
     @Test
     fun interceptSignal() {
-        val vm = LangVm()
         val interceptThisTypeId = CanonicalLangTypeId("test/test.cau", name = "InterceptThis", number = 0u)
         val interceptThisType = CanonicalLangType.SignalCanonicalLangType(
             interceptThisTypeId,
@@ -21,32 +19,36 @@ class EffectsBasicTest {
             listOf(),
             result = ActionValueLangType.toConstraint().asConstraintReference()
         )
-        vm.addCompiledFile(
-            CompiledFile(
-                "test/test.cau",
-                types = mapOf(
-                    interceptThisTypeId to interceptThisType
-                ),
-                chunks = listOf(),
-                exports = mapOf(interceptThisTypeId.name!! to CompiledFile.CompiledExport.Constraint(interceptThisType.asConstraintReference()))
+        val vm = LangVm {
+            addCompiledFile(
+                CompiledFile(
+                    "test/test.cau", types = mapOf(
+                        interceptThisTypeId to interceptThisType
+                    ), chunks = listOf(), exports = mapOf(
+                        interceptThisTypeId.name!! to CompiledFile.CompiledExport.Constraint(
+                            interceptThisType.asConstraintReference()
+                        )
+                    )
+                )
             )
-        )
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
-                import test/test (InterceptThis)
-                
-                function main() {
-                    effect for InterceptThis {
-                        cause Debug("Intercepted an InterceptThis signal")
-                    }
+            addFile(
+                "project/test.cau", """
+                    import test/test (InterceptThis)
                     
-                    cause InterceptThis()
-                    cause Debug("This should not have been intercepted")
-                }
-            """.trimIndent()
-        )
+                    function main() {
+                        effect for InterceptThis {
+                            cause Debug("Intercepted an InterceptThis signal")
+                        }
+                        
+                        cause InterceptThis()
+                        cause Debug("This should not have been intercepted")
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
-        val debugTypeId = vm.getTypeId("core/builtin.cau", "Debug")
+        val debugTypeId = vm.codeBundle.getBuiltinTypeId("Debug")
         val result1 = vm.executeFunction("project/test.cau", "main", listOf())
             .let { TestUtils.expectValidCaused(it, debugTypeId) }
         assertEquals(result1.values[0], RuntimeValue.String("Intercepted an InterceptThis signal"))
@@ -59,7 +61,6 @@ class EffectsBasicTest {
 
     @Test
     fun getValuesFromCapturedSignal() {
-        val vm = LangVm()
         val greetTypeId = CanonicalLangTypeId("test/test.cau", name = "Greet", number = 0u)
         val greetType = CanonicalLangType.SignalCanonicalLangType(
             greetTypeId, greetTypeId.name!!, listOf(
@@ -68,18 +69,19 @@ class EffectsBasicTest {
                 )
             ), result = ActionValueLangType.toConstraint().asConstraintReference()
         )
-        vm.addCompiledFile(
-            CompiledFile(
-                "test/test.cau",
-                types = mapOf(
-                    greetTypeId to greetType
-                ),
-                chunks = listOf(),
-                exports = mapOf(greetTypeId.name!! to CompiledFile.CompiledExport.Constraint(greetType.asConstraintReference()))
+        val vm = LangVm {
+            addCompiledFile(
+                CompiledFile(
+                    "test/test.cau",
+                    types = mapOf(
+                        greetTypeId to greetType
+                    ),
+                    chunks = listOf(),
+                    exports = mapOf(greetTypeId.name!! to CompiledFile.CompiledExport.Constraint(greetType.asConstraintReference()))
+                )
             )
-        )
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
+            addFile(
+                "project/test.cau", """
                 import core/string (append)
                 import test/test (Greet)
                 
@@ -92,9 +94,11 @@ class EffectsBasicTest {
                     cause Greet("partner")
                 }
             """.trimIndent()
-        )
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
-        val debugTypeId = vm.getTypeId("core/builtin.cau", "Debug")
+        val debugTypeId = vm.codeBundle.getBuiltinTypeId("Debug")
         val result1 = vm.executeFunction("project/test.cau", "main", listOf())
             .let { TestUtils.expectValidCaused(it, debugTypeId) }
         assertEquals(RuntimeValue.String("Don't handle this one"), result1.values[0])
@@ -106,26 +110,28 @@ class EffectsBasicTest {
 
     @Test
     fun defineOwnSignals() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
-                import core/string (append)
-                
-                signal Greet(name: String): String
-                
-                function main() {
-                    effect for Greet as s {
-                        append("Howdy, ", s.name)
-                    }
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/string (append)
                     
-                    let greeting = cause Greet("partner")
-                    cause Debug(greeting)
-                }
-            """.trimIndent()
-        )
+                    signal Greet(name: String): String
+                    
+                    function main() {
+                        effect for Greet as s {
+                            append("Howdy, ", s.name)
+                        }
+                        
+                        let greeting = cause Greet("partner")
+                        cause Debug(greeting)
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         TestUtils.expectValidCaused(
-            vm.executeFunction("project/test.cau", "main", listOf()), vm.getTypeId("core/builtin.cau", "Debug")
+            vm.executeFunction("project/test.cau", "main", listOf()), vm.codeBundle.getBuiltinTypeId("Debug")
         ).let {
             assertEquals(RuntimeValue.String("Howdy, partner"), it.values[0])
         }
@@ -137,27 +143,29 @@ class EffectsBasicTest {
 
     @Test
     fun correctlyFiltersCustomSignals() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
-                import core/string (append, number_to_string)
-                
-                signal TestSignal1(value: String): Action
-                signal TestSignal2(value: Number): Action
-                
-                function main() {
-                    effect for TestSignal1 as s {
-                        cause Debug(append("One ", s.value))
-                    }
-                    effect for TestSignal2 as s {
-                        cause Debug(append("Two ", number_to_string(s.value)))
-                    }
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/string (append, number_to_string)
                     
-                    cause TestSignal1("hello")
-                    cause TestSignal2(42.0)
-                }
-            """.trimIndent()
-        )
+                    signal TestSignal1(value: String): Action
+                    signal TestSignal2(value: Number): Action
+                    
+                    function main() {
+                        effect for TestSignal1 as s {
+                            cause Debug(append("One ", s.value))
+                        }
+                        effect for TestSignal2 as s {
+                            cause Debug(append("Two ", number_to_string(s.value)))
+                        }
+                        
+                        cause TestSignal1("hello")
+                        cause TestSignal2(42.0)
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         TestUtils.runMainExpectingDebugs(
             vm, "project/test.cau", listOf(
@@ -168,9 +176,9 @@ class EffectsBasicTest {
 
     @Test
     fun canCaptureAnySignal() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
                 signal Extract(value: Anything): Action
                 
                 function main() {
@@ -181,10 +189,12 @@ class EffectsBasicTest {
                     cause Debug("this should be extracted and not printed")
                 }
             """.trimIndent()
-        )
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         vm.executeFunction("project/test.cau", "main", listOf())
-            .let { TestUtils.expectValidCaused(it, vm.getTypeId("project/test.cau", "Extract")) }.let {
+            .let { TestUtils.expectValidCaused(it, vm.codeBundle.getTypeId("project/test.cau", "Extract")) }.let {
                 assertEquals(
                     """
                     {
@@ -205,9 +215,9 @@ class EffectsBasicTest {
 
     @Test
     fun setFromInnerFunctionWithCause() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
                 signal SetX(value: Number): Action
                 
                 function main() {
@@ -226,7 +236,9 @@ class EffectsBasicTest {
                     x
                 }
             """.trimIndent()
-        )
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(RuntimeValue.Number(2), result)

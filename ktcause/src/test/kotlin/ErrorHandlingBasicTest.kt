@@ -1,4 +1,3 @@
-import TestUtils.addFileAndPrintCompileErrors
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
@@ -9,14 +8,15 @@ import kotlin.test.assertEquals
 internal class ErrorHandlingBasicTest {
     @Test
     fun noArgumentsForSignal() {
-        val vm = LangVm()
-        vm.addFile(
-            "project/hello.cau", """
-                function main() {
-                    cause Debug()
-                }
-            """.trimIndent()
-        )
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """
+                    function main() {
+                        cause Debug()
+                    }
+               """.trimIndent()
+            )
+        }
 
         assertEquals(
             """
@@ -36,7 +36,7 @@ internal class ErrorHandlingBasicTest {
                     }
                 ]
             """.trimIndent(),
-            vm.compileErrors.debug(),
+            vm.codeBundle.compileErrors.debug(),
         )
 
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
@@ -76,16 +76,17 @@ internal class ErrorHandlingBasicTest {
 
     @Test
     fun mistypedConstructParameter() {
-        val vm = LangVm()
-        vm.addFile(
-            "project/hello.cau", """
-                signal ExpectString(message: String): Action
-                
-                function main() {
-                    cause ExpectString(1)
-                }
-            """.trimIndent()
-        )
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """
+                    signal ExpectString(message: String): Action
+                    
+                    function main() {
+                        cause ExpectString(1)
+                    }
+                """.trimIndent()
+            )
+        }
 
         assertEquals(
             """
@@ -112,7 +113,7 @@ internal class ErrorHandlingBasicTest {
                 }
             ]
             """.trimIndent(),
-            vm.compileErrors.debug(),
+            vm.codeBundle.compileErrors.debug(),
         )
 
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
@@ -147,18 +148,19 @@ internal class ErrorHandlingBasicTest {
 
     @Test
     fun mistypedCallParameter() {
-        val vm = LangVm()
-        vm.addFile(
-            "project/hello.cau", """               
-                function main() {
-                    expect_string(1)
-                }
-                
-                function expect_string(message: String) {
-                    cause Debug(message)
-                }
-            """.trimIndent()
-        )
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """               
+                    function main() {
+                        expect_string(1)
+                    }
+                    
+                    function expect_string(message: String) {
+                        cause Debug(message)
+                    }
+                """.trimIndent()
+            )
+        }
 
         assertEquals(
             """
@@ -184,8 +186,7 @@ internal class ErrorHandlingBasicTest {
                     }
                 }
             ]
-            """.trimIndent(),
-            vm.compileErrors.debug()
+            """.trimIndent(), vm.codeBundle.compileErrors.debug()
         )
 
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
@@ -223,17 +224,18 @@ internal class ErrorHandlingBasicTest {
 
     @Test
     fun causeNonSignal() {
-        val vm = LangVm()
-        vm.addFile(
-            "project/hello.cau", """
-                function main() {
-                    cause "oops"
-                }
-            """.trimIndent()
-        )
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """
+                    function main() {
+                        cause "oops"
+                    }
+                """.trimIndent()
+            )
+        }
 
         assertEquals(
-            vm.compileErrors.debug(), """
+            vm.codeBundle.compileErrors.debug(), """
             [
                 {
                     "position": {
@@ -270,14 +272,15 @@ internal class ErrorHandlingBasicTest {
 
     @Test
     fun nonExistentSignal() {
-        val vm = LangVm()
-        vm.addFile(
-            "project/hello.cau", """
-                function main() {
-                  cause DoesntExist("oops")
-                }
-            """.trimIndent()
-        )
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """
+                    function main() {
+                      cause DoesntExist("oops")
+                    }
+                """.trimIndent()
+            )
+        }
 
         assertEquals(
             """
@@ -293,8 +296,7 @@ internal class ErrorHandlingBasicTest {
                     }
                 }
             ]
-            """.trimIndent(),
-            vm.compileErrors.debug()
+            """.trimIndent(), vm.codeBundle.compileErrors.debug()
         )
 
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
@@ -336,14 +338,15 @@ internal class ErrorHandlingBasicTest {
 
     @Test
     fun mistypedNamedValue() {
-        val vm = LangVm()
-        vm.addFile(
-            "project/hello.cau", """
-                function main() {
-                    let name: String = 5
-                }
-            """.trimIndent()
-        )
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """
+                    function main() {
+                        let name: String = 5
+                    }
+                """.trimIndent()
+            )
+        }
         assertEquals(
             """
             [
@@ -369,7 +372,7 @@ internal class ErrorHandlingBasicTest {
                 }
             ]
             """.trimIndent(),
-            vm.compileErrors.debug(),
+            vm.codeBundle.compileErrors.debug(),
         )
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
 

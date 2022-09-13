@@ -1,4 +1,3 @@
-import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
@@ -7,16 +6,18 @@ import kotlin.test.assertEquals
 class MathTest {
     @Test
     fun fourFunction() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
                 import core/math (add, subtract, multiply, divide)
                             
                 function main() {
                     divide(multiply(add(1, subtract(3, 0.5)), 4), 7)
                 }
             """.trimIndent()
-        )
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue().let {
             assertEquals(RuntimeValue.Number(2), it)
@@ -25,9 +26,9 @@ class MathTest {
 
     @Test
     fun rounding() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
                 import core/math (round, floor, ceiling)
                             
                 function main() {
@@ -45,7 +46,9 @@ class MathTest {
                     cause Debug(ceiling(4.0))
                 }
             """.trimIndent()
-        )
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         TestUtils.runMainExpectingDebugValues(
             vm, "project/test.cau", listOf(
@@ -70,9 +73,9 @@ class MathTest {
 
     @Test
     fun naiveFizzBuzz() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
                 import core/string (number_to_string)
                 import core/math (remainder)
                 
@@ -85,7 +88,9 @@ class MathTest {
                     }
                 }
             """.trimIndent()
-        )
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         val list = (1..20).map { i ->
             vm.executeFunction("project/test.cau", "fizz_buzz", listOf(RuntimeValue.Number(i.toBigDecimal())))
