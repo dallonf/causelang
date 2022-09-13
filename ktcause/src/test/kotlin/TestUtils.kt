@@ -28,6 +28,7 @@ object TestUtils {
                 } else {
                     println("Can't show error for ${file.path}")
                 }
+                println("------------------------------");
             }
         }
     }
@@ -65,7 +66,7 @@ object TestUtils {
 
             result = vm.resumeExecution(RuntimeValue.Action)
         }
-        
+
         assertEquals(RuntimeValue.Action, result.expectReturnValue())
         assertEquals(expected, debugs)
     }

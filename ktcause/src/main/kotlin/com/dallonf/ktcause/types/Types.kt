@@ -258,6 +258,10 @@ sealed interface ErrorLangType : ValueLangType {
     @Serializable
     @SerialName("OuterVariable")
     object OuterVariable : ErrorLangType
+
+    @Serializable
+    @SerialName("CannotBreakHere")
+    object CannotBreakHere : ErrorLangType
 }
 
 sealed interface ResolvedValueLangType : ValueLangType {

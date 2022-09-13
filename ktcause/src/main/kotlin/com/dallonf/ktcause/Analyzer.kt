@@ -77,6 +77,14 @@ sealed class NodeTag {
             Pair(function, FunctionCanReturnTypeOf(returnExpression = breadcrumbs))
     }
 
+    data class LoopBreaksAt(val breakExpression: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(breakExpression, BreaksLoop(loop = breadcrumbs))
+    }
+
+    data class BreaksLoop(val loop: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(loop, LoopBreaksAt(breakExpression = breadcrumbs))
+    }
+
     object ReferenceNotInScope : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
@@ -118,10 +126,11 @@ object Analyzer {
         val currentScope: Scope,
         val fileRootScope: Scope,
         val currentScopePosition: Breadcrumbs,
-        val currentFunction: Breadcrumbs?
+        val currentFunction: Breadcrumbs?,
+        val currentLoop: Breadcrumbs?
     ) {
         fun clone(breadcrumbs: Breadcrumbs) =
-            AnalyzerContext(path, currentScope.extend(), fileRootScope, breadcrumbs, currentFunction)
+            AnalyzerContext(path, currentScope.extend(), fileRootScope, breadcrumbs, currentFunction, currentLoop)
     }
 
     fun analyzeFile(filePath: String, astNode: FileNode): AnalyzedNode {
@@ -133,7 +142,8 @@ object Analyzer {
             currentScope = rootScope,
             fileRootScope = rootScope,
             currentScopePosition = astNode.info.breadcrumbs,
-            currentFunction = null
+            currentFunction = null,
+            currentLoop = null
         )
 
         // loop over top-level declarations to hoist them into file scope
@@ -316,7 +326,8 @@ object Analyzer {
         )
 
         val newCtx = AnalyzerContext(
-            ctx.path, ctx.currentScope.copy(
+            ctx.path,
+            ctx.currentScope.copy(
                 items = ctx.currentScope.items.mapValues { (key, value) ->
                     if (value is LocalScopeItem) {
                         CapturedValueScopeItem(value.origin)
@@ -324,7 +335,11 @@ object Analyzer {
                         value
                     }
                 }.toMutableMap()
-            ), ctx.fileRootScope, declaration.body.info.breadcrumbs, currentFunction = declaration.info.breadcrumbs
+            ),
+            ctx.fileRootScope,
+            declaration.body.info.breadcrumbs,
+            currentFunction = declaration.info.breadcrumbs,
+            currentLoop = null,
         )
         for (param in declaration.params) {
             newCtx.currentScope.items[param.name.text] = LocalScopeItem(param.info.breadcrumbs)
@@ -398,7 +413,8 @@ object Analyzer {
                                     currentCtx.currentScope.extend(),
                                     currentCtx.fileRootScope,
                                     currentCtx.currentScopePosition,
-                                    currentCtx.currentFunction
+                                    currentCtx.currentFunction,
+                                    currentCtx.currentLoop,
                                 )
                                 addDeclarationsToScope(
                                     declarations.map { (name, item) -> name to LocalScopeItem(item) },
@@ -414,7 +430,8 @@ object Analyzer {
                                 currentCtx.currentScope.extend(),
                                 currentCtx.fileRootScope,
                                 statementNode.info.breadcrumbs,
-                                currentCtx.currentFunction
+                                currentCtx.currentFunction,
+                                currentCtx.currentLoop,
                             )
 
                             analyzePattern(statementNode.pattern, output, effectCtx)
@@ -456,7 +473,9 @@ object Analyzer {
 
             is ExpressionNode.CauseExpression -> analyzeCauseExpression(expression, output, ctx)
             is ExpressionNode.BranchExpressionNode -> analyzeBranchExpressionNode(expression, output, ctx)
+            is ExpressionNode.LoopExpressionNode -> analyzeLoopExpressionNode(expression, output, ctx)
             is ExpressionNode.ReturnExpression -> analyzeReturnExpression(expression, output, ctx)
+            is ExpressionNode.BreakExpression -> analyzeBreakExpression(expression, output, ctx)
 
             is ExpressionNode.IdentifierExpression -> analyzeIdentifierExpression(expression, output, ctx)
             is ExpressionNode.StringLiteralExpression -> {}
@@ -487,6 +506,12 @@ object Analyzer {
             }
             analyzeBody(branchOption.body, output, newCtx)
         }
+    }
+
+    private fun analyzeLoopExpressionNode(
+        expression: ExpressionNode.LoopExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
+    ) {
+        analyzeBody(expression.body, output, ctx.copy(currentLoop = expression.info.breadcrumbs))
     }
 
     private fun analyzeBlockExpression(
@@ -543,6 +568,14 @@ object Analyzer {
         expression.value?.let { value ->
             analyzeExpression(value, output, ctx)
             ctx.currentFunction?.let { output.addTag(value.info.breadcrumbs, NodeTag.ReturnsFromFunction(it)) }
+        }
+    }
+
+    private fun analyzeBreakExpression(
+        expression: ExpressionNode.BreakExpression, output: AnalyzedNode, ctx: AnalyzerContext
+    ) {
+        ctx.currentLoop?.let { loop ->
+            output.addTag(expression.info.breadcrumbs, NodeTag.BreaksLoop(loop))
         }
     }
 }

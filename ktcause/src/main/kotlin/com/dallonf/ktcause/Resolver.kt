@@ -131,6 +131,11 @@ object Resolver {
                                 builtins["BinaryAnswer"]!!
                         }
 
+                        is ExpressionNode.LoopExpressionNode -> {
+                            resolvedTypes[ResolutionKey(CONSTRAINT, node.body.info.breadcrumbs)] =
+                                ActionValueLangType.toConstraint()
+                        }
+
                         is ExpressionNode.CallExpression -> {
                             track(INFERRED)
                             for (param in node.parameters) {
@@ -517,8 +522,23 @@ object Resolver {
                             }).simplifyToValue())
                         }
 
+                        is ExpressionNode.LoopExpressionNode -> {
+                            // TODO: I suppose if there are no breaks, we could resolve with
+                            // NeverContinues
+                            resolveWith(ActionValueLangType)
+                        }
+
                         is ExpressionNode.ReturnExpression -> {
                             resolveWith(NeverContinuesValueLangType)
+                        }
+
+                        is ExpressionNode.BreakExpression -> {
+                            val breakTag = pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.BreaksLoop }
+                            if (breakTag != null) {
+                                resolveWith(NeverContinuesValueLangType)
+                            } else {
+                                resolveWith(ErrorLangType.CannotBreakHere)
+                            }
                         }
 
                         is ExpressionNode.MemberExpression -> {
@@ -663,11 +683,6 @@ object Resolver {
                             for (statement in node.statements) {
                                 if (lastType == NeverContinuesValueLangType) {
 //                                    TODO: unreachable code warnings?
-//                                    iterationResolvedReferences.add(
-//                                        ResolutionKey(
-//                                            INFERRED, statement.info.breadcrumbs
-//                                        ) to NeverContinuesValueLangType
-//                                    )
                                     resolveWith(lastType)
                                     return@eachPendingNode
                                 }

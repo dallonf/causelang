@@ -367,6 +367,12 @@ sealed interface ExpressionNode : AstNode {
         }
     }
 
+    data class LoopExpressionNode(override val info: NodeInfo, val body: BodyNode) : ExpressionNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            put("body", body)
+        }
+    }
+
     data class IdentifierExpression(override val info: NodeInfo, val identifier: Identifier) : ExpressionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
             buildMap { put("identifier", identifier) }
@@ -414,7 +420,10 @@ sealed interface ExpressionNode : AstNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             value?.let { put("value", it) }
         }
+    }
 
+    data class BreakExpression(override val info: NodeInfo) : ExpressionNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap { }
     }
 }
 

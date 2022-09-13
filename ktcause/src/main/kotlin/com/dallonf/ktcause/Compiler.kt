@@ -29,11 +29,21 @@ object Compiler {
         }
     }
 
+    private data class OpenLoop(
+        val breadcrumbs: Breadcrumbs
+    ) {
+        val endPlaceholders: MutableList<CompiledFile.MutableInstructionChunk.JumpPlaceholder> = mutableListOf()
+    }
+
     private class CompilerScope(
-        val scopeRoot: Breadcrumbs, val type: ScopeType, val stackPrefix: Int = 0, var effectCount: Int = 0
+        val scopeRoot: Breadcrumbs,
+        val type: ScopeType,
+        val openLoop: OpenLoop? = null,
+        val stackPrefix: Int = 0,
+        var effectCount: Int = 0
     ) {
         enum class ScopeType {
-            BODY, EFFECT
+            BODY, FUNCTION, EFFECT
         }
 
         // indices are computed from the top of the current call frame
@@ -112,7 +122,7 @@ object Compiler {
         declaration: DeclarationNode.Function, ctx: CompilerContext
     ): CompiledFile.MutableInstructionChunk {
         val chunk = CompiledFile.MutableInstructionChunk()
-        val functionScope = CompilerScope(declaration.info.breadcrumbs, CompilerScope.ScopeType.BODY)
+        val functionScope = CompilerScope(declaration.info.breadcrumbs, CompilerScope.ScopeType.FUNCTION)
         val oldScopeStack = ctx.scopeStack.toList()
         ctx.scopeStack.clear() // brand-new scope for every function
         ctx.scopeStack.addLast(functionScope)
@@ -339,8 +349,10 @@ object Compiler {
             is ExpressionNode.BlockExpressionNode -> compileBlockExpression(expression, chunk, ctx)
 
             is ExpressionNode.BranchExpressionNode -> compileBranchExpression(expression, chunk, ctx)
+            is ExpressionNode.LoopExpressionNode -> compileLoopExpression(expression, chunk, ctx)
             is ExpressionNode.CauseExpression -> compileCauseExpression(expression, chunk, ctx)
             is ExpressionNode.ReturnExpression -> compileReturnExpression(expression, chunk, ctx)
+            is ExpressionNode.BreakExpression -> compileBreakExpression(expression, chunk, ctx)
 
             is ExpressionNode.CallExpression -> compileCallExpression(expression, chunk, ctx)
             is ExpressionNode.MemberExpression -> compileMemberExpression(expression, chunk, ctx)
@@ -357,6 +369,7 @@ object Compiler {
                     expression.value
                 )
             )
+
         }
 
         // TODO: this can be redundant since sometimes there's already a BadValue on the stack
@@ -479,6 +492,20 @@ object Compiler {
                 )
             )
             compileTypeErrorFromStackBadValue(chunk)
+        }
+    }
+
+    private fun compileLoopExpression(
+        expression: ExpressionNode.LoopExpressionNode, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+    ) {
+        val startInstruction = chunk.instructions.lastIndex + 1
+        val openLoop = OpenLoop(expression.info.breadcrumbs)
+        ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY, openLoop))
+        compileBody(expression.body, chunk, ctx)
+        ctx.scopeStack.removeLast()
+        chunk.writeInstruction(Instruction.Jump(startInstruction))
+        for (placeholder in openLoop.endPlaceholders) {
+            placeholder.fill()
         }
     }
 
@@ -659,9 +686,7 @@ object Compiler {
     }
 
     private fun compileReturnExpression(
-        expression: ExpressionNode.ReturnExpression,
-        chunk: CompiledFile.MutableInstructionChunk,
-        ctx: CompilerContext
+        expression: ExpressionNode.ReturnExpression, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
     ) {
         if (expression.value != null) {
             compileExpression(expression.value, chunk, ctx)
@@ -670,6 +695,30 @@ object Compiler {
         }
 
         chunk.writeInstruction(Instruction.Return)
+    }
+
+    private fun compileBreakExpression(
+        expression: ExpressionNode.BreakExpression, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+    ) {
+        ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
+            chunk.writeLiteral(
+                CompiledFile.CompiledConstant.ErrorConst(
+                    SourcePosition.Source(
+                        ctx.resolved.path, expression.info.breadcrumbs, expression.info.position
+                    ), error
+                )
+            )
+            compileTypeErrorFromStackBadValue(chunk)
+            return
+        }
+
+        val breakTag = ctx.getTag<NodeTag.BreaksLoop>(expression.info.breadcrumbs)!!
+        val loop = ctx.scopeStack.reversed().firstNotNullOf { scope ->
+            if (scope.scopeRoot == breakTag.loop && scope.openLoop != null) scope.openLoop else null
+        }
+
+        chunk.writeInstruction(Instruction.PushAction)
+        loop.endPlaceholders.add(chunk.writeJumpPlaceholder())
     }
 
     private fun compileMemberExpression(

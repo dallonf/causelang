@@ -49,7 +49,7 @@ object Debug {
             subclass(ErrorLangType.DoesNotHaveMember::class)
             subclass(ErrorLangType.NotVariable::class)
             subclass(ErrorLangType.OuterVariable::class)
-            subclass(ErrorLangType.OuterVariable::class)
+            subclass(ErrorLangType.CannotBreakHere::class)
         }
 
         // TODO: in 17.20 you'll be able to just pop @Serializable on a sealed interface

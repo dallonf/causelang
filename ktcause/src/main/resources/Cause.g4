@@ -18,6 +18,7 @@ NUMBER_LITERAL : [0-9] [0-9_]* (DOT [0-9]+)? ;
 
 AS : 'as' ;
 BRANCH : 'branch' ;
+BREAK : 'break' ;
 CAUSE : 'cause' ;
 EFFECT : 'effect' ;
 ELSE : 'else' ;
@@ -28,6 +29,7 @@ IF : 'if' ;
 IS : 'is' ;
 IMPORT : 'import' ;
 LET : 'let' ;
+LOOP : 'loop' ;
 OBJECT : 'object' ;
 OPTION : 'option' ;
 RETURN : 'return' ;
@@ -76,14 +78,16 @@ declarationStatement : declaration ;
 effectStatement : EFFECT NEWLINE* FOR NEWLINE* pattern NEWLINE* body ;
 setStatement : SET NEWLINE* IDENTIFIER NEWLINE* EQUALS NEWLINE* expression ;
 
-expression : (blockExpression | branchExpression | causeExpression | returnExpression | stringLiteralExpression | numberLiteralExpression | identifierExpression)
+expression : (blockExpression | branchExpression | loopExpression | causeExpression | returnExpression | breakExpression | stringLiteralExpression | numberLiteralExpression | identifierExpression)
     expressionSuffix* ;
 
 blockExpression : block ;
 branchExpression : BRANCH NEWLINE* branchWith? NEWLINE* CURLY_OPEN NEWLINE* (branchOption (NEWLINE+ branchOption)*)? NEWLINE* CURLY_CLOSE ;
     branchWith: WITH NEWLINE* expression ;
+loopExpression : LOOP NEWLINE* body ;
 causeExpression : CAUSE NEWLINE* expression ;
 returnExpression : RETURN expression? ; // no newline supported here
+breakExpression : BREAK ;
 stringLiteralExpression : STRING_LITERAL ;
 numberLiteralExpression : NUMBER_LITERAL ;
 identifierExpression : IDENTIFIER ;

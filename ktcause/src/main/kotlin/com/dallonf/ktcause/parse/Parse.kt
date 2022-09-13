@@ -120,6 +120,8 @@ private fun parseImportDeclaration(
             assert(rename.type == IDENTIFIER)
         }
 
+        iterator.skip { (it is TerminalNode && (it.symbol.type == COMMA || it.symbol.type == NEWLINE)) }
+
         val mappingBreadcrumbs = breadcrumbs.appendName("mappings").appendIndex(i)
         DeclarationNode.Import.MappingNode(
             NodeInfo(mappingRule.getRange(), mappingBreadcrumbs),
@@ -315,8 +317,10 @@ private fun parseExpression(
         when (val child = expressionContext.getChild(0)) {
             is BlockExpressionContext -> parseBlockExpression(child, innerBreadcrumbs, ctx)
             is BranchExpressionContext -> parseBranchExpression(child, innerBreadcrumbs, ctx)
+            is LoopExpressionContext -> parseLoopExpression(child, innerBreadcrumbs, ctx)
             is CauseExpressionContext -> parseCauseExpression(child, innerBreadcrumbs, ctx)
             is ReturnExpressionContext -> parseReturnExpression(child, innerBreadcrumbs, ctx)
+            is BreakExpressionContext -> parseBreakExpression(child, innerBreadcrumbs, ctx)
             is StringLiteralExpressionContext -> parseStringLiteralExpression(child, innerBreadcrumbs, ctx)
             is NumberLiteralExpressionContext -> parseNumberLiteralExpression(child, innerBreadcrumbs, ctx)
             is IdentifierExpressionContext -> parseIdentifierExpression(child, innerBreadcrumbs, ctx)
@@ -402,11 +406,27 @@ private fun parseBranchOption(
     }
 }
 
+private fun parseLoopExpression(
+    expression: LoopExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+): ExpressionNode.LoopExpressionNode {
+    return ExpressionNode.LoopExpressionNode(
+        NodeInfo(expression.getRange(), breadcrumbs), body = parseBody(
+            expression.body(), breadcrumbs.appendName("body"), ctx
+        )
+    )
+}
+
 private fun parseReturnExpression(
     expression: ReturnExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ExpressionNode {
     return ExpressionNode.ReturnExpression(NodeInfo(expression.getRange(), breadcrumbs),
         expression.expression()?.let { parseExpression(it, breadcrumbs.appendName("value"), ctx) })
+}
+
+private fun parseBreakExpression(
+    expression: BreakExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+): ExpressionNode.BreakExpression {
+    return ExpressionNode.BreakExpression(NodeInfo(expression.getRange(), breadcrumbs))
 }
 
 private fun parseStringLiteralExpression(

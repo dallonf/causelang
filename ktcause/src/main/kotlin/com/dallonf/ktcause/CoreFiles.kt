@@ -124,11 +124,13 @@ object CoreFiles {
 
         val exports = buildMap<String, CompiledExport> {
 
-            listOf<Pair<String, (BigDecimal, BigDecimal) -> BigDecimal>>("add" to { x, y -> x + y },
+            listOf<Pair<String, (BigDecimal, BigDecimal) -> BigDecimal>>(
+                "add" to { x, y -> x + y },
                 "subtract" to { x, y -> x - y },
                 "multiply" to { x, y -> x * y },
                 "divide" to { x, y -> x / y },
-                "remainder" to { x, y -> x % y }).forEach { (name, fn) ->
+                "remainder" to { x, y -> x % y },
+            ).forEach { (name, fn) ->
                 put(name, CompiledExport.NativeFunction(
                     FunctionValueLangType(
                         name = name,
@@ -187,6 +189,33 @@ object CoreFiles {
                     require(thisVal is RuntimeValue.Number)
                     RuntimeValue.Number(fn(thisVal.value))
                 })
+            }
+
+            listOf<Pair<String, (BigDecimal, BigDecimal) -> Boolean>>(
+                "greater_than" to { x, y -> x > y },
+                "less_than" to { x, y -> x < y },
+                "at_least" to { x, y -> x >= y },
+                "at_most" to { x, y -> x <= y },
+            ).forEach { (name, fn) ->
+                put(
+                    name, CompiledExport.NativeFunction(
+                        FunctionValueLangType(
+                            name = name,
+                            params = listOf(
+                                LangParameter(
+                                    "this", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                                ), LangParameter(
+                                    "other", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                                )
+                            ),
+                            returnConstraint = (builtin.exports["BinaryAnswer"] as CompiledExport.Constraint).constraint
+                        )
+                    ) { (thisVal, otherVal) ->
+                        require(thisVal is RuntimeValue.Number)
+                        require(otherVal is RuntimeValue.Number)
+                        getBinaryAnswer(fn(thisVal.value, otherVal.value))
+                    }
+                )
             }
         }
 
