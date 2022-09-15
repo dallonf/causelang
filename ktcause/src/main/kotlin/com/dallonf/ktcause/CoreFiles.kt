@@ -68,6 +68,14 @@ object CoreFiles {
                     result = NeverContinuesValueLangType.toConstraint().asConstraintReference()
                 )
             )
+            add(
+                CanonicalLangType.SignalCanonicalLangType(
+                    CanonicalLangTypeId(filename, name = "RunawayLoop", number = 0.toUByte()),
+                    name = "RunawayLoop",
+                    fields = listOf(),
+                    result = NeverContinuesValueLangType.toConstraint().asConstraintReference()
+                )
+            )
         }
 
         val trueType = types[CanonicalLangTypeId(filename, name = "True", number = 0u)]!!
@@ -198,25 +206,23 @@ object CoreFiles {
                 "at_least" to { x, y -> x >= y },
                 "at_most" to { x, y -> x <= y },
             ).forEach { (name, fn) ->
-                put(
-                    name, CompiledExport.NativeFunction(
-                        FunctionValueLangType(
-                            name = name,
-                            params = listOf(
-                                LangParameter(
-                                    "this", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
-                                ), LangParameter(
-                                    "other", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
-                                )
-                            ),
-                            returnConstraint = (builtin.exports["BinaryAnswer"] as CompiledExport.Constraint).constraint
-                        )
-                    ) { (thisVal, otherVal) ->
-                        require(thisVal is RuntimeValue.Number)
-                        require(otherVal is RuntimeValue.Number)
-                        getBinaryAnswer(fn(thisVal.value, otherVal.value))
-                    }
-                )
+                put(name, CompiledExport.NativeFunction(
+                    FunctionValueLangType(
+                        name = name,
+                        params = listOf(
+                            LangParameter(
+                                "this", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                            ), LangParameter(
+                                "other", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                            )
+                        ),
+                        returnConstraint = (builtin.exports["BinaryAnswer"] as CompiledExport.Constraint).constraint
+                    )
+                ) { (thisVal, otherVal) ->
+                    require(thisVal is RuntimeValue.Number)
+                    require(otherVal is RuntimeValue.Number)
+                    getBinaryAnswer(fn(thisVal.value, otherVal.value))
+                })
             }
         }
 

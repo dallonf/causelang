@@ -8,7 +8,12 @@ import com.dallonf.ktcause.types.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+
 class LangVm(val codeBundle: CodeBundle) {
+    companion object {
+        const val MAX_LOOP = 5_000
+    }
+
     constructor(buildBundle: CodeBundleBuilder.() -> Unit) : this(CodeBundleBuilder().let { builder ->
         buildBundle(builder)
         builder.build()
@@ -106,6 +111,27 @@ class LangVm(val codeBundle: CodeBundle) {
         } else {
             throw VmError("I need to resolve a ${pendingSignalType.name} signal with a ${pendingSignalType.result}, but $value isn't a ${pendingSignalType.result}.")
         }
+    }
+
+    /**
+     * Reports to the VM that control has passed through the host for a "tick".
+     * For example, you should call this once per frame in a game.
+     *
+     * This allows long-running functions and loops to execute without getting caught as "runaway",
+     * as long as they're allowing I/O of the host application to continue and not hogging the thread.
+     */
+    fun reportTick() {
+        callFrame?.let { resetLoopsForCallFrame(it) }
+    }
+
+    private fun resetLoopsForCallFrame(callFrame: CallFrame) {
+        var currentLoop = callFrame.currentLoop
+        while (currentLoop != null) {
+            currentLoop.iterations = 0
+            currentLoop = currentLoop.outerLoop
+        }
+        callFrame.callParent?.let { resetLoopsForCallFrame(it) }
+        callFrame.causeParent?.let { resetLoopsForCallFrame(it) }
     }
 
 
@@ -364,18 +390,27 @@ class LangVm(val codeBundle: CodeBundle) {
                     }
 
                     is Instruction.StartLoop -> {
-                        callFrame.currentLoop = OpenLoop(
+                        val newLoop = OpenLoop(
                             callFrame,
                             continueInstruction = callFrame.instruction,
                             breakInstruction = instruction.endInstruction,
                             stackEnd = callFrame.stack.lastIndex,
                             outerLoop = callFrame.currentLoop
                         )
+                        callFrame.currentLoop = newLoop
                     }
 
                     is Instruction.ContinueLoop -> {
                         val loop =
                             requireNotNull(this.callFrame?.currentLoop) { throw InternalVmError("I tried to continue a loop, but I'm not in a loop.") }
+
+                        loop.iterations += 1
+                        if (loop.iterations > MAX_LOOP) {
+                            val error = RuntimeValue.RuntimeObject(
+                                codeBundle.getType(CoreFiles.builtin.path, "RunawayLoop"), emptyList()
+                            )
+                            return RunResult.Caused(error)
+                        }
 
                         val newCallFrame = loop.callFrame
                         newCallFrame.instruction = loop.continueInstruction

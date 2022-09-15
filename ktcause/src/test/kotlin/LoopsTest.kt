@@ -1,8 +1,9 @@
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
+import com.dallonf.ktcause.RunResult
 import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
-import kotlin.test.assertContentEquals
+import java.math.BigDecimal
 import kotlin.test.assertEquals
 
 class LoopsTest {
@@ -82,8 +83,7 @@ class LoopsTest {
                     }
                 }
             ]
-            """.trimIndent(),
-            vm.codeBundle.compileErrors.debug()
+            """.trimIndent(), vm.codeBundle.compileErrors.debug()
         )
 
         TestUtils.expectTypeError(vm.executeFunction("project/test.cau", "main", listOf()), vm)
@@ -134,7 +134,70 @@ class LoopsTest {
         )
     }
 
-    fun abortsInfiniteLoops() {}
+    @Test
+    fun abortsInfiniteLoops() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                function main() {
+                    loop { }
+                    cause Debug("Done!")
+                }
+            """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        vm.executeFunction("project/test.cau", "main", listOf()).expectCausedSignal().let {
+            assertEquals(vm.codeBundle.getBuiltinTypeId("RunawayLoop"), it.typeDescriptor.id)
+        }
+    }
+
+    @Test
+    fun allowsLongLoopsByResettingCounters() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math (add, at_least)
+                    
+                    signal Progress(i: Number): Action
+                    
+                    function main(stop_at: Number) {
+                        let variable i = 0
+                        loop {
+                            cause Progress(i)
+                            set i = add(i, 1)
+                            branch {
+                                if at_least(i, stop_at) => break
+                                else => {}
+                            }
+                        }
+                        cause Debug("Done!")
+                    }
+            """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        val stopAt = LangVm.MAX_LOOP * 2
+
+        var current = vm.executeFunction("project/test.cau", "main", listOf(RuntimeValue.Number(stopAt.toBigDecimal())))
+        var count: BigDecimal = 0.toBigDecimal()
+        val progress = vm.codeBundle.getTypeId("project/test.cau", "Progress")
+        while (current is RunResult.Caused && current.signal.typeDescriptor.id == progress) {
+            count = (current.signal.values[0] as RuntimeValue.Number).value
+            vm.reportTick()
+            current = vm.resumeExecution(RuntimeValue.Action)
+        }
+        current.expectCausedSignal().let {
+            assertEquals(vm.codeBundle.getBuiltinTypeId("Debug"), it.typeDescriptor.id)
+            assertEquals(RuntimeValue.String("Done!"), it.values[0])
+        }
+        assertEquals((stopAt - 1).toBigDecimal(), count)
+        vm.resumeExecution(RuntimeValue.Action).expectReturnValue().let {
+            assertEquals(RuntimeValue.Action, it)
+        }
+    }
 
     fun canBreakWithValue() {}
 
