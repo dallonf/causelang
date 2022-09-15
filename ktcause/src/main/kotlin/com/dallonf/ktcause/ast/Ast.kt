@@ -313,9 +313,9 @@ sealed interface BodyNode : AstNode {
             buildMap { put("statements", statements) }
     }
 
-    data class SingleExpressionBodyNode(override val info: NodeInfo, val expression: ExpressionNode) : BodyNode {
+    data class SingleStatementBodyNode(override val info: NodeInfo, val statement: StatementNode) : BodyNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("expression", expression)
+            put("statement", statement)
         }
     }
 }
@@ -422,8 +422,10 @@ sealed interface ExpressionNode : AstNode {
         }
     }
 
-    data class BreakExpression(override val info: NodeInfo) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap { }
+    data class BreakExpression(override val info: NodeInfo, val withValue: ExpressionNode? = null) : ExpressionNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            withValue?.let { put("withValue", it) }
+        }
     }
 }
 

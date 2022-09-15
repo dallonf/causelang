@@ -396,60 +396,70 @@ object Analyzer {
                 var currentCtx = ctx.clone(body.info.breadcrumbs)
 
                 for (statementNode in body.statements) {
-                    when (statementNode) {
-                        is StatementNode.ExpressionStatement -> {
-                            output.addValueFlowTag(
-                                statementNode.expression.info.breadcrumbs, statementNode.info.breadcrumbs
-                            )
-                            analyzeExpression(statementNode.expression, output, currentCtx)
-                        }
-
-                        is StatementNode.DeclarationStatement -> {
-                            getDeclarationsForScope(statementNode.declaration)?.let { declarations ->
-                                analyzeDeclaration(statementNode.declaration, output, currentCtx)
-
-                                currentCtx = AnalyzerContext(
-                                    currentCtx.path,
-                                    currentCtx.currentScope.extend(),
-                                    currentCtx.fileRootScope,
-                                    currentCtx.currentScopePosition,
-                                    currentCtx.currentFunction,
-                                    currentCtx.currentLoop,
-                                )
-                                addDeclarationsToScope(
-                                    declarations.map { (name, item) -> name to LocalScopeItem(item) },
-                                    output,
-                                    currentCtx
-                                )
-                            }
-                        }
-
-                        is StatementNode.EffectStatement -> {
-                            val effectCtx = AnalyzerContext(
-                                currentCtx.path,
-                                currentCtx.currentScope.extend(),
-                                currentCtx.fileRootScope,
-                                statementNode.info.breadcrumbs,
-                                currentCtx.currentFunction,
-                                currentCtx.currentLoop,
-                            )
-
-                            analyzePattern(statementNode.pattern, output, effectCtx)
-                            analyzeBody(statementNode.body, output, effectCtx)
-                        }
-
-                        is StatementNode.SetStatement -> {
-                            analyzeSetStatement(statementNode, output, currentCtx)
-                        }
-                    }
+                    currentCtx = analyzeStatement(statementNode, output, currentCtx)
                 }
             }
 
-            is BodyNode.SingleExpressionBodyNode -> {
-                analyzeExpression(body.expression, output, ctx)
-                output.addValueFlowTag(body.expression.info.breadcrumbs, body.info.breadcrumbs)
+            is BodyNode.SingleStatementBodyNode -> {
+                analyzeStatement(body.statement, output, ctx)
+                output.addValueFlowTag(body.statement.info.breadcrumbs, body.info.breadcrumbs)
             }
         }
+    }
+
+    private fun analyzeStatement(
+        statementNode: StatementNode,
+        output: AnalyzedNode,
+        ctx: AnalyzerContext
+    ): AnalyzerContext {
+        when (statementNode) {
+            is StatementNode.ExpressionStatement -> {
+                output.addValueFlowTag(
+                    statementNode.expression.info.breadcrumbs, statementNode.info.breadcrumbs
+                )
+                analyzeExpression(statementNode.expression, output, ctx)
+            }
+
+            is StatementNode.DeclarationStatement -> {
+                getDeclarationsForScope(statementNode.declaration)?.let { declarations ->
+                    analyzeDeclaration(statementNode.declaration, output, ctx)
+
+                    val newCtx = AnalyzerContext(
+                        ctx.path,
+                        ctx.currentScope.extend(),
+                        ctx.fileRootScope,
+                        ctx.currentScopePosition,
+                        ctx.currentFunction,
+                        ctx.currentLoop,
+                    )
+                    addDeclarationsToScope(
+                        declarations.map { (name, item) -> name to LocalScopeItem(item) },
+                        output,
+                        newCtx
+                    )
+                    return newCtx
+                }
+            }
+
+            is StatementNode.EffectStatement -> {
+                val effectCtx = AnalyzerContext(
+                    ctx.path,
+                    ctx.currentScope.extend(),
+                    ctx.fileRootScope,
+                    statementNode.info.breadcrumbs,
+                    ctx.currentFunction,
+                    ctx.currentLoop,
+                )
+
+                analyzePattern(statementNode.pattern, output, effectCtx)
+                analyzeBody(statementNode.body, output, effectCtx)
+            }
+
+            is StatementNode.SetStatement -> {
+                analyzeSetStatement(statementNode, output, ctx)
+            }
+        }
+        return ctx
     }
 
     private fun analyzeSetStatement(
@@ -574,6 +584,7 @@ object Analyzer {
     private fun analyzeBreakExpression(
         expression: ExpressionNode.BreakExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
+        expression.withValue?.let { analyzeExpression(it, output, ctx) }
         ctx.currentLoop?.let { loop ->
             output.addTag(expression.info.breadcrumbs, NodeTag.BreaksLoop(loop))
         }

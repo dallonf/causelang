@@ -425,18 +425,20 @@ class LangVm(val codeBundle: CodeBundle) {
                     }
 
                     is Instruction.BreakLoop -> {
-                        for (i in 0 until instruction.levels) {
+                        for (levelI in 0 until instruction.levels) {
                             val loop =
                                 requireNotNull(this.callFrame?.currentLoop) { throw InternalVmError("I tried to break a loop, but I'm not in a loop.") }
+
+                            val result = callFrame.stack.removeLast()
 
                             val newCallFrame = loop.callFrame
                             newCallFrame.instruction = loop.breakInstruction
 
                             val excessStackItems = newCallFrame.stack.lastIndex - loop.stackEnd
-                            for (i in 0 until excessStackItems) {
+                            for (stackItemI in 0 until excessStackItems) {
                                 newCallFrame.stack.removeLast()
                             }
-                            newCallFrame.stack.addLast(RuntimeValue.Action)
+                            newCallFrame.stack.addLast(result)
                             newCallFrame.currentLoop = loop.outerLoop
 
                             this.callFrame = newCallFrame

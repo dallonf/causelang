@@ -66,10 +66,10 @@ objectField : IDENTIFIER NEWLINE* COLON NEWLINE* typeReference ;
 
 optionDeclaration : OPTION NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE* (typeReference NEWLINE* (COMMA NEWLINE* typeReference NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
 
-body : block | singleExpressionBody ;
+body : block | singleStatementBody ;
 
 block : CURLY_OPEN NEWLINE* (statement (NEWLINE+ statement)*)? NEWLINE* CURLY_CLOSE ;
-singleExpressionBody : THICK_ARROW NEWLINE* expression ;
+singleStatementBody : THICK_ARROW NEWLINE* statement ;
 
 statement : effectStatement | setStatement | declarationStatement | expressionStatement  ;
 
@@ -87,7 +87,7 @@ branchExpression : BRANCH NEWLINE* branchWith? NEWLINE* CURLY_OPEN NEWLINE* (bra
 loopExpression : LOOP NEWLINE* body ;
 causeExpression : CAUSE NEWLINE* expression ;
 returnExpression : RETURN expression? ; // no newline supported here
-breakExpression : BREAK ;
+breakExpression : BREAK (WITH NEWLINE* expression)?;
 stringLiteralExpression : STRING_LITERAL ;
 numberLiteralExpression : NUMBER_LITERAL ;
 identifierExpression : IDENTIFIER ;

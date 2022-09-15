@@ -150,8 +150,8 @@ object Compiler {
                 compileBlock(body, chunk, ctx)
             }
 
-            is BodyNode.SingleExpressionBodyNode -> {
-                compileExpression(body.expression, chunk, ctx)
+            is BodyNode.SingleStatementBodyNode -> {
+                compileStatement(body.statement, chunk, ctx, isLastStatement = true)
             }
         }
     }
@@ -701,7 +701,14 @@ object Compiler {
     private fun compileBreakExpression(
         expression: ExpressionNode.BreakExpression, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
     ) {
+        if (expression.withValue != null) {
+            compileExpression(expression.withValue, chunk, ctx)
+        } else {
+            chunk.writeInstruction(Instruction.PushAction)
+        }
+
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
+            chunk.writeInstruction(Instruction.Pop())
             chunk.writeLiteral(
                 CompiledFile.CompiledConstant.ErrorConst(
                     SourcePosition.Source(
@@ -714,10 +721,10 @@ object Compiler {
         }
 
         val breakTag = ctx.getTag<NodeTag.BreaksLoop>(expression.info.breadcrumbs)!!
-        val loopIndex = ctx.scopeStack.reversed().filter { it.openLoop != null }.withIndex()
-            .firstNotNullOf { (i, scope) ->
-                if (scope.scopeRoot == breakTag.loop) i else null
-            }
+        val loopIndex =
+            ctx.scopeStack.reversed().filter { it.openLoop != null }.withIndex().firstNotNullOf { (i, scope) ->
+                    if (scope.scopeRoot == breakTag.loop) i else null
+                }
 
         chunk.writeInstruction(Instruction.BreakLoop(loopIndex + 1))
     }

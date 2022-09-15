@@ -234,10 +234,10 @@ private fun parseBody(
 ): BodyNode {
     return when (val child = body.getChild(0)) {
         is BlockContext -> parseBlock(child, breadcrumbs, ctx)
-        is SingleExpressionBodyContext -> {
-            val expression = parseExpression(child.expression(), breadcrumbs.appendName("expression"), ctx)
-            BodyNode.SingleExpressionBodyNode(
-                NodeInfo(child.getRange(), breadcrumbs), expression
+        is SingleStatementBodyContext -> {
+            val statement = parseStatement(child.statement(), breadcrumbs.appendName("statement"), ctx)
+            BodyNode.SingleStatementBodyNode(
+                NodeInfo(child.getRange(), breadcrumbs), statement
             )
         }
 
@@ -426,7 +426,8 @@ private fun parseReturnExpression(
 private fun parseBreakExpression(
     expression: BreakExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ExpressionNode.BreakExpression {
-    return ExpressionNode.BreakExpression(NodeInfo(expression.getRange(), breadcrumbs))
+    val withValue = expression.expression()?.let { parseExpression(it, breadcrumbs.appendName("withValue"), ctx) }
+    return ExpressionNode.BreakExpression(NodeInfo(expression.getRange(), breadcrumbs), withValue)
 }
 
 private fun parseStringLiteralExpression(

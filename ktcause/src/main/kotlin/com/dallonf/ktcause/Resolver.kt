@@ -523,9 +523,47 @@ object Resolver {
                         }
 
                         is ExpressionNode.LoopExpressionNode -> {
-                            // TODO: I suppose if there are no breaks, we could resolve with
-                            // NeverContinues
-                            resolveWith(ActionValueLangType)
+                            val breaks = pendingNodeTags.mapNotNull { it as? NodeTag.LoopBreaksAt }
+
+                            if (breaks.isEmpty()) {
+                                resolveWith(NeverContinuesValueLangType)
+                            } else {
+                                val breakTypes = breaks.map {
+                                    val breakExpression =
+                                        fileNode.findNode(it.breakExpression) as ExpressionNode.BreakExpression
+                                    breakExpression to if (breakExpression.withValue != null) {
+                                        getResolvedTypeOf(breakExpression.withValue)
+                                    } else {
+                                        ActionValueLangType
+                                    }
+                                }
+
+                                if (breakTypes.any { it.second.isPending() }) {
+                                    return@eachPendingNode
+                                }
+
+                                val actionReturns = breakTypes.filter { it.second is ActionValueLangType }
+                                val valueReturns = breakTypes.filter { it.second !is ActionValueLangType }
+                                if (actionReturns.size > 1 && valueReturns.size > 1) {
+                                    resolveWith(
+                                        ErrorLangType.ActionIncompatibleWithValueTypes(actionReturns.map {
+                                            getSourcePosition(
+                                                it.first
+                                            )
+                                        }, valueReturns.map {
+                                            ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                                type = it.second, position = getSourcePosition(it.first)
+                                            )
+                                        })
+                                    )
+                                    return@eachPendingNode
+                                }
+
+                                val loopResultType = OptionValueLangType(breakTypes.map { (_, returnType) ->
+                                    returnType.valueToConstraintReference()
+                                }).simplifyToValue()
+                                resolveWith(loopResultType)
+                            }
                         }
 
                         is ExpressionNode.ReturnExpression -> {
@@ -695,7 +733,7 @@ object Resolver {
                             resolveWith(lastType)
                         }
 
-                        is BodyNode.SingleExpressionBodyNode -> resolveWith(getResolvedTypeOf(node.expression))
+                        is BodyNode.SingleStatementBodyNode -> resolveWith(getResolvedTypeOf(node.statement))
 
                         is DeclarationNode.NamedValue -> resolveWith(getResolvedTypeOf(node.value))
 

@@ -75,7 +75,7 @@ class LoopsTest {
                 {
                     "position": {
                         "path": "project/test.cau",
-                        "breadcrumbs": "declarations.2.body.statements.1.expression.body.statements.1.declaration.body.statements.0.expression.branches.0.body.expression",
+                        "breadcrumbs": "declarations.2.body.statements.1.expression.body.statements.1.declaration.body.statements.0.expression.branches.0.body.statement.expression",
                         "position": "10:37-10:42"
                     },
                     "error": {
@@ -199,6 +199,40 @@ class LoopsTest {
         }
     }
 
-    fun canBreakWithValue() {}
+    @Test
+    fun canBreakWithValue() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math ( add )
+                    
+                    object Wrapper(item: WrapperItem)
+                    option WrapperItem(Number, Wrapper)
+                    
+                    function main() {
+                        let wrapper = Wrapper(42)
+                        let wrapper = Wrapper(Wrapper(Wrapper(Wrapper(wrapper))))
+                        
+                        let variable count = 0
+                        let variable currentWrapper = wrapper 
+                        let inner = loop {
+                            set i = add(i, 1)
+                            branch with currentWrapper.item {
+                                is Number as number => break with number
+                                is Wrapper as wrapper => set currentWrapper = wrapper
+                            }
+                        }
+                        cause Debug(inner)
+                        cause Debug(count)
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        TestUtils.runMainExpectingDebugValues(
+            vm, "project/test.cau", listOf(RuntimeValue.Number(42), RuntimeValue.Number(4))
+        )
+    }
 
 }
