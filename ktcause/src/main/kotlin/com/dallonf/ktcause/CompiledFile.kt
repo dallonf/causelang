@@ -91,6 +91,11 @@ data class CompiledFile(
             instructions.add(Instruction.NoOp)
             return JumpPlaceholder(this, instructions.lastIndex) { Instruction.JumpIfFalse(it) }
         }
+
+        fun writeStartLoopPlaceholder(): JumpPlaceholder {
+            instructions.add(Instruction.NoOp)
+            return JumpPlaceholder(this, instructions.lastIndex) { Instruction.StartLoop(it) }
+        }
     }
 
     sealed interface CompiledConstant {

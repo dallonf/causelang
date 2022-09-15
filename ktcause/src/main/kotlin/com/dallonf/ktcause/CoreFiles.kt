@@ -85,6 +85,7 @@ object CoreFiles {
                 )
             )
             put("Action", CompiledExport.Constraint(ActionValueLangType.valueToConstraintReference()))
+            put("NeverContinues", CompiledExport.Constraint(NeverContinuesValueLangType.valueToConstraintReference()))
             put("Anything", CompiledExport.Constraint(AnythingValueLangType.valueToConstraintReference()))
             put(
                 "AnySignal", CompiledExport.Constraint(AnySignalValueLangType.valueToConstraintReference())

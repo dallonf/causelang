@@ -32,6 +32,10 @@ sealed interface Instruction {
     data class Jump(val instruction: Int) : Instruction
     data class JumpIfFalse(val instruction: Int) : Instruction
 
+    data class StartLoop(val endInstruction: Int) : Instruction
+    object ContinueLoop : Instruction
+    data class BreakLoop(val levels: Int) : Instruction
+
     object Cause : Instruction
     object RejectSignal : Instruction
     object FinishEffect : Instruction

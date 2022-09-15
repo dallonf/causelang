@@ -89,8 +89,49 @@ class LoopsTest {
         TestUtils.expectTypeError(vm.executeFunction("project/test.cau", "main", listOf()), vm)
     }
 
+    @Test
     fun canUseEffectToBreak() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math (add, at_least)
+                    
+                    signal BreakMainLoop: NeverContinues
+                        
+                    function main() {
+                        let variable i = 0
+                        loop {
+                            cause Debug(i)
+                            
+                            set i = add(i, 1)
+                            
+                            effect for BreakMainLoop {
+                                break
+                            }
+                            
+                            function break_on_3(i: Number) {
+                                branch {
+                                    if at_least(i, 3) => cause BreakMainLoop
+                                    else => {}
+                                }
+                            }
+                            break_on_3(i)
+                        }
+                        cause Debug("Done!")
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
+        TestUtils.runMainExpectingDebugValues(
+            vm, "project/test.cau", listOf(
+                RuntimeValue.Number(0),
+                RuntimeValue.Number(1),
+                RuntimeValue.Number(2),
+                RuntimeValue.String("Done!"),
+            )
+        )
     }
 
     fun abortsInfiniteLoops() {}

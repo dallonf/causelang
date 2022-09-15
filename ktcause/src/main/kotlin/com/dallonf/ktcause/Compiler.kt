@@ -31,9 +31,7 @@ object Compiler {
 
     private data class OpenLoop(
         val breadcrumbs: Breadcrumbs
-    ) {
-        val endPlaceholders: MutableList<CompiledFile.MutableInstructionChunk.JumpPlaceholder> = mutableListOf()
-    }
+    )
 
     private class CompilerScope(
         val scopeRoot: Breadcrumbs,
@@ -174,6 +172,7 @@ object Compiler {
                 statement, chunk, ctx, isLastStatement = i == block.statements.lastIndex
             )
             if (ctx.resolved.getInferredType(statement.info.breadcrumbs) is NeverContinuesValueLangType) {
+                ctx.scopeStack.removeLast()
                 return
             }
         }
@@ -298,10 +297,10 @@ object Compiler {
                 effectChunk.writeInstruction(Instruction.ReadLocal(0))
                 compileValueFlowReference(statement.pattern.typeReference, effectChunk, ctx)
                 effectChunk.writeInstruction(Instruction.IsAssignableTo)
-                val rejectEffectJump = effectChunk.writeJumpIfFalsePlaceholder()
+                val rejectSignal = effectChunk.writeJumpIfFalsePlaceholder()
                 compileBody(statement.body, effectChunk, ctx)
                 effectChunk.writeInstruction(Instruction.FinishEffect)
-                rejectEffectJump.fill(effectChunk.instructions.size)
+                rejectSignal.fill(effectChunk.instructions.size)
             }
         }
 
@@ -502,16 +501,13 @@ object Compiler {
     private fun compileLoopExpression(
         expression: ExpressionNode.LoopExpressionNode, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
     ) {
-        val startInstruction = chunk.instructions.lastIndex + 1
+        val startLoopPlaceholder = chunk.writeStartLoopPlaceholder()
         val openLoop = OpenLoop(expression.info.breadcrumbs)
         ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY, openLoop))
         compileBody(expression.body, chunk, ctx)
         ctx.scopeStack.removeLast()
-        chunk.writeInstruction(Instruction.Pop())
-        chunk.writeInstruction(Instruction.Jump(startInstruction))
-        for (placeholder in openLoop.endPlaceholders) {
-            placeholder.fill()
-        }
+        chunk.writeInstruction(Instruction.ContinueLoop)
+        startLoopPlaceholder.fill()
     }
 
     private fun compileValueFlowReference(
@@ -718,12 +714,12 @@ object Compiler {
         }
 
         val breakTag = ctx.getTag<NodeTag.BreaksLoop>(expression.info.breadcrumbs)!!
-        val loop = ctx.scopeStack.reversed().firstNotNullOf { scope ->
-            if (scope.scopeRoot == breakTag.loop && scope.openLoop != null) scope.openLoop else null
-        }
+        val loopIndex = ctx.scopeStack.reversed().filter { it.openLoop != null }.withIndex()
+            .firstNotNullOf { (i, scope) ->
+                if (scope.scopeRoot == breakTag.loop) i else null
+            }
 
-        chunk.writeInstruction(Instruction.PushAction)
-        loop.endPlaceholders.add(chunk.writeJumpPlaceholder())
+        chunk.writeInstruction(Instruction.BreakLoop(loopIndex + 1))
     }
 
     private fun compileMemberExpression(

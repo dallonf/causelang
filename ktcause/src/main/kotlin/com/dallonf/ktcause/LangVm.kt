@@ -27,14 +27,25 @@ class LangVm(val codeBundle: CodeBundle) {
         val nextEffect: RuntimeEffect?
     )
 
+    private class OpenLoop(
+        val callFrame: CallFrame,
+        val continueInstruction: Int,
+        val breakInstruction: Int,
+        val stackEnd: Int,
+        val outerLoop: OpenLoop?,
+    ) {
+        var iterations: Int = 0
+    }
+
     private class CallFrame(
         val file: CompiledFile,
         val chunk: CompiledFile.InstructionChunk,
-        val callParent: CallFrame? = null,
-        val causeParent: CallFrame? = null,
         val stack: ArrayDeque<RuntimeValue>,
+        val callParent: CallFrame?,
+        val causeParent: CallFrame?,
         var stackStart: Int = 0,
-        var firstEffect: RuntimeEffect? = null
+        var firstEffect: RuntimeEffect?,
+        var currentLoop: OpenLoop?,
     ) {
         var instruction: Int = 0
         var pendingSignal: RuntimeValue.RuntimeObject? = null
@@ -67,7 +78,13 @@ class LangVm(val codeBundle: CodeBundle) {
         }
 
         callFrame = CallFrame(
-            file, file.chunks[function.chunkIndex], callParent = null, causeParent = null, stack
+            file,
+            file.chunks[function.chunkIndex],
+            stack = stack,
+            callParent = null,
+            causeParent = null,
+            firstEffect = null,
+            currentLoop = null,
         )
 
         return execute()
@@ -292,11 +309,12 @@ class LangVm(val codeBundle: CodeBundle) {
                                 val newCallFrame = CallFrame(
                                     function.file,
                                     function.file.chunks[function.chunkIndex],
+                                    stack = stack,
                                     callParent = callFrame,
                                     causeParent = null,
-                                    stack = stack,
                                     stackStart = stack.size - instruction.arity,
                                     firstEffect = callFrame.firstEffect,
+                                    currentLoop = null,
                                 )
                                 stack.addAll(function.capturedValues)
                                 this.callFrame = newCallFrame
@@ -345,6 +363,51 @@ class LangVm(val codeBundle: CodeBundle) {
                         }
                     }
 
+                    is Instruction.StartLoop -> {
+                        callFrame.currentLoop = OpenLoop(
+                            callFrame,
+                            continueInstruction = callFrame.instruction,
+                            breakInstruction = instruction.endInstruction,
+                            stackEnd = callFrame.stack.lastIndex,
+                            outerLoop = callFrame.currentLoop
+                        )
+                    }
+
+                    is Instruction.ContinueLoop -> {
+                        val loop =
+                            requireNotNull(this.callFrame?.currentLoop) { throw InternalVmError("I tried to continue a loop, but I'm not in a loop.") }
+
+                        val newCallFrame = loop.callFrame
+                        newCallFrame.instruction = loop.continueInstruction
+
+                        val excessStackItems = newCallFrame.stack.lastIndex - loop.stackEnd
+                        for (i in 0 until excessStackItems) {
+                            newCallFrame.stack.removeLast()
+                        }
+
+                        this.callFrame = newCallFrame
+
+                    }
+
+                    is Instruction.BreakLoop -> {
+                        for (i in 0 until instruction.levels) {
+                            val loop =
+                                requireNotNull(this.callFrame?.currentLoop) { throw InternalVmError("I tried to break a loop, but I'm not in a loop.") }
+
+                            val newCallFrame = loop.callFrame
+                            newCallFrame.instruction = loop.breakInstruction
+
+                            val excessStackItems = newCallFrame.stack.lastIndex - loop.stackEnd
+                            for (i in 0 until excessStackItems) {
+                                newCallFrame.stack.removeLast()
+                            }
+                            newCallFrame.stack.addLast(RuntimeValue.Action)
+                            newCallFrame.currentLoop = loop.outerLoop
+
+                            this.callFrame = newCallFrame
+                        }
+                    }
+
                     is Instruction.Cause -> {
                         val signal = stack.removeLast().let {
                             when (it) {
@@ -368,10 +431,11 @@ class LangVm(val codeBundle: CodeBundle) {
                             this.callFrame = CallFrame(
                                 effect.file,
                                 effect.chunk,
+                                stack = ArrayDeque(listOf(signal)),
                                 callParent = effect.callParent,
                                 causeParent = callFrame,
-                                stack = ArrayDeque(listOf(signal)),
                                 firstEffect = effect.nextEffect,
+                                currentLoop = effect.callParent.currentLoop,
                             )
                         } else {
                             return RunResult.Caused(signal)
@@ -386,10 +450,11 @@ class LangVm(val codeBundle: CodeBundle) {
                             this.callFrame = CallFrame(
                                 nextEffect.file,
                                 nextEffect.chunk,
+                                stack = ArrayDeque(listOf(signal)),
                                 callParent = nextEffect.callParent,
                                 causeParent = callFrame.causeParent,
-                                stack = ArrayDeque(listOf(signal)),
-                                firstEffect = nextEffect.nextEffect
+                                firstEffect = nextEffect.nextEffect,
+                                currentLoop = nextEffect.callParent.currentLoop,
                             )
                         } else {
                             this.callFrame = callFrame.causeParent
