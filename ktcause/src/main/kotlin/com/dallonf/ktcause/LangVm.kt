@@ -7,15 +7,16 @@ import com.dallonf.ktcause.types.*
 import kotlinx.serialization.json.Json
 
 
-class LangVm(val codeBundle: CodeBundle) {
-    companion object {
-        const val MAX_LOOP = 5_000
-    }
+class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
-    constructor(buildBundle: CodeBundleBuilder.() -> Unit) : this(CodeBundleBuilder().let { builder ->
-        buildBundle(builder)
-        builder.build()
-    })
+    data class Options(val runawayLoopThreshold: Long? = 5_000, val debugInstructionLevelExecution: Boolean = false)
+
+    constructor(options: Options = Options(), buildBundle: CodeBundleBuilder.() -> Unit) : this(
+        CodeBundleBuilder().let { builder ->
+            buildBundle(builder)
+            builder.build()
+        }, options
+    )
 
     open class VmError(message: String) : Error(message)
     class InternalVmError(message: String) :
@@ -37,7 +38,7 @@ class LangVm(val codeBundle: CodeBundle) {
         val stackEnd: Int,
         val outerLoop: OpenLoop?,
     ) {
-        var iterations: Int = 0
+        var iterations: Long = 0
     }
 
     private class CallFrame(
@@ -56,10 +57,6 @@ class LangVm(val codeBundle: CodeBundle) {
         val executionParent
             get() = causeParent ?: callParent
     }
-
-    data class ErrorTrace(
-        val position: SourcePosition, val error: ErrorLangType, val proxyChain: List<SourcePosition>
-    )
 
 
     fun executeFunction(filePath: String, functionName: String, parameters: List<RuntimeValue>): RunResult {
@@ -132,9 +129,6 @@ class LangVm(val codeBundle: CodeBundle) {
         callFrame.causeParent?.let { resetLoopsForCallFrame(it) }
     }
 
-
-    private val stackJsonSerializer = Json
-
     private fun execute(): RunResult {
         while (true) {
             run iteration@{
@@ -155,10 +149,11 @@ class LangVm(val codeBundle: CodeBundle) {
                     }
                 }
 
-                // TODO: VM play-by-play enabled optionally
-                val debugStack = stack.map { it.debugMini() }.joinToString(", ")
-                println("stack: $debugStack")
-                println("instruction #${callFrame.instruction - 1}: $instruction")
+                if (options.debugInstructionLevelExecution) {
+                    val debugStack = stack.joinToString(", ") { it.debugMini() }
+                    println("stack: $debugStack")
+                    println("instruction #${callFrame.instruction - 1}: $instruction")
+                }
 
                 when (instruction) {
                     is Instruction.NoOp -> {}
@@ -402,12 +397,14 @@ class LangVm(val codeBundle: CodeBundle) {
                         val loop =
                             requireNotNull(this.callFrame?.currentLoop) { throw InternalVmError("I tried to continue a loop, but I'm not in a loop.") }
 
-                        loop.iterations += 1
-                        if (loop.iterations > MAX_LOOP) {
-                            val error = RuntimeValue.RuntimeObject(
-                                codeBundle.getType(CoreFiles.builtin.path, "RunawayLoop"), emptyList()
-                            )
-                            return RunResult.Caused(error)
+                        if (options.runawayLoopThreshold != null) {
+                            loop.iterations += 1
+                            if (loop.iterations > options.runawayLoopThreshold) {
+                                val error = RuntimeValue.RuntimeObject(
+                                    codeBundle.getType(CoreFiles.builtin.path, "RunawayLoop"), emptyList()
+                                )
+                                return RunResult.Caused(error)
+                            }
                         }
 
                         val newCallFrame = loop.callFrame

@@ -179,7 +179,7 @@ class LoopsTest {
         }
         TestUtils.expectNoCompileErrors(vm)
 
-        val stopAt = LangVm.MAX_LOOP * 2
+        val stopAt = vm.options.runawayLoopThreshold!! * 2
 
         var current = vm.executeFunction("project/test.cau", "main", listOf(RuntimeValue.Number(stopAt.toBigDecimal())))
         var count: BigDecimal = 0.toBigDecimal()
