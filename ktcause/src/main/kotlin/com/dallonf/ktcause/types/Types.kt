@@ -4,6 +4,7 @@ import com.dallonf.ktcause.ast.SourcePosition
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -53,25 +54,58 @@ sealed interface CanonicalLangType {
     data class SignalCanonicalLangType(
         override val id: CanonicalLangTypeId,
         val name: String,
-        val fields: List<ObjectField>,
-        val result: ConstraintReference,
+        var fields: List<ObjectField>,
+        var result: ConstraintReference,
     ) : CanonicalLangType {
         override fun isUnique() = fields.isEmpty()
 
-        override fun isPending() = result.isPending() || fields.any { it.valueConstraint.isPending() }
-        override fun getError() = result.getError() ?: fields.firstNotNullOfOrNull { it.valueConstraint.getError() }
+        @Transient
+        private var recursivePending: Int = 0
+        override fun isPending(): Boolean {
+            if (recursivePending > 0) return false
+            recursivePending += 1
+            return (result.isPending() || fields.any { it.valueConstraint.isPending() }).also {
+                recursivePending -= 1
+            }
+        }
+
+        @Transient
+        private var recursiveError: Int = 0
+
+        override fun getError(): ErrorLangType? {
+            if (recursiveError > 0) return null
+            recursiveError += 1
+            return (result.getError()
+                ?: fields.firstNotNullOfOrNull { it.valueConstraint.getError() }).also { recursiveError -= 1 }
+        }
     }
 
     @Serializable
     @SerialName("Object")
     data class ObjectCanonicalLangType(
-        override val id: CanonicalLangTypeId, val name: String, val fields: List<ObjectField>
+        override val id: CanonicalLangTypeId, var name: String, var fields: List<ObjectField>
     ) : CanonicalLangType {
 
         override fun isUnique() = fields.isEmpty()
 
-        override fun isPending() = fields.any { it.valueConstraint.isPending() }
-        override fun getError() = fields.firstNotNullOfOrNull { it.valueConstraint.getError() }
+        @Transient
+        private var recursivePending: Int = 0
+        override fun isPending(): Boolean {
+            if (recursivePending > 0) return false
+            recursivePending += 1
+            return fields.any { it.valueConstraint.isPending() }.also {
+                recursivePending -= 1
+            }
+        }
+
+        @Transient
+        private var recursiveError: Int = 0
+
+        override fun getError(): ErrorLangType? {
+            if (recursiveError > 0) return null
+            recursiveError += 1
+            return fields.firstNotNullOfOrNull { it.valueConstraint.getError() }.also { recursiveError -= 1 }
+        }
     }
 
     @Serializable
@@ -228,8 +262,7 @@ sealed interface ErrorLangType : ValueLangType {
     @Serializable
     @SerialName("ActionIncompatibleWithValueTypes")
     data class ActionIncompatibleWithValueTypes(
-        val actions: List<SourcePosition>,
-        val types: List<ValueType>
+        val actions: List<SourcePosition>, val types: List<ValueType>
     ) : ErrorLangType {
         @Serializable
         data class ValueType(val type: ValueLangType, val position: SourcePosition)

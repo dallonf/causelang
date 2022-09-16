@@ -96,6 +96,27 @@ object Resolver {
         val resolvedTypes = mutableMapOf<ResolutionKey, ValueLangType>()
         val knownCanonicalTypes = mutableMapOf<CanonicalLangTypeId, CanonicalLangType>()
 
+        fun registerObjectType(id: CanonicalLangTypeId, name: String): CanonicalLangType.ObjectCanonicalLangType {
+            return knownCanonicalTypes.getOrPut(id) {
+                CanonicalLangType.ObjectCanonicalLangType(
+                    id,
+                    name,
+                    listOf()
+                )
+            } as CanonicalLangType.ObjectCanonicalLangType
+        }
+
+        fun registerSignalType(id: CanonicalLangTypeId, name: String): CanonicalLangType.SignalCanonicalLangType {
+            return knownCanonicalTypes.getOrPut(id) {
+                CanonicalLangType.SignalCanonicalLangType(
+                    id,
+                    name,
+                    listOf(),
+                    ConstraintReference.Pending
+                )
+            } as CanonicalLangType.SignalCanonicalLangType
+        }
+
         val builtins = CoreFiles.builtin.toFileDescriptor().exports
 
         // Seed the crawler with everything the compiler will want to know about
@@ -388,13 +409,13 @@ object Resolver {
 
                             when (signalType) {
                                 is CanonicalLangType.SignalCanonicalLangType -> {
-                                    when (signalType.result) {
+                                    when (val result = signalType.result) {
                                         is ConstraintReference.Pending -> {}
                                         is ConstraintReference.Error -> resolveWithProxyError(
-                                            signalType.result.errorType, node.signal
+                                            result.errorType, node.signal
                                         )
 
-                                        is ConstraintReference.ResolvedConstraint -> resolveWith(signalType.result.valueType)
+                                        is ConstraintReference.ResolvedConstraint -> resolveWith(result.valueType)
                                     }
                                 }
 
@@ -740,39 +761,27 @@ object Resolver {
                         is DeclarationNode.ObjectType -> {
                             // TODO: increment number to resolve dupes
                             val id = CanonicalLangTypeId(path, null, node.name.text, 0u)
-                            val fields = node.fields?.map { field ->
+                            val objectType = registerObjectType(id, node.name.text)
+
+                            objectType.fields = node.fields?.map { field ->
                                 val fieldType = getResolvedTypeOf(field.typeConstraint).asConstraintReference()
                                 CanonicalLangType.ObjectField(field.name.text, fieldType)
                             } ?: emptyList()
-                            val objectType = CanonicalLangType.ObjectCanonicalLangType(id, node.name.text, fields)
 
-                            val existingKnownType = knownCanonicalTypes[id]
-                            if (existingKnownType != null && !existingKnownType.isPending()) {
-                                error("Accidentally clobbered canonical type: $existingKnownType with $objectType.")
-                            }
-
-                            knownCanonicalTypes[id] = objectType
                             resolveWith(ConstraintValueLangType(InstanceValueLangType(objectType)))
                         }
 
                         is DeclarationNode.SignalType -> {
-                            val id = CanonicalLangTypeId(path, null, node.name.text, 0u)
                             // TODO: increment number to resolve dupes
-                            val fields = node.fields?.map { field ->
+                            val id = CanonicalLangTypeId(path, null, node.name.text, 0u)
+                            val signalType = registerSignalType(id, node.name.text)
+
+                            signalType.fields = node.fields?.map { field ->
                                 val fieldType = getResolvedTypeOf(field.typeConstraint).asConstraintReference()
                                 CanonicalLangType.ObjectField(field.name.text, fieldType)
                             } ?: emptyList()
-                            val result = getResolvedTypeOf(node.result).asConstraintReference()
+                            signalType.result = getResolvedTypeOf(node.result).asConstraintReference()
 
-                            val signalType =
-                                CanonicalLangType.SignalCanonicalLangType(id, node.name.text, fields, result)
-
-                            val existingKnownType = knownCanonicalTypes[id]
-                            if (existingKnownType != null && !existingKnownType.isPending()) {
-                                error("Accidentally clobbered canonical type: $existingKnownType with $signalType.")
-                            }
-
-                            knownCanonicalTypes[id] = signalType
                             resolveWith(ConstraintValueLangType(InstanceValueLangType(signalType)))
                         }
 

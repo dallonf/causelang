@@ -216,7 +216,7 @@ class LoopsTest {
                         let variable count = 0
                         let variable currentWrapper = wrapper 
                         let inner = loop {
-                            set i = add(i, 1)
+                            set count = add(count, 1)
                             branch with currentWrapper.item {
                                 is Number as number => break with number
                                 is Wrapper as wrapper => set currentWrapper = wrapper
@@ -231,7 +231,7 @@ class LoopsTest {
         TestUtils.expectNoCompileErrors(vm)
 
         TestUtils.runMainExpectingDebugValues(
-            vm, "project/test.cau", listOf(RuntimeValue.Number(42), RuntimeValue.Number(4))
+            vm, "project/test.cau", listOf(RuntimeValue.Number(42), RuntimeValue.Number(5))
         )
     }
 
