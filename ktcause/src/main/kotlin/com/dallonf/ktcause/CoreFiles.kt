@@ -2,6 +2,7 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.CompiledFile.CompiledExport
 import com.dallonf.ktcause.types.*
+import com.github.hiking93.graphemesplitterlite.GraphemeSplitter
 import java.math.BigDecimal
 import java.math.MathContext
 import java.math.RoundingMode
@@ -229,6 +230,8 @@ object CoreFiles {
         CompiledFile(filename, types = emptyMap(), chunks = emptyList(), exports)
     }
 
+    private val graphemeSplitter by lazy { GraphemeSplitter() }
+
     val text by lazy {
         val filename = "core/text.cau"
 
@@ -262,6 +265,62 @@ object CoreFiles {
             ) { (thisVal) ->
                 require(thisVal is RuntimeValue.Number)
                 RuntimeValue.Text(thisVal.value.toString())
+            })
+
+            put("count_characters", CompiledExport.NativeFunction(
+                FunctionValueLangType(
+                    name = "count_characters", params = listOf(
+                        LangParameter(
+                            "this", LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
+                        )
+                    ), returnConstraint = LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                )
+            ) { (thisVal) ->
+                require(thisVal is RuntimeValue.Text)
+                val count = graphemeSplitter.split(thisVal.value).size
+                RuntimeValue.Number(count.toBigDecimal())
+            })
+
+            put("slice_index", CompiledExport.NativeFunction(
+                FunctionValueLangType(
+                    name = "slice_index", params = listOf(
+                        LangParameter(
+                            "this", LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
+                        ), LangParameter(
+                            "start_index", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                        ), LangParameter(
+                            "until_index", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                        )
+                    ), returnConstraint = LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
+                )
+            ) { (thisVal, startIndex, untilIndex) ->
+                require(thisVal is RuntimeValue.Text)
+                require(startIndex is RuntimeValue.Number)
+                require(untilIndex is RuntimeValue.Number)
+                val graphemes = graphemeSplitter.split(thisVal.value)
+                val slice = graphemes.subList(startIndex.value.toInt(), untilIndex.value.toInt())
+                RuntimeValue.Text(slice.joinToString(""))
+            })
+
+            put("slice_nth", CompiledExport.NativeFunction(
+                FunctionValueLangType(
+                    name = "slice_nth", params = listOf(
+                        LangParameter(
+                            "this", LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
+                        ), LangParameter(
+                            "first_character", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                        ), LangParameter(
+                            "last_character", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                        )
+                    ), returnConstraint = LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
+                )
+            ) { (thisVal, startIndex, untilIndex) ->
+                require(thisVal is RuntimeValue.Text)
+                require(startIndex is RuntimeValue.Number)
+                require(untilIndex is RuntimeValue.Number)
+                val graphemes = graphemeSplitter.split(thisVal.value)
+                val slice = graphemes.subList(startIndex.value.toInt() - 1, untilIndex.value.toInt())
+                RuntimeValue.Text(slice.joinToString(""))
             })
         }
 

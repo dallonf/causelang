@@ -10,13 +10,14 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
+    maven("https://jitpack.io")
 }
 
 dependencies {
     implementation("org.antlr:antlr4-runtime:4.10.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.0-RC")
     testImplementation(kotlin("test"))
-    testImplementation("com.tylerthrailkill.helpers:pretty-print:v2.0.8")
+    implementation("com.github.hiking93:grapheme-splitter-lite:0.0.1")
 }
 
 tasks.test {
