@@ -1,4 +1,3 @@
-import com.dallonf.ktcause.Debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RunResult
@@ -52,7 +51,7 @@ object TestUtils {
     }
 
     fun runMainExpectingDebugs(vm: LangVm, path: String, expected: List<String>) {
-        runMainExpectingDebugValues(vm, path, expected.map { RuntimeValue.String(it) })
+        runMainExpectingDebugValues(vm, path, expected.map { RuntimeValue.Text(it) })
     }
 
     fun runMainExpectingDebugValues(vm: LangVm, path: String, expected: List<RuntimeValue>) {

@@ -51,10 +51,10 @@ class EffectsBasicTest {
         val debugTypeId = vm.codeBundle.getBuiltinTypeId("Debug")
         val result1 = vm.executeFunction("project/test.cau", "main", listOf())
             .let { TestUtils.expectValidCaused(it, debugTypeId) }
-        assertEquals(result1.values[0], RuntimeValue.String("Intercepted an InterceptThis signal"))
+        assertEquals(result1.values[0], RuntimeValue.Text("Intercepted an InterceptThis signal"))
 
         val result2 = vm.resumeExecution(RuntimeValue.Action).let { TestUtils.expectValidCaused(it, debugTypeId) }
-        assertEquals(result2.values[0], RuntimeValue.String("This should not have been intercepted"))
+        assertEquals(result2.values[0], RuntimeValue.Text("This should not have been intercepted"))
 
         vm.resumeExecution(RuntimeValue.Action).expectReturnValue().let { assertEquals(it, RuntimeValue.Action) }
     }
@@ -65,7 +65,7 @@ class EffectsBasicTest {
         val greetType = CanonicalLangType.SignalCanonicalLangType(
             greetTypeId, greetTypeId.name!!, listOf(
                 CanonicalLangType.ObjectField(
-                    "name", LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                    "name", LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
                 )
             ), result = ActionValueLangType.toConstraint().asConstraintReference()
         )
@@ -82,7 +82,7 @@ class EffectsBasicTest {
             )
             addFile(
                 "project/test.cau", """
-                import core/string (append)
+                import core/text (append)
                 import test/test (Greet)
                 
                 function main() {
@@ -101,9 +101,9 @@ class EffectsBasicTest {
         val debugTypeId = vm.codeBundle.getBuiltinTypeId("Debug")
         val result1 = vm.executeFunction("project/test.cau", "main", listOf())
             .let { TestUtils.expectValidCaused(it, debugTypeId) }
-        assertEquals(RuntimeValue.String("Don't handle this one"), result1.values[0])
+        assertEquals(RuntimeValue.Text("Don't handle this one"), result1.values[0])
         val result2 = vm.resumeExecution(RuntimeValue.Action).let { TestUtils.expectValidCaused(it, debugTypeId) }
-        assertEquals(RuntimeValue.String("Howdy, partner"), result2.values[0])
+        assertEquals(RuntimeValue.Text("Howdy, partner"), result2.values[0])
 
         vm.resumeExecution(RuntimeValue.Action).expectReturnValue().let { assertEquals(RuntimeValue.Action, it) }
     }
@@ -113,9 +113,9 @@ class EffectsBasicTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/string (append)
+                    import core/text (append)
                     
-                    signal Greet(name: String): String
+                    signal Greet(name: Text): Text
                     
                     function main() {
                         effect for Greet as s {
@@ -133,7 +133,7 @@ class EffectsBasicTest {
         TestUtils.expectValidCaused(
             vm.executeFunction("project/test.cau", "main", listOf()), vm.codeBundle.getBuiltinTypeId("Debug")
         ).let {
-            assertEquals(RuntimeValue.String("Howdy, partner"), it.values[0])
+            assertEquals(RuntimeValue.Text("Howdy, partner"), it.values[0])
         }
 
         vm.resumeExecution(RuntimeValue.Action).expectReturnValue().let {
@@ -146,9 +146,9 @@ class EffectsBasicTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/string (append, number_to_string)
+                    import core/text (append, number_to_text)
                     
-                    signal TestSignal1(value: String): Action
+                    signal TestSignal1(value: Text): Action
                     signal TestSignal2(value: Number): Action
                     
                     function main() {
@@ -156,7 +156,7 @@ class EffectsBasicTest {
                             cause Debug(append("One ", s.value))
                         }
                         effect for TestSignal2 as s {
-                            cause Debug(append("Two ", number_to_string(s.value)))
+                            cause Debug(append("Two ", number_to_text(s.value)))
                         }
                         
                         cause TestSignal1("hello")

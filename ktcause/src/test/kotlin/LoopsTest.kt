@@ -38,7 +38,7 @@ class LoopsTest {
                 RuntimeValue.Number(2),
                 RuntimeValue.Number(3),
                 RuntimeValue.Number(4),
-                RuntimeValue.String("Done!"),
+                RuntimeValue.Text("Done!"),
             )
         )
     }
@@ -129,7 +129,7 @@ class LoopsTest {
                 RuntimeValue.Number(0),
                 RuntimeValue.Number(1),
                 RuntimeValue.Number(2),
-                RuntimeValue.String("Done!"),
+                RuntimeValue.Text("Done!"),
             )
         )
     }
@@ -191,7 +191,7 @@ class LoopsTest {
         }
         current.expectCausedSignal().let {
             assertEquals(vm.codeBundle.getBuiltinTypeId("Debug"), it.typeDescriptor.id)
-            assertEquals(RuntimeValue.String("Done!"), it.values[0])
+            assertEquals(RuntimeValue.Text("Done!"), it.values[0])
         }
         assertEquals((stopAt - 1).toBigDecimal(), count)
         vm.resumeExecution(RuntimeValue.Action).expectReturnValue().let {

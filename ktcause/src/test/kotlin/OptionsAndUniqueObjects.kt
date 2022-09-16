@@ -368,7 +368,7 @@ class OptionsAndUniqueObjects {
 
         vm.executeFunction("project/test.cau", "main", listOf())
             .let { TestUtils.expectValidCaused(it, vm.codeBundle.getBuiltinTypeId("Debug")) }
-            .let { assertEquals(RuntimeValue.String("unique signal intercepted"), it.values[0]) }
+            .let { assertEquals(RuntimeValue.Text("unique signal intercepted"), it.values[0]) }
 
         vm.resumeExecution(RuntimeValue.Action)
             .let { TestUtils.expectValidCaused(it, vm.codeBundle.getTypeId("project/test.cau", "UniqueSignal")) }
@@ -385,7 +385,7 @@ class OptionsAndUniqueObjects {
 
         vm.resumeExecution(RuntimeValue.Action)
             .let { TestUtils.expectValidCaused(it, vm.codeBundle.getBuiltinTypeId("Debug")) }
-            .let { assertEquals(RuntimeValue.String("done"), it.values[0]) }
+            .let { assertEquals(RuntimeValue.Text("done"), it.values[0]) }
 
         vm.resumeExecution(RuntimeValue.Action).expectReturnValue()
             .let { assertEquals(RuntimeValue.Action, it) }

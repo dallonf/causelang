@@ -10,7 +10,7 @@ sealed class RuntimeValue {
 
     data class BadValue(val position: SourcePosition, val error: ErrorLangType) : RuntimeValue()
 
-    data class String(val value: kotlin.String) : RuntimeValue()
+    data class Text(val value: String) : RuntimeValue()
     data class Number(val value: BigDecimal) : RuntimeValue() {
         constructor(value: Double) : this(value.toBigDecimal())
         constructor(value: Long) : this(value.toBigDecimal())
@@ -39,11 +39,11 @@ sealed class RuntimeValue {
     }
 
     data class NativeFunction internal constructor(
-        val name: kotlin.String, val function: (List<RuntimeValue>) -> RuntimeValue
+        val name: String, val function: (List<RuntimeValue>) -> RuntimeValue
     ) : RuntimeValue()
 
     data class Function(
-        val name: kotlin.String?,
+        val name: String?,
         val file: CompiledFile,
         val chunkIndex: Int,
         val type: FunctionValueLangType,
@@ -52,7 +52,7 @@ sealed class RuntimeValue {
 
     companion object {
         fun fromExport(
-            file: CompiledFile, exportName: kotlin.String
+            file: CompiledFile, exportName: String
         ): RuntimeValue {
             val export =
                 requireNotNull(file.exports[exportName]) { "The file ${file.path} doesn't export anything (at least non-private) called $exportName." }
@@ -93,13 +93,13 @@ sealed class RuntimeValue {
         }
     }
 
-    fun isAssignableTo(constraint: ConstraintValueLangType): kotlin.Boolean {
+    fun isAssignableTo(constraint: ConstraintValueLangType): Boolean {
         return when (val valueType = constraint.valueType) {
             is ActionValueLangType -> this is Action
 
             is FunctionValueLangType -> this is Function && this.type.isAssignableTo(constraint)
             is PrimitiveValueLangType -> when (valueType.kind) {
-                LangPrimitiveKind.STRING -> this is String
+                LangPrimitiveKind.TEXT -> this is Text
                 LangPrimitiveKind.NUMBER -> this is Number
             }
 
@@ -125,7 +125,7 @@ sealed class RuntimeValue {
         }
     }
 
-    fun isAssignableTo(constraint: ConstraintReference): kotlin.Boolean = when (constraint) {
+    fun isAssignableTo(constraint: ConstraintReference): Boolean = when (constraint) {
         is ConstraintReference.Pending -> false
         is ConstraintReference.Error -> false
         is ConstraintReference.ResolvedConstraint -> isAssignableTo(constraint.asResolvedConstraintValue())
@@ -133,7 +133,7 @@ sealed class RuntimeValue {
 
     fun validate(): RuntimeValue {
         return when (this) {
-            is Action, is BadValue, is String, is Number, is RuntimeTypeConstraint, is NativeFunction, is Function -> this
+            is Action, is BadValue, is Text, is Number, is RuntimeTypeConstraint, is NativeFunction, is Function -> this
             is RuntimeObject -> {
                 // TODO: we shouldn't make a brand new object if it's all valid
                 val newValues = mutableListOf<RuntimeValue>()
@@ -149,10 +149,10 @@ sealed class RuntimeValue {
         }
     }
 
-    fun isValid(): kotlin.Boolean {
+    fun isValid(): Boolean {
         return when (this) {
             is BadValue -> false
-            is Action, is String, is Number, is RuntimeTypeConstraint, is NativeFunction, is Function -> true
+            is Action, is Text, is Number, is RuntimeTypeConstraint, is NativeFunction, is Function -> true
             is RuntimeObject -> this.values.all { it.isValid() }
         }
     }
@@ -214,7 +214,7 @@ sealed class RuntimeValue {
                 }
             }
 
-            is String -> JsonPrimitive(this.value)
+            is Text -> JsonPrimitive(this.value)
         }
     }
 }

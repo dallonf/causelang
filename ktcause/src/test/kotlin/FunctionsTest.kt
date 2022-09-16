@@ -24,7 +24,7 @@ class FunctionsTest {
         val debug = TestUtils.expectValidCaused(
             vm.executeFunction("project/test.cau", "main", listOf()), vm.codeBundle.getBuiltinTypeId("Debug")
         )
-        assertEquals(debug.values[0], RuntimeValue.String("Hello World"))
+        assertEquals(debug.values[0], RuntimeValue.Text("Hello World"))
         assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturnValue(), RuntimeValue.Action)
     }
 
@@ -33,7 +33,7 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/string ( append )
+                    import core/text ( append )
                     
                     function main() {
                         let name = getName()
@@ -58,7 +58,7 @@ class FunctionsTest {
         val debug = TestUtils.expectValidCaused(
             vm.executeFunction("project/test.cau", "main", listOf()), vm.codeBundle.getBuiltinTypeId("Debug")
         )
-        assertEquals(debug.values[0], RuntimeValue.String("Hello, World"))
+        assertEquals(debug.values[0], RuntimeValue.Text("Hello, World"))
         assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturnValue(), RuntimeValue.Action)
     }
 
@@ -82,7 +82,7 @@ class FunctionsTest {
         val debug = TestUtils.expectValidCaused(
             vm.executeFunction("project/test.cau", "main", listOf()), vm.codeBundle.getBuiltinTypeId("Debug")
         )
-        assertEquals(debug.values[0], RuntimeValue.String("Hello World"))
+        assertEquals(debug.values[0], RuntimeValue.Text("Hello World"))
         assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturnValue(), RuntimeValue.Action)
     }
 
@@ -91,13 +91,13 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                import core/string (append)
+                import core/text (append)
                 
                 function main(): String {
                     formatGreeting("Hello", "World")
                 }
                 
-                function formatGreeting(greeting: String, name: String): String {
+                function formatGreeting(greeting: Text, name: Text): Text {
                     append(greeting, append(", ", name))
                 }
             """.trimIndent()
@@ -106,7 +106,7 @@ class FunctionsTest {
         TestUtils.expectNoCompileErrors(vm)
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
-        assertEquals(RuntimeValue.String("Hello, World"), result)
+        assertEquals(RuntimeValue.Text("Hello, World"), result)
     }
 
     @Test

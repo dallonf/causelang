@@ -15,7 +15,7 @@ object CoreFiles {
         }
     }
 
-    val others by lazy { listOf(math, string) }
+    val others by lazy { listOf(math, text) }
 
     val all by lazy { listOf(builtin) + others }
 
@@ -62,7 +62,7 @@ object CoreFiles {
                     name = "AssumptionBroken",
                     fields = listOf(
                         CanonicalLangType.ObjectField(
-                            "message", LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                            "message", LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
                         )
                     ),
                     result = NeverContinuesValueLangType.toConstraint().asConstraintReference()
@@ -83,8 +83,8 @@ object CoreFiles {
 
         val exports = buildMap<String, CompiledExport> {
             put(
-                "String", CompiledExport.Constraint(
-                    LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                "Text", CompiledExport.Constraint(
+                    LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
                 )
             )
             put(
@@ -229,39 +229,39 @@ object CoreFiles {
         CompiledFile(filename, types = emptyMap(), chunks = emptyList(), exports)
     }
 
-    val string by lazy {
-        val filename = "core/string.cau"
+    val text by lazy {
+        val filename = "core/text.cau"
 
         val exports = buildMap<String, CompiledExport> {
             put("append", CompiledExport.NativeFunction(
                 FunctionValueLangType(
                     name = "append", params = listOf(
                         LangParameter(
-                            "this", LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                            "this", LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
                         ),
                         LangParameter(
-                            "other", LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                            "other", LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
                         ),
-                    ), returnConstraint = LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                    ), returnConstraint = LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
                 )
             ) { (thisVal, other) ->
-                require(thisVal is RuntimeValue.String)
-                require(other is RuntimeValue.String)
+                require(thisVal is RuntimeValue.Text)
+                require(other is RuntimeValue.Text)
 
-                RuntimeValue.String(thisVal.value + other.value)
+                RuntimeValue.Text(thisVal.value + other.value)
             })
 
-            put("number_to_string", CompiledExport.NativeFunction(
+            put("number_to_text", CompiledExport.NativeFunction(
                 FunctionValueLangType(
-                    name = "number_to_string", params = listOf(
+                    name = "number_to_text", params = listOf(
                         LangParameter(
                             "this", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                         )
-                    ), returnConstraint = LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                    ), returnConstraint = LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
                 )
             ) { (thisVal) ->
                 require(thisVal is RuntimeValue.Number)
-                RuntimeValue.String(thisVal.value.toString())
+                RuntimeValue.Text(thisVal.value.toString())
             })
         }
 

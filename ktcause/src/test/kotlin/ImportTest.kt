@@ -52,7 +52,7 @@ class ImportTest {
                 "project/a.cau", """
                     import project/b ( get_name )
                     
-                    object Card(name: String)
+                    object Card(name: Text)
                     
                     function announce_card() {
                         let card = Card("Ace of Spades")
@@ -65,7 +65,7 @@ class ImportTest {
                 "project/b.cau", """
                     import project/a ( Card )
                     
-                    function get_name(card: Card): String {
+                    function get_name(card: Card): Text {
                         card.name
                     }
                 """.trimIndent()
@@ -142,7 +142,7 @@ class ImportTest {
 
             addFile(
                 "project/util.cau", """
-                    function print(message: String) {
+                    function print(message: Text) {
                         cause Debug(message)
                     }
                 """.trimIndent()

@@ -1,7 +1,5 @@
 package com.dallonf.ktcause
 
-import com.dallonf.ktcause.Debug.debug
-import com.dallonf.ktcause.Debug.debugMini
 import com.dallonf.ktcause.ast.Breadcrumbs
 import com.dallonf.ktcause.ast.FileNode
 import com.dallonf.ktcause.types.*
@@ -123,14 +121,14 @@ object Debug {
                     NeverContinuesValueLangType -> "NeverContinues"
                     is OptionValueLangType -> "Option"
                     is PrimitiveValueLangType -> when (this.valueType.kind) {
-                        LangPrimitiveKind.STRING -> "String"
+                        LangPrimitiveKind.TEXT -> "Text"
                         LangPrimitiveKind.NUMBER -> "Number"
                     }
                 }
                 "[TypeConstraint: $valueType]"
             }
 
-            is RuntimeValue.String -> debugSerializer.encodeToString(this.toJson())
+            is RuntimeValue.Text -> debugSerializer.encodeToString(this.toJson())
         }
     }
 

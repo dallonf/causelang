@@ -79,10 +79,10 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """
-                    signal ExpectString(message: String): Action
+                    signal ExpectText(message: Text): Action
                     
                     function main() {
-                        cause ExpectString(1)
+                        cause ExpectText(1)
                     }
                 """.trimIndent()
             )
@@ -95,14 +95,14 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.2.body.statements.0.expression.signal.parameters.0",
-                        "position": "4:23-4:24"
+                        "position": "4:21-4:22"
                     },
                     "error": {
                         "#type": "MismatchedType",
                         "expected": {
                             "valueType": {
                                 "#type": "Primitive",
-                                "kind": "String"
+                                "kind": "Text"
                             }
                         },
                         "actual": {
@@ -125,14 +125,14 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.2.body.statements.0.expression.signal.parameters.0",
-                    "position": "4:23-4:24"
+                    "position": "4:21-4:22"
                 },
                 "error": {
                     "#type": "MismatchedType",
                     "expected": {
                         "valueType": {
                             "#type": "Primitive",
-                            "kind": "String"
+                            "kind": "Text"
                         }
                     },
                     "actual": {
@@ -152,10 +152,10 @@ internal class ErrorHandlingBasicTest {
             addFile(
                 "project/hello.cau", """               
                     function main() {
-                        expect_string(1)
+                        expect_text(1)
                     }
                     
-                    function expect_string(message: String) {
+                    function expect_text(message: Text) {
                         cause Debug(message)
                     }
                 """.trimIndent()
@@ -169,14 +169,14 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body.statements.0.expression.parameters.0",
-                        "position": "2:18-2:19"
+                        "position": "2:16-2:17"
                     },
                     "error": {
                         "#type": "MismatchedType",
                         "expected": {
                             "valueType": {
                                 "#type": "Primitive",
-                                "kind": "String"
+                                "kind": "Text"
                             }
                         },
                         "actual": {
@@ -200,14 +200,14 @@ internal class ErrorHandlingBasicTest {
                         "#type": "SourcePosition",
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body.statements.0.expression.parameters.0",
-                        "position": "2:18-2:19"
+                        "position": "2:16-2:17"
                     },
                     "error": {
                         "#type": "MismatchedType",
                         "expected": {
                             "valueType": {
                                 "#type": "Primitive",
-                                "kind": "String"
+                                "kind": "Text"
                             }
                         },
                         "actual": {
@@ -342,7 +342,7 @@ internal class ErrorHandlingBasicTest {
             addFile(
                 "project/hello.cau", """
                     function main() {
-                        let name: String = 5
+                        let name: Text = 5
                     }
                 """.trimIndent()
             )
@@ -354,14 +354,14 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body.statements.0.declaration",
-                        "position": "2:4-2:24"
+                        "position": "2:4-2:22"
                     },
                     "error": {
                         "#type": "MismatchedType",
                         "expected": {
                             "valueType": {
                                 "#type": "Primitive",
-                                "kind": "String"
+                                "kind": "Text"
                             }
                         },
                         "actual": {

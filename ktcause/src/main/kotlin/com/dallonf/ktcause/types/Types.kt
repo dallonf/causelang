@@ -398,8 +398,8 @@ data class FunctionValueLangType(
 
 @Serializable
 enum class LangPrimitiveKind() {
-    @SerialName("String")
-    STRING,
+    @SerialName("Text")
+    TEXT,
 
     @SerialName("Number")
     NUMBER;

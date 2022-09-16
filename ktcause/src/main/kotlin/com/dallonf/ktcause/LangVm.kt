@@ -3,9 +3,7 @@ package com.dallonf.ktcause
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.Debug.debugMini
 import com.dallonf.ktcause.ast.SourcePosition
-import com.dallonf.ktcause.parse.parse
 import com.dallonf.ktcause.types.*
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 
@@ -196,7 +194,7 @@ class LangVm(val codeBundle: CodeBundle) {
 
                     is Instruction.Literal -> {
                         val newValue = when (val constant = getConstant(instruction.constant)) {
-                            is CompiledFile.CompiledConstant.StringConst -> RuntimeValue.String(constant.value)
+                            is CompiledFile.CompiledConstant.StringConst -> RuntimeValue.Text(constant.value)
                             is CompiledFile.CompiledConstant.NumberConst -> RuntimeValue.Number(constant.value)
                             is CompiledFile.CompiledConstant.TypeConst -> throw InternalVmError("This isn't supposed to be used as a literal: $constant")
                             is CompiledFile.CompiledConstant.ErrorConst -> RuntimeValue.BadValue(

@@ -13,7 +13,7 @@ class IoTest {
                 "test/io.cau", name = "Print", number = 0u
             ), "Print", fields = listOf(
                 CanonicalLangType.ObjectField(
-                    "message", LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+                    "message", LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
                 )
             ), result = ActionValueLangType.toConstraint().asConstraintReference()
         )
@@ -23,7 +23,7 @@ class IoTest {
             ),
             "Prompt",
             fields = listOf(),
-            result = LangPrimitiveKind.STRING.toConstraintLangType().asConstraintReference()
+            result = LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
         )
 
         return CompiledFile("test/io.cau", types = buildMap {
@@ -41,7 +41,7 @@ class IoTest {
             addCompiledFile(ioFile())
             addFile(
                 "project/test.cau", """
-                    import core/string ( append )
+                    import core/text ( append )
                     import test/io ( Print, Prompt )
                 
                     function main() {
@@ -77,7 +77,7 @@ class IoTest {
         )
 
         val result3 = TestUtils.expectValidCaused(
-            vm.resumeExecution(RuntimeValue.String("Bob")), vm.codeBundle.getTypeId("test/io.cau", "Print")
+            vm.resumeExecution(RuntimeValue.Text("Bob")), vm.codeBundle.getTypeId("test/io.cau", "Print")
         )
         assertEquals(
             result3.debug(), """
@@ -98,7 +98,7 @@ class IoTest {
             addCompiledFile(ioFile())
             addFile(
                 "project/test.cau", """
-                import core/string ( append )
+                import core/text ( append )
                 import test/io ( Print, Prompt )
                 
                 function main() {
@@ -118,9 +118,9 @@ class IoTest {
             vm.resumeExecution(RuntimeValue.Action), vm.codeBundle.getTypeId("test/io.cau", "Prompt")
         )
         val finalPrint = TestUtils.expectValidCaused(
-            vm.resumeExecution(RuntimeValue.String("Bob")), vm.codeBundle.getTypeId("test/io.cau", "Print")
+            vm.resumeExecution(RuntimeValue.Text("Bob")), vm.codeBundle.getTypeId("test/io.cau", "Print")
         )
-        assertEquals(finalPrint.values[0], RuntimeValue.String("Hello, Bob"))
+        assertEquals(finalPrint.values[0], RuntimeValue.Text("Hello, Bob"))
 
         assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturnValue(), RuntimeValue.Action)
     }
@@ -131,7 +131,7 @@ class IoTest {
             addCompiledFile(ioFile())
             addFile(
                 "project/test.cau", """
-                    import core/string ( append )
+                    import core/text ( append )
                     import test/io ( Print, Prompt )
                     
                     function main() {
@@ -150,9 +150,9 @@ class IoTest {
             vm.executeFunction("project/test.cau", "main", listOf()), vm.codeBundle.getTypeId("test/io.cau", "Prompt")
         )
         val finalPrint = TestUtils.expectValidCaused(
-            vm.resumeExecution(RuntimeValue.String("Bob")), vm.codeBundle.getTypeId("test/io.cau", "Print")
+            vm.resumeExecution(RuntimeValue.Text("Bob")), vm.codeBundle.getTypeId("test/io.cau", "Print")
         )
-        assertEquals(finalPrint.values[0], RuntimeValue.String("Hello, Bob"))
+        assertEquals(finalPrint.values[0], RuntimeValue.Text("Hello, Bob"))
         assertEquals(vm.resumeExecution(RuntimeValue.Action).expectReturnValue(), RuntimeValue.Action)
     }
 }

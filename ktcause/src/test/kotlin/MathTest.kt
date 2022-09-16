@@ -76,15 +76,15 @@ class MathTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                import core/string (number_to_string)
+                import core/text (number_to_text)
                 import core/math (remainder)
                 
-                function fizz_buzz(input: Number): String { 
+                function fizz_buzz(input: Number): Text { 
                     branch {
                         if equals(remainder(input, 15), 0) => "FizzBuzz"
                         if equals(remainder(input, 3), 0) => "Fizz"
                         if equals(remainder(input, 5), 0) => "Buzz"
-                        else => number_to_string(input)
+                        else => number_to_text(input)
                     }
                 }
             """.trimIndent()
@@ -94,7 +94,7 @@ class MathTest {
 
         val list = (1..20).map { i ->
             vm.executeFunction("project/test.cau", "fizz_buzz", listOf(RuntimeValue.Number(i.toBigDecimal())))
-                .expectReturnValue().let { (it as RuntimeValue.String).value }
+                .expectReturnValue().let { (it as RuntimeValue.Text).value }
         }
         val expected = listOf<String>(
             "1",

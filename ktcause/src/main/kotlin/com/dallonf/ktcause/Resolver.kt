@@ -264,7 +264,7 @@ object Resolver {
                             resolveWith(getResolvedTypeOf(comesFromTag.source).expectConstraint())
                         }
 
-                        is ExpressionNode.StringLiteralExpression -> resolveWith(LangPrimitiveKind.STRING.toValueLangType())
+                        is ExpressionNode.StringLiteralExpression -> resolveWith(LangPrimitiveKind.TEXT.toValueLangType())
                         is ExpressionNode.NumberLiteralExpression -> resolveWith(LangPrimitiveKind.NUMBER.toValueLangType())
 
                         is ExpressionNode.BlockExpressionNode -> resolveWith(getResolvedTypeOf(node.block))

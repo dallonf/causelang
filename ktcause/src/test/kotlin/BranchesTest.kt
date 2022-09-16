@@ -25,7 +25,7 @@ class BranchesTest {
         TestUtils.expectNoCompileErrors(vm)
 
         val result = vm.executeFunction("project/test.cau", "main", listOf())
-        assertEquals(RuntimeValue.String("yup"), result.expectReturnValue())
+        assertEquals(RuntimeValue.Text("yup"), result.expectReturnValue())
     }
 
     @Test
@@ -359,7 +359,7 @@ class BranchesTest {
                             {
                                 "type": {
                                     "#type": "Primitive",
-                                    "kind": "String"
+                                    "kind": "Text"
                                 },
                                 "position": {
                                     "#type": "SourcePosition",
@@ -371,7 +371,7 @@ class BranchesTest {
                             {
                                 "type": {
                                     "#type": "Primitive",
-                                    "kind": "String"
+                                    "kind": "Text"
                                 },
                                 "position": {
                                     "#type": "SourcePosition",
@@ -390,7 +390,7 @@ class BranchesTest {
         vm.executeFunction("project/test.cau", "main", listOf()).let {
             TestUtils.expectValidCaused(it, vm.codeBundle.getBuiltinTypeId("Debug"))
         }.let {
-            assertEquals(RuntimeValue.String("Clubs"), it.values[0])
+            assertEquals(RuntimeValue.Text("Clubs"), it.values[0])
         }
 
         vm.resumeExecution(RuntimeValue.Action).let { TestUtils.expectTypeError(it, vm) }
@@ -401,7 +401,7 @@ class BranchesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/string (number_to_string)
+                    import core/text (number_to_text)
                     
                     object Nothing
                     option MaybeNumber(Nothing, Number)
@@ -413,7 +413,7 @@ class BranchesTest {
                     
                     function print_number(this: MaybeNumber) {
                         branch with this {
-                            is Number as i => cause Debug(number_to_string(i))
+                            is Number as i => cause Debug(number_to_text(i))
                             is Nothing => Action
                         }
                     }

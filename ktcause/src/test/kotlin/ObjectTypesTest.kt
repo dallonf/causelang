@@ -11,7 +11,7 @@ class ObjectTypesTest {
             addFile(
                 "project/test.cau", """
                 object Card(
-                    suit: String,
+                    suit: Text,
                     rank: Number,
                 )
                 
@@ -41,7 +41,7 @@ class ObjectTypesTest {
             addFile(
                 "project/test.cau", """
                     object Card(
-                        suit: String,
+                        suit: Text,
                         rank: Number,
                     )
                     
@@ -56,7 +56,7 @@ class ObjectTypesTest {
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(
-            RuntimeValue.String("spades"), result
+            RuntimeValue.Text("spades"), result
         )
     }
 }
