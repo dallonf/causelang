@@ -28,11 +28,18 @@ tasks.test {
 }
 
 tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "18"
+    kotlinOptions.jvmTarget = "1.8"
 }
 
 sourceSets.main {
     java {
         srcDir("${projectDir}/src/${this@main.name}/gen")
+    }
+}
+
+tasks.compileJava {
+    java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 }
