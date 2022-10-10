@@ -1,6 +1,8 @@
 grammar Cause;
 
 WHITESPACE : (' ' | '\t' | '\r')+ -> skip ;
+COMMENT : '//' .*? '\n' -> skip ;
+MULTILINE_COMMENT : '/*' .*? '*/' -> skip ;
 NEWLINE : '\n';
 COMMA : ',' ;
 COLON : ':' ;
