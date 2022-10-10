@@ -21,6 +21,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.0-RC")
     testImplementation(kotlin("test"))
     implementation("com.github.hiking93:grapheme-splitter-lite:0.0.1")
+    implementation("org.apache.commons:commons-numbers-fraction:1.0")
 }
 
 tasks.test {

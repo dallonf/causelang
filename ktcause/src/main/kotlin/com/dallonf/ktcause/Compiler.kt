@@ -2,6 +2,9 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.types.*
+import org.apache.commons.numbers.fraction.BigFraction
+import java.math.BigInteger
+import kotlin.math.pow
 import kotlin.reflect.KClass
 
 object Compiler {
@@ -367,12 +370,16 @@ object Compiler {
                 )
             )
 
-            is ExpressionNode.NumberLiteralExpression -> chunk.writeLiteral(
-                CompiledFile.CompiledConstant.NumberConst(
-                    expression.value
+            is ExpressionNode.NumberLiteralExpression -> {
+                val numerator = expression.value.unscaledValue()
+                val denominator = 10.toBigInteger().pow(expression.value.scale())
+                val fraction = BigFraction.of(numerator, denominator)
+                chunk.writeLiteral(
+                    CompiledFile.CompiledConstant.NumberConst(
+                        fraction
+                    )
                 )
-            )
-
+            }
         }
 
         // TODO: this can be redundant since sometimes there's already a BadValue on the stack
@@ -723,8 +730,8 @@ object Compiler {
         val breakTag = ctx.getTag<NodeTag.BreaksLoop>(expression.info.breadcrumbs)!!
         val loopIndex =
             ctx.scopeStack.reversed().filter { it.openLoop != null }.withIndex().firstNotNullOf { (i, scope) ->
-                    if (scope.scopeRoot == breakTag.loop) i else null
-                }
+                if (scope.scopeRoot == breakTag.loop) i else null
+            }
 
         chunk.writeInstruction(Instruction.BreakLoop(loopIndex + 1))
     }

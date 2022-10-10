@@ -3,6 +3,7 @@ package com.dallonf.ktcause
 import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
 import kotlinx.serialization.json.*
+import org.apache.commons.numbers.fraction.BigFraction
 import java.math.BigDecimal
 
 sealed class RuntimeValue {
@@ -11,9 +12,9 @@ sealed class RuntimeValue {
     data class BadValue(val position: SourcePosition, val error: ErrorLangType) : RuntimeValue()
 
     data class Text(val value: String) : RuntimeValue()
-    data class Number(val value: BigDecimal) : RuntimeValue() {
-        constructor(value: Double) : this(value.toBigDecimal())
-        constructor(value: Long) : this(value.toBigDecimal())
+    data class Number(val value: BigFraction) : RuntimeValue() {
+        constructor(value: Double) : this(BigFraction.from(value))
+        constructor(value: Long) : this(BigFraction.of(value.toBigInteger()))
 
         override fun equals(other: Any?): Boolean {
             if (other !is Number) return false

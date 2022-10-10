@@ -3,6 +3,7 @@ package com.dallonf.ktcause
 import com.dallonf.ktcause.CompiledFile.CompiledExport
 import com.dallonf.ktcause.types.*
 import com.github.hiking93.graphemesplitterlite.GraphemeSplitter
+import org.apache.commons.numbers.fraction.BigFraction
 import java.math.BigDecimal
 import java.math.MathContext
 import java.math.RoundingMode
@@ -134,12 +135,16 @@ object CoreFiles {
 
         val exports = buildMap<String, CompiledExport> {
 
-            listOf<Pair<String, (BigDecimal, BigDecimal) -> BigDecimal>>(
-                "add" to { x, y -> x + y },
-                "subtract" to { x, y -> x - y },
-                "multiply" to { x, y -> x * y },
-                "divide" to { x, y -> x / y },
-                "remainder" to { x, y -> x % y },
+            listOf<Pair<String, (BigFraction, BigFraction) -> BigFraction>>(
+                "add" to { x, y -> x.add(y) },
+                "subtract" to { x, y -> x.subtract(y) },
+                "multiply" to { x, y -> x.multiply(y) },
+                "divide" to { x, y -> x.divide(y) },
+                "remainder" to { x, y ->
+                    val divided = x.divide(y)
+                    val whole = divided.toLong()
+                    divided.subtract(whole)
+                },
             ).forEach { (name, fn) ->
                 put(name, CompiledExport.NativeFunction(
                     FunctionValueLangType(
@@ -162,26 +167,16 @@ object CoreFiles {
                 })
             }
 
-            listOf<Pair<String, (BigDecimal) -> Long>>(
+            listOf<Pair<String, (BigFraction) -> Long>>(
                 "round" to {
-                    it.round(
-                        MathContext(
-                            1, RoundingMode.HALF_UP
-                        )
-                    ).toLong()
+                    it.bigDecimalValue(RoundingMode.HALF_UP).toLong()
                 },
                 "floor" to {
-                    it.round(
-                        MathContext(
-                            1, RoundingMode.FLOOR
-                        )
-                    ).toLong()
+                    it.toLong()
                 },
                 "ceiling" to {
-                    it.round(
-                        MathContext(
-                            1, RoundingMode.CEILING
-                        )
+                    it.bigDecimalValue(
+                        RoundingMode.CEILING
                     ).toLong()
                 },
             ).forEach { (name, fn) ->
@@ -201,7 +196,7 @@ object CoreFiles {
                 })
             }
 
-            listOf<Pair<String, (BigDecimal, BigDecimal) -> Boolean>>(
+            listOf<Pair<String, (BigFraction, BigFraction) -> Boolean>>(
                 "greater_than" to { x, y -> x > y },
                 "less_than" to { x, y -> x < y },
                 "at_least" to { x, y -> x >= y },
@@ -278,7 +273,7 @@ object CoreFiles {
             ) { (thisVal) ->
                 require(thisVal is RuntimeValue.Text)
                 val count = graphemeSplitter.split(thisVal.value).size
-                RuntimeValue.Number(count.toBigDecimal())
+                RuntimeValue.Number(count.toLong())
             })
 
             put("slice_index", CompiledExport.NativeFunction(
@@ -308,9 +303,11 @@ object CoreFiles {
                         LangParameter(
                             "this", LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
                         ), LangParameter(
-                            "first_character", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                            "first_character",
+                            LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                         ), LangParameter(
-                            "last_character", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
+                            "last_character",
+                            LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                         )
                     ), returnConstraint = LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
                 )

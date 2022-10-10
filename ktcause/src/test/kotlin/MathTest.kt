@@ -72,6 +72,27 @@ class MathTest {
     }
 
     @Test
+    fun fractions() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math (divide, multiply)
+                    
+                    function main(): Number {
+                        let value = divide(1, 3)
+                        multiply(value, 6)
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue().let {
+            assertEquals(RuntimeValue.Number(2), it)
+        }
+    }
+
+    @Test
     fun naiveFizzBuzz() {
         val vm = LangVm {
             addFile(
@@ -93,7 +114,7 @@ class MathTest {
         TestUtils.expectNoCompileErrors(vm)
 
         val list = (1..20).map { i ->
-            vm.executeFunction("project/test.cau", "fizz_buzz", listOf(RuntimeValue.Number(i.toBigDecimal())))
+            vm.executeFunction("project/test.cau", "fizz_buzz", listOf(RuntimeValue.Number(i.toLong())))
                 .expectReturnValue().let { (it as RuntimeValue.Text).value }
         }
         val expected = listOf<String>(

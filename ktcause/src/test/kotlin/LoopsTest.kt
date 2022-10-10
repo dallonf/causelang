@@ -181,11 +181,11 @@ class LoopsTest {
 
         val stopAt = vm.options.runawayLoopThreshold!! * 2
 
-        var current = vm.executeFunction("project/test.cau", "main", listOf(RuntimeValue.Number(stopAt.toBigDecimal())))
-        var count: BigDecimal = 0.toBigDecimal()
+        var current = vm.executeFunction("project/test.cau", "main", listOf(RuntimeValue.Number(stopAt)))
+        var count: Long = 0
         val progress = vm.codeBundle.getTypeId("project/test.cau", "Progress")
         while (current is RunResult.Caused && current.signal.typeDescriptor.id == progress) {
-            count = (current.signal.values[0] as RuntimeValue.Number).value
+            count = (current.signal.values[0] as RuntimeValue.Number).value.toLong()
             vm.reportTick()
             current = vm.resumeExecution(RuntimeValue.Action)
         }
@@ -193,7 +193,7 @@ class LoopsTest {
             assertEquals(vm.codeBundle.getBuiltinTypeId("Debug"), it.typeDescriptor.id)
             assertEquals(RuntimeValue.Text("Done!"), it.values[0])
         }
-        assertEquals((stopAt - 1).toBigDecimal(), count)
+        assertEquals((stopAt - 1), count)
         vm.resumeExecution(RuntimeValue.Action).expectReturnValue().let {
             assertEquals(RuntimeValue.Action, it)
         }

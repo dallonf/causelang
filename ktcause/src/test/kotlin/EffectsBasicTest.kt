@@ -169,7 +169,7 @@ class EffectsBasicTest {
 
         TestUtils.runMainExpectingDebugs(
             vm, "project/test.cau", listOf(
-                "One hello", "Two 42.0"
+                "One hello", "Two 42"
             )
         )
     }

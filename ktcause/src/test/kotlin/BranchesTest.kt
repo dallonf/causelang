@@ -422,6 +422,6 @@ class BranchesTest {
         }
         TestUtils.expectNoCompileErrors(vm)
 
-        TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf("42.0"))
+        TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf("42"))
     }
 }
