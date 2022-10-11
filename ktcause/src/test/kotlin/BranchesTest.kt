@@ -445,4 +445,24 @@ class BranchesTest {
 
         TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf("Something"))
     }
+
+    @Test
+    fun consolidatesTypes() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """                    
+                    function main() {
+                        let number = branch {
+                            if True => 1
+                            else => 2
+                        }
+                        require_number(number)
+                    }
+                    
+                    function require_number(input: Number) {}
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+    }
 }
