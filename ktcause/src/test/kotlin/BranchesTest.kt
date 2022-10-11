@@ -1,4 +1,5 @@
 import TestUtils.expectTypeError
+import com.dallonf.ktcause.Debug
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
@@ -423,5 +424,25 @@ class BranchesTest {
         TestUtils.expectNoCompileErrors(vm)
 
         TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf("42"))
+    }
+
+    @Test
+    fun matchesAnything() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """                    
+                    function main() {
+                        let x: Anything = "Something"
+                        branch with x {
+                            is Text as x => cause Debug(x)
+                            else => cause AssumptionBroken("it should have been text")
+                        }
+                    }                
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf("Something"))
     }
 }

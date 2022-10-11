@@ -429,7 +429,7 @@ data class OptionValueLangType(val options: List<ConstraintReference>) : Resolve
             return if (type is OptionValueLangType) {
                 type
             } else {
-                OptionValueLangType(listOf(type.asConstraintReference()))
+                OptionValueLangType(listOf(type.valueToConstraintReference()))
             }
         }
     }
