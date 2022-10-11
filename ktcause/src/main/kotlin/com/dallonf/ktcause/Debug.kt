@@ -155,8 +155,35 @@ object Debug {
         val analyzed: AnalyzedNode? = null,
         val resolved: ResolvedFile? = null
     ) {
-        fun getNodeContext(breadcrumbs: Breadcrumbs): String {
+        fun getSourceContext(breadcrumbs: Breadcrumbs): String? {
             val contextLines = 2
+            val builder = StringBuilder()
+
+            val node = ast?.findNode(breadcrumbs)
+            val position = node?.info?.position
+
+            if (position == null || source == null) {
+                return null
+            }
+
+            val startLine = position.start.line
+            val contextStartLine = max(startLine - contextLines, 0)
+            for (line in source.lineSequence().drop(contextStartLine).take(startLine - contextStartLine)) {
+                builder.appendLine(line)
+            }
+            val col = position.start.column
+            val prefixLength = max(col - 1, 0)
+            val prefix = (0 until prefixLength).asSequence().map { '-' }.joinToString("")
+            builder.appendLine("$prefix^")
+            for (line in source.lineSequence().drop(position.end.line).take(contextLines)) {
+                builder.appendLine(line)
+            }
+
+            return builder.toString()
+        }
+
+        fun getNodeContext(breadcrumbs: Breadcrumbs): String {
+
 
             val builder = StringBuilder()
 
@@ -169,18 +196,7 @@ object Debug {
 
             if (position != null && source != null) {
                 builder.appendLine("```")
-                val startLine = position.start.line
-                val contextStartLine = max(startLine - contextLines, 0)
-                for (line in source.lineSequence().drop(contextStartLine).take(startLine - contextStartLine)) {
-                    builder.appendLine(line)
-                }
-                val col = position.start.column
-                val prefixLength = max(col - 1, 0)
-                val prefix = (0 until prefixLength).asSequence().map { '-' }.joinToString("")
-                builder.appendLine("$prefix^")
-                for (line in source.lineSequence().drop(position.end.line).take(contextLines)) {
-                    builder.appendLine(line)
-                }
+                builder.append(getSourceContext(breadcrumbs))
                 builder.appendLine("```")
             }
 
