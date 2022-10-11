@@ -45,7 +45,8 @@ class CodeBundleBuilder {
     private val pendingFiles = mutableListOf<PendingFile>()
 
     val requiredFilePaths: List<String>
-        get() = pendingFiles.flatMap { it.analyzed.filesReferenced }.filter { !it.startsWith("core/") }
+        get() = pendingFiles.flatMap { it.analyzed.filesReferenced }
+            .filter { !it.startsWith("core/") && !compiledFiles.containsKey(it) && !pendingFiles.any { file -> file.path == it } }
 
     fun addCompiledFile(file: CompiledFile) {
         compiledFiles[file.path] = file

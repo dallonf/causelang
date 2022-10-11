@@ -25,6 +25,7 @@ class ImportTest {
                 }
             """.trimIndent()
         )
+        assertEquals(emptyList(), builder.requiredFilePaths)
 
         val vm = LangVm(builder.build())
         TestUtils.expectNoCompileErrors(vm)
