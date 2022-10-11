@@ -17,7 +17,7 @@ object CoreFiles {
         }
     }
 
-    val others by lazy { listOf(math, text) }
+    val others by lazy { listOf(math, text, stopgapCollections) }
 
     val all by lazy { listOf(builtin) + others }
 
@@ -323,9 +323,51 @@ object CoreFiles {
 
         CompiledFile(filename, types = emptyMap(), chunks = emptyList(), exports)
     }
+
+    val stopgapCollections by lazy {
+        val filename = "core/stopgap/collections.cau"
+
+        var maybeStack: OptionValueLangType
+        val types = buildMap {
+            val empty = add(
+                CanonicalLangType.ObjectCanonicalLangType(
+                    CanonicalLangTypeId(filename, name = "Empty", number = 0u),
+                    name = "Empty",
+                    fields = emptyList(),
+                )
+            )
+
+            val stack = add(
+                CanonicalLangType.ObjectCanonicalLangType(
+                    CanonicalLangTypeId(filename, name = "Stack", number = 0u), name = "Stack", fields = emptyList()
+                ),
+            )
+
+            maybeStack = OptionValueLangType(
+                listOf(
+                    empty.asConstraintReference(),
+                    stack.asConstraintReference(),
+                )
+            )
+
+            stack.fields = listOf(
+                CanonicalLangType.ObjectField("top", AnythingValueLangType.valueToConstraintReference()),
+                CanonicalLangType.ObjectField("next", maybeStack.valueToConstraintReference()),
+            )
+        }
+
+        val exports = buildMap {
+            for ((_, type) in types) {
+                put(type.id.name!!, CompiledExport.Constraint(type.asConstraintReference()))
+            }
+            put("MaybeStack", CompiledExport.Constraint(maybeStack.valueToConstraintReference()))
+        }
+
+        CompiledFile(filename, types, chunks = emptyList(), exports)
+    }
 }
 
-private fun MutableMap<CanonicalLangTypeId, CanonicalLangType>.add(type: CanonicalLangType): CanonicalLangType {
+private fun <T : CanonicalLangType> MutableMap<CanonicalLangTypeId, CanonicalLangType>.add(type: T): T {
     put(type.id, type)
     return type
 }
