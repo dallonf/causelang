@@ -132,6 +132,23 @@ object Debug {
         }
     }
 
+    fun printCompileErrors(vm: LangVm) {
+        val (files, compileErrors) = vm.codeBundle
+        if (compileErrors.isNotEmpty()) {
+            println("Compile errors:\n")
+            for (error in compileErrors) {
+                println(error.debug())
+                val file = files[error.position.path]!!
+                if (file.debugCtx != null) {
+                    println(file.debugCtx.getNodeContext(error.position.breadcrumbs))
+                } else {
+                    println("Can't show error for ${file.path}")
+                }
+                println("------------------------------");
+            }
+        }
+    }
+
     data class DebugContext(
         val source: String? = null,
         val ast: FileNode? = null,

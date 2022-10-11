@@ -1,3 +1,4 @@
+import com.dallonf.ktcause.Debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RunResult
@@ -10,26 +11,16 @@ object TestUtils {
     fun expectNoCompileErrors(vm: LangVm) {
         val (_, compileErrors) = vm.codeBundle
         if (compileErrors.isNotEmpty()) {
-            printCompileErrors(vm)
+            Debug.printCompileErrors(vm)
             throw AssertionError("Compile errors: ${compileErrors.debug()}")
         }
     }
 
+    @Deprecated("use Debug.printCompileErrors instead",
+        ReplaceWith("Debug.printCompileErrors(vm)", "com.dallonf.ktcause.Debug")
+    )
     fun printCompileErrors(vm: LangVm) {
-        val (files, compileErrors) = vm.codeBundle
-        if (compileErrors.isNotEmpty()) {
-            println("Compile errors:\n")
-            for (error in compileErrors) {
-                println(error.debug())
-                val file = files[error.position.path]!!
-                if (file.debugCtx != null) {
-                    println(file.debugCtx!!.getNodeContext(error.position.breadcrumbs))
-                } else {
-                    println("Can't show error for ${file.path}")
-                }
-                println("------------------------------");
-            }
-        }
+        Debug.printCompileErrors(vm)
     }
 
     // TODO: it's kinda weird that there's two ways to get almost the same runtime error, hm?
