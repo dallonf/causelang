@@ -159,12 +159,16 @@ sealed interface ValueLangType {
         return this.letIfResolved { it.toConstraint() }.asConstraintReference()
     }
 
-    fun letIfResolved(f: (ResolvedValueLangType) -> ValueLangType): ValueLangType {
+    fun <T> letIfResolved(f: (ResolvedValueLangType) -> T, otherwise: T): T {
         return if (this is ResolvedValueLangType) {
             f(this)
         } else {
-            this
+            otherwise
         }
+    }
+
+    fun letIfResolved(f: (ResolvedValueLangType) -> ValueLangType): ValueLangType {
+        return letIfResolved(f, this)
     }
 
     fun letIfError(f: (ErrorLangType) -> ValueLangType): ValueLangType {
@@ -471,7 +475,28 @@ data class OptionValueLangType(val options: List<ConstraintReference>) : Resolve
             }
         }
 
-        // TODO: dedupe
+        allPossibleValues = if (allPossibleValues.size > 1) {
+            val notDuplicated = mutableListOf<ConstraintReference>()
+            for (possibleValue in allPossibleValues) {
+                val isDuplicate = notDuplicated.any { checkDuplicate ->
+                    if (possibleValue.asValueType() == checkDuplicate.asValueType()) {
+                        true
+                    } else {
+                        val possibleValueResolved = possibleValue.asValueType() as? ResolvedValueLangType
+                        val checkDuplicatedConstraint = checkDuplicate.asConstraintValue() as? ConstraintValueLangType
+                        possibleValueResolved != null && checkDuplicatedConstraint != null && possibleValueResolved.isAssignableTo(
+                            checkDuplicatedConstraint
+                        )
+                    }
+                }
+                if (!isDuplicate) {
+                    notDuplicated.add(possibleValue)
+                }
+            }
+            notDuplicated
+        } else {
+            allPossibleValues
+        }
 
         // if NeverContinues is part of the option, but only a part, then remove it
         val nonNeverContinues = allPossibleValues.filter { it.asValueType() !is NeverContinuesValueLangType }
