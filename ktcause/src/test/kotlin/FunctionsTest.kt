@@ -2,6 +2,7 @@ import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.expect
 
 class FunctionsTest {
     @Test
@@ -150,12 +151,31 @@ class FunctionsTest {
                 """.trimIndent()
             )
         }
-        TestUtils.printCompileErrors(vm)
+        TestUtils.expectNoCompileErrors(vm)
 
         TestUtils.runMainExpectingDebugValues(
             vm,
             "project/test.cau",
             listOf(RuntimeValue.Number(3), RuntimeValue.Number(4))
         )
+    }
+
+    @Test
+    fun handlesErroredInlineFunction() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    function main() {
+                        non_existent(fn() {
+                            cause Debug("oh no")
+                        })
+                    }
+                """.trimIndent()
+            )
+        }
+
+        vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue().let {
+            assertEquals(RuntimeValue.Text("yup"), it)
+        }
     }
 }
