@@ -3,8 +3,6 @@ package com.dallonf.ktcause
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.types.*
 import org.apache.commons.numbers.fraction.BigFraction
-import java.math.BigInteger
-import kotlin.math.pow
 import kotlin.reflect.KClass
 
 object Compiler {
@@ -62,7 +60,7 @@ object Compiler {
             when (declaration) {
                 is DeclarationNode.Import -> {}
                 is DeclarationNode.Function -> {
-                    val chunk = compileFunction(declaration, ctx)
+                    val chunk = compileFunctionDeclaration(declaration, ctx)
                     val functionType = resolved.getExpectedType(declaration.info.breadcrumbs)
 
                     ctx.chunks.add(chunk.toInstructionChunk())
@@ -119,24 +117,40 @@ object Compiler {
         return CompiledFile(resolved.path, types, ctx.chunks, exports, resolved.debugContext())
     }
 
-    private fun compileFunction(
+    private fun compileFunctionDeclaration(
         declaration: DeclarationNode.Function, ctx: CompilerContext
     ): CompiledFile.MutableInstructionChunk {
+        return compileFunction(
+            declaration.params,
+            declaration.info.breadcrumbs,
+            ctx
+        ) { chunk ->
+            compileBody(declaration.body, chunk, ctx)
+        }
+    }
+
+    private fun compileFunction(
+        params: List<FunctionSignatureParameterNode>,
+        breadcrumbs: Breadcrumbs,
+        ctx: CompilerContext,
+        compileBody: (CompiledFile.MutableInstructionChunk) -> Unit
+    ): CompiledFile.MutableInstructionChunk {
         val chunk = CompiledFile.MutableInstructionChunk()
-        val functionScope = CompilerScope(declaration.info.breadcrumbs, CompilerScope.ScopeType.FUNCTION)
+        val functionScope = CompilerScope(breadcrumbs, CompilerScope.ScopeType.FUNCTION)
         val oldScopeStack = ctx.scopeStack.toList()
         ctx.scopeStack.clear() // brand-new scope for every function
         ctx.scopeStack.addLast(functionScope)
 
-        for ((i, param) in declaration.params.withIndex()) {
+        for ((i, param) in params.withIndex()) {
             functionScope.namedValueIndices[param.info.breadcrumbs] = i
         }
 
-        for ((i, captured) in ctx.getTagsOfType<NodeTag.CapturesValue>(declaration.info.breadcrumbs).withIndex()) {
+        for ((i, captured) in ctx.getTagsOfType<NodeTag.CapturesValue>(breadcrumbs).withIndex()) {
             functionScope.namedValueIndices[captured.value] = i
         }
 
-        compileBody(declaration.body, chunk, ctx)
+        compileBody(chunk)
+
         // TODO: make sure this is the right type to return
         chunk.writeInstruction(Instruction.Return)
 
@@ -253,7 +267,7 @@ object Compiler {
                     compileValueReference(captured.value, chunk, ctx)
                 }
 
-                val newChunk = compileFunction(declaration, ctx)
+                val newChunk = compileFunctionDeclaration(declaration, ctx)
 
                 ctx.resolved.checkForRuntimeErrors(declaration.info.breadcrumbs)?.let { error ->
                     compileBadValue(declaration, error, chunk, ctx)
@@ -354,6 +368,8 @@ object Compiler {
         when (expression) {
             is ExpressionNode.BlockExpressionNode -> compileBlockExpression(expression, chunk, ctx)
 
+            is ExpressionNode.FunctionExpressionNode -> compileFunctionExpression(expression, chunk, ctx)
+
             is ExpressionNode.BranchExpressionNode -> compileBranchExpression(expression, chunk, ctx)
             is ExpressionNode.LoopExpressionNode -> compileLoopExpression(expression, chunk, ctx)
             is ExpressionNode.CauseExpression -> compileCauseExpression(expression, chunk, ctx)
@@ -411,6 +427,32 @@ object Compiler {
         ctx: CompilerContext
     ) {
         compileBlock(expression.block, chunk, ctx)
+    }
+
+    private fun compileFunctionExpression(
+        expression: ExpressionNode.FunctionExpressionNode,
+        chunk: CompiledFile.MutableInstructionChunk,
+        ctx: CompilerContext
+    ) {
+        val functionChunk = compileFunction(expression.params, expression.info.breadcrumbs, ctx) { functionChunk ->
+            compileExpression(expression.body, functionChunk, ctx)
+        }
+
+        ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
+            compileBadValue(expression, error, chunk, ctx)
+        } ?: run {
+            val capturedValues = ctx.getTagsOfType<NodeTag.CapturesValue>(expression.info.breadcrumbs)
+            ctx.chunks.add(functionChunk.toInstructionChunk())
+            chunk.writeInstruction(
+                Instruction.DefineFunction(
+                    chunkIndex = ctx.chunks.lastIndex, typeConstant = chunk.addConstant(
+                        CompiledFile.CompiledConstant.TypeConst(
+                            ctx.resolved.getExpectedType(expression.info.breadcrumbs)
+                        )
+                    ), capturedValues = capturedValues.size
+                )
+            )
+        }
     }
 
     private fun compileBranchExpression(

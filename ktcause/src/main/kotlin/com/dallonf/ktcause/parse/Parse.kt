@@ -52,11 +52,46 @@ private fun parseIdentifier(token: Token, breadcrumbs: Breadcrumbs, ctx: ParserC
 }
 
 private fun parseTypeReference(
-    typeAnnotationRule: TypeReferenceContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+    typeReference: TypeReferenceContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): TypeReferenceNode {
-    val identifier = parseIdentifier(typeAnnotationRule.IDENTIFIER().symbol, breadcrumbs, ctx)
+    return when (val child = typeReference.getChild(0)) {
+        is IdentifierTypeReferenceContext -> parseIdentifierTypeReference(child, breadcrumbs, ctx)
+        is FunctionTypeReferenceContext -> parseFunctionTypeReference(child, breadcrumbs, ctx)
+        else -> throw Error("unexpected type reference: ${child.toString()}")
+    }
+}
+
+
+private fun parseIdentifierTypeReference(
+    typeReference: IdentifierTypeReferenceContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+): TypeReferenceNode.IdentifierTypeReferenceNode {
+    val identifier = parseIdentifier(typeReference.IDENTIFIER().symbol, breadcrumbs, ctx)
     return TypeReferenceNode.IdentifierTypeReferenceNode(
-        NodeInfo(typeAnnotationRule.getRange(), breadcrumbs), identifier
+        NodeInfo(typeReference.getRange(), breadcrumbs), identifier
+    )
+}
+
+private fun parseFunctionTypeReference(
+    typeReference: FunctionTypeReferenceContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+): TypeReferenceNode.FunctionTypeReferenceNode {
+
+    val paramsBreadcrumbs = breadcrumbs.appendName("params")
+    val params = typeReference.functionSignatureParam().mapIndexed { i, param ->
+        val paramBreadcrumbs = paramsBreadcrumbs.appendIndex(i)
+        FunctionSignatureParameterNode(NodeInfo(param.getRange(), paramBreadcrumbs),
+            name = parseIdentifier(param.IDENTIFIER().symbol, paramBreadcrumbs.appendName("name"), ctx),
+            typeReference = param.typeReference()
+                ?.let { parseTypeReference(it, paramBreadcrumbs.appendName("typeReference"), ctx) })
+    }
+
+    val returnType = parseTypeReference(
+        typeReference.functionTypeReferenceReturnValue().typeReference(), breadcrumbs.appendName("returnType"), ctx
+    )
+
+    return TypeReferenceNode.FunctionTypeReferenceNode(
+        NodeInfo(typeReference.getRange(), breadcrumbs),
+        params,
+        returnType,
     )
 }
 
@@ -79,12 +114,11 @@ private fun parseFunctionDeclaration(
     breadcrumbs: Breadcrumbs,
     ctx: ParserContext,
 ): DeclarationNode.Function {
-
     val name = parseIdentifier(functionDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
     val paramsBreadcrumbs = breadcrumbs.appendName("params")
-    val params = functionDeclaration.functionParam().mapIndexed { i, param ->
+    val params = functionDeclaration.functionSignatureParam().mapIndexed { i, param ->
         val paramBreadcrumbs = paramsBreadcrumbs.appendIndex(i)
-        DeclarationNode.Function.FunctionParameterNode(NodeInfo(param.getRange(), paramBreadcrumbs),
+        FunctionSignatureParameterNode(NodeInfo(param.getRange(), paramBreadcrumbs),
             name = parseIdentifier(param.IDENTIFIER().symbol, paramBreadcrumbs.appendName("name"), ctx),
             typeReference = param.typeReference()
                 ?.let { parseTypeReference(it, paramBreadcrumbs.appendName("typeReference"), ctx) })
@@ -316,6 +350,7 @@ private fun parseExpression(
     val mainExpression = { innerBreadcrumbs: Breadcrumbs ->
         when (val child = expressionContext.getChild(0)) {
             is BlockExpressionContext -> parseBlockExpression(child, innerBreadcrumbs, ctx)
+            is FunctionExpressionContext -> parseFunctionExpression(child, innerBreadcrumbs, ctx)
             is BranchExpressionContext -> parseBranchExpression(child, innerBreadcrumbs, ctx)
             is LoopExpressionContext -> parseLoopExpression(child, innerBreadcrumbs, ctx)
             is CauseExpressionContext -> parseCauseExpression(child, innerBreadcrumbs, ctx)
@@ -348,6 +383,26 @@ private fun parseExpression(
     }
 
     return lazyExpression(breadcrumbs)
+}
+
+private fun parseFunctionExpression(
+    expression: FunctionExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+): ExpressionNode.FunctionExpressionNode {
+    val paramsBreadcrumbs = breadcrumbs.appendName("params")
+    val params = expression.functionSignatureParam().mapIndexed { i, param ->
+        val paramBreadcrumbs = paramsBreadcrumbs.appendIndex(i)
+        FunctionSignatureParameterNode(NodeInfo(param.getRange(), paramBreadcrumbs),
+            name = parseIdentifier(param.IDENTIFIER().symbol, paramBreadcrumbs.appendName("name"), ctx),
+            typeReference = param.typeReference()
+                ?.let { parseTypeReference(it, paramBreadcrumbs.appendName("typeReference"), ctx) })
+    }
+    val body = parseExpression(expression.expression(), breadcrumbs.appendName("body"), ctx)
+    val returnType = expression.functionReturnValue()?.typeReference()?.let {
+        parseTypeReference(it, breadcrumbs.appendName("returnType"), ctx)
+    }
+    return ExpressionNode.FunctionExpressionNode(
+        NodeInfo(expression.getRange(), breadcrumbs), params, body, returnType
+    )
 }
 
 

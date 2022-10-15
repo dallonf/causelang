@@ -15,10 +15,7 @@ object TestUtils {
             throw AssertionError("Compile errors: ${compileErrors.debug()}")
         }
     }
-
-    @Deprecated("use Debug.printCompileErrors instead",
-        ReplaceWith("Debug.printCompileErrors(vm)", "com.dallonf.ktcause.Debug")
-    )
+    
     fun printCompileErrors(vm: LangVm) {
         Debug.printCompileErrors(vm)
     }

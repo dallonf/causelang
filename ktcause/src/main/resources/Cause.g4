@@ -27,6 +27,7 @@ ELSE : 'else' ;
 FN : 'fn' ;
 FOR : 'for' ;
 FUNCTION : 'function' ;
+FUNCTION_CAMEL: 'Function' ;
 IF : 'if' ;
 IS : 'is' ;
 IMPORT : 'import' ;
@@ -44,7 +45,15 @@ IDENTIFIER : [a-zA-Z_] [a-zA-Z0-9_]* ; // TODO: need moar emoji
 
 file : NEWLINE* (declaration (NEWLINE+ declaration)*)? NEWLINE* EOF ;
 
-typeReference : IDENTIFIER ;
+typeReference : functionTypeReference | identifierTypeReference  ;
+identifierTypeReference : IDENTIFIER ;
+functionTypeReference : FUNCTION_CAMEL NEWLINE* PAREN_OPEN NEWLINE*
+    (functionSignatureParam NEWLINE* (COMMA NEWLINE* functionSignatureParam NEWLINE*)* COMMA?)?
+    NEWLINE* PAREN_CLOSE NEWLINE* functionTypeReferenceReturnValue
+;
+    functionTypeReferenceReturnValue : COLON NEWLINE* typeReference ;
+
+functionSignatureParam : IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference)? ;
 
 declaration : importDeclaration | functionDeclaration | namedValueDeclaration | objectDeclaration | signalDeclaration | optionDeclaration ;
 
@@ -53,10 +62,9 @@ importMappings : importMapping NEWLINE* (COMMA NEWLINE* importMapping NEWLINE*)*
 importMapping : IDENTIFIER (NEWLINE* AS NEWLINE* IDENTIFIER)? ;
 
 functionDeclaration : FUNCTION NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE*
-    (functionParam NEWLINE* (COMMA NEWLINE* functionParam NEWLINE*)* COMMA?)?
+    (functionSignatureParam NEWLINE* (COMMA NEWLINE* functionSignatureParam NEWLINE*)* COMMA?)?
     NEWLINE* PAREN_CLOSE NEWLINE* functionReturnValue?
     NEWLINE* body ;
-functionParam : IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference)? ;
 functionReturnValue : COLON NEWLINE* typeReference ;
 
 namedValueDeclaration : LET NEWLINE* VARIABLE? NEWLINE* IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference NEWLINE*)? EQUALS NEWLINE* expression ;
@@ -80,10 +88,13 @@ declarationStatement : declaration ;
 effectStatement : EFFECT NEWLINE* FOR NEWLINE* pattern NEWLINE* body ;
 setStatement : SET NEWLINE* IDENTIFIER NEWLINE* EQUALS NEWLINE* expression ;
 
-expression : (blockExpression | branchExpression | loopExpression | causeExpression | returnExpression | breakExpression | stringLiteralExpression | numberLiteralExpression | identifierExpression)
+expression : (blockExpression | functionExpression | branchExpression | loopExpression | causeExpression | returnExpression | breakExpression | stringLiteralExpression | numberLiteralExpression | identifierExpression)
     expressionSuffix* ;
 
 blockExpression : block ;
+functionExpression : FN NEWLINE* PAREN_OPEN NEWLINE*
+                        (functionSignatureParam NEWLINE* (COMMA NEWLINE* functionSignatureParam NEWLINE*)* COMMA?)?
+                        NEWLINE* PAREN_CLOSE NEWLINE* functionReturnValue? NEWLINE* expression ;
 branchExpression : BRANCH NEWLINE* branchWith? NEWLINE* CURLY_OPEN NEWLINE* (branchOption (NEWLINE+ branchOption)*)? NEWLINE* CURLY_CLOSE ;
     branchWith: WITH NEWLINE* expression ;
 loopExpression : LOOP NEWLINE* body ;

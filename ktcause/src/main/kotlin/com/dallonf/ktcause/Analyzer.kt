@@ -231,6 +231,13 @@ object Analyzer {
                     output.addTag(typeReference.info.breadcrumbs, NodeTag.ReferenceNotInScope)
                 }
             }
+
+            is TypeReferenceNode.FunctionTypeReferenceNode -> {
+                for (param in typeReference.params) {
+                    param.typeReference?.let { analyzeTypeReference(it, output, ctx) }
+                }
+                analyzeTypeReference(typeReference.returnType, output, ctx)
+            }
         }
     }
 
@@ -315,16 +322,31 @@ object Analyzer {
     private fun analyzeFunctionDeclaration(
         declaration: DeclarationNode.Function, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        for (param in declaration.params) {
-            param.typeReference?.let { analyzeTypeReference(it, output, ctx) }
-        }
-
+        val newCtx = analyzeFunctionParams(
+            declaration.params,
+            breadcrumbs = declaration.info.breadcrumbs,
+            output,
+            ctx
+        )
         output.addTag(
             declaration.info.breadcrumbs, NodeTag.FunctionCanReturnTypeOf(
                 declaration.body.info.breadcrumbs
             )
         )
+        analyzeBody(declaration.body, output, newCtx)
 
+        declaration.returnType?.let { analyzeTypeReference(it, output, ctx) }
+    }
+
+    private fun analyzeFunctionParams(
+        params: List<FunctionSignatureParameterNode>,
+        breadcrumbs: Breadcrumbs,
+        output: AnalyzedNode,
+        ctx: AnalyzerContext
+    ): AnalyzerContext {
+        for (param in params) {
+            param.typeReference?.let { analyzeTypeReference(it, output, ctx) }
+        }
         val newCtx = AnalyzerContext(
             ctx.path,
             ctx.currentScope.copy(
@@ -337,15 +359,15 @@ object Analyzer {
                 }.toMutableMap()
             ),
             ctx.fileRootScope,
-            declaration.body.info.breadcrumbs,
-            currentFunction = declaration.info.breadcrumbs,
+            currentScopePosition = breadcrumbs,
+            currentFunction = breadcrumbs,
             currentLoop = null,
         )
-        for (param in declaration.params) {
+        for (param in params) {
             newCtx.currentScope.items[param.name.text] = LocalScopeItem(param.info.breadcrumbs)
             output.addTag(param.info.breadcrumbs, NodeTag.DeclarationForScope(newCtx.currentScopePosition))
         }
-        analyzeBody(declaration.body, output, newCtx)
+        return newCtx
     }
 
     private fun analyzeNamedValueDeclaration(
@@ -408,9 +430,7 @@ object Analyzer {
     }
 
     private fun analyzeStatement(
-        statementNode: StatementNode,
-        output: AnalyzedNode,
-        ctx: AnalyzerContext
+        statementNode: StatementNode, output: AnalyzedNode, ctx: AnalyzerContext
     ): AnalyzerContext {
         when (statementNode) {
             is StatementNode.ExpressionStatement -> {
@@ -433,9 +453,7 @@ object Analyzer {
                         ctx.currentLoop,
                     )
                     addDeclarationsToScope(
-                        declarations.map { (name, item) -> name to LocalScopeItem(item) },
-                        output,
-                        newCtx
+                        declarations.map { (name, item) -> name to LocalScopeItem(item) }, output, newCtx
                     )
                     return newCtx
                 }
@@ -480,6 +498,7 @@ object Analyzer {
     private fun analyzeExpression(expression: ExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext) {
         when (expression) {
             is ExpressionNode.BlockExpressionNode -> analyzeBlockExpression(expression, output, ctx)
+            is ExpressionNode.FunctionExpressionNode -> analyzeFunctionExpression(expression, output, ctx)
 
             is ExpressionNode.CauseExpression -> analyzeCauseExpression(expression, output, ctx)
             is ExpressionNode.BranchExpressionNode -> analyzeBranchExpressionNode(expression, output, ctx)
@@ -529,6 +548,20 @@ object Analyzer {
     ) {
         analyzeBody(expression.block, output, ctx)
         output.addValueFlowTag(expression.block.info.breadcrumbs, expression.info.breadcrumbs)
+    }
+
+    private fun analyzeFunctionExpression(
+        expression: ExpressionNode.FunctionExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
+    ) {
+        val newCtx = analyzeFunctionParams(
+            expression.params,
+            breadcrumbs = expression.info.breadcrumbs,
+            output,
+            ctx
+        )
+        analyzeExpression(expression.body, output, newCtx)
+
+        expression.returnType?.let { analyzeTypeReference(it, output, ctx) }
     }
 
 

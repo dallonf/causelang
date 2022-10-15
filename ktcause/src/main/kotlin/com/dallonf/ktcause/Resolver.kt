@@ -99,9 +99,7 @@ object Resolver {
         fun registerObjectType(id: CanonicalLangTypeId, name: String): CanonicalLangType.ObjectCanonicalLangType {
             return knownCanonicalTypes.getOrPut(id) {
                 CanonicalLangType.ObjectCanonicalLangType(
-                    id,
-                    name,
-                    listOf()
+                    id, name, listOf()
                 )
             } as CanonicalLangType.ObjectCanonicalLangType
         }
@@ -109,10 +107,7 @@ object Resolver {
         fun registerSignalType(id: CanonicalLangTypeId, name: String): CanonicalLangType.SignalCanonicalLangType {
             return knownCanonicalTypes.getOrPut(id) {
                 CanonicalLangType.SignalCanonicalLangType(
-                    id,
-                    name,
-                    listOf(),
-                    ConstraintReference.Pending
+                    id, name, listOf(), ConstraintReference.Pending
                 )
             } as CanonicalLangType.SignalCanonicalLangType
         }
@@ -145,7 +140,7 @@ object Resolver {
 
                         is DeclarationNode.Import.MappingNode -> track(INFERRED)
 
-                        is DeclarationNode.Function.FunctionParameterNode -> track(CONSTRAINT)
+                        is FunctionSignatureParameterNode -> track(CONSTRAINT)
 
                         is BranchOptionNode.IfBranchOptionNode -> {
                             resolvedTypes[ResolutionKey(CONSTRAINT, node.condition.info.breadcrumbs)] =
@@ -264,10 +259,41 @@ object Resolver {
                             resolveWith(getResolvedTypeOf(comesFromTag.source).expectConstraint())
                         }
 
+                        is TypeReferenceNode.FunctionTypeReferenceNode -> {
+                            val returnConstraint =
+                                getResolvedTypeOf(node.returnType).expectConstraint().asConstraintReference()
+                            val params: List<LangParameter> = node.params.map { param ->
+                                val paramTypeConstraint = param.typeReference?.let {
+                                    getResolvedTypeOf(it).expectConstraint().asConstraintReference()
+                                }
+                                LangParameter(param.name.text, paramTypeConstraint ?: ConstraintReference.Pending)
+                            }
+
+                            resolveWith(FunctionValueLangType(name = null, returnConstraint, params).toConstraint())
+                        }
+
                         is ExpressionNode.StringLiteralExpression -> resolveWith(LangPrimitiveKind.TEXT.toValueLangType())
                         is ExpressionNode.NumberLiteralExpression -> resolveWith(LangPrimitiveKind.NUMBER.toValueLangType())
 
                         is ExpressionNode.BlockExpressionNode -> resolveWith(getResolvedTypeOf(node.block))
+
+                        is ExpressionNode.FunctionExpressionNode -> {
+                            val explicitReturnConstraint = node.returnType?.let {
+                                getResolvedTypeOf(it).expectConstraint().asConstraintReference()
+                            }
+                            val returnConstraint =
+                                explicitReturnConstraint ?: getResolvedTypeOf(node.body).valueToConstraintReference()
+
+                            val params: List<LangParameter> = node.params.map { param ->
+                                val paramTypeConstraint = param.typeReference?.let {
+                                    getResolvedTypeOf(it).expectConstraint().asConstraintReference()
+                                }
+                                // TODO: try to infer type of parameters
+                                LangParameter(param.name.text, paramTypeConstraint ?: ConstraintReference.Pending)
+                            }
+
+                            resolveWith(FunctionValueLangType(name = null, returnConstraint, params))
+                        }
 
                         is ExpressionNode.IdentifierExpression -> {
                             val comesFromTag = pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
@@ -874,7 +900,7 @@ object Resolver {
                             resolveWith(annotationType.expectConstraint())
                         }
 
-                        is DeclarationNode.Function.FunctionParameterNode -> {
+                        is FunctionSignatureParameterNode -> {
                             node.typeReference?.let { resolveWith(getResolvedTypeOf(it).expectConstraint()) }
                         }
 

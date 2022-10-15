@@ -131,4 +131,31 @@ class FunctionsTest {
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(RuntimeValue.Number(3.0), result)
     }
+
+    @Test
+    fun higherOrderFunctions() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math (add, multiply)
+                    
+                    function single_map(this: Number, callback: Function(it: Number): Number) {
+                        cause Debug(callback(this))
+                    }
+                                    
+                    function main() {
+                        single_map(1, fn(it: Number) add(it, 2))
+                        single_map(2, fn(it: Number) multiply(it, 2))
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.printCompileErrors(vm)
+
+        TestUtils.runMainExpectingDebugValues(
+            vm,
+            "project/test.cau",
+            listOf(RuntimeValue.Number(3), RuntimeValue.Number(4))
+        )
+    }
 }
