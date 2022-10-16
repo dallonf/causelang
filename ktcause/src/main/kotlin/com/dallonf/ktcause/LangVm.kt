@@ -2,9 +2,7 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.Debug.debugMini
-import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
-import kotlinx.serialization.json.Json
 
 
 class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
@@ -22,17 +20,17 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
     class InternalVmError(message: String) :
         VmError("$message This probably isn't your fault. This shouldn't happen if the compiler is working properly.")
 
-    private var callFrame: CallFrame? = null
+    private var stackFrame: StackFrame? = null
 
     private data class RuntimeEffect(
         val file: CompiledFile,
         val chunk: CompiledFile.InstructionChunk,
-        val callParent: CallFrame,
+        val existsInFrame: StackFrame,
         val nextEffect: RuntimeEffect?
     )
 
     private class OpenLoop(
-        val callFrame: CallFrame,
+        val stackFrame: StackFrame,
         val continueInstruction: Int,
         val breakInstruction: Int,
         val stackEnd: Int,
@@ -41,23 +39,63 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
         var iterations: Long = 0
     }
 
-    private class CallFrame(
+    private sealed class StackFrame(
         val file: CompiledFile,
         val chunk: CompiledFile.InstructionChunk,
         val stack: ArrayDeque<RuntimeValue>,
-        val callParent: CallFrame?,
-        val causeParent: CallFrame?,
-        var stackStart: Int = 0,
         var firstEffect: RuntimeEffect?,
-        var currentLoop: OpenLoop?,
+        var currentLoop: OpenLoop?
     ) {
         var instruction: Int = 0
         var pendingSignal: RuntimeValue.RuntimeObject? = null
 
-        val executionParent
-            get() = causeParent ?: callParent
-    }
+        abstract val executionParent: StackFrame?
 
+        abstract val stackStart: Int
+
+        class Main(
+            file: CompiledFile,
+            chunk: CompiledFile.InstructionChunk,
+            stack: ArrayDeque<RuntimeValue>,
+            firstEffect: RuntimeEffect?,
+            currentLoop: OpenLoop?
+        ) : StackFrame(file, chunk, stack, firstEffect, currentLoop) {
+            override val executionParent
+                get() = null
+
+            override val stackStart
+                get() = 0
+        }
+
+        class Call(
+            val parent: StackFrame,
+            override var stackStart: Int,
+            file: CompiledFile,
+            chunk: CompiledFile.InstructionChunk,
+            stack: ArrayDeque<RuntimeValue>,
+            firstEffect: RuntimeEffect?,
+            currentLoop: OpenLoop?,
+        ) : StackFrame(file, chunk, stack, firstEffect, currentLoop) {
+            override val executionParent
+                get() = parent
+        }
+
+        class Cause(
+            val causeParent: StackFrame,
+            val existsInFrame: StackFrame,
+            file: CompiledFile,
+            chunk: CompiledFile.InstructionChunk,
+            stack: ArrayDeque<RuntimeValue>,
+            firstEffect: RuntimeEffect?,
+            currentLoop: OpenLoop?,
+        ) : StackFrame(file, chunk, stack, firstEffect, currentLoop) {
+            override val executionParent
+                get() = causeParent
+
+            override val stackStart
+                get() = 0
+        }
+    }
 
     fun executeFunction(filePath: String, functionName: String, parameters: List<RuntimeValue>): RunResult {
         val file = codeBundle.requireFile(filePath)
@@ -77,12 +115,10 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
             stack.addLast(param)
         }
 
-        callFrame = CallFrame(
+        stackFrame = StackFrame.Main(
             file,
             file.chunks[function.chunkIndex],
             stack = stack,
-            callParent = null,
-            causeParent = null,
             firstEffect = null,
             currentLoop = null,
         )
@@ -92,16 +128,16 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
     fun resumeExecution(value: RuntimeValue): RunResult {
         val STATE_ERROR = "I'm not currently waiting for a signal, so I can't resume execution."
-        val callFrame = requireNotNull(callFrame) { STATE_ERROR }
-        val pendingSignal = requireNotNull(callFrame.pendingSignal) { STATE_ERROR }
+        val stackFrame = requireNotNull(stackFrame) { STATE_ERROR }
+        val pendingSignal = requireNotNull(stackFrame.pendingSignal) { STATE_ERROR }
         val pendingSignalType = when (pendingSignal.typeDescriptor) {
             is CanonicalLangType.SignalCanonicalLangType -> pendingSignal.typeDescriptor
             is CanonicalLangType.ObjectCanonicalLangType -> error("somehow an object got in pendingSignal")
         }
 
         if (value.isAssignableTo(pendingSignalType.result)) {
-            callFrame.pendingSignal = null
-            callFrame.stack.addLast(value)
+            stackFrame.pendingSignal = null
+            stackFrame.stack.addLast(value)
             return execute()
         } else {
             throw VmError("I need to resolve a ${pendingSignalType.name} signal with a ${pendingSignalType.result}, but $value isn't a ${pendingSignalType.result}.")
@@ -116,35 +152,42 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
      * as long as they're allowing I/O of the host application to continue and not hogging the thread.
      */
     fun reportTick() {
-        callFrame?.let { resetLoopsForCallFrame(it) }
+        stackFrame?.let { resetLoopsForStackFrame(it) }
     }
 
-    private fun resetLoopsForCallFrame(callFrame: CallFrame) {
-        var currentLoop = callFrame.currentLoop
+    private fun resetLoopsForStackFrame(stackFrame: StackFrame) {
+        var currentLoop = stackFrame.currentLoop
         while (currentLoop != null) {
             currentLoop.iterations = 0
             currentLoop = currentLoop.outerLoop
         }
-        callFrame.callParent?.let { resetLoopsForCallFrame(it) }
-        callFrame.causeParent?.let { resetLoopsForCallFrame(it) }
+        when (stackFrame) {
+            is StackFrame.Call -> resetLoopsForStackFrame(stackFrame.parent)
+            is StackFrame.Cause -> {
+                resetLoopsForStackFrame(stackFrame.causeParent)
+                resetLoopsForStackFrame(stackFrame.existsInFrame)
+            }
+
+            is StackFrame.Main -> {}
+        }
     }
 
     private fun execute(): RunResult {
         while (true) {
             run iteration@{
-                val callFrame = requireNotNull(callFrame) { throw VmError("I'm not ready to execute anything!") }
-                val stack = callFrame.stack
+                val stackFrame = requireNotNull(stackFrame) { throw VmError("I'm not ready to execute anything!") }
+                val stack = stackFrame.stack
 
-                val instruction = requireNotNull(callFrame.chunk.instructions.getOrNull(callFrame.instruction)) {
+                val instruction = requireNotNull(stackFrame.chunk.instructions.getOrNull(stackFrame.instruction)) {
                     throw InternalVmError(
-                        "I've gotten to instruction #${callFrame.instruction}, but there are no more instructions to read!"
+                        "I've gotten to instruction #${stackFrame.instruction}, but there are no more instructions to read!"
                     )
                 }
                 // note: This means the instruction pointer will always be one ahead of the actual instruction!
-                callFrame.instruction += 1
+                stackFrame.instruction += 1
 
                 fun getConstant(id: Int): CompiledFile.CompiledConstant {
-                    return requireNotNull(callFrame.chunk.constantTable.getOrNull(id)) {
+                    return requireNotNull(stackFrame.chunk.constantTable.getOrNull(id)) {
                         throw InternalVmError("I'm looking for a constant with the ID of $id, but I can't find it.")
                     }
                 }
@@ -152,7 +195,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                 if (options.debugInstructionLevelExecution) {
                     val debugStack = stack.joinToString(", ") { it.debugMini() }
                     println("stack: $debugStack")
-                    println("instruction #${callFrame.instruction - 1}: $instruction")
+                    println("instruction #${stackFrame.instruction - 1}: $instruction")
                 }
 
                 when (instruction) {
@@ -173,15 +216,15 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                     }
 
                     is Instruction.RegisterEffect -> {
-                        val chunk = callFrame.file.chunks[instruction.chunk]
-                        callFrame.firstEffect = RuntimeEffect(
-                            callFrame.file, chunk, callParent = callFrame, nextEffect = callFrame.firstEffect
+                        val chunk = stackFrame.file.chunks[instruction.chunk]
+                        stackFrame.firstEffect = RuntimeEffect(
+                            stackFrame.file, chunk, existsInFrame = stackFrame, nextEffect = stackFrame.firstEffect
                         )
                     }
 
                     is Instruction.PopEffects -> {
                         for (i in 0 until instruction.number) {
-                            callFrame.firstEffect = callFrame.firstEffect!!.nextEffect
+                            stackFrame.firstEffect = stackFrame.firstEffect!!.nextEffect
                         }
                     }
 
@@ -228,7 +271,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                             requireNotNull(getConstant(instruction.exportNameConstant) as? CompiledFile.CompiledConstant.StringConst) {
                                 throw InternalVmError("Can't get exportName")
                             }.value
-                        val value = RuntimeValue.fromExport(callFrame.file, exportName)
+                        val value = RuntimeValue.fromExport(stackFrame.file, exportName)
                         stack.addLast(value)
                     }
 
@@ -247,7 +290,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                         val functionValue = RuntimeValue.Function(
                             functionType.name,
-                            file = callFrame.file,
+                            file = stackFrame.file,
                             chunkIndex = instruction.chunkIndex,
                             type = functionType,
                             capturedValues = capturedValues
@@ -257,34 +300,36 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                     is Instruction.ReadLocal -> {
                         val index = instruction.index
-                        val value = stack[callFrame.stackStart + index]
+                        val value = stack[stackFrame.stackStart + index]
                         stack.addLast(value)
                     }
 
                     is Instruction.WriteLocal -> {
-                        val index = callFrame.stackStart + instruction.index
+                        val index = stackFrame.stackStart + instruction.index
                         val value = stack.removeLast()
                         stack[index] = value
                     }
 
                     is Instruction.ReadLocalThroughEffectScope -> {
                         val index = instruction.index
-                        var callParent = callFrame
+                        var parentFrame = stackFrame
                         for (i in 0 until instruction.effectDepth) {
-                            callParent = callParent.callParent!!
+                            require(parentFrame is StackFrame.Cause)
+                            parentFrame = parentFrame.existsInFrame
                         }
-                        val value = callParent.stack[callParent.stackStart + index]
+                        val value = parentFrame.stack[parentFrame.stackStart + index]
                         stack.addLast(value)
                     }
 
                     is Instruction.WriteLocalThroughEffectScope -> {
-                        val index = callFrame.stackStart + instruction.index
-                        var callParent = callFrame
+                        val index = stackFrame.stackStart + instruction.index
+                        var parentFrame = stackFrame
                         for (i in 0 until instruction.effectDepth) {
-                            callParent = callParent.callParent!!
+                            require(parentFrame is StackFrame.Cause)
+                            parentFrame = parentFrame.existsInFrame
                         }
                         val value = stack.removeLast()
-                        callParent.stack[callParent.stackStart + index] = value
+                        parentFrame.stack[parentFrame.stackStart + index] = value
                     }
 
                     is Instruction.Construct -> {
@@ -325,18 +370,17 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                             }
 
                             is RuntimeValue.Function -> {
-                                val newCallFrame = CallFrame(
-                                    function.file,
-                                    function.file.chunks[function.chunkIndex],
-                                    stack = stack,
-                                    callParent = callFrame,
-                                    causeParent = null,
+                                val newStackFrame = StackFrame.Call(
+                                    parent = stackFrame,
                                     stackStart = stack.size - instruction.arity,
-                                    firstEffect = callFrame.firstEffect,
+                                    file = function.file,
+                                    chunk = function.file.chunks[function.chunkIndex],
+                                    stack = stack,
+                                    firstEffect = stackFrame.firstEffect,
                                     currentLoop = null,
                                 )
                                 stack.addAll(function.capturedValues)
-                                this.callFrame = newCallFrame
+                                this.stackFrame = newStackFrame
                             }
 
                             is RuntimeValue.BadValue -> throw VmError("I tried to call a function, but it has an error: $function")
@@ -369,7 +413,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                     }
 
                     is Instruction.Jump -> {
-                        callFrame.instruction = instruction.instruction
+                        stackFrame.instruction = instruction.instruction
                     }
 
                     is Instruction.JumpIfFalse -> {
@@ -378,24 +422,24 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                             throw VmError(condition.debug())
                         }
                         if (condition == CoreFiles.getBinaryAnswer(false)) {
-                            callFrame.instruction = instruction.instruction
+                            stackFrame.instruction = instruction.instruction
                         }
                     }
 
                     is Instruction.StartLoop -> {
                         val newLoop = OpenLoop(
-                            callFrame,
-                            continueInstruction = callFrame.instruction,
+                            stackFrame,
+                            continueInstruction = stackFrame.instruction,
                             breakInstruction = instruction.endInstruction,
-                            stackEnd = callFrame.stack.lastIndex,
-                            outerLoop = callFrame.currentLoop
+                            stackEnd = stackFrame.stack.lastIndex,
+                            outerLoop = stackFrame.currentLoop
                         )
-                        callFrame.currentLoop = newLoop
+                        stackFrame.currentLoop = newLoop
                     }
 
                     is Instruction.ContinueLoop -> {
                         val loop =
-                            requireNotNull(this.callFrame?.currentLoop) { throw InternalVmError("I tried to continue a loop, but I'm not in a loop.") }
+                            requireNotNull(this.stackFrame?.currentLoop) { throw InternalVmError("I tried to continue a loop, but I'm not in a loop.") }
 
                         if (options.runawayLoopThreshold != null) {
                             loop.iterations += 1
@@ -407,7 +451,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                             }
                         }
 
-                        val newCallFrame = loop.callFrame
+                        val newCallFrame = loop.stackFrame
                         newCallFrame.instruction = loop.continueInstruction
 
                         val excessStackItems = newCallFrame.stack.lastIndex - loop.stackEnd
@@ -415,18 +459,18 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                             newCallFrame.stack.removeLast()
                         }
 
-                        this.callFrame = newCallFrame
+                        this.stackFrame = newCallFrame
 
                     }
 
                     is Instruction.BreakLoop -> {
                         for (levelI in 0 until instruction.levels) {
                             val loop =
-                                requireNotNull(this.callFrame?.currentLoop) { throw InternalVmError("I tried to break a loop, but I'm not in a loop.") }
+                                requireNotNull(this.stackFrame?.currentLoop) { throw InternalVmError("I tried to break a loop, but I'm not in a loop.") }
 
-                            val result = callFrame.stack.removeLast()
+                            val result = stackFrame.stack.removeLast()
 
-                            val newCallFrame = loop.callFrame
+                            val newCallFrame = loop.stackFrame
                             newCallFrame.instruction = loop.breakInstruction
 
                             val excessStackItems = newCallFrame.stack.lastIndex - loop.stackEnd
@@ -436,7 +480,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                             newCallFrame.stack.addLast(result)
                             newCallFrame.currentLoop = loop.outerLoop
 
-                            this.callFrame = newCallFrame
+                            this.stackFrame = newCallFrame
                         }
                     }
 
@@ -457,17 +501,17 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                             }
                         }
 
-                        callFrame.pendingSignal = signal
-                        val effect = callFrame.firstEffect
+                        stackFrame.pendingSignal = signal
+                        val effect = stackFrame.firstEffect
                         if (effect != null) {
-                            this.callFrame = CallFrame(
-                                effect.file,
-                                effect.chunk,
+                            this.stackFrame = StackFrame.Cause(
+                                causeParent = stackFrame,
+                                existsInFrame = effect.existsInFrame,
                                 stack = ArrayDeque(listOf(signal)),
-                                callParent = effect.callParent,
-                                causeParent = callFrame,
+                                file = effect.file,
+                                chunk = effect.chunk,
                                 firstEffect = effect.nextEffect,
-                                currentLoop = effect.callParent.currentLoop,
+                                currentLoop = effect.existsInFrame.currentLoop,
                             )
                         } else {
                             return RunResult.Caused(signal)
@@ -476,28 +520,30 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                     }
 
                     is Instruction.RejectSignal -> {
-                        val nextEffect = callFrame.firstEffect
-                        val signal = callFrame.causeParent!!.pendingSignal!!
+                        require(stackFrame is StackFrame.Cause)
+                        val nextEffect = stackFrame.firstEffect
+                        val signal = stackFrame.causeParent.pendingSignal!!
                         if (nextEffect != null) {
-                            this.callFrame = CallFrame(
-                                nextEffect.file,
-                                nextEffect.chunk,
+                            this.stackFrame = StackFrame.Cause(
+                                causeParent = stackFrame.causeParent,
+                                existsInFrame = nextEffect.existsInFrame,
+                                file = nextEffect.file,
+                                chunk = nextEffect.chunk,
                                 stack = ArrayDeque(listOf(signal)),
-                                callParent = nextEffect.callParent,
-                                causeParent = callFrame.causeParent,
                                 firstEffect = nextEffect.nextEffect,
-                                currentLoop = nextEffect.callParent.currentLoop,
+                                currentLoop = nextEffect.existsInFrame.currentLoop,
                             )
                         } else {
-                            this.callFrame = callFrame.causeParent
+                            this.stackFrame = stackFrame.causeParent
                             return RunResult.Caused(signal)
                         }
                     }
 
                     is Instruction.FinishEffect -> {
+                        require(stackFrame is StackFrame.Cause)
                         val value = stack.removeLast()
 
-                        val causeParent = callFrame.causeParent!!
+                        val causeParent = stackFrame.causeParent
 
                         val pendingSignalType =
                             (causeParent.pendingSignal!!.typeDescriptor as CanonicalLangType.SignalCanonicalLangType)
@@ -507,22 +553,33 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                         causeParent.stack.addLast(value)
                         causeParent.pendingSignal = null
-                        this.callFrame = causeParent
+                        this.stackFrame = causeParent
                     }
 
                     is Instruction.Return -> {
                         val value = stack.removeLast()
 
-                        if (callFrame.callParent != null) {
-                            val functionScopeLength = stack.size - callFrame.stackStart
-                            for (i in 0 until functionScopeLength) {
-                                stack.removeLast()
+                        val returnFromFrame = run {
+                            var current = stackFrame
+                            while (current is StackFrame.Cause) {
+                                current = current.existsInFrame
+                            }
+                            current
+                        }
+
+                        when (returnFromFrame) {
+                            is StackFrame.Call -> {
+                                val functionScopeLength = stack.size - returnFromFrame.stackStart
+                                for (i in 0 until functionScopeLength) {
+                                    stack.removeLast()
+                                }
+
+                                returnFromFrame.parent.stack.addLast(value)
+                                this.stackFrame = returnFromFrame.parent
                             }
 
-                            callFrame.callParent.stack.addLast(value)
-                            this.callFrame = callFrame.callParent
-                        } else {
-                            return RunResult.Returned(value)
+                            is StackFrame.Main -> return RunResult.Returned(value)
+                            is StackFrame.Cause -> throw InternalVmError("Shouldn't have a cause frame here")
                         }
                     }
                 }

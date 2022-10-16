@@ -3,6 +3,7 @@ import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.RuntimeValue
 import com.dallonf.ktcause.types.InstanceValueLangType
 import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
 
 class EarlyReturns {
     @Test
@@ -69,6 +70,33 @@ class EarlyReturns {
                 nothing,
                 nothing
             )
+        )
+    }
+
+    @Test
+    fun earlyReturnFromEffect() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/text (append)
+                    
+                    function main() {
+                        signal Return(result: Text): NeverContinues
+                        effect for Return as it {
+                            return it.result
+                        }
+                        
+                        cause Return("hello")
+                        "goodbye"
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        assertEquals(
+            RuntimeValue.Text("hello"),
+            vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         )
     }
 }
