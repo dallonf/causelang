@@ -1,4 +1,5 @@
 import com.dallonf.ktcause.LangVm
+import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -154,9 +155,7 @@ class FunctionsTest {
         TestUtils.expectNoCompileErrors(vm)
 
         TestUtils.runMainExpectingDebugValues(
-            vm,
-            "project/test.cau",
-            listOf(RuntimeValue.Number(3), RuntimeValue.Number(4))
+            vm, "project/test.cau", listOf(RuntimeValue.Number(3), RuntimeValue.Number(4))
         )
     }
 
@@ -166,16 +165,31 @@ class FunctionsTest {
             addFile(
                 "project/test.cau", """
                     function main() {
-                        non_existent(fn() {
+                        non_existent(3, fn() {
                             cause Debug("oh no")
                         })
                     }
                 """.trimIndent()
             )
         }
+        assertEquals(
+            """       
+            [
+                {
+                    "position": {
+                        "path": "project/test.cau",
+                        "breadcrumbs": "declarations.1.body.statements.0.expression.callee",
+                        "position": "2:4-2:16"
+                    },
+                    "error": {
+                        "#type": "NotInScope"
+                    }
+                }
+            ]
+            """.trimIndent(),
+            vm.codeBundle.compileErrors.debug()
+        )
 
-        vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue().let {
-            assertEquals(RuntimeValue.Text("yup"), it)
-        }
+        TestUtils.expectTypeError(vm.executeFunction("project/test.cau", "main", listOf()), vm)
     }
 }

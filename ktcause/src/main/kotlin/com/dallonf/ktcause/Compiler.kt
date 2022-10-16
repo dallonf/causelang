@@ -13,7 +13,7 @@ object Compiler {
         val chunks: MutableList<CompiledFile.InstructionChunk>,
         val scopeStack: ArrayDeque<CompilerScope> = ArrayDeque(),
     ) {
-        fun getTags(breadcrumbs: Breadcrumbs): List<NodeTag> = analyzed.nodeTags[breadcrumbs]!!
+        fun getTags(breadcrumbs: Breadcrumbs): List<NodeTag> = analyzed.nodeTags[breadcrumbs] ?: emptyList()
 
         inline fun <reified T : NodeTag> getTag(breadcrumbs: Breadcrumbs): T? =
             getTags(breadcrumbs).firstNotNullOfOrNull { it as? T }
@@ -689,9 +689,11 @@ object Compiler {
         }
 
         errorPreventingCall?.let {
-            // Don't call; pop all the arguments and the callee off the stack and then push an error
+            // Don't call; pop all the arguments and the callee off the stack
+            // and then raise an error
             chunk.writeInstruction(Instruction.Pop(expression.parameters.size + 1))
             compileBadValue(expression, errorPreventingCall, chunk, ctx)
+            compileTypeErrorFromStackBadValue(chunk)
             return
         }
 
