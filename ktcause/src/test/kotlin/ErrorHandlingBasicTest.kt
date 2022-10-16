@@ -48,24 +48,13 @@ internal class ErrorHandlingBasicTest {
                 "position": {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
-                    "breadcrumbs": "declarations.1.body.statements.0.expression",
-                    "position": "2:4-2:17"
+                    "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
+                    "position": "2:10-2:17"
                 },
                 "error": {
-                    "#type": "ProxyError",
-                    "actualError": {
-                        "#type": "MissingParameters",
-                        "names": [
-                            "value"
-                        ]
-                    },
-                    "proxyChain": [
-                        {
-                            "#type": "SourcePosition",
-                            "path": "project/hello.cau",
-                            "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
-                            "position": "2:10-2:17"
-                        }
+                    "#type": "MissingParameters",
+                    "names": [
+                        "value"
                     ]
                 }
             }
@@ -307,8 +296,8 @@ internal class ErrorHandlingBasicTest {
                 "position": {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
-                    "breadcrumbs": "declarations.1.body.statements.0.expression",
-                    "position": "2:2-2:27"
+                    "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
+                    "position": "2:8-2:27"
                 },
                 "error": {
                     "#type": "ProxyError",
@@ -316,12 +305,6 @@ internal class ErrorHandlingBasicTest {
                         "#type": "NotInScope"
                     },
                     "proxyChain": [
-                        {
-                            "#type": "SourcePosition",
-                            "path": "project/hello.cau",
-                            "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
-                            "position": "2:8-2:27"
-                        },
                         {
                             "#type": "SourcePosition",
                             "path": "project/hello.cau",

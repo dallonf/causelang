@@ -28,6 +28,10 @@ object Compiler {
         fun nextScopeIndex(): Int {
             return scopeStack.sumOf { it.size() }
         }
+
+        fun writeToScope(breadcrumbs: Breadcrumbs) {
+            scopeStack.last().namedValueIndices[breadcrumbs] = nextScopeIndex()
+        }
     }
 
     private data class OpenLoop(
@@ -121,9 +125,7 @@ object Compiler {
         declaration: DeclarationNode.Function, ctx: CompilerContext
     ): CompiledFile.MutableInstructionChunk {
         return compileFunction(
-            declaration.params,
-            declaration.info.breadcrumbs,
-            ctx
+            declaration.params, declaration.info.breadcrumbs, ctx
         ) { chunk ->
             compileBody(declaration.body, chunk, ctx)
         }
@@ -258,9 +260,22 @@ object Compiler {
     ) {
         when (val declaration = statement.declaration) {
             is DeclarationNode.Import -> {}
-            is DeclarationNode.ObjectType -> {}
-            is DeclarationNode.SignalType -> {}
-            is DeclarationNode.OptionType -> {}
+            is DeclarationNode.ObjectType, is DeclarationNode.SignalType, is DeclarationNode.OptionType -> {
+                val type = ctx.resolved.getInferredType(declaration.info.breadcrumbs)
+                type.getRuntimeError().let {
+                    if (it != null) {
+                        compileBadValue(declaration, it, chunk, ctx)
+                    } else {
+                        chunk.writeLiteral(
+                            CompiledFile.CompiledConstant.TypeConst(
+                                (type as ConstraintValueLangType).valueType
+                            )
+                        )
+                    }
+                }
+                ctx.writeToScope(declaration.info.breadcrumbs)
+            }
+            
             is DeclarationNode.Function -> {
                 val capturedValues = ctx.getTagsOfType<NodeTag.CapturesValue>(declaration.info.breadcrumbs)
                 for (captured in capturedValues) {
@@ -277,7 +292,7 @@ object Compiler {
                         Instruction.DefineFunction(
                             chunkIndex = ctx.chunks.lastIndex, typeConstant = chunk.addConstant(
                                 CompiledFile.CompiledConstant.TypeConst(
-                                    ctx.resolved.getExpectedType(declaration.info.breadcrumbs)
+                                    ctx.resolved.getExpectedType(declaration.info.breadcrumbs) as ResolvedValueLangType
                                 )
                             ), capturedValues = capturedValues.size
                         )
@@ -292,7 +307,7 @@ object Compiler {
                     chunk.writeInstruction(Instruction.Pop())
                     compileBadValue(declaration, error, chunk, ctx)
                 }
-                ctx.scopeStack.last().namedValueIndices[declaration.info.breadcrumbs] = ctx.nextScopeIndex()
+                ctx.writeToScope(declaration.info.breadcrumbs)
             }
         }
     }
@@ -447,7 +462,7 @@ object Compiler {
                 Instruction.DefineFunction(
                     chunkIndex = ctx.chunks.lastIndex, typeConstant = chunk.addConstant(
                         CompiledFile.CompiledConstant.TypeConst(
-                            ctx.resolved.getExpectedType(expression.info.breadcrumbs)
+                            ctx.resolved.getExpectedType(expression.info.breadcrumbs) as ResolvedValueLangType
                         )
                     ), capturedValues = capturedValues.size
                 )

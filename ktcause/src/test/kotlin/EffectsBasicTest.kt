@@ -142,6 +142,35 @@ class EffectsBasicTest {
     }
 
     @Test
+    fun defineInlineSignal() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/text (append)
+                    
+                    function main() {
+                        signal Print(value: Text): Action
+                        effect for Print as it {
+                            cause Debug(it.value)
+                        }
+                        
+                        cause Print("hello")
+                        cause Debug("goodbye")
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        TestUtils.runMainExpectingDebugs(
+            vm, "project/test.cau", listOf(
+                "hello",
+                "goodbye"
+            )
+        )
+    }
+
+    @Test
     fun correctlyFiltersCustomSignals() {
         val vm = LangVm {
             addFile(

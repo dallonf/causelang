@@ -191,7 +191,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                         val newValue = when (val constant = getConstant(instruction.constant)) {
                             is CompiledFile.CompiledConstant.StringConst -> RuntimeValue.Text(constant.value)
                             is CompiledFile.CompiledConstant.NumberConst -> RuntimeValue.Number(constant.value)
-                            is CompiledFile.CompiledConstant.TypeConst -> throw InternalVmError("This isn't supposed to be used as a literal: $constant")
+                            is CompiledFile.CompiledConstant.TypeConst -> RuntimeValue.RuntimeTypeConstraint(constant.type)
                             is CompiledFile.CompiledConstant.ErrorConst -> RuntimeValue.BadValue(
                                 constant.sourcePosition, constant.error
                             )

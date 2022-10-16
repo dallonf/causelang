@@ -104,7 +104,7 @@ data class CompiledFile(
         data class NumberConst(val value: BigFraction) : CompiledConstant
         data class ErrorConst(val sourcePosition: SourcePosition, val error: ErrorLangType) : CompiledConstant
 
-        data class TypeConst(val type: ValueLangType) : CompiledConstant
+        data class TypeConst(val type: ResolvedValueLangType) : CompiledConstant
     }
 
     sealed interface CompiledExport {
