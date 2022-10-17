@@ -3,7 +3,6 @@ import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
-import kotlin.test.expect
 
 class FunctionsTest {
     @Test
@@ -123,6 +122,27 @@ class FunctionsTest {
                         function next() {
                             add(base, 2.0)
                         }
+                        next()
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
+        assertEquals(RuntimeValue.Number(3.0), result)
+    }
+
+    @Test
+    fun inlineFunctionCanAccessOuterScope() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math (add)                   
+                                    
+                    function main(): Number {
+                        let base = 1.0
+                        let next = fn() add(base, 2.0)
                         next()
                     }
                 """.trimIndent()

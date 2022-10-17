@@ -275,7 +275,7 @@ object Compiler {
                 }
                 ctx.writeToScope(declaration.info.breadcrumbs)
             }
-            
+
             is DeclarationNode.Function -> {
                 val capturedValues = ctx.getTagsOfType<NodeTag.CapturesValue>(declaration.info.breadcrumbs)
                 for (captured in capturedValues) {
@@ -449,6 +449,11 @@ object Compiler {
         chunk: CompiledFile.MutableInstructionChunk,
         ctx: CompilerContext
     ) {
+        val capturedValues = ctx.getTagsOfType<NodeTag.CapturesValue>(expression.info.breadcrumbs)
+        for (captured in capturedValues) {
+            compileValueReference(captured.value, chunk, ctx)
+        }
+
         val functionChunk = compileFunction(expression.params, expression.info.breadcrumbs, ctx) { functionChunk ->
             compileExpression(expression.body, functionChunk, ctx)
         }
@@ -456,7 +461,6 @@ object Compiler {
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
             compileBadValue(expression, error, chunk, ctx)
         } ?: run {
-            val capturedValues = ctx.getTagsOfType<NodeTag.CapturesValue>(expression.info.breadcrumbs)
             ctx.chunks.add(functionChunk.toInstructionChunk())
             chunk.writeInstruction(
                 Instruction.DefineFunction(
