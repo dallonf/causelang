@@ -193,8 +193,8 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                 }
 
                 if (options.debugInstructionLevelExecution) {
-                    val debugStack = stack.joinToString(", ") { it.debugMini() }
-                    println("stack: $debugStack")
+                    val debugStack = stack.reversed().joinToString(", ") { it.debugMini() }
+                    println("stack (rtl): $debugStack")
                     println("instruction #${stackFrame.instruction - 1}: $instruction")
                 }
 
