@@ -45,7 +45,7 @@ class ObjectTypesTest {
                         rank: Number,
                     )
                     
-                    function main(): String {
+                    function main(): Text {
                         let card = Card("spades", 7)
                         card.suit
                     }

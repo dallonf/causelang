@@ -94,7 +94,7 @@ class FunctionsTest {
                 "project/test.cau", """
                 import core/text (append)
                 
-                function main(): String {
+                function main(): Text {
                     formatGreeting("Hello", "World")
                 }
                 
@@ -234,5 +234,40 @@ class FunctionsTest {
         )
 
         TestUtils.expectTypeError(vm.executeFunction("project/test.cau", "main", listOf()), vm)
+    }
+
+    @Test
+    fun recursiveFunction() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math (subtract)
+                    
+                    function count_down(number: Number): Number {
+                        cause Debug(number)
+                        branch {
+                            if equals(number, 0) => number
+                            else => count_down(subtract(number, 1))
+                        }
+                    }
+                    
+                    function main() {
+                        let result = count_down(3)
+                        cause Debug(result)
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.printCompileErrors(vm)
+
+        TestUtils.runMainExpectingDebugValues(
+            vm, "project/test.cau", listOf(
+                RuntimeValue.Number(3),
+                RuntimeValue.Number(2),
+                RuntimeValue.Number(1),
+                RuntimeValue.Number(0),
+                RuntimeValue.Number(0),
+            )
+        )
     }
 }

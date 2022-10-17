@@ -820,6 +820,12 @@ object Resolver {
 
                         is DeclarationNode.Function -> {
                             val returnConstraint = run returnConstraint@{
+                                val explicitReturnType =
+                                    node.returnType?.let { getResolvedTypeOf(it).expectConstraint() }
+                                (explicitReturnType as? ConstraintValueLangType)?.let {
+                                    return@returnConstraint explicitReturnType.asConstraintReference()
+                                }
+
                                 val canReturn = pendingNodeTags.mapNotNull { tag ->
                                     (tag as? NodeTag.FunctionCanReturnTypeOf)?.let {
                                         it.returnExpression to getResolvedTypeOf(it.returnExpression)

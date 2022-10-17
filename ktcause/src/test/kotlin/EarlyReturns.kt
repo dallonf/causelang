@@ -43,7 +43,7 @@ class EarlyReturns {
                         cause Debug(maybe_add(Nothing, Nothing))
                     }
                     
-                    function maybe_add(this: MaybeNumber, other: MaybeNumber): MaybeInteger {
+                    function maybe_add(this: MaybeNumber, other: MaybeNumber): MaybeNumber {
                         let this = branch with this {
                             is Nothing => return Nothing
                             is Number as i => i
