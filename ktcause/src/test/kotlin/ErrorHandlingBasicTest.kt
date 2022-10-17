@@ -362,4 +362,29 @@ internal class ErrorHandlingBasicTest {
         // although there's a compile error, it doesn't fail at runtime; the bad value goes nowhere.
         assertEquals(result.expectReturnValue(), RuntimeValue.Action)
     }
+
+    @Test
+    fun mistypedFunctionReturn() {
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """
+                    function main(): Number {
+                        "oh no that's not a number"
+                    }
+                """.trimIndent()
+            )
+        }
+        assertEquals(
+            """
+            """.trimIndent(),
+            vm.codeBundle.compileErrors.debug(),
+        )
+
+        val result = vm.executeFunction("project/hello.cau", "main", listOf())
+        assertEquals(
+            """
+            """.trimIndent(),
+            TestUtils.expectTypeError(result, vm).debug(),
+        )
+    }
 }
