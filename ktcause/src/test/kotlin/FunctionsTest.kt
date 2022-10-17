@@ -203,6 +203,28 @@ class FunctionsTest {
     }
 
     @Test
+    fun returnTypeVariance() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math (add)
+                                    
+                    function main() {
+                        let func: Function(it: Number): Anything = fn(it: Number) add(it, 1) 
+                        func(2)
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        assertEquals(
+            RuntimeValue.Number(3),
+            vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
+        )
+    }
+
+    @Test
     fun handlesErroredInlineFunction() {
         val vm = LangVm {
             addFile(

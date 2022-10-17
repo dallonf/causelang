@@ -313,7 +313,20 @@ sealed interface ResolvedValueLangType : ValueLangType {
                             ?.let { it.isUnique() && it.id == constraintInstanceType.canonicalType.id } ?: false)
             }
 
-            is FunctionValueLangType -> this is FunctionValueLangType && this.returnConstraint == constraintInstanceType.returnConstraint && this.params == constraintInstanceType.params
+            is FunctionValueLangType -> {
+                this is FunctionValueLangType && run {
+                    val paramsMatch = this.params == constraintInstanceType.params
+                    val returnConstraintMatches = run {
+                        val returnValue = this.returnConstraint.asValueType() as? ResolvedValueLangType
+                        val constraintReturnConstraint = constraintInstanceType.returnConstraint.asConstraintValue() as? ConstraintValueLangType
+
+                        returnValue != null && constraintReturnConstraint != null && returnValue.isAssignableTo(constraintReturnConstraint)
+                    }
+
+                    paramsMatch && returnConstraintMatches
+                }
+            }
+
             is PrimitiveValueLangType -> this is PrimitiveValueLangType && this.kind == constraintInstanceType.kind
             is OptionValueLangType -> constraintInstanceType.isSupersetOf(this)
 
