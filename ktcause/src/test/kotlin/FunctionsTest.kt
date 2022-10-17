@@ -134,6 +134,29 @@ class FunctionsTest {
     }
 
     @Test
+    fun functionWithParametersCanAccessOuterScope() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math (add)                   
+                                    
+                    function main(): Number {
+                        let base = 1.0
+                        function next(other: Number) {
+                            add(base, other)
+                        }
+                        next(2.0)
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
+        assertEquals(RuntimeValue.Number(3.0), result)
+    }
+
+    @Test
     fun inlineFunctionCanAccessOuterScope() {
         val vm = LangVm {
             addFile(
@@ -142,8 +165,8 @@ class FunctionsTest {
                                     
                     function main(): Number {
                         let base = 1.0
-                        let next = fn() add(base, 2.0)
-                        next()
+                        let next = fn(other: Number) add(base, other)
+                        next(2.0)
                     }
                 """.trimIndent()
             )

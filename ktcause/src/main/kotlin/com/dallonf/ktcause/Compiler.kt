@@ -148,7 +148,7 @@ object Compiler {
         }
 
         for ((i, captured) in ctx.getTagsOfType<NodeTag.CapturesValue>(breadcrumbs).withIndex()) {
-            functionScope.namedValueIndices[captured.value] = i
+            functionScope.namedValueIndices[captured.value] = i + params.size
         }
 
         compileBody(chunk)
