@@ -98,16 +98,7 @@ object Debug {
 
             is RuntimeValue.NativeFunction -> "[NativeFunction: ${this.name}]"
             is RuntimeValue.Number -> this.value.toString()
-            is RuntimeValue.RuntimeObject -> {
-                val fieldTypes = when (this.typeDescriptor) {
-                    is CanonicalLangType.ObjectCanonicalLangType -> this.typeDescriptor.fields
-                    is CanonicalLangType.SignalCanonicalLangType -> this.typeDescriptor.fields
-                }
-                val fields = this.values.mapIndexed { i, value ->
-                    "${fieldTypes[i].name} = ${value.debugMini()}"
-                }.joinToString(", ")
-                "[${this.typeDescriptor.id.name ?: "object"} { $fields }]"
-            }
+            is RuntimeValue.RuntimeObject -> "[${this.typeDescriptor.id.name ?: "object"}]"
 
             is RuntimeValue.RuntimeTypeConstraint -> {
                 val valueType = when (this.valueType) {
