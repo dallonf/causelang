@@ -24,7 +24,7 @@ class EffectsBasicTest {
                 CompiledFile(
                     "test/test.cau", types = mapOf(
                         interceptThisTypeId to interceptThisType
-                    ), chunks = listOf(), exports = mapOf(
+                    ), procedures = listOf(), exports = mapOf(
                         interceptThisTypeId.name!! to CompiledFile.CompiledExport.Constraint(
                             interceptThisType.asConstraintReference()
                         )
@@ -76,7 +76,7 @@ class EffectsBasicTest {
                     types = mapOf(
                         greetTypeId to greetType
                     ),
-                    chunks = listOf(),
+                    procedures = listOf(),
                     exports = mapOf(greetTypeId.name!! to CompiledFile.CompiledExport.Constraint(greetType.asConstraintReference()))
                 )
             )

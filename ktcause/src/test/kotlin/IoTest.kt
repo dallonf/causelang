@@ -29,7 +29,7 @@ class IoTest {
         return CompiledFile("test/io.cau", types = buildMap {
             put(print.id, print)
             put(prompt.id, prompt)
-        }, chunks = emptyList(), exports = buildMap {
+        }, procedures = emptyList(), exports = buildMap {
             put("Print", CompiledFile.CompiledExport.Constraint(print.asConstraintReference()))
             put("Prompt", CompiledFile.CompiledExport.Constraint(prompt.asConstraintReference()))
         })

@@ -9,7 +9,7 @@ sealed interface Instruction {
      */
     data class PopScope(val values: Int) : Instruction
 
-    data class RegisterEffect(val chunk: Int) : Instruction
+    data class RegisterEffect(val procedureIndex: Int) : Instruction
 
     data class PopEffects(val number: Int) : Instruction
 
@@ -17,7 +17,7 @@ sealed interface Instruction {
     data class Literal(val constant: Int) : Instruction
     data class Import(val filePathConstant: Int, val exportNameConstant: Int) : Instruction
     data class ImportSameFile(val exportNameConstant: Int) : Instruction
-    data class DefineFunction(val chunkIndex: Int, val typeConstant: Int, val capturedValues: Int) : Instruction
+    data class DefineFunction(val procedureIndex: Int, val typeConstant: Int, val capturedValues: Int) : Instruction
 
     data class ReadLocal(val index: Int) : Instruction
     data class WriteLocal(val index: Int): Instruction

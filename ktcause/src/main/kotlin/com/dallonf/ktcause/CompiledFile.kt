@@ -3,12 +3,11 @@ package com.dallonf.ktcause
 import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
 import org.apache.commons.numbers.fraction.BigFraction
-import java.math.BigDecimal
 
 data class CompiledFile(
     val path: String,
     val types: Map<CanonicalLangTypeId, CanonicalLangType>,
-    val chunks: List<InstructionChunk>,
+    val procedures: List<Procedure>,
     val exports: Map<String, CompiledExport>,
     val debugCtx: Debug.DebugContext? = null
 ) {
@@ -41,24 +40,24 @@ data class CompiledFile(
         return Resolver.ExternalFileDescriptor(exportDescriptors, types)
     }
 
-    data class InstructionChunk(val constantTable: List<CompiledConstant>, val instructions: List<Instruction>)
+    data class Procedure(val constantTable: List<CompiledConstant>, val instructions: List<Instruction>)
 
-    data class MutableInstructionChunk(
+    data class MutableProcedure(
         val constantTable: MutableList<CompiledConstant> = mutableListOf(),
         val instructions: MutableList<Instruction> = mutableListOf(),
     ) {
 
         data class JumpPlaceholder(
-            private val chunk: MutableInstructionChunk,
+            private val procedure: MutableProcedure,
             private val index: Int,
             private val makeInstruction: (Int) -> Instruction
         ) {
             fun fill(jumpTo: Int? = null) {
-                chunk.instructions[index] = makeInstruction(jumpTo ?: chunk.instructions.size)
+                procedure.instructions[index] = makeInstruction(jumpTo ?: procedure.instructions.size)
             }
         }
 
-        fun toInstructionChunk() = InstructionChunk(constantTable.toList(), instructions.toList())
+        fun toProcedure() = Procedure(constantTable.toList(), instructions.toList())
 
         fun addConstant(constant: CompiledConstant): Int {
             val existingIndex = constantTable.asSequence().withIndex()
@@ -110,7 +109,7 @@ data class CompiledFile(
     sealed interface CompiledExport {
         data class Error(val error: ErrorLangType) : CompiledExport
         data class Constraint(val constraint: ConstraintReference) : CompiledExport
-        data class Function(val chunkIndex: Int, val type: ValueLangType) : CompiledExport
+        data class Function(val procedureIndex: Int, val type: ValueLangType) : CompiledExport
         data class NativeFunction internal constructor(
             val type: FunctionValueLangType,
             val function: (List<RuntimeValue>) -> RuntimeValue,

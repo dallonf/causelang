@@ -4,8 +4,6 @@ import com.dallonf.ktcause.CompiledFile.CompiledExport
 import com.dallonf.ktcause.types.*
 import com.github.hiking93.graphemesplitterlite.GraphemeSplitter
 import org.apache.commons.numbers.fraction.BigFraction
-import java.math.BigDecimal
-import java.math.MathContext
 import java.math.RoundingMode
 
 object CoreFiles {
@@ -126,7 +124,7 @@ object CoreFiles {
         }
 
         CompiledFile(
-            filename, types, chunks = emptyList(), exports
+            filename, types, procedures = emptyList(), exports
         )
     }
 
@@ -222,7 +220,7 @@ object CoreFiles {
             }
         }
 
-        CompiledFile(filename, types = emptyMap(), chunks = emptyList(), exports)
+        CompiledFile(filename, types = emptyMap(), procedures = emptyList(), exports)
     }
 
     private val graphemeSplitter by lazy { GraphemeSplitter() }
@@ -321,7 +319,7 @@ object CoreFiles {
             })
         }
 
-        CompiledFile(filename, types = emptyMap(), chunks = emptyList(), exports)
+        CompiledFile(filename, types = emptyMap(), procedures = emptyList(), exports)
     }
 
     val stopgapCollections by lazy {
@@ -363,7 +361,7 @@ object CoreFiles {
             put("MaybeStack", CompiledExport.Constraint(maybeStack.valueToConstraintReference()))
         }
 
-        CompiledFile(filename, types, chunks = emptyList(), exports)
+        CompiledFile(filename, types, procedures = emptyList(), exports)
     }
 }
 

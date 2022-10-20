@@ -4,7 +4,6 @@ import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
 import kotlinx.serialization.json.*
 import org.apache.commons.numbers.fraction.BigFraction
-import java.math.BigDecimal
 
 sealed class RuntimeValue {
     object Action : RuntimeValue()
@@ -46,7 +45,7 @@ sealed class RuntimeValue {
     data class Function(
         val name: String?,
         val file: CompiledFile,
-        val chunkIndex: Int,
+        val procedureIndex: Int,
         val type: FunctionValueLangType,
         val capturedValues: List<RuntimeValue>
     ) : RuntimeValue()
@@ -70,7 +69,7 @@ sealed class RuntimeValue {
                     if (export.type is FunctionValueLangType) {
                         val functionName = export.type.name ?: exportName
                         Function(
-                            functionName, file, export.chunkIndex, export.type, capturedValues = listOf()
+                            functionName, file, export.procedureIndex, export.type, capturedValues = listOf()
                         )
                     } else {
                         BadValue(

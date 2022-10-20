@@ -24,7 +24,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
     private data class RuntimeEffect(
         val file: CompiledFile,
-        val chunk: CompiledFile.InstructionChunk,
+        val procedure: CompiledFile.Procedure,
         val existsInFrame: StackFrame,
         val nextEffect: RuntimeEffect?
     )
@@ -41,7 +41,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
     private sealed class StackFrame(
         val file: CompiledFile,
-        val chunk: CompiledFile.InstructionChunk,
+        val procedure: CompiledFile.Procedure,
         val stack: ArrayDeque<RuntimeValue>,
         var firstEffect: RuntimeEffect?,
         var currentLoop: OpenLoop?
@@ -55,11 +55,11 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
         class Main(
             file: CompiledFile,
-            chunk: CompiledFile.InstructionChunk,
+            procedure: CompiledFile.Procedure,
             stack: ArrayDeque<RuntimeValue>,
             firstEffect: RuntimeEffect?,
             currentLoop: OpenLoop?
-        ) : StackFrame(file, chunk, stack, firstEffect, currentLoop) {
+        ) : StackFrame(file, procedure, stack, firstEffect, currentLoop) {
             override val executionParent
                 get() = null
 
@@ -71,11 +71,11 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
             val parent: StackFrame,
             override var stackStart: Int,
             file: CompiledFile,
-            chunk: CompiledFile.InstructionChunk,
+            procedure: CompiledFile.Procedure,
             stack: ArrayDeque<RuntimeValue>,
             firstEffect: RuntimeEffect?,
             currentLoop: OpenLoop?,
-        ) : StackFrame(file, chunk, stack, firstEffect, currentLoop) {
+        ) : StackFrame(file, procedure, stack, firstEffect, currentLoop) {
             override val executionParent
                 get() = parent
         }
@@ -84,11 +84,12 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
             val causeParent: StackFrame,
             val existsInFrame: StackFrame,
             file: CompiledFile,
-            chunk: CompiledFile.InstructionChunk,
+            procedure: CompiledFile.Procedure,
             stack: ArrayDeque<RuntimeValue>,
+
             firstEffect: RuntimeEffect?,
             currentLoop: OpenLoop?,
-        ) : StackFrame(file, chunk, stack, firstEffect, currentLoop) {
+        ) : StackFrame(file, procedure, stack, firstEffect, currentLoop) {
             override val executionParent
                 get() = causeParent
 
@@ -117,7 +118,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
         stackFrame = StackFrame.Main(
             file,
-            file.chunks[function.chunkIndex],
+            file.procedures[function.procedureIndex],
             stack = stack,
             firstEffect = null,
             currentLoop = null,
@@ -178,7 +179,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                 val stackFrame = requireNotNull(stackFrame) { throw VmError("I'm not ready to execute anything!") }
                 val stack = stackFrame.stack
 
-                val instruction = requireNotNull(stackFrame.chunk.instructions.getOrNull(stackFrame.instruction)) {
+                val instruction = requireNotNull(stackFrame.procedure.instructions.getOrNull(stackFrame.instruction)) {
                     throw InternalVmError(
                         "I've gotten to instruction #${stackFrame.instruction}, but there are no more instructions to read!"
                     )
@@ -187,7 +188,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                 stackFrame.instruction += 1
 
                 fun getConstant(id: Int): CompiledFile.CompiledConstant {
-                    return requireNotNull(stackFrame.chunk.constantTable.getOrNull(id)) {
+                    return requireNotNull(stackFrame.procedure.constantTable.getOrNull(id)) {
                         throw InternalVmError("I'm looking for a constant with the ID of $id, but I can't find it.")
                     }
                 }
@@ -216,9 +217,9 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                     }
 
                     is Instruction.RegisterEffect -> {
-                        val chunk = stackFrame.file.chunks[instruction.chunk]
+                        val procedure = stackFrame.file.procedures[instruction.procedureIndex]
                         stackFrame.firstEffect = RuntimeEffect(
-                            stackFrame.file, chunk, existsInFrame = stackFrame, nextEffect = stackFrame.firstEffect
+                            stackFrame.file, procedure, existsInFrame = stackFrame, nextEffect = stackFrame.firstEffect
                         )
                     }
 
@@ -291,7 +292,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                         val functionValue = RuntimeValue.Function(
                             functionType.name,
                             file = stackFrame.file,
-                            chunkIndex = instruction.chunkIndex,
+                            procedureIndex = instruction.procedureIndex,
                             type = functionType,
                             capturedValues = capturedValues
                         )
@@ -374,7 +375,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                                     parent = stackFrame,
                                     stackStart = stack.size - instruction.arity,
                                     file = function.file,
-                                    chunk = function.file.chunks[function.chunkIndex],
+                                    procedure = function.file.procedures[function.procedureIndex],
                                     stack = stack,
                                     firstEffect = stackFrame.firstEffect,
                                     currentLoop = null,
@@ -509,7 +510,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                                 existsInFrame = effect.existsInFrame,
                                 stack = ArrayDeque(listOf(signal)),
                                 file = effect.file,
-                                chunk = effect.chunk,
+                                procedure = effect.procedure,
                                 firstEffect = effect.nextEffect,
                                 currentLoop = effect.existsInFrame.currentLoop,
                             )
@@ -528,7 +529,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                                 causeParent = stackFrame.causeParent,
                                 existsInFrame = nextEffect.existsInFrame,
                                 file = nextEffect.file,
-                                chunk = nextEffect.chunk,
+                                procedure = nextEffect.procedure,
                                 stack = ArrayDeque(listOf(signal)),
                                 firstEffect = nextEffect.nextEffect,
                                 currentLoop = nextEffect.existsInFrame.currentLoop,

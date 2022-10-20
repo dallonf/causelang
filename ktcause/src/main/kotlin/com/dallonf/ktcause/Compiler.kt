@@ -10,7 +10,7 @@ object Compiler {
         val fileNode: FileNode,
         val analyzed: AnalyzedNode,
         val resolved: ResolvedFile,
-        val chunks: MutableList<CompiledFile.InstructionChunk>,
+        val procedures: MutableList<CompiledFile.Procedure>,
         val scopeStack: ArrayDeque<CompilerScope> = ArrayDeque(),
     ) {
         fun getTags(breadcrumbs: Breadcrumbs): List<NodeTag> = analyzed.nodeTags[breadcrumbs] ?: emptyList()
@@ -58,18 +58,18 @@ object Compiler {
     fun compile(fileNode: FileNode, analyzed: AnalyzedNode, resolved: ResolvedFile): CompiledFile {
         val types = mutableMapOf<CanonicalLangTypeId, CanonicalLangType>()
         val exports = mutableMapOf<String, CompiledFile.CompiledExport>()
-        val ctx = CompilerContext(fileNode, analyzed, resolved, chunks = mutableListOf())
+        val ctx = CompilerContext(fileNode, analyzed, resolved, procedures = mutableListOf())
 
         for (declaration in fileNode.declarations) {
             when (declaration) {
                 is DeclarationNode.Import -> {}
                 is DeclarationNode.Function -> {
-                    val chunk = compileFunctionDeclaration(declaration, ctx)
+                    val procedure = compileFunctionDeclaration(declaration, ctx)
                     val functionType = resolved.getExpectedType(declaration.info.breadcrumbs)
 
-                    ctx.chunks.add(chunk.toInstructionChunk())
+                    ctx.procedures.add(procedure.toProcedure())
                     exports[declaration.name.text] =
-                        CompiledFile.CompiledExport.Function(ctx.chunks.lastIndex, functionType)
+                        CompiledFile.CompiledExport.Function(ctx.procedures.lastIndex, functionType)
                 }
 
                 is DeclarationNode.ObjectType -> {
@@ -118,16 +118,16 @@ object Compiler {
             }
         }
 
-        return CompiledFile(resolved.path, types, ctx.chunks, exports, resolved.debugContext())
+        return CompiledFile(resolved.path, types, ctx.procedures, exports, resolved.debugContext())
     }
 
     private fun compileFunctionDeclaration(
         declaration: DeclarationNode.Function, ctx: CompilerContext
-    ): CompiledFile.MutableInstructionChunk {
+    ): CompiledFile.MutableProcedure {
         return compileFunction(
             declaration.params, declaration.info.breadcrumbs, ctx
-        ) { chunk ->
-            compileBody(declaration.body, chunk, ctx)
+        ) { procedure ->
+            compileBody(declaration.body, procedure, ctx)
         }
     }
 
@@ -135,9 +135,9 @@ object Compiler {
         params: List<FunctionSignatureParameterNode>,
         breadcrumbs: Breadcrumbs,
         ctx: CompilerContext,
-        compileBody: (CompiledFile.MutableInstructionChunk) -> Unit
-    ): CompiledFile.MutableInstructionChunk {
-        val chunk = CompiledFile.MutableInstructionChunk()
+        compileBody: (CompiledFile.MutableProcedure) -> Unit
+    ): CompiledFile.MutableProcedure {
+        val procedure = CompiledFile.MutableProcedure()
         val functionScope = CompilerScope(breadcrumbs, CompilerScope.ScopeType.FUNCTION)
         val oldScopeStack = ctx.scopeStack.toList()
         ctx.scopeStack.clear() // brand-new scope for every function
@@ -151,44 +151,44 @@ object Compiler {
             functionScope.namedValueIndices[captured.value] = i + params.size
         }
 
-        compileBody(chunk)
+        compileBody(procedure)
 
         // TODO: make sure this is the right type to return
-        chunk.writeInstruction(Instruction.Return)
+        procedure.writeInstruction(Instruction.Return)
 
         ctx.scopeStack.clear()
         ctx.scopeStack.addAll(oldScopeStack)
-        return chunk
+        return procedure
     }
 
     private fun compileBody(
-        body: BodyNode, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        body: BodyNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         when (body) {
             is BodyNode.BlockBodyNode -> {
-                compileBlock(body, chunk, ctx)
+                compileBlock(body, procedure, ctx)
             }
 
             is BodyNode.SingleStatementBodyNode -> {
-                compileStatement(body.statement, chunk, ctx, isLastStatement = true)
+                compileStatement(body.statement, procedure, ctx, isLastStatement = true)
             }
         }
     }
 
     private fun compileBlock(
         block: BodyNode.BlockBodyNode,
-        chunk: CompiledFile.MutableInstructionChunk,
+        procedure: CompiledFile.MutableProcedure,
         ctx: CompilerContext,
     ) {
         ctx.scopeStack.addLast(CompilerScope(block.info.breadcrumbs, CompilerScope.ScopeType.BODY))
 
         if (block.statements.isEmpty()) {
-            chunk.writeInstruction(Instruction.PushAction)
+            procedure.writeInstruction(Instruction.PushAction)
         }
 
         for ((i, statement) in block.statements.withIndex()) {
             compileStatement(
-                statement, chunk, ctx, isLastStatement = i == block.statements.lastIndex
+                statement, procedure, ctx, isLastStatement = i == block.statements.lastIndex
             )
             if (ctx.resolved.getInferredType(statement.info.breadcrumbs) is NeverContinuesValueLangType) {
                 ctx.scopeStack.removeLast()
@@ -197,14 +197,14 @@ object Compiler {
         }
 
         val scope = ctx.scopeStack.removeLast()
-        chunk.writeInstruction(Instruction.PopEffects(scope.effectCount))
-        chunk.writeInstruction(Instruction.PopScope(scope.size()))
+        procedure.writeInstruction(Instruction.PopEffects(scope.effectCount))
+        procedure.writeInstruction(Instruction.PopScope(scope.size()))
     }
 
     private fun compileBadValue(
-        node: AstNode, error: ErrorLangType, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        node: AstNode, error: ErrorLangType, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
-        chunk.writeLiteral(
+        procedure.writeLiteral(
             CompiledFile.CompiledConstant.ErrorConst(
                 SourcePosition.Source(
                     ctx.resolved.path, node.info.breadcrumbs, node.info.position
@@ -216,47 +216,47 @@ object Compiler {
 
     private fun compileStatement(
         statement: StatementNode,
-        chunk: CompiledFile.MutableInstructionChunk,
+        procedure: CompiledFile.MutableProcedure,
         ctx: CompilerContext,
         isLastStatement: Boolean
     ) {
         when (statement) {
             is StatementNode.ExpressionStatement -> {
-                compileExpression(statement.expression, chunk, ctx)
+                compileExpression(statement.expression, procedure, ctx)
 
                 if (!isLastStatement) {
-                    chunk.writeInstruction(Instruction.Pop())
+                    procedure.writeInstruction(Instruction.Pop())
                 }
             }
 
             is StatementNode.DeclarationStatement -> {
-                compileLocalDeclaration(statement, chunk, ctx)
+                compileLocalDeclaration(statement, procedure, ctx)
 
                 if (isLastStatement) {
-                    chunk.writeInstruction(Instruction.PushAction)
+                    procedure.writeInstruction(Instruction.PushAction)
                 }
             }
 
             is StatementNode.EffectStatement -> {
-                compileEffectStatement(statement, chunk, ctx)
+                compileEffectStatement(statement, procedure, ctx)
 
                 if (isLastStatement) {
-                    chunk.writeInstruction(Instruction.PushAction)
+                    procedure.writeInstruction(Instruction.PushAction)
                 }
             }
 
             is StatementNode.SetStatement -> {
-                compileSetStatement(statement, chunk, ctx)
+                compileSetStatement(statement, procedure, ctx)
 
                 if (isLastStatement) {
-                    chunk.writeInstruction(Instruction.PushAction)
+                    procedure.writeInstruction(Instruction.PushAction)
                 }
             }
         }
     }
 
     private fun compileLocalDeclaration(
-        statement: StatementNode.DeclarationStatement, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        statement: StatementNode.DeclarationStatement, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         when (val declaration = statement.declaration) {
             is DeclarationNode.Import -> {}
@@ -264,9 +264,9 @@ object Compiler {
                 val type = ctx.resolved.getInferredType(declaration.info.breadcrumbs)
                 type.getRuntimeError().let {
                     if (it != null) {
-                        compileBadValue(declaration, it, chunk, ctx)
+                        compileBadValue(declaration, it, procedure, ctx)
                     } else {
-                        chunk.writeLiteral(
+                        procedure.writeLiteral(
                             CompiledFile.CompiledConstant.TypeConst(
                                 (type as ConstraintValueLangType).valueType
                             )
@@ -279,18 +279,18 @@ object Compiler {
             is DeclarationNode.Function -> {
                 val capturedValues = ctx.getTagsOfType<NodeTag.CapturesValue>(declaration.info.breadcrumbs)
                 for (captured in capturedValues) {
-                    compileValueReference(captured.value, chunk, ctx)
+                    compileValueReference(captured.value, procedure, ctx)
                 }
 
-                val newChunk = compileFunctionDeclaration(declaration, ctx)
+                val newProcedure = compileFunctionDeclaration(declaration, ctx)
 
                 ctx.resolved.checkForRuntimeErrors(declaration.info.breadcrumbs)?.let { error ->
-                    compileBadValue(declaration, error, chunk, ctx)
+                    compileBadValue(declaration, error, procedure, ctx)
                 } ?: run {
-                    ctx.chunks.add(newChunk.toInstructionChunk())
-                    chunk.writeInstruction(
+                    ctx.procedures.add(newProcedure.toProcedure())
+                    procedure.writeInstruction(
                         Instruction.DefineFunction(
-                            chunkIndex = ctx.chunks.lastIndex, typeConstant = chunk.addConstant(
+                            procedureIndex = ctx.procedures.lastIndex, typeConstant = procedure.addConstant(
                                 CompiledFile.CompiledConstant.TypeConst(
                                     ctx.resolved.getExpectedType(declaration.info.breadcrumbs) as ResolvedValueLangType
                                 )
@@ -302,10 +302,10 @@ object Compiler {
             }
 
             is DeclarationNode.NamedValue -> {
-                compileExpression(declaration.value, chunk, ctx)
+                compileExpression(declaration.value, procedure, ctx)
                 ctx.resolved.checkForRuntimeErrors(declaration.info.breadcrumbs)?.let { error ->
-                    chunk.writeInstruction(Instruction.Pop())
-                    compileBadValue(declaration, error, chunk, ctx)
+                    procedure.writeInstruction(Instruction.Pop())
+                    compileBadValue(declaration, error, procedure, ctx)
                 }
                 ctx.writeToScope(declaration.info.breadcrumbs)
             }
@@ -313,9 +313,9 @@ object Compiler {
     }
 
     private fun compileEffectStatement(
-        statement: StatementNode.EffectStatement, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        statement: StatementNode.EffectStatement, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
-        val effectChunk = CompiledFile.MutableInstructionChunk()
+        val effectProcedure = CompiledFile.MutableProcedure()
         ctx.scopeStack.last().effectCount += 1
 
         ctx.scopeStack.addLast(
@@ -326,38 +326,38 @@ object Compiler {
         // Check the condition
         ctx.resolved.checkForRuntimeErrors(statement.pattern.typeReference.info.breadcrumbs).let { error ->
             if (error == null) {
-                effectChunk.writeInstruction(Instruction.ReadLocal(0))
-                compileValueFlowReference(statement.pattern.typeReference, effectChunk, ctx)
-                effectChunk.writeInstruction(Instruction.IsAssignableTo)
-                val rejectSignal = effectChunk.writeJumpIfFalsePlaceholder()
-                compileBody(statement.body, effectChunk, ctx)
-                effectChunk.writeInstruction(Instruction.FinishEffect)
-                rejectSignal.fill(effectChunk.instructions.size)
+                effectProcedure.writeInstruction(Instruction.ReadLocal(0))
+                compileValueFlowReference(statement.pattern.typeReference, effectProcedure, ctx)
+                effectProcedure.writeInstruction(Instruction.IsAssignableTo)
+                val rejectSignal = effectProcedure.writeJumpIfFalsePlaceholder()
+                compileBody(statement.body, effectProcedure, ctx)
+                effectProcedure.writeInstruction(Instruction.FinishEffect)
+                rejectSignal.fill(effectProcedure.instructions.size)
             }
         }
 
-        effectChunk.writeInstruction(Instruction.RejectSignal)
+        effectProcedure.writeInstruction(Instruction.RejectSignal)
 
         ctx.scopeStack.removeLast()
 
-        ctx.chunks.add(effectChunk.toInstructionChunk())
-        chunk.writeInstruction(Instruction.RegisterEffect(ctx.chunks.lastIndex))
+        ctx.procedures.add(effectProcedure.toProcedure())
+        procedure.writeInstruction(Instruction.RegisterEffect(ctx.procedures.lastIndex))
     }
 
     private fun compileSetStatement(
-        statement: StatementNode.SetStatement, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        statement: StatementNode.SetStatement, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
-        compileExpression(statement.expression, chunk, ctx)
+        compileExpression(statement.expression, procedure, ctx)
 
         ctx.resolved.checkForRuntimeErrors(statement.info.breadcrumbs)?.let { error ->
-            chunk.writeInstruction(Instruction.Pop())
-            compileBadValue(statement, error, chunk, ctx)
+            procedure.writeInstruction(Instruction.Pop())
+            compileBadValue(statement, error, procedure, ctx)
 
             when (error) {
                 // these errors are recoverable
                 is ErrorLangType.MismatchedType -> {}
                 // others, like NotVariable... not so much
-                else -> compileTypeErrorFromStackBadValue(chunk)
+                else -> compileTypeErrorFromStackBadValue(procedure)
             }
             return
         }
@@ -365,37 +365,37 @@ object Compiler {
         val tag = ctx.getTag<NodeTag.SetsVariable>(statement.info.breadcrumbs)!!
         val valueReference = findValueReference(tag.variable, ctx)
         if (valueReference.effectDepth > 0) {
-            chunk.writeInstruction(
+            procedure.writeInstruction(
                 Instruction.WriteLocalThroughEffectScope(
                     valueReference.effectDepth, valueReference.foundIndex
                 )
             )
         } else {
-            chunk.writeInstruction(
+            procedure.writeInstruction(
                 Instruction.WriteLocal(valueReference.foundIndex)
             )
         }
     }
 
     private fun compileExpression(
-        expression: ExpressionNode, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        expression: ExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         when (expression) {
-            is ExpressionNode.BlockExpressionNode -> compileBlockExpression(expression, chunk, ctx)
+            is ExpressionNode.BlockExpressionNode -> compileBlockExpression(expression, procedure, ctx)
 
-            is ExpressionNode.FunctionExpressionNode -> compileFunctionExpression(expression, chunk, ctx)
+            is ExpressionNode.FunctionExpressionNode -> compileFunctionExpression(expression, procedure, ctx)
 
-            is ExpressionNode.BranchExpressionNode -> compileBranchExpression(expression, chunk, ctx)
-            is ExpressionNode.LoopExpressionNode -> compileLoopExpression(expression, chunk, ctx)
-            is ExpressionNode.CauseExpression -> compileCauseExpression(expression, chunk, ctx)
-            is ExpressionNode.ReturnExpression -> compileReturnExpression(expression, chunk, ctx)
-            is ExpressionNode.BreakExpression -> compileBreakExpression(expression, chunk, ctx)
+            is ExpressionNode.BranchExpressionNode -> compileBranchExpression(expression, procedure, ctx)
+            is ExpressionNode.LoopExpressionNode -> compileLoopExpression(expression, procedure, ctx)
+            is ExpressionNode.CauseExpression -> compileCauseExpression(expression, procedure, ctx)
+            is ExpressionNode.ReturnExpression -> compileReturnExpression(expression, procedure, ctx)
+            is ExpressionNode.BreakExpression -> compileBreakExpression(expression, procedure, ctx)
 
-            is ExpressionNode.CallExpression -> compileCallExpression(expression, chunk, ctx)
-            is ExpressionNode.MemberExpression -> compileMemberExpression(expression, chunk, ctx)
+            is ExpressionNode.CallExpression -> compileCallExpression(expression, procedure, ctx)
+            is ExpressionNode.MemberExpression -> compileMemberExpression(expression, procedure, ctx)
 
-            is ExpressionNode.IdentifierExpression -> compileIdentifierExpression(expression, chunk, ctx)
-            is ExpressionNode.StringLiteralExpression -> chunk.writeLiteral(
+            is ExpressionNode.IdentifierExpression -> compileIdentifierExpression(expression, procedure, ctx)
+            is ExpressionNode.StringLiteralExpression -> procedure.writeLiteral(
                 CompiledFile.CompiledConstant.StringConst(
                     expression.text
                 )
@@ -405,7 +405,7 @@ object Compiler {
                 val numerator = expression.value.unscaledValue()
                 val denominator = 10.toBigInteger().pow(expression.value.scale())
                 val fraction = BigFraction.of(numerator, denominator)
-                chunk.writeLiteral(
+                procedure.writeLiteral(
                     CompiledFile.CompiledConstant.NumberConst(
                         fraction
                     )
@@ -415,56 +415,56 @@ object Compiler {
 
         // TODO: this can be redundant since sometimes there's already a BadValue on the stack
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
-            chunk.writeInstruction(Instruction.Pop())
-            compileBadValue(expression, error, chunk, ctx)
+            procedure.writeInstruction(Instruction.Pop())
+            compileBadValue(expression, error, procedure, ctx)
         }
     }
 
     private fun compileIdentifierExpression(
-        expression: ExpressionNode, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        expression: ExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
-        compileValueFlowReference(expression, chunk, ctx)
+        compileValueFlowReference(expression, procedure, ctx)
 
         ctx.resolved.getInferredType(expression.info.breadcrumbs).let {
             if (it is ActionValueLangType) {
                 // special case: Action type references are automatically
                 // converted to Action values so that you can use `Action`
                 // as a keyword
-                chunk.writeInstruction(Instruction.Pop(1))
-                chunk.writeInstruction(Instruction.PushAction)
+                procedure.writeInstruction(Instruction.Pop(1))
+                procedure.writeInstruction(Instruction.PushAction)
             }
         }
     }
 
     private fun compileBlockExpression(
         expression: ExpressionNode.BlockExpressionNode,
-        chunk: CompiledFile.MutableInstructionChunk,
+        procedure: CompiledFile.MutableProcedure,
         ctx: CompilerContext
     ) {
-        compileBlock(expression.block, chunk, ctx)
+        compileBlock(expression.block, procedure, ctx)
     }
 
     private fun compileFunctionExpression(
         expression: ExpressionNode.FunctionExpressionNode,
-        chunk: CompiledFile.MutableInstructionChunk,
+        procedure: CompiledFile.MutableProcedure,
         ctx: CompilerContext
     ) {
         val capturedValues = ctx.getTagsOfType<NodeTag.CapturesValue>(expression.info.breadcrumbs)
         for (captured in capturedValues) {
-            compileValueReference(captured.value, chunk, ctx)
+            compileValueReference(captured.value, procedure, ctx)
         }
 
-        val functionChunk = compileFunction(expression.params, expression.info.breadcrumbs, ctx) { functionChunk ->
-            compileExpression(expression.body, functionChunk, ctx)
+        val functionProcedure = compileFunction(expression.params, expression.info.breadcrumbs, ctx) { functionProcedure ->
+            compileExpression(expression.body, functionProcedure, ctx)
         }
 
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
-            compileBadValue(expression, error, chunk, ctx)
+            compileBadValue(expression, error, procedure, ctx)
         } ?: run {
-            ctx.chunks.add(functionChunk.toInstructionChunk())
-            chunk.writeInstruction(
+            ctx.procedures.add(functionProcedure.toProcedure())
+            procedure.writeInstruction(
                 Instruction.DefineFunction(
-                    chunkIndex = ctx.chunks.lastIndex, typeConstant = chunk.addConstant(
+                    procedureIndex = ctx.procedures.lastIndex, typeConstant = procedure.addConstant(
                         CompiledFile.CompiledConstant.TypeConst(
                             ctx.resolved.getExpectedType(expression.info.breadcrumbs) as ResolvedValueLangType
                         )
@@ -476,50 +476,50 @@ object Compiler {
 
     private fun compileBranchExpression(
         expression: ExpressionNode.BranchExpressionNode,
-        chunk: CompiledFile.MutableInstructionChunk,
+        procedure: CompiledFile.MutableProcedure,
         ctx: CompilerContext
     ) {
         ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY))
         val withValueIndex = expression.withValue?.let {
-            compileExpression(it, chunk, ctx)
+            compileExpression(it, procedure, ctx)
             val index = ctx.nextScopeIndex()
             ctx.scopeStack.last().namedValueIndices[it.info.breadcrumbs] = index
             index
         }
 
-        val remainingBranchJumps = mutableListOf<CompiledFile.MutableInstructionChunk.JumpPlaceholder>()
+        val remainingBranchJumps = mutableListOf<CompiledFile.MutableProcedure.JumpPlaceholder>()
         for (branch in expression.branches) {
             when (branch) {
                 is BranchOptionNode.IfBranchOptionNode -> {
-                    compileExpression(branch.condition, chunk, ctx)
-                    val skipBodyInstruction = chunk.writeJumpIfFalsePlaceholder()
-                    compileBody(branch.body, chunk, ctx)
-                    remainingBranchJumps.add(chunk.writeJumpPlaceholder())
-                    skipBodyInstruction.fill(chunk.instructions.size)
+                    compileExpression(branch.condition, procedure, ctx)
+                    val skipBodyInstruction = procedure.writeJumpIfFalsePlaceholder()
+                    compileBody(branch.body, procedure, ctx)
+                    remainingBranchJumps.add(procedure.writeJumpPlaceholder())
+                    skipBodyInstruction.fill(procedure.instructions.size)
                 }
 
                 is BranchOptionNode.IsBranchOptionNode -> {
                     if (withValueIndex != null) {
-                        chunk.writeInstruction(Instruction.ReadLocal(withValueIndex))
-                        compileValueFlowReference(branch.pattern.typeReference, chunk, ctx)
-                        chunk.writeInstruction(Instruction.IsAssignableTo)
-                        val skipBodyInstruction = chunk.writeJumpIfFalsePlaceholder()
+                        procedure.writeInstruction(Instruction.ReadLocal(withValueIndex))
+                        compileValueFlowReference(branch.pattern.typeReference, procedure, ctx)
+                        procedure.writeInstruction(Instruction.IsAssignableTo)
+                        val skipBodyInstruction = procedure.writeJumpIfFalsePlaceholder()
 
                         ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY))
-                        chunk.writeInstruction(Instruction.ReadLocal(withValueIndex))
+                        procedure.writeInstruction(Instruction.ReadLocal(withValueIndex))
                         ctx.scopeStack.last().namedValueIndices[branch.pattern.info.breadcrumbs] = ctx.nextScopeIndex()
 
-                        compileBody(branch.body, chunk, ctx)
+                        compileBody(branch.body, procedure, ctx)
 
-                        chunk.writeInstruction(Instruction.PopScope(ctx.scopeStack.last().size()))
+                        procedure.writeInstruction(Instruction.PopScope(ctx.scopeStack.last().size()))
                         ctx.scopeStack.removeLast()
-                        remainingBranchJumps.add(chunk.writeJumpPlaceholder())
+                        remainingBranchJumps.add(procedure.writeJumpPlaceholder())
 
                         skipBodyInstruction.fill()
                     }
                 }
 
-                is BranchOptionNode.ElseBranchOptionNode -> compileBody(branch.body, chunk, ctx)
+                is BranchOptionNode.ElseBranchOptionNode -> compileBody(branch.body, procedure, ctx)
             }
         }
         val elseBranch = expression.branches.firstNotNullOfOrNull { it as? BranchOptionNode.ElseBranchOptionNode }
@@ -528,7 +528,7 @@ object Compiler {
             val error = returnType.getRuntimeError() ?: ErrorLangType.MissingElseBranch(
                 null
             )
-            chunk.writeLiteral(
+            procedure.writeLiteral(
                 CompiledFile.CompiledConstant.ErrorConst(
                     SourcePosition.Source(
                         ctx.resolved.path, expression.info.breadcrumbs, expression.info.position
@@ -543,60 +543,60 @@ object Compiler {
                     returnOptionsNotNull.options.asSequence().map { it.asValueType() }
                         .all { it is ValueLangType.Pending || it is ErrorLangType || it is ActionValueLangType || it is NeverContinuesValueLangType }
                 } == true) {
-                compileTypeErrorFromStackBadValue(chunk)
+                compileTypeErrorFromStackBadValue(procedure)
             }
         }
 
         for (jump in remainingBranchJumps) {
-            jump.fill(chunk.instructions.size)
+            jump.fill(procedure.instructions.size)
         }
 
-        chunk.writeInstruction(Instruction.PopScope(ctx.scopeStack.last().size()))
+        procedure.writeInstruction(Instruction.PopScope(ctx.scopeStack.last().size()))
         ctx.scopeStack.removeLast()
 
         (ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs) as? ErrorLangType.ActionIncompatibleWithValueTypes)?.let {
             // This specific type of error should cause an immediate failure,
             // because you might have expected a side effect but gotten a value instead
-            chunk.writeLiteral(
+            procedure.writeLiteral(
                 CompiledFile.CompiledConstant.ErrorConst(
                     SourcePosition.Source(ctx.resolved.path, expression.info.breadcrumbs, expression.info.position), it
                 )
             )
-            compileTypeErrorFromStackBadValue(chunk)
+            compileTypeErrorFromStackBadValue(procedure)
         }
     }
 
     private fun compileLoopExpression(
-        expression: ExpressionNode.LoopExpressionNode, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        expression: ExpressionNode.LoopExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
-        val startLoopPlaceholder = chunk.writeStartLoopPlaceholder()
+        val startLoopPlaceholder = procedure.writeStartLoopPlaceholder()
         val openLoop = OpenLoop(expression.info.breadcrumbs)
         ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY, openLoop))
-        compileBody(expression.body, chunk, ctx)
+        compileBody(expression.body, procedure, ctx)
         ctx.scopeStack.removeLast()
-        chunk.writeInstruction(Instruction.ContinueLoop)
+        procedure.writeInstruction(Instruction.ContinueLoop)
         startLoopPlaceholder.fill()
     }
 
     private fun compileValueFlowReference(
         node: AstNode,
-        chunk: CompiledFile.MutableInstructionChunk,
+        procedure: CompiledFile.MutableProcedure,
         ctx: CompilerContext,
     ) {
         ctx.resolved.checkForRuntimeErrors(node.info.breadcrumbs)?.let { error ->
-            compileBadValue(node, error, chunk, ctx)
+            compileBadValue(node, error, procedure, ctx)
             return
         }
 
         val comesFrom = ctx.getTag<NodeTag.ValueComesFrom>(node.info.breadcrumbs)!!
 
         ctx.getTag<NodeTag.ReferencesFile>(comesFrom.source)?.let {
-            compileFileImportReference(it, chunk)
+            compileFileImportReference(it, procedure)
             return
         }
 
         ctx.getTag<NodeTag.TopLevelDeclaration>(comesFrom.source)?.let {
-            compileTopLevelReference(it, chunk, ctx)
+            compileTopLevelReference(it, procedure, ctx)
             return
         }
 
@@ -605,7 +605,7 @@ object Compiler {
                 NodeTag.DeclarationForScope::class,
             )
         ) {
-            compileValueReference(comesFrom.source, chunk, ctx)
+            compileValueReference(comesFrom.source, procedure, ctx)
             return
         }
 
@@ -614,33 +614,33 @@ object Compiler {
     }
 
     private fun compileTopLevelReference(
-        comesFrom: NodeTag.TopLevelDeclaration, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        comesFrom: NodeTag.TopLevelDeclaration, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
-        chunk.writeInstruction(Instruction.ImportSameFile(chunk.addConstant(comesFrom.name)))
+        procedure.writeInstruction(Instruction.ImportSameFile(procedure.addConstant(comesFrom.name)))
     }
 
     private fun compileFileImportReference(
-        tag: NodeTag.ReferencesFile, chunk: CompiledFile.MutableInstructionChunk
+        tag: NodeTag.ReferencesFile, procedure: CompiledFile.MutableProcedure
     ) {
-        val filePathConstant = chunk.addConstant(CompiledFile.CompiledConstant.StringConst(tag.path))
+        val filePathConstant = procedure.addConstant(CompiledFile.CompiledConstant.StringConst(tag.path))
         val exportNameConstant = tag.exportName?.let {
-            chunk.addConstant(CompiledFile.CompiledConstant.StringConst(it))
+            procedure.addConstant(CompiledFile.CompiledConstant.StringConst(it))
         }
 
         if (exportNameConstant == null) {
             TODO("Haven't implemented files as first-class objects yet")
         } else {
-            chunk.writeInstruction(Instruction.Import(filePathConstant, exportNameConstant))
+            procedure.writeInstruction(Instruction.Import(filePathConstant, exportNameConstant))
         }
     }
 
     private fun compileValueReference(
         source: Breadcrumbs,
-        chunk: CompiledFile.MutableInstructionChunk,
+        procedure: CompiledFile.MutableProcedure,
         ctx: CompilerContext,
     ) {
         val valueReference = findValueReference(source, ctx)
-        chunk.writeInstruction(
+        procedure.writeInstruction(
             if (valueReference.effectDepth > 0) {
                 Instruction.ReadLocalThroughEffectScope(valueReference.effectDepth, valueReference.foundIndex)
             } else {
@@ -667,32 +667,32 @@ object Compiler {
     }
 
     private fun compileCauseExpression(
-        expression: ExpressionNode.CauseExpression, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        expression: ExpressionNode.CauseExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
-        compileExpression(expression.signal, chunk, ctx)
+        compileExpression(expression.signal, procedure, ctx)
 
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
-            chunk.writeInstruction(Instruction.Pop())
-            compileBadValue(expression, error, chunk, ctx)
-            compileTypeErrorFromStackBadValue(chunk)
+            procedure.writeInstruction(Instruction.Pop())
+            compileBadValue(expression, error, procedure, ctx)
+            compileTypeErrorFromStackBadValue(procedure)
             return;
         }
 
-        chunk.writeInstruction(Instruction.Cause)
+        procedure.writeInstruction(Instruction.Cause)
     }
 
     private fun compileCallExpression(
-        expression: ExpressionNode.CallExpression, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        expression: ExpressionNode.CallExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         for (param in expression.parameters) {
-            compileExpression(param.value, chunk, ctx)
+            compileExpression(param.value, procedure, ctx)
             ctx.resolved.checkForRuntimeErrors(param.info.breadcrumbs)?.let { error ->
-                chunk.writeInstruction(Instruction.Pop())
-                compileBadValue(param, error, chunk, ctx)
+                procedure.writeInstruction(Instruction.Pop())
+                compileBadValue(param, error, procedure, ctx)
             }
         }
 
-        compileExpression(expression.callee, chunk, ctx)
+        compileExpression(expression.callee, procedure, ctx)
 
         val errorPreventingCall = run {
             val error = ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)
@@ -710,9 +710,9 @@ object Compiler {
         errorPreventingCall?.let {
             // Don't call; pop all the arguments and the callee off the stack
             // and then raise an error
-            chunk.writeInstruction(Instruction.Pop(expression.parameters.size + 1))
-            compileBadValue(expression, errorPreventingCall, chunk, ctx)
-            compileTypeErrorFromStackBadValue(chunk)
+            procedure.writeInstruction(Instruction.Pop(expression.parameters.size + 1))
+            compileBadValue(expression, errorPreventingCall, procedure, ctx)
+            compileTypeErrorFromStackBadValue(procedure)
             return
         }
 
@@ -724,16 +724,16 @@ object Compiler {
                             // ignore this, unique objects don't need to be constructed.
                             // Kiiind of abusing PopScope here to keep the value in place while popping
                             // any erroneous params
-                            chunk.writeInstruction(Instruction.PopScope(expression.parameters.size))
+                            procedure.writeInstruction(Instruction.PopScope(expression.parameters.size))
                         } else {
                             when (calleeType.valueType.canonicalType) {
-                                is CanonicalLangType.SignalCanonicalLangType -> chunk.writeInstruction(
+                                is CanonicalLangType.SignalCanonicalLangType -> procedure.writeInstruction(
                                     Instruction.Construct(
                                         arity = expression.parameters.size
                                     )
                                 )
 
-                                is CanonicalLangType.ObjectCanonicalLangType -> chunk.writeInstruction(
+                                is CanonicalLangType.ObjectCanonicalLangType -> procedure.writeInstruction(
                                     Instruction.Construct(
                                         arity = expression.parameters.size
                                     )
@@ -747,7 +747,7 @@ object Compiler {
             }
 
             is FunctionValueLangType -> {
-                chunk.writeInstruction(Instruction.CallFunction(arity = expression.parameters.size))
+                procedure.writeInstruction(Instruction.CallFunction(arity = expression.parameters.size))
             }
 
             // any other case should have been handled by the resolver as an
@@ -757,36 +757,36 @@ object Compiler {
     }
 
     private fun compileReturnExpression(
-        expression: ExpressionNode.ReturnExpression, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        expression: ExpressionNode.ReturnExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         if (expression.value != null) {
-            compileExpression(expression.value, chunk, ctx)
+            compileExpression(expression.value, procedure, ctx)
         } else {
-            chunk.writeInstruction(Instruction.PushAction)
+            procedure.writeInstruction(Instruction.PushAction)
         }
 
-        chunk.writeInstruction(Instruction.Return)
+        procedure.writeInstruction(Instruction.Return)
     }
 
     private fun compileBreakExpression(
-        expression: ExpressionNode.BreakExpression, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        expression: ExpressionNode.BreakExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         if (expression.withValue != null) {
-            compileExpression(expression.withValue, chunk, ctx)
+            compileExpression(expression.withValue, procedure, ctx)
         } else {
-            chunk.writeInstruction(Instruction.PushAction)
+            procedure.writeInstruction(Instruction.PushAction)
         }
 
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
-            chunk.writeInstruction(Instruction.Pop())
-            chunk.writeLiteral(
+            procedure.writeInstruction(Instruction.Pop())
+            procedure.writeLiteral(
                 CompiledFile.CompiledConstant.ErrorConst(
                     SourcePosition.Source(
                         ctx.resolved.path, expression.info.breadcrumbs, expression.info.position
                     ), error
                 )
             )
-            compileTypeErrorFromStackBadValue(chunk)
+            compileTypeErrorFromStackBadValue(procedure)
             return
         }
 
@@ -796,17 +796,17 @@ object Compiler {
                 if (scope.scopeRoot == breakTag.loop) i else null
             }
 
-        chunk.writeInstruction(Instruction.BreakLoop(loopIndex + 1))
+        procedure.writeInstruction(Instruction.BreakLoop(loopIndex + 1))
     }
 
     private fun compileMemberExpression(
-        expression: ExpressionNode.MemberExpression, chunk: CompiledFile.MutableInstructionChunk, ctx: CompilerContext
+        expression: ExpressionNode.MemberExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
-        compileExpression(expression.objectExpression, chunk, ctx)
+        compileExpression(expression.objectExpression, procedure, ctx)
 
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
-            chunk.writeInstruction(Instruction.Pop(1))
-            compileBadValue(expression, error, chunk, ctx)
+            procedure.writeInstruction(Instruction.Pop(1))
+            compileBadValue(expression, error, procedure, ctx)
             return
         }
 
@@ -820,18 +820,18 @@ object Compiler {
         }
         val fieldIndex = fields.indexOfFirst { it.name == expression.memberIdentifier.text }
 
-        chunk.writeInstruction(Instruction.GetMember(fieldIndex))
+        procedure.writeInstruction(Instruction.GetMember(fieldIndex))
     }
 
-    private fun compileTypeErrorFromStackBadValue(chunk: CompiledFile.MutableInstructionChunk) {
-        chunk.writeInstruction(
+    private fun compileTypeErrorFromStackBadValue(procedure: CompiledFile.MutableProcedure) {
+        procedure.writeInstruction(
             Instruction.Import(
-                filePathConstant = chunk.addConstant(CompiledFile.CompiledConstant.StringConst("core/builtin.cau")),
-                exportNameConstant = chunk.addConstant(CompiledFile.CompiledConstant.StringConst("TypeError")),
+                filePathConstant = procedure.addConstant(CompiledFile.CompiledConstant.StringConst("core/builtin.cau")),
+                exportNameConstant = procedure.addConstant(CompiledFile.CompiledConstant.StringConst("TypeError")),
             )
         )
-        chunk.writeInstruction(Instruction.Construct(1))
-        chunk.writeInstruction(Instruction.Cause)
+        procedure.writeInstruction(Instruction.Construct(1))
+        procedure.writeInstruction(Instruction.Cause)
     }
 }
 
