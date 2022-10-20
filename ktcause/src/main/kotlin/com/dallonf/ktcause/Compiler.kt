@@ -1,5 +1,6 @@
 package com.dallonf.ktcause
 
+import com.dallonf.ktcause.CompiledFile.Procedure.InstructionPhase
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.types.*
 import org.apache.commons.numbers.fraction.BigFraction
@@ -125,7 +126,7 @@ object Compiler {
         declaration: DeclarationNode.Function, ctx: CompilerContext
     ): CompiledFile.MutableProcedure {
         return compileFunction(
-            declaration.params, declaration.info.breadcrumbs, ctx
+            declaration.params, declaration.info, ctx
         ) { procedure ->
             compileBody(declaration.body, procedure, ctx)
         }
@@ -133,12 +134,12 @@ object Compiler {
 
     private fun compileFunction(
         params: List<FunctionSignatureParameterNode>,
-        breadcrumbs: Breadcrumbs,
+        nodeInfo: NodeInfo,
         ctx: CompilerContext,
         compileBody: (CompiledFile.MutableProcedure) -> Unit
     ): CompiledFile.MutableProcedure {
         val procedure = CompiledFile.MutableProcedure()
-        val functionScope = CompilerScope(breadcrumbs, CompilerScope.ScopeType.FUNCTION)
+        val functionScope = CompilerScope(nodeInfo.breadcrumbs, CompilerScope.ScopeType.FUNCTION)
         val oldScopeStack = ctx.scopeStack.toList()
         ctx.scopeStack.clear() // brand-new scope for every function
         ctx.scopeStack.addLast(functionScope)
@@ -147,14 +148,14 @@ object Compiler {
             functionScope.namedValueIndices[param.info.breadcrumbs] = i
         }
 
-        for ((i, captured) in ctx.getTagsOfType<NodeTag.CapturesValue>(breadcrumbs).withIndex()) {
+        for ((i, captured) in ctx.getTagsOfType<NodeTag.CapturesValue>(nodeInfo.breadcrumbs).withIndex()) {
             functionScope.namedValueIndices[captured.value] = i + params.size
         }
 
         compileBody(procedure)
 
         // TODO: make sure this is the right type to return
-        procedure.writeInstruction(Instruction.Return)
+        procedure.writeInstruction(Instruction.Return, nodeInfo, InstructionPhase.CLEANUP)
 
         ctx.scopeStack.clear()
         ctx.scopeStack.addAll(oldScopeStack)
@@ -183,7 +184,7 @@ object Compiler {
         ctx.scopeStack.addLast(CompilerScope(block.info.breadcrumbs, CompilerScope.ScopeType.BODY))
 
         if (block.statements.isEmpty()) {
-            procedure.writeInstruction(Instruction.PushAction)
+            procedure.writeInstruction(Instruction.PushAction, block.info)
         }
 
         for ((i, statement) in block.statements.withIndex()) {
@@ -197,8 +198,8 @@ object Compiler {
         }
 
         val scope = ctx.scopeStack.removeLast()
-        procedure.writeInstruction(Instruction.PopEffects(scope.effectCount))
-        procedure.writeInstruction(Instruction.PopScope(scope.size()))
+        procedure.writeInstruction(Instruction.PopEffects(scope.effectCount), block.info, InstructionPhase.CLEANUP)
+        procedure.writeInstruction(Instruction.PopScope(scope.size()), block.info, InstructionPhase.CLEANUP)
     }
 
     private fun compileBadValue(
@@ -210,7 +211,8 @@ object Compiler {
                     ctx.resolved.path, node.info.breadcrumbs, node.info.position
                 ),
                 error,
-            )
+            ),
+            node.info,
         )
     }
 
@@ -225,7 +227,7 @@ object Compiler {
                 compileExpression(statement.expression, procedure, ctx)
 
                 if (!isLastStatement) {
-                    procedure.writeInstruction(Instruction.Pop())
+                    procedure.writeInstruction(Instruction.Pop(), statement.info, InstructionPhase.CLEANUP)
                 }
             }
 
@@ -233,7 +235,7 @@ object Compiler {
                 compileLocalDeclaration(statement, procedure, ctx)
 
                 if (isLastStatement) {
-                    procedure.writeInstruction(Instruction.PushAction)
+                    procedure.writeInstruction(Instruction.PushAction, statement.info, InstructionPhase.CLEANUP)
                 }
             }
 
@@ -241,7 +243,7 @@ object Compiler {
                 compileEffectStatement(statement, procedure, ctx)
 
                 if (isLastStatement) {
-                    procedure.writeInstruction(Instruction.PushAction)
+                    procedure.writeInstruction(Instruction.PushAction, statement.info, InstructionPhase.CLEANUP)
                 }
             }
 
@@ -249,7 +251,7 @@ object Compiler {
                 compileSetStatement(statement, procedure, ctx)
 
                 if (isLastStatement) {
-                    procedure.writeInstruction(Instruction.PushAction)
+                    procedure.writeInstruction(Instruction.PushAction, statement.info, InstructionPhase.CLEANUP)
                 }
             }
         }
@@ -269,7 +271,7 @@ object Compiler {
                         procedure.writeLiteral(
                             CompiledFile.CompiledConstant.TypeConst(
                                 (type as ConstraintValueLangType).valueType
-                            )
+                            ), declaration.info
                         )
                     }
                 }
@@ -279,7 +281,7 @@ object Compiler {
             is DeclarationNode.Function -> {
                 val capturedValues = ctx.getTagsOfType<NodeTag.CapturesValue>(declaration.info.breadcrumbs)
                 for (captured in capturedValues) {
-                    compileValueReference(captured.value, procedure, ctx)
+                    compileValueReference(declaration.info, captured.value, procedure, ctx)
                 }
 
                 val newProcedure = compileFunctionDeclaration(declaration, ctx)
@@ -295,7 +297,7 @@ object Compiler {
                                     ctx.resolved.getExpectedType(declaration.info.breadcrumbs) as ResolvedValueLangType
                                 )
                             ), capturedValues = capturedValues.size
-                        )
+                        ), declaration.info
                     )
                 }
                 ctx.scopeStack.last().namedValueIndices[declaration.info.breadcrumbs] = ctx.nextScopeIndex()
@@ -304,7 +306,7 @@ object Compiler {
             is DeclarationNode.NamedValue -> {
                 compileExpression(declaration.value, procedure, ctx)
                 ctx.resolved.checkForRuntimeErrors(declaration.info.breadcrumbs)?.let { error ->
-                    procedure.writeInstruction(Instruction.Pop())
+                    procedure.writeInstruction(Instruction.Pop(), declaration.info)
                     compileBadValue(declaration, error, procedure, ctx)
                 }
                 ctx.writeToScope(declaration.info.breadcrumbs)
@@ -326,22 +328,22 @@ object Compiler {
         // Check the condition
         ctx.resolved.checkForRuntimeErrors(statement.pattern.typeReference.info.breadcrumbs).let { error ->
             if (error == null) {
-                effectProcedure.writeInstruction(Instruction.ReadLocal(0))
+                effectProcedure.writeInstruction(Instruction.ReadLocal(0), statement.info)
                 compileValueFlowReference(statement.pattern.typeReference, effectProcedure, ctx)
-                effectProcedure.writeInstruction(Instruction.IsAssignableTo)
-                val rejectSignal = effectProcedure.writeJumpIfFalsePlaceholder()
+                effectProcedure.writeInstruction(Instruction.IsAssignableTo, statement.info)
+                val rejectSignal = effectProcedure.writeJumpIfFalsePlaceholder(statement.info)
                 compileBody(statement.body, effectProcedure, ctx)
-                effectProcedure.writeInstruction(Instruction.FinishEffect)
+                effectProcedure.writeInstruction(Instruction.FinishEffect, statement.info, InstructionPhase.CLEANUP)
                 rejectSignal.fill(effectProcedure.instructions.size)
             }
         }
 
-        effectProcedure.writeInstruction(Instruction.RejectSignal)
+        effectProcedure.writeInstruction(Instruction.RejectSignal, statement.info, InstructionPhase.CLEANUP)
 
         ctx.scopeStack.removeLast()
 
         ctx.procedures.add(effectProcedure.toProcedure())
-        procedure.writeInstruction(Instruction.RegisterEffect(ctx.procedures.lastIndex))
+        procedure.writeInstruction(Instruction.RegisterEffect(ctx.procedures.lastIndex), statement.info)
     }
 
     private fun compileSetStatement(
@@ -350,7 +352,7 @@ object Compiler {
         compileExpression(statement.expression, procedure, ctx)
 
         ctx.resolved.checkForRuntimeErrors(statement.info.breadcrumbs)?.let { error ->
-            procedure.writeInstruction(Instruction.Pop())
+            procedure.writeInstruction(Instruction.Pop(), statement.info)
             compileBadValue(statement, error, procedure, ctx)
 
             when (error) {
@@ -368,11 +370,11 @@ object Compiler {
             procedure.writeInstruction(
                 Instruction.WriteLocalThroughEffectScope(
                     valueReference.effectDepth, valueReference.foundIndex
-                )
+                ), statement.info
             )
         } else {
             procedure.writeInstruction(
-                Instruction.WriteLocal(valueReference.foundIndex)
+                Instruction.WriteLocal(valueReference.foundIndex), statement.info
             )
         }
     }
@@ -398,7 +400,7 @@ object Compiler {
             is ExpressionNode.StringLiteralExpression -> procedure.writeLiteral(
                 CompiledFile.CompiledConstant.StringConst(
                     expression.text
-                )
+                ), expression.info
             )
 
             is ExpressionNode.NumberLiteralExpression -> {
@@ -408,14 +410,14 @@ object Compiler {
                 procedure.writeLiteral(
                     CompiledFile.CompiledConstant.NumberConst(
                         fraction
-                    )
+                    ), expression.info
                 )
             }
         }
 
         // TODO: this can be redundant since sometimes there's already a BadValue on the stack
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
-            procedure.writeInstruction(Instruction.Pop())
+            procedure.writeInstruction(Instruction.Pop(), expression.info)
             compileBadValue(expression, error, procedure, ctx)
         }
     }
@@ -430,16 +432,14 @@ object Compiler {
                 // special case: Action type references are automatically
                 // converted to Action values so that you can use `Action`
                 // as a keyword
-                procedure.writeInstruction(Instruction.Pop(1))
-                procedure.writeInstruction(Instruction.PushAction)
+                procedure.writeInstruction(Instruction.Pop(1), expression.info)
+                procedure.writeInstruction(Instruction.PushAction, expression.info)
             }
         }
     }
 
     private fun compileBlockExpression(
-        expression: ExpressionNode.BlockExpressionNode,
-        procedure: CompiledFile.MutableProcedure,
-        ctx: CompilerContext
+        expression: ExpressionNode.BlockExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         compileBlock(expression.block, procedure, ctx)
     }
@@ -451,10 +451,10 @@ object Compiler {
     ) {
         val capturedValues = ctx.getTagsOfType<NodeTag.CapturesValue>(expression.info.breadcrumbs)
         for (captured in capturedValues) {
-            compileValueReference(captured.value, procedure, ctx)
+            compileValueReference(expression.info, captured.value, procedure, ctx)
         }
 
-        val functionProcedure = compileFunction(expression.params, expression.info.breadcrumbs, ctx) { functionProcedure ->
+        val functionProcedure = compileFunction(expression.params, expression.info, ctx) { functionProcedure ->
             compileExpression(expression.body, functionProcedure, ctx)
         }
 
@@ -469,15 +469,13 @@ object Compiler {
                             ctx.resolved.getExpectedType(expression.info.breadcrumbs) as ResolvedValueLangType
                         )
                     ), capturedValues = capturedValues.size
-                )
+                ), expression.info
             )
         }
     }
 
     private fun compileBranchExpression(
-        expression: ExpressionNode.BranchExpressionNode,
-        procedure: CompiledFile.MutableProcedure,
-        ctx: CompilerContext
+        expression: ExpressionNode.BranchExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY))
         val withValueIndex = expression.withValue?.let {
@@ -492,28 +490,30 @@ object Compiler {
             when (branch) {
                 is BranchOptionNode.IfBranchOptionNode -> {
                     compileExpression(branch.condition, procedure, ctx)
-                    val skipBodyInstruction = procedure.writeJumpIfFalsePlaceholder()
+                    val skipBodyInstruction = procedure.writeJumpIfFalsePlaceholder(branch.info)
                     compileBody(branch.body, procedure, ctx)
-                    remainingBranchJumps.add(procedure.writeJumpPlaceholder())
+                    remainingBranchJumps.add(procedure.writeJumpPlaceholder(branch.info, InstructionPhase.CLEANUP))
                     skipBodyInstruction.fill(procedure.instructions.size)
                 }
 
                 is BranchOptionNode.IsBranchOptionNode -> {
                     if (withValueIndex != null) {
-                        procedure.writeInstruction(Instruction.ReadLocal(withValueIndex))
+                        procedure.writeInstruction(Instruction.ReadLocal(withValueIndex), branch.info)
                         compileValueFlowReference(branch.pattern.typeReference, procedure, ctx)
-                        procedure.writeInstruction(Instruction.IsAssignableTo)
-                        val skipBodyInstruction = procedure.writeJumpIfFalsePlaceholder()
+                        procedure.writeInstruction(Instruction.IsAssignableTo, branch.info)
+                        val skipBodyInstruction = procedure.writeJumpIfFalsePlaceholder(branch.info)
 
                         ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY))
-                        procedure.writeInstruction(Instruction.ReadLocal(withValueIndex))
+                        procedure.writeInstruction(Instruction.ReadLocal(withValueIndex), branch.info)
                         ctx.scopeStack.last().namedValueIndices[branch.pattern.info.breadcrumbs] = ctx.nextScopeIndex()
 
                         compileBody(branch.body, procedure, ctx)
 
-                        procedure.writeInstruction(Instruction.PopScope(ctx.scopeStack.last().size()))
+                        procedure.writeInstruction(
+                            Instruction.PopScope(ctx.scopeStack.last().size()), branch.info, InstructionPhase.CLEANUP
+                        )
                         ctx.scopeStack.removeLast()
-                        remainingBranchJumps.add(procedure.writeJumpPlaceholder())
+                        remainingBranchJumps.add(procedure.writeJumpPlaceholder(branch.info, InstructionPhase.CLEANUP))
 
                         skipBodyInstruction.fill()
                     }
@@ -533,7 +533,7 @@ object Compiler {
                     SourcePosition.Source(
                         ctx.resolved.path, expression.info.breadcrumbs, expression.info.position
                     ), error
-                )
+                ), expression.info, InstructionPhase.PLUMBING
             )
 
             // If we're supposed to return an Action or NeverContinues, then this should be an immediate error
@@ -551,7 +551,9 @@ object Compiler {
             jump.fill(procedure.instructions.size)
         }
 
-        procedure.writeInstruction(Instruction.PopScope(ctx.scopeStack.last().size()))
+        procedure.writeInstruction(
+            Instruction.PopScope(ctx.scopeStack.last().size()), expression.info, InstructionPhase.CLEANUP
+        )
         ctx.scopeStack.removeLast()
 
         (ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs) as? ErrorLangType.ActionIncompatibleWithValueTypes)?.let {
@@ -560,7 +562,7 @@ object Compiler {
             procedure.writeLiteral(
                 CompiledFile.CompiledConstant.ErrorConst(
                     SourcePosition.Source(ctx.resolved.path, expression.info.breadcrumbs, expression.info.position), it
-                )
+                ), expression.info, InstructionPhase.CLEANUP
             )
             compileTypeErrorFromStackBadValue(procedure)
         }
@@ -569,12 +571,12 @@ object Compiler {
     private fun compileLoopExpression(
         expression: ExpressionNode.LoopExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
-        val startLoopPlaceholder = procedure.writeStartLoopPlaceholder()
+        val startLoopPlaceholder = procedure.writeStartLoopPlaceholder(expression.info)
         val openLoop = OpenLoop(expression.info.breadcrumbs)
         ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY, openLoop))
         compileBody(expression.body, procedure, ctx)
         ctx.scopeStack.removeLast()
-        procedure.writeInstruction(Instruction.ContinueLoop)
+        procedure.writeInstruction(Instruction.ContinueLoop, expression.info)
         startLoopPlaceholder.fill()
     }
 
@@ -591,12 +593,12 @@ object Compiler {
         val comesFrom = ctx.getTag<NodeTag.ValueComesFrom>(node.info.breadcrumbs)!!
 
         ctx.getTag<NodeTag.ReferencesFile>(comesFrom.source)?.let {
-            compileFileImportReference(it, procedure)
+            compileFileImportReference(node.info, it, procedure)
             return
         }
 
         ctx.getTag<NodeTag.TopLevelDeclaration>(comesFrom.source)?.let {
-            compileTopLevelReference(it, procedure, ctx)
+            compileTopLevelReference(node.info, it, procedure, ctx)
             return
         }
 
@@ -605,7 +607,7 @@ object Compiler {
                 NodeTag.DeclarationForScope::class,
             )
         ) {
-            compileValueReference(comesFrom.source, procedure, ctx)
+            compileValueReference(node.info, comesFrom.source, procedure, ctx)
             return
         }
 
@@ -614,13 +616,16 @@ object Compiler {
     }
 
     private fun compileTopLevelReference(
-        comesFrom: NodeTag.TopLevelDeclaration, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        referenceNodeInfo: NodeInfo,
+        comesFrom: NodeTag.TopLevelDeclaration,
+        procedure: CompiledFile.MutableProcedure,
+        ctx: CompilerContext
     ) {
-        procedure.writeInstruction(Instruction.ImportSameFile(procedure.addConstant(comesFrom.name)))
+        procedure.writeInstruction(Instruction.ImportSameFile(procedure.addConstant(comesFrom.name)), referenceNodeInfo)
     }
 
     private fun compileFileImportReference(
-        tag: NodeTag.ReferencesFile, procedure: CompiledFile.MutableProcedure
+        referenceNodeInfo: NodeInfo, tag: NodeTag.ReferencesFile, procedure: CompiledFile.MutableProcedure
     ) {
         val filePathConstant = procedure.addConstant(CompiledFile.CompiledConstant.StringConst(tag.path))
         val exportNameConstant = tag.exportName?.let {
@@ -630,11 +635,12 @@ object Compiler {
         if (exportNameConstant == null) {
             TODO("Haven't implemented files as first-class objects yet")
         } else {
-            procedure.writeInstruction(Instruction.Import(filePathConstant, exportNameConstant))
+            procedure.writeInstruction(Instruction.Import(filePathConstant, exportNameConstant), referenceNodeInfo)
         }
     }
 
     private fun compileValueReference(
+        referenceNodeInfo: NodeInfo,
         source: Breadcrumbs,
         procedure: CompiledFile.MutableProcedure,
         ctx: CompilerContext,
@@ -645,7 +651,8 @@ object Compiler {
                 Instruction.ReadLocalThroughEffectScope(valueReference.effectDepth, valueReference.foundIndex)
             } else {
                 Instruction.ReadLocal(valueReference.foundIndex)
-            }
+            },
+            referenceNodeInfo,
         )
     }
 
@@ -672,13 +679,13 @@ object Compiler {
         compileExpression(expression.signal, procedure, ctx)
 
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
-            procedure.writeInstruction(Instruction.Pop())
+            procedure.writeInstruction(Instruction.Pop(), expression.info)
             compileBadValue(expression, error, procedure, ctx)
             compileTypeErrorFromStackBadValue(procedure)
             return;
         }
 
-        procedure.writeInstruction(Instruction.Cause)
+        procedure.writeInstruction(Instruction.Cause, expression.info)
     }
 
     private fun compileCallExpression(
@@ -687,7 +694,7 @@ object Compiler {
         for (param in expression.parameters) {
             compileExpression(param.value, procedure, ctx)
             ctx.resolved.checkForRuntimeErrors(param.info.breadcrumbs)?.let { error ->
-                procedure.writeInstruction(Instruction.Pop())
+                procedure.writeInstruction(Instruction.Pop(), expression.info)
                 compileBadValue(param, error, procedure, ctx)
             }
         }
@@ -710,7 +717,7 @@ object Compiler {
         errorPreventingCall?.let {
             // Don't call; pop all the arguments and the callee off the stack
             // and then raise an error
-            procedure.writeInstruction(Instruction.Pop(expression.parameters.size + 1))
+            procedure.writeInstruction(Instruction.Pop(expression.parameters.size + 1), expression.info)
             compileBadValue(expression, errorPreventingCall, procedure, ctx)
             compileTypeErrorFromStackBadValue(procedure)
             return
@@ -724,19 +731,21 @@ object Compiler {
                             // ignore this, unique objects don't need to be constructed.
                             // Kiiind of abusing PopScope here to keep the value in place while popping
                             // any erroneous params
-                            procedure.writeInstruction(Instruction.PopScope(expression.parameters.size))
+                            procedure.writeInstruction(
+                                Instruction.PopScope(expression.parameters.size), expression.info
+                            )
                         } else {
                             when (calleeType.valueType.canonicalType) {
                                 is CanonicalLangType.SignalCanonicalLangType -> procedure.writeInstruction(
                                     Instruction.Construct(
                                         arity = expression.parameters.size
-                                    )
+                                    ), expression.info
                                 )
 
                                 is CanonicalLangType.ObjectCanonicalLangType -> procedure.writeInstruction(
                                     Instruction.Construct(
                                         arity = expression.parameters.size
-                                    )
+                                    ), expression.info
                                 )
                             }
                         }
@@ -747,7 +756,10 @@ object Compiler {
             }
 
             is FunctionValueLangType -> {
-                procedure.writeInstruction(Instruction.CallFunction(arity = expression.parameters.size))
+                procedure.writeInstruction(
+                    Instruction.CallFunction(arity = expression.parameters.size),
+                    nodeInfo = expression.info
+                )
             }
 
             // any other case should have been handled by the resolver as an
@@ -762,10 +774,10 @@ object Compiler {
         if (expression.value != null) {
             compileExpression(expression.value, procedure, ctx)
         } else {
-            procedure.writeInstruction(Instruction.PushAction)
+            procedure.writeInstruction(Instruction.PushAction, expression.info, InstructionPhase.SETUP)
         }
 
-        procedure.writeInstruction(Instruction.Return)
+        procedure.writeInstruction(Instruction.Return, expression.info)
     }
 
     private fun compileBreakExpression(
@@ -774,17 +786,18 @@ object Compiler {
         if (expression.withValue != null) {
             compileExpression(expression.withValue, procedure, ctx)
         } else {
-            procedure.writeInstruction(Instruction.PushAction)
+            procedure.writeInstruction(Instruction.PushAction, expression.info, InstructionPhase.SETUP)
         }
 
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
-            procedure.writeInstruction(Instruction.Pop())
+            procedure.writeInstruction(Instruction.Pop(), expression.info)
             procedure.writeLiteral(
                 CompiledFile.CompiledConstant.ErrorConst(
                     SourcePosition.Source(
                         ctx.resolved.path, expression.info.breadcrumbs, expression.info.position
                     ), error
-                )
+                ),
+                expression.info
             )
             compileTypeErrorFromStackBadValue(procedure)
             return
@@ -796,7 +809,7 @@ object Compiler {
                 if (scope.scopeRoot == breakTag.loop) i else null
             }
 
-        procedure.writeInstruction(Instruction.BreakLoop(loopIndex + 1))
+        procedure.writeInstruction(Instruction.BreakLoop(loopIndex + 1), expression.info)
     }
 
     private fun compileMemberExpression(
@@ -805,7 +818,7 @@ object Compiler {
         compileExpression(expression.objectExpression, procedure, ctx)
 
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
-            procedure.writeInstruction(Instruction.Pop(1))
+            procedure.writeInstruction(Instruction.Pop(1), expression.info)
             compileBadValue(expression, error, procedure, ctx)
             return
         }
@@ -820,7 +833,7 @@ object Compiler {
         }
         val fieldIndex = fields.indexOfFirst { it.name == expression.memberIdentifier.text }
 
-        procedure.writeInstruction(Instruction.GetMember(fieldIndex))
+        procedure.writeInstruction(Instruction.GetMember(fieldIndex), expression.info)
     }
 
     private fun compileTypeErrorFromStackBadValue(procedure: CompiledFile.MutableProcedure) {
@@ -828,10 +841,17 @@ object Compiler {
             Instruction.Import(
                 filePathConstant = procedure.addConstant(CompiledFile.CompiledConstant.StringConst("core/builtin.cau")),
                 exportNameConstant = procedure.addConstant(CompiledFile.CompiledConstant.StringConst("TypeError")),
-            )
+            ),
+            nodeInfo = null
         )
-        procedure.writeInstruction(Instruction.Construct(1))
-        procedure.writeInstruction(Instruction.Cause)
+        procedure.writeInstruction(
+            Instruction.Construct(1),
+            nodeInfo = null
+        )
+        procedure.writeInstruction(
+            Instruction.Cause,
+            nodeInfo = null
+        )
     }
 }
 

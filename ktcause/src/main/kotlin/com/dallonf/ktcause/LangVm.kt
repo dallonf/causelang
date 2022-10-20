@@ -196,7 +196,15 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                 if (options.debugInstructionLevelExecution) {
                     val debugStack = stack.reversed().joinToString(", ") { it.debugMini() }
                     println("stack (rtl): $debugStack")
-                    println("instruction #${stackFrame.instruction - 1}: $instruction")
+                    val sourceMapping = stackFrame.procedure.sourceMap?.let { it[stackFrame.instruction - 1] }?.let {
+                        if (it.phase == CompiledFile.Procedure.InstructionPhase.CLEANUP) {
+                            it.nodeInfo.position.end
+                        } else {
+                            it.nodeInfo.position.start
+                        }
+                    }
+                    val sourceMappingStr = sourceMapping?.let { ", l#${it}" } ?: ""
+                    println("i#${stackFrame.instruction - 1}${sourceMappingStr}: $instruction")
                 }
 
                 when (instruction) {

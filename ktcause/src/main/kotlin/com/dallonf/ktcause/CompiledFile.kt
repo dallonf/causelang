@@ -1,5 +1,6 @@
 package com.dallonf.ktcause
 
+import com.dallonf.ktcause.ast.NodeInfo
 import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
 import org.apache.commons.numbers.fraction.BigFraction
@@ -40,11 +41,26 @@ data class CompiledFile(
         return Resolver.ExternalFileDescriptor(exportDescriptors, types)
     }
 
-    data class Procedure(val constantTable: List<CompiledConstant>, val instructions: List<Instruction>)
+    data class Procedure(
+        val constantTable: List<CompiledConstant>,
+        val instructions: List<Instruction>,
+        val sourceMap:
+        List<InstructionMapping?>?
+    ) {
+        enum class InstructionPhase {
+            SETUP,
+            EXECUTE,
+            PLUMBING,
+            CLEANUP,
+        }
+
+        data class InstructionMapping(val nodeInfo: NodeInfo, val phase: InstructionPhase = InstructionPhase.EXECUTE)
+    }
 
     data class MutableProcedure(
         val constantTable: MutableList<CompiledConstant> = mutableListOf(),
         val instructions: MutableList<Instruction> = mutableListOf(),
+        val sourceMap: MutableList<Procedure.InstructionMapping?> = mutableListOf(),
     ) {
 
         data class JumpPlaceholder(
@@ -57,7 +73,7 @@ data class CompiledFile(
             }
         }
 
-        fun toProcedure() = Procedure(constantTable.toList(), instructions.toList())
+        fun toProcedure() = Procedure(constantTable.toList(), instructions.toList(), sourceMap.toList())
 
         fun addConstant(constant: CompiledConstant): Int {
             val existingIndex = constantTable.asSequence().withIndex()
@@ -73,27 +89,48 @@ data class CompiledFile(
 
         fun addConstant(constant: String): Int = addConstant(CompiledConstant.StringConst(constant))
 
-        fun writeInstruction(instruction: Instruction) {
+        fun writeInstruction(
+            instruction: Instruction,
+            nodeInfo: NodeInfo?,
+            phase: Procedure.InstructionPhase = Procedure.InstructionPhase.EXECUTE
+        ) {
             instructions.add(instruction)
+            sourceMap.add(nodeInfo?.let { Procedure.InstructionMapping(nodeInfo, phase) })
         }
 
-        fun writeLiteral(constant: CompiledConstant) {
+        fun writeLiteral(
+            constant: CompiledConstant,
+            nodeInfo: NodeInfo?,
+            phase: Procedure.InstructionPhase = Procedure.InstructionPhase.EXECUTE
+        ) {
             val index = addConstant(constant)
-            writeInstruction(Instruction.Literal(index))
+            writeInstruction(Instruction.Literal(index), nodeInfo, phase)
         }
 
-        fun writeJumpPlaceholder(): JumpPlaceholder {
+        fun writeJumpPlaceholder(
+            nodeInfo: NodeInfo?,
+            phase: Procedure.InstructionPhase = Procedure.InstructionPhase.EXECUTE
+        ): JumpPlaceholder {
             instructions.add(Instruction.NoOp)
+            sourceMap.add(nodeInfo?.let { Procedure.InstructionMapping(nodeInfo, phase) })
             return JumpPlaceholder(this, instructions.lastIndex) { Instruction.Jump(it) }
         }
 
-        fun writeJumpIfFalsePlaceholder(): JumpPlaceholder {
+        fun writeJumpIfFalsePlaceholder(
+            nodeInfo: NodeInfo?,
+            phase: Procedure.InstructionPhase = Procedure.InstructionPhase.EXECUTE
+        ): JumpPlaceholder {
             instructions.add(Instruction.NoOp)
+            sourceMap.add(nodeInfo?.let { Procedure.InstructionMapping(nodeInfo, phase) })
             return JumpPlaceholder(this, instructions.lastIndex) { Instruction.JumpIfFalse(it) }
         }
 
-        fun writeStartLoopPlaceholder(): JumpPlaceholder {
+        fun writeStartLoopPlaceholder(
+            nodeInfo: NodeInfo?,
+            phase: Procedure.InstructionPhase = Procedure.InstructionPhase.EXECUTE
+        ): JumpPlaceholder {
             instructions.add(Instruction.NoOp)
+            sourceMap.add(nodeInfo?.let { Procedure.InstructionMapping(nodeInfo, phase) })
             return JumpPlaceholder(this, instructions.lastIndex) { Instruction.StartLoop(it) }
         }
     }
