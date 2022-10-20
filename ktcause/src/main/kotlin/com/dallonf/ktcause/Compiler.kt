@@ -1,6 +1,7 @@
 package com.dallonf.ktcause
 
 import com.dallonf.ktcause.CompiledFile.Procedure.InstructionPhase
+import com.dallonf.ktcause.CompiledFile.Procedure.ProcedureIdentity
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.types.*
 import org.apache.commons.numbers.fraction.BigFraction
@@ -126,19 +127,20 @@ object Compiler {
         declaration: DeclarationNode.Function, ctx: CompilerContext
     ): CompiledFile.MutableProcedure {
         return compileFunction(
-            declaration.params, declaration.info, ctx
+            declaration.name.text, declaration.params, declaration.info, ctx
         ) { procedure ->
             compileBody(declaration.body, procedure, ctx)
         }
     }
 
     private fun compileFunction(
+        name: String?,
         params: List<FunctionSignatureParameterNode>,
         nodeInfo: NodeInfo,
         ctx: CompilerContext,
         compileBody: (CompiledFile.MutableProcedure) -> Unit
     ): CompiledFile.MutableProcedure {
-        val procedure = CompiledFile.MutableProcedure()
+        val procedure = CompiledFile.MutableProcedure(ProcedureIdentity.Function(name, nodeInfo))
         val functionScope = CompilerScope(nodeInfo.breadcrumbs, CompilerScope.ScopeType.FUNCTION)
         val oldScopeStack = ctx.scopeStack.toList()
         ctx.scopeStack.clear() // brand-new scope for every function
@@ -317,7 +319,9 @@ object Compiler {
     private fun compileEffectStatement(
         statement: StatementNode.EffectStatement, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
-        val effectProcedure = CompiledFile.MutableProcedure()
+        val matchingType =
+            ctx.resolved.getInferredType(statement.pattern.typeReference.info.breadcrumbs).asConstraintReference()
+        val effectProcedure = CompiledFile.MutableProcedure(ProcedureIdentity.Effect(matchingType, statement.info))
         ctx.scopeStack.last().effectCount += 1
 
         ctx.scopeStack.addLast(
@@ -454,7 +458,7 @@ object Compiler {
             compileValueReference(expression.info, captured.value, procedure, ctx)
         }
 
-        val functionProcedure = compileFunction(expression.params, expression.info, ctx) { functionProcedure ->
+        val functionProcedure = compileFunction(name = null, expression.params, expression.info, ctx) { functionProcedure ->
             compileExpression(expression.body, functionProcedure, ctx)
         }
 
@@ -757,8 +761,7 @@ object Compiler {
 
             is FunctionValueLangType -> {
                 procedure.writeInstruction(
-                    Instruction.CallFunction(arity = expression.parameters.size),
-                    nodeInfo = expression.info
+                    Instruction.CallFunction(arity = expression.parameters.size), nodeInfo = expression.info
                 )
             }
 
@@ -796,8 +799,7 @@ object Compiler {
                     SourcePosition.Source(
                         ctx.resolved.path, expression.info.breadcrumbs, expression.info.position
                     ), error
-                ),
-                expression.info
+                ), expression.info
             )
             compileTypeErrorFromStackBadValue(procedure)
             return
@@ -841,16 +843,13 @@ object Compiler {
             Instruction.Import(
                 filePathConstant = procedure.addConstant(CompiledFile.CompiledConstant.StringConst("core/builtin.cau")),
                 exportNameConstant = procedure.addConstant(CompiledFile.CompiledConstant.StringConst("TypeError")),
-            ),
-            nodeInfo = null
+            ), nodeInfo = null
         )
         procedure.writeInstruction(
-            Instruction.Construct(1),
-            nodeInfo = null
+            Instruction.Construct(1), nodeInfo = null
         )
         procedure.writeInstruction(
-            Instruction.Cause,
-            nodeInfo = null
+            Instruction.Cause, nodeInfo = null
         )
     }
 }

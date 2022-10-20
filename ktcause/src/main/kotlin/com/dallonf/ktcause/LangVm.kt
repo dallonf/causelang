@@ -2,6 +2,7 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.Debug.debugMini
+import com.dallonf.ktcause.ast.DeclarationNode
 import com.dallonf.ktcause.types.*
 
 
@@ -21,6 +22,30 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
         VmError("$message This probably isn't your fault. This shouldn't happen if the compiler is working properly.")
 
     private var stackFrame: StackFrame? = null
+        set(value) {
+            field = value
+            if (options.debugInstructionLevelExecution && value != null) {
+                val filePath = value.file.path
+                val procedureInfo = when (val identity = value.procedure.identity) {
+                    is CompiledFile.Procedure.ProcedureIdentity.Function -> {
+                        val functionName = (identity.name?.let { "function $it" } ?: "fn") + "()"
+                        "$functionName at $filePath:${identity.declaration.position.start}"
+                    }
+
+                    is CompiledFile.Procedure.ProcedureIdentity.Effect -> {
+                        val signalName = run {
+                            val type = identity.matchesType as? ConstraintReference.ResolvedConstraint
+                            val canonicalType = type?.let { it.valueType as? InstanceValueLangType }
+                            val signalId = canonicalType?.canonicalType?.id
+                            signalId?.name
+                        }
+                        val patternDescription = signalName?.let { " for $it" }
+                        "effect${patternDescription ?: ""} at $filePath:${identity.declaration.position.start}"
+                    }
+                }
+                println("=> proc: $procedureInfo:")
+            }
+        }
 
     private data class RuntimeEffect(
         val file: CompiledFile,

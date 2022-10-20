@@ -1,5 +1,6 @@
 package com.dallonf.ktcause
 
+import com.dallonf.ktcause.ast.Identifier
 import com.dallonf.ktcause.ast.NodeInfo
 import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
@@ -42,22 +43,25 @@ data class CompiledFile(
     }
 
     data class Procedure(
+        val identity: ProcedureIdentity,
         val constantTable: List<CompiledConstant>,
         val instructions: List<Instruction>,
-        val sourceMap:
-        List<InstructionMapping?>?
+        val sourceMap: List<InstructionMapping?>?
     ) {
+        sealed class ProcedureIdentity {
+            data class Function(val name: String?, val declaration: NodeInfo) : ProcedureIdentity()
+            data class Effect(val matchesType: ConstraintReference, val declaration: NodeInfo) : ProcedureIdentity()
+        }
+
         enum class InstructionPhase {
-            SETUP,
-            EXECUTE,
-            PLUMBING,
-            CLEANUP,
+            SETUP, EXECUTE, PLUMBING, CLEANUP,
         }
 
         data class InstructionMapping(val nodeInfo: NodeInfo, val phase: InstructionPhase = InstructionPhase.EXECUTE)
     }
 
     data class MutableProcedure(
+        val identity: Procedure.ProcedureIdentity,
         val constantTable: MutableList<CompiledConstant> = mutableListOf(),
         val instructions: MutableList<Instruction> = mutableListOf(),
         val sourceMap: MutableList<Procedure.InstructionMapping?> = mutableListOf(),
@@ -73,7 +77,7 @@ data class CompiledFile(
             }
         }
 
-        fun toProcedure() = Procedure(constantTable.toList(), instructions.toList(), sourceMap.toList())
+        fun toProcedure() = Procedure(identity, constantTable.toList(), instructions.toList(), sourceMap.toList())
 
         fun addConstant(constant: CompiledConstant): Int {
             val existingIndex = constantTable.asSequence().withIndex()
@@ -108,8 +112,7 @@ data class CompiledFile(
         }
 
         fun writeJumpPlaceholder(
-            nodeInfo: NodeInfo?,
-            phase: Procedure.InstructionPhase = Procedure.InstructionPhase.EXECUTE
+            nodeInfo: NodeInfo?, phase: Procedure.InstructionPhase = Procedure.InstructionPhase.EXECUTE
         ): JumpPlaceholder {
             instructions.add(Instruction.NoOp)
             sourceMap.add(nodeInfo?.let { Procedure.InstructionMapping(nodeInfo, phase) })
@@ -117,8 +120,7 @@ data class CompiledFile(
         }
 
         fun writeJumpIfFalsePlaceholder(
-            nodeInfo: NodeInfo?,
-            phase: Procedure.InstructionPhase = Procedure.InstructionPhase.EXECUTE
+            nodeInfo: NodeInfo?, phase: Procedure.InstructionPhase = Procedure.InstructionPhase.EXECUTE
         ): JumpPlaceholder {
             instructions.add(Instruction.NoOp)
             sourceMap.add(nodeInfo?.let { Procedure.InstructionMapping(nodeInfo, phase) })
@@ -126,8 +128,7 @@ data class CompiledFile(
         }
 
         fun writeStartLoopPlaceholder(
-            nodeInfo: NodeInfo?,
-            phase: Procedure.InstructionPhase = Procedure.InstructionPhase.EXECUTE
+            nodeInfo: NodeInfo?, phase: Procedure.InstructionPhase = Procedure.InstructionPhase.EXECUTE
         ): JumpPlaceholder {
             instructions.add(Instruction.NoOp)
             sourceMap.add(nodeInfo?.let { Procedure.InstructionMapping(nodeInfo, phase) })
