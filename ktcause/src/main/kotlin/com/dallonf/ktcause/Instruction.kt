@@ -27,6 +27,8 @@ sealed interface Instruction {
     data class CallFunction(val arity: Int) : Instruction
     data class GetMember(val index: Int) : Instruction
 
+    data class NameValue(val nameConstant: Int, val variable: Boolean = false) : Instruction
+
     object IsAssignableTo : Instruction
 
     data class Jump(val instruction: Int) : Instruction

@@ -28,11 +28,18 @@ object Compiler {
         }
 
         fun nextScopeIndex(): Int {
-            return scopeStack.sumOf { it.size() }
+            var index = 0
+            for (scope in scopeStack.reversed()) {
+                index += scope.size()
+                if (scope.type != CompilerScope.ScopeType.BODY) break
+            }
+            return index
         }
 
-        fun writeToScope(breadcrumbs: Breadcrumbs) {
-            scopeStack.last().namedValueIndices[breadcrumbs] = nextScopeIndex()
+        fun writeToScope(breadcrumbs: Breadcrumbs): Int {
+            val index = nextScopeIndex()
+            scopeStack.last().namedValueIndices[breadcrumbs] = index
+            return index
         }
     }
 
@@ -277,7 +284,14 @@ object Compiler {
                         )
                     }
                 }
+                val name = when (declaration) {
+                    is DeclarationNode.ObjectType -> declaration.name.text
+                    is DeclarationNode.OptionType -> declaration.name.text
+                    is DeclarationNode.SignalType -> declaration.name.text
+                    else -> throw AssertionError()
+                }
                 ctx.writeToScope(declaration.info.breadcrumbs)
+                procedure.writeInstruction(Instruction.NameValue(procedure.addConstant(name)), declaration.info)
             }
 
             is DeclarationNode.Function -> {
@@ -302,7 +316,10 @@ object Compiler {
                         ), declaration.info
                     )
                 }
-                ctx.scopeStack.last().namedValueIndices[declaration.info.breadcrumbs] = ctx.nextScopeIndex()
+                ctx.writeToScope(declaration.info.breadcrumbs)
+                procedure.writeInstruction(
+                    Instruction.NameValue(procedure.addConstant(declaration.name.text)), declaration.info
+                )
             }
 
             is DeclarationNode.NamedValue -> {
@@ -312,6 +329,11 @@ object Compiler {
                     compileBadValue(declaration, error, procedure, ctx)
                 }
                 ctx.writeToScope(declaration.info.breadcrumbs)
+                procedure.writeInstruction(
+                    Instruction.NameValue(
+                        procedure.addConstant(declaration.name.text), declaration.isVariable
+                    ), declaration.info
+                )
             }
         }
     }
@@ -327,7 +349,16 @@ object Compiler {
         ctx.scopeStack.addLast(
             CompilerScope(statement.info.breadcrumbs, CompilerScope.ScopeType.EFFECT)
         )
-        ctx.scopeStack.last().namedValueIndices[statement.pattern.info.breadcrumbs] = 0
+        ctx.writeToScope(statement.pattern.info.breadcrumbs)
+        statement.pattern.name?.text?.let {
+            effectProcedure.writeInstruction(
+                Instruction.NameValue(
+                    effectProcedure.addConstant(
+                        it
+                    )
+                ), statement.pattern.info
+            )
+        }
 
         // Check the condition
         ctx.resolved.checkForRuntimeErrors(statement.pattern.typeReference.info.breadcrumbs).let { error ->
@@ -458,9 +489,10 @@ object Compiler {
             compileValueReference(expression.info, captured.value, procedure, ctx)
         }
 
-        val functionProcedure = compileFunction(name = null, expression.params, expression.info, ctx) { functionProcedure ->
-            compileExpression(expression.body, functionProcedure, ctx)
-        }
+        val functionProcedure =
+            compileFunction(name = null, expression.params, expression.info, ctx) { functionProcedure ->
+                compileExpression(expression.body, functionProcedure, ctx)
+            }
 
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
             compileBadValue(expression, error, procedure, ctx)
@@ -484,9 +516,7 @@ object Compiler {
         ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY))
         val withValueIndex = expression.withValue?.let {
             compileExpression(it, procedure, ctx)
-            val index = ctx.nextScopeIndex()
-            ctx.scopeStack.last().namedValueIndices[it.info.breadcrumbs] = index
-            index
+            ctx.writeToScope(it.info.breadcrumbs)
         }
 
         val remainingBranchJumps = mutableListOf<CompiledFile.MutableProcedure.JumpPlaceholder>()
@@ -509,7 +539,16 @@ object Compiler {
 
                         ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY))
                         procedure.writeInstruction(Instruction.ReadLocal(withValueIndex), branch.info)
-                        ctx.scopeStack.last().namedValueIndices[branch.pattern.info.breadcrumbs] = ctx.nextScopeIndex()
+                        ctx.writeToScope(branch.pattern.info.breadcrumbs)
+                        branch.pattern.name?.text?.let {
+                            procedure.writeInstruction(
+                                Instruction.NameValue(
+                                    procedure.addConstant(
+                                        it
+                                    )
+                                ), branch.pattern.info
+                            )
+                        }
 
                         compileBody(branch.body, procedure, ctx)
 

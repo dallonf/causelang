@@ -2,13 +2,16 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.Debug.debugMini
-import com.dallonf.ktcause.ast.DeclarationNode
 import com.dallonf.ktcause.types.*
 
 
 class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
-    data class Options(val runawayLoopThreshold: Long? = 5_000, val debugInstructionLevelExecution: Boolean = false)
+    data class Options(
+        val runawayLoopThreshold: Long? = 5_000,
+        val debugInstructionLevelExecution: Boolean = false,
+        val trackValueNames: Boolean = true,
+    )
 
     constructor(options: Options = Options(), buildBundle: CodeBundleBuilder.() -> Unit) : this(
         CodeBundleBuilder().let { builder ->
@@ -64,10 +67,64 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
         var iterations: Long = 0
     }
 
+    private class ValueStack(withNames: Boolean) {
+        data class ValueName(val name: String, val original: Boolean, val variable: Boolean) {
+            fun copied(): ValueName = ValueName(name, original = false, variable = false)
+        }
+
+
+        val values: ArrayDeque<RuntimeValue> = ArrayDeque()
+        val names: ArrayDeque<ValueName?>? = if (withNames) ArrayDeque() else null
+
+        val size: Int
+            get() = values.size
+
+        val lastIndex: Int
+            get() = values.lastIndex
+
+        fun push(value: RuntimeValue, name: ValueName? = null) {
+            values.addLast(value)
+            names?.addLast(name)
+        }
+
+        fun pop(): RuntimeValue {
+            names?.removeLast()
+            return values.removeLast()
+        }
+
+        fun popWithName(): Pair<RuntimeValue, ValueName?> = Pair(values.removeLast(), names?.removeLast())
+
+        fun atIndex(index: Int): RuntimeValue = values[index]
+
+        fun atIndexWithName(index: Int): Pair<RuntimeValue, ValueName?> = Pair(atIndex(index), nameAtIndex(index))
+
+        fun setAtIndex(index: Int, value: RuntimeValue) {
+            values[index] = value
+        }
+
+        fun nameAtIndex(index: Int): ValueName? = names?.get(index)
+
+        fun peekName(): ValueName? {
+            return names?.last()
+        }
+
+        fun setName(name: ValueName) {
+            names?.set(names.lastIndex, name)
+        }
+
+        fun all(): List<Pair<RuntimeValue, ValueName?>> {
+            return if (names != null) {
+                values.zip(names).map { (value, name) -> Pair(value, name) }
+            } else {
+                values.map { Pair(it, null) }
+            }
+        }
+    }
+
     private sealed class StackFrame(
         val file: CompiledFile,
         val procedure: CompiledFile.Procedure,
-        val stack: ArrayDeque<RuntimeValue>,
+        val stack: ValueStack,
         var firstEffect: RuntimeEffect?,
         var currentLoop: OpenLoop?
     ) {
@@ -81,7 +138,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
         class Main(
             file: CompiledFile,
             procedure: CompiledFile.Procedure,
-            stack: ArrayDeque<RuntimeValue>,
+            stack: ValueStack,
             firstEffect: RuntimeEffect?,
             currentLoop: OpenLoop?
         ) : StackFrame(file, procedure, stack, firstEffect, currentLoop) {
@@ -97,7 +154,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
             override var stackStart: Int,
             file: CompiledFile,
             procedure: CompiledFile.Procedure,
-            stack: ArrayDeque<RuntimeValue>,
+            stack: ValueStack,
             firstEffect: RuntimeEffect?,
             currentLoop: OpenLoop?,
         ) : StackFrame(file, procedure, stack, firstEffect, currentLoop) {
@@ -110,7 +167,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
             val existsInFrame: StackFrame,
             file: CompiledFile,
             procedure: CompiledFile.Procedure,
-            stack: ArrayDeque<RuntimeValue>,
+            stack: ValueStack,
 
             firstEffect: RuntimeEffect?,
             currentLoop: OpenLoop?,
@@ -136,9 +193,9 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
             throw IllegalArgumentException("This function needs ${function.type.params.size} parameters, but I only received ${parameters.size}")
         }
 
-        val stack = ArrayDeque<RuntimeValue>()
+        val stack = ValueStack(withNames = options.trackValueNames)
         for (param in parameters) {
-            stack.addLast(param)
+            stack.push(param)
         }
 
         stackFrame = StackFrame.Main(
@@ -163,7 +220,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
         if (value.isAssignableTo(pendingSignalType.result)) {
             stackFrame.pendingSignal = null
-            stackFrame.stack.addLast(value)
+            stackFrame.stack.push(value)
             return execute()
         } else {
             throw VmError("I need to resolve a ${pendingSignalType.name} signal with a ${pendingSignalType.result}, but $value isn't a ${pendingSignalType.result}.")
@@ -219,7 +276,20 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                 }
 
                 if (options.debugInstructionLevelExecution) {
-                    val debugStack = stack.reversed().joinToString(", ") { it.debugMini() }
+                    val debugStack = stack.all().reversed().joinToString(", ") { (value, name) ->
+                        val valueString = value.debugMini()
+                        if (name != null) {
+                            if (name.original && name.variable) {
+                                "let variable ${name.name} = $valueString"
+                            } else if (name.original) {
+                                "let ${name.name} = $valueString"
+                            } else {
+                                "${name.name} = $valueString"
+                            }
+                        } else {
+                            valueString
+                        }
+                    }
                     println("stack (rtl): $debugStack")
                     val sourceMapping = stackFrame.procedure.sourceMap?.let { it[stackFrame.instruction - 1] }?.let {
                         if (it.phase == CompiledFile.Procedure.InstructionPhase.CLEANUP) {
@@ -237,16 +307,18 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                     is Instruction.Pop -> {
                         for (i in 0 until instruction.number) {
-                            stack.removeLast()
+                            stack.pop()
                         }
                     }
 
                     is Instruction.PopScope -> {
-                        val result = stack.removeLast()
+                        val name = stack.peekName()
+                        val result = stack.pop()
                         for (i in 0 until instruction.values) {
-                            stack.removeLast()
+                            stack.pop()
                         }
-                        stack.addLast(result)
+                        stack.push(result)
+                        name?.let { stack.setName(it.copied()) }
                     }
 
                     is Instruction.RegisterEffect -> {
@@ -262,7 +334,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                         }
                     }
 
-                    is Instruction.PushAction -> stack.addLast(RuntimeValue.Action)
+                    is Instruction.PushAction -> stack.push(RuntimeValue.Action)
 
                     is Instruction.Literal -> {
                         val newValue = when (val constant = getConstant(instruction.constant)) {
@@ -273,7 +345,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                                 constant.sourcePosition, constant.error
                             )
                         }
-                        stack.addLast(newValue)
+                        stack.push(newValue)
                     }
 
                     is Instruction.Import -> {
@@ -297,7 +369,8 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                         val file = codeBundle.requireFile(filePath)
                         val value = RuntimeValue.fromExport(file, exportName)
-                        stack.addLast(value)
+                        stack.push(value)
+                        stack.setName(ValueStack.ValueName(exportName, original = false, variable = false))
                     }
 
                     is Instruction.ImportSameFile -> {
@@ -306,14 +379,16 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                                 throw InternalVmError("Can't get exportName")
                             }.value
                         val value = RuntimeValue.fromExport(stackFrame.file, exportName)
-                        stack.addLast(value)
+                        stack.push(value)
+                        stack.setName(ValueStack.ValueName(exportName, original = false, variable = false))
                     }
 
                     is Instruction.DefineFunction -> {
                         val capturedValues = run {
-                            val list = mutableListOf<RuntimeValue>()
+                            val list = mutableListOf<Pair<RuntimeValue, String?>>()
                             for (i in 0 until instruction.capturedValues) {
-                                list.add(stack.removeLast())
+                                val (value, name) = stack.popWithName()
+                                list.add(Pair(value, name?.name))
                             }
                             list.reverse()
                             list.toList()
@@ -329,45 +404,52 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                             type = functionType,
                             capturedValues = capturedValues
                         )
-                        stack.addLast(functionValue)
+                        stack.push(functionValue, functionType.name?.let {
+                            ValueStack.ValueName(
+                                it, original = false, variable = false
+                            )
+                        })
                     }
 
                     is Instruction.ReadLocal -> {
-                        val index = instruction.index
-                        val value = stack[stackFrame.stackStart + index]
-                        stack.addLast(value)
+                        val index = stackFrame.stackStart + instruction.index
+
+                        val name = stack.nameAtIndex(index)
+                        val value = stack.atIndex(index)
+                        stack.push(value, name?.copied())
                     }
 
                     is Instruction.WriteLocal -> {
                         val index = stackFrame.stackStart + instruction.index
-                        val value = stack.removeLast()
-                        stack[index] = value
+                        val value = stack.pop()
+                        stack.setAtIndex(index, value)
                     }
 
                     is Instruction.ReadLocalThroughEffectScope -> {
-                        val index = instruction.index
                         var parentFrame = stackFrame
                         for (i in 0 until instruction.effectDepth) {
                             require(parentFrame is StackFrame.Cause)
                             parentFrame = parentFrame.existsInFrame
                         }
-                        val value = parentFrame.stack[parentFrame.stackStart + index]
-                        stack.addLast(value)
+                        val index = parentFrame.stackStart + instruction.index
+                        val name = parentFrame.stack.nameAtIndex(index)
+                        val value = parentFrame.stack.atIndex(index)
+                        stack.push(value, name?.copied())
                     }
 
                     is Instruction.WriteLocalThroughEffectScope -> {
-                        val index = stackFrame.stackStart + instruction.index
                         var parentFrame = stackFrame
                         for (i in 0 until instruction.effectDepth) {
                             require(parentFrame is StackFrame.Cause)
                             parentFrame = parentFrame.existsInFrame
                         }
-                        val value = stack.removeLast()
-                        parentFrame.stack[parentFrame.stackStart + index] = value
+                        val index = parentFrame.stackStart + instruction.index
+                        val value = stack.pop()
+                        parentFrame.stack.setAtIndex(index, value)
                     }
 
                     is Instruction.Construct -> {
-                        val constructorTypeValue = stack.removeLast()
+                        val constructorTypeValue = stack.pop()
                         val constructorType = constructorTypeValue.let { stackValue ->
                             (stackValue as? RuntimeValue.RuntimeTypeConstraint)?.let {
                                 it.valueType as? InstanceValueLangType
@@ -376,31 +458,31 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                         val params = mutableListOf<RuntimeValue>()
                         for (i in 0 until instruction.arity) {
-                            params.add(stack.removeLast())
+                            params.add(stack.pop())
                         }
                         params.reverse()
 
                         if (constructorType.canonicalType.isUnique()) {
-                            stack.addLast(constructorTypeValue)
+                            stack.push(constructorTypeValue)
                         } else {
                             val obj = RuntimeValue.RuntimeObject(constructorType.canonicalType, params)
-                            stack.addLast(obj)
+                            stack.push(obj)
                         }
 
                     }
 
                     is Instruction.CallFunction -> {
-                        when (val function = stack.removeLast()) {
+                        when (val function = stack.pop()) {
                             is RuntimeValue.NativeFunction -> {
                                 // TODO: probably want to runtime typecheck native function
                                 // params in development
                                 val params = mutableListOf<RuntimeValue>()
                                 for (i in 0 until instruction.arity) {
-                                    params.add(stack.removeLast())
+                                    params.add(stack.pop())
                                 }
                                 params.reverse()
                                 val result = function.function(params)
-                                stack.addLast(result)
+                                stack.push(result)
                             }
 
                             is RuntimeValue.Function -> {
@@ -413,7 +495,13 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                                     firstEffect = stackFrame.firstEffect,
                                     currentLoop = null,
                                 )
-                                stack.addAll(function.capturedValues)
+                                for (captured in function.capturedValues) {
+                                    stack.push(captured.first, captured.second?.let {
+                                        ValueStack.ValueName(
+                                            it, original = true, variable = false
+                                        )
+                                    })
+                                }
                                 this.stackFrame = newStackFrame
                             }
 
@@ -423,9 +511,23 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                     }
 
                     is Instruction.GetMember -> {
-                        when (val obj = stack.removeLast()) {
+                        val (obj, objName) = stack.popWithName()
+                        when (obj) {
                             is RuntimeValue.RuntimeObject -> {
-                                stack.addLast(obj.values[instruction.index])
+                                val fields = when (obj.typeDescriptor) {
+                                    is CanonicalLangType.ObjectCanonicalLangType -> obj.typeDescriptor.fields
+                                    is CanonicalLangType.SignalCanonicalLangType -> obj.typeDescriptor.fields
+                                }
+                                val fieldName = fields[instruction.index].name
+                                val name = if (objName != null) {
+                                    "${objName.name}.${fieldName}"
+                                } else {
+                                    fieldName
+                                }
+                                stack.push(
+                                    obj.values[instruction.index],
+                                    ValueStack.ValueName(name, original = false, variable = false)
+                                )
                             }
 
                             is RuntimeValue.BadValue -> throw VmError("I tried to get a member from a bad value: ${obj.debug()}.")
@@ -433,9 +535,19 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                         }
                     }
 
+                    is Instruction.NameValue -> {
+                        val nameString =
+                            getConstant(instruction.nameConstant) as CompiledFile.CompiledConstant.StringConst
+                        stack.setName(
+                            ValueStack.ValueName(
+                                nameString.value, original = true, variable = instruction.variable
+                            )
+                        )
+                    }
+
                     is Instruction.IsAssignableTo -> {
-                        val typeValue = stack.removeLast()
-                        val value = stack.removeLast()
+                        val typeValue = stack.pop()
+                        val value = stack.pop()
 
                         if (typeValue is RuntimeValue.BadValue) {
                             throw VmError("I tried to check the type of ${value.debug()}, but the type reference has an error: ${typeValue.debug()}")
@@ -443,7 +555,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                         val type = (typeValue as RuntimeValue.RuntimeTypeConstraint).valueType
 
-                        stack.addLast(CoreFiles.getBinaryAnswer(value.isAssignableTo(type.toConstraint())))
+                        stack.push(CoreFiles.getBinaryAnswer(value.isAssignableTo(type.toConstraint())))
                     }
 
                     is Instruction.Jump -> {
@@ -451,13 +563,14 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                     }
 
                     is Instruction.JumpIfFalse -> {
-                        val condition = stack.removeLast()
+                        val condition = stack.pop()
                         if (condition is RuntimeValue.BadValue) {
                             throw VmError(condition.debug())
                         }
                         if (condition == CoreFiles.getBinaryAnswer(false)) {
                             stackFrame.instruction = instruction.instruction
                         }
+                        Unit
                     }
 
                     is Instruction.StartLoop -> {
@@ -490,7 +603,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                         val excessStackItems = newCallFrame.stack.lastIndex - loop.stackEnd
                         for (i in 0 until excessStackItems) {
-                            newCallFrame.stack.removeLast()
+                            newCallFrame.stack.pop()
                         }
 
                         this.stackFrame = newCallFrame
@@ -502,16 +615,16 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                             val loop =
                                 requireNotNull(this.stackFrame?.currentLoop) { throw InternalVmError("I tried to break a loop, but I'm not in a loop.") }
 
-                            val result = stackFrame.stack.removeLast()
+                            val (result, name) = stackFrame.stack.popWithName()
 
                             val newCallFrame = loop.stackFrame
                             newCallFrame.instruction = loop.breakInstruction
 
                             val excessStackItems = newCallFrame.stack.lastIndex - loop.stackEnd
                             for (stackItemI in 0 until excessStackItems) {
-                                newCallFrame.stack.removeLast()
+                                newCallFrame.stack.pop()
                             }
-                            newCallFrame.stack.addLast(result)
+                            newCallFrame.stack.push(result, name?.copied())
                             newCallFrame.currentLoop = loop.outerLoop
 
                             this.stackFrame = newCallFrame
@@ -519,7 +632,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                     }
 
                     is Instruction.Cause -> {
-                        val signal = stack.removeLast().let {
+                        val signal = stack.pop().let {
                             when (it) {
                                 is RuntimeValue.RuntimeObject -> it
                                 is RuntimeValue.RuntimeTypeConstraint -> {
@@ -537,11 +650,13 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                         stackFrame.pendingSignal = signal
                         val effect = stackFrame.firstEffect
+                        val newStack = ValueStack(options.trackValueNames)
+                        newStack.push(signal)
                         if (effect != null) {
                             this.stackFrame = StackFrame.Cause(
                                 causeParent = stackFrame,
                                 existsInFrame = effect.existsInFrame,
-                                stack = ArrayDeque(listOf(signal)),
+                                stack = newStack,
                                 file = effect.file,
                                 procedure = effect.procedure,
                                 firstEffect = effect.nextEffect,
@@ -557,13 +672,15 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                         require(stackFrame is StackFrame.Cause)
                         val nextEffect = stackFrame.firstEffect
                         val signal = stackFrame.causeParent.pendingSignal!!
+                        val newStack = ValueStack(options.trackValueNames)
+                        newStack.push(signal)
                         if (nextEffect != null) {
                             this.stackFrame = StackFrame.Cause(
                                 causeParent = stackFrame.causeParent,
                                 existsInFrame = nextEffect.existsInFrame,
                                 file = nextEffect.file,
                                 procedure = nextEffect.procedure,
-                                stack = ArrayDeque(listOf(signal)),
+                                stack = newStack,
                                 firstEffect = nextEffect.nextEffect,
                                 currentLoop = nextEffect.existsInFrame.currentLoop,
                             )
@@ -575,7 +692,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                     is Instruction.FinishEffect -> {
                         require(stackFrame is StackFrame.Cause)
-                        val value = stack.removeLast()
+                        val (value, name) = stack.popWithName()
 
                         val causeParent = stackFrame.causeParent
 
@@ -585,13 +702,13 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                             throw VmError("I tried to resolve a ${pendingSignalType.name} signal with a value of ${value.debug()}, but it needs to be ${pendingSignalType.result}")
                         }
 
-                        causeParent.stack.addLast(value)
+                        causeParent.stack.push(value, name?.copied())
                         causeParent.pendingSignal = null
                         this.stackFrame = causeParent
                     }
 
                     is Instruction.Return -> {
-                        val value = stack.removeLast()
+                        val (value, name) = stack.popWithName()
 
                         val returnFromFrame = run {
                             var current = stackFrame
@@ -605,10 +722,10 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                             is StackFrame.Call -> {
                                 val functionScopeLength = stack.size - returnFromFrame.stackStart
                                 for (i in 0 until functionScopeLength) {
-                                    stack.removeLast()
+                                    stack.pop()
                                 }
 
-                                returnFromFrame.parent.stack.addLast(value)
+                                returnFromFrame.parent.stack.push(value, name?.copied())
                                 this.stackFrame = returnFromFrame.parent
                             }
 

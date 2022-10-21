@@ -47,7 +47,7 @@ sealed class RuntimeValue {
         val file: CompiledFile,
         val procedureIndex: Int,
         val type: FunctionValueLangType,
-        val capturedValues: List<RuntimeValue>
+        val capturedValues: List<Pair<RuntimeValue, String?>>
     ) : RuntimeValue()
 
     companion object {
