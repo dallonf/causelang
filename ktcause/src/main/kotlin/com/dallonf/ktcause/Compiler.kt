@@ -162,6 +162,7 @@ object Compiler {
         }
 
         compileBody(procedure)
+        assert(ctx.scopeStack.last() == functionScope)
 
         // TODO: make sure this is the right type to return
         procedure.writeInstruction(Instruction.Return, nodeInfo, InstructionPhase.CLEANUP)

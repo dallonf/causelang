@@ -696,6 +696,9 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                         val causeParent = stackFrame.causeParent
 
+                        val valuesLeftOnStack = stackFrame.stack.size - stackFrame.stackStart
+                        assert(valuesLeftOnStack == 1) { throw InternalVmError("Expected 1 value (the original signal) on the stack after effect, but there were $valuesLeftOnStack.") }
+
                         val pendingSignalType =
                             (causeParent.pendingSignal!!.typeDescriptor as CanonicalLangType.SignalCanonicalLangType)
                         if (!value.isAssignableTo(pendingSignalType.result)) {
@@ -720,9 +723,10 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                         when (returnFromFrame) {
                             is StackFrame.Call -> {
-                                val functionScopeLength = stack.size - returnFromFrame.stackStart
+                                val functionScopeLength =
+                                    (returnFromFrame.stack.size - returnFromFrame.stackStart)
                                 for (i in 0 until functionScopeLength) {
-                                    stack.pop()
+                                    returnFromFrame.stack.pop()
                                 }
 
                                 returnFromFrame.parent.stack.push(value, name?.copied())
