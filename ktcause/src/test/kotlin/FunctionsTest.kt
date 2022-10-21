@@ -292,4 +292,42 @@ class FunctionsTest {
             )
         )
     }
+
+    @Test
+    fun innerRecursiveFunction() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math (subtract)
+                    
+                    function count_down_from_10(): Number {
+                        function count_down(number: Number): Number {
+                            cause Debug(number)
+                            branch {
+                                if equals(number, 0) => number
+                                else => count_down(subtract(number, 1))
+                            }
+                        }
+                        count_down(10)
+                    }
+                    
+                    function main() {
+                        let result = count_down(3)
+                        cause Debug(result)
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.printCompileErrors(vm)
+
+        TestUtils.runMainExpectingDebugValues(
+            vm, "project/test.cau", listOf(
+                RuntimeValue.Number(3),
+                RuntimeValue.Number(2),
+                RuntimeValue.Number(1),
+                RuntimeValue.Number(0),
+                RuntimeValue.Number(0),
+            )
+        )
+    }
 }
