@@ -292,29 +292,16 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                 }
 
                 if (options.debugInstructionLevelExecution) {
-                    val debugStack = stack.all().withIndex().reversed().joinToString(", ") { (i, pair) ->
-                        val (value, name) = pair
-                        val result = run {
-                            val valueString = value.debugMini()
-                            if (name != null) {
-                                if (name.original && name.variable) {
-                                    "let variable ${name.name} = $valueString"
-                                } else if (name.original) {
-                                    "let ${name.name} = $valueString"
-                                } else {
-                                    "${name.name} = $valueString"
-                                }
-                            } else {
-                                valueString
-                            }
+                    if (instruction !is Instruction.NameValue) {
+                        // don't debug stack if we're about to name a value, that just makes things confusing
+                        val stackValues = stack.all()
+                        val currentStack = stackValues.drop(stackFrame.stackStart)
+
+                        val debugStack = currentStack.reversed().joinToString(", ") { (value, name) ->
+                            debugStackValue(value, name)
                         }
-                        if (stackFrame.stackStart == i) {
-                            "$result >|start|<"
-                        } else {
-                            result
-                        }
+                        println("stack (${stackFrame.stackStart}, rtl): $debugStack")
                     }
-                    println("stack (rtl): $debugStack")
                     val sourceMapping = stackFrame.procedure.sourceMap?.let { it[stackFrame.instruction - 1] }?.let {
                         if (it.phase == CompiledFile.Procedure.InstructionPhase.CLEANUP) {
                             it.nodeInfo.position.end
@@ -768,6 +755,24 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                 }
             }
         }
+    }
+
+    private fun debugStackValue(value: RuntimeValue, name: ValueStack.ValueName?): String {
+        val result = run {
+            val valueString = value.debugMini()
+            if (name != null) {
+                if (name.original && name.variable) {
+                    "let variable ${name.name} = $valueString"
+                } else if (name.original) {
+                    "let ${name.name} = $valueString"
+                } else {
+                    "${name.name} = $valueString"
+                }
+            } else {
+                valueString
+            }
+        }
+        return result
     }
 }
 
