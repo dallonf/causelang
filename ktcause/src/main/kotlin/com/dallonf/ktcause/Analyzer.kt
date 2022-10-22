@@ -560,6 +560,7 @@ object Analyzer {
             ctx
         )
         analyzeExpression(expression.body, output, newCtx)
+        output.addTag(expression.info.breadcrumbs, NodeTag.FunctionCanReturnTypeOf(expression.body.info.breadcrumbs))
 
         expression.returnType?.let { analyzeTypeReference(it, output, ctx) }
     }

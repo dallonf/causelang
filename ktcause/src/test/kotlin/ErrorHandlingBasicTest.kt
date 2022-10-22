@@ -666,4 +666,74 @@ internal class ErrorHandlingBasicTest {
             """.trimIndent()
         )
     }
+
+    @Test
+    fun mistypedInlineFunctionExplicitReturn() {
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """                    
+                    function main() {
+                        let test = fn(): Number {
+                            return "not a number"
+                        }
+                        test()
+                    }
+                """.trimIndent()
+            )
+        }
+        assertEquals(
+            """
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body.block.statements.0.expression.value",
+                        "position": "3:15-3:29"
+                    },
+                    "error": {
+                        "#type": "MismatchedType",
+                        "expected": {
+                            "valueType": {
+                                "#type": "Primitive",
+                                "kind": "Number"
+                            }
+                        },
+                        "actual": {
+                            "#type": "Primitive",
+                            "kind": "Text"
+                        }
+                    }
+                }
+            ]
+            """.trimIndent(),
+            vm.codeBundle.compileErrors.debug(),
+        )
+        val result = vm.executeFunction("project/hello.cau", "main", listOf())
+        TestUtils.expectBadValue(
+            result.expectReturnValue(), """
+            {
+                "#type": "BadValue",
+                "position": {
+                    "#type": "SourcePosition",
+                    "path": "project/hello.cau",
+                    "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body.block.statements.0.expression.value",
+                    "position": "3:15-3:29"
+                },
+                "error": {
+                    "#type": "MismatchedType",
+                    "expected": {
+                        "valueType": {
+                            "#type": "Primitive",
+                            "kind": "Number"
+                        }
+                    },
+                    "actual": {
+                        "#type": "Primitive",
+                        "kind": "Text"
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+    }
 }

@@ -305,6 +305,8 @@ sealed interface ResolvedValueLangType : ValueLangType {
     override fun isPending() = false
 
     fun isAssignableTo(constraint: ConstraintValueLangType): Boolean {
+        if (this is NeverContinuesValueLangType) return true
+
         return when (val constraintInstanceType = constraint.valueType) {
             is InstanceValueLangType -> {
                 this is InstanceValueLangType && this.canonicalType.id == constraintInstanceType.canonicalType.id ||
@@ -318,9 +320,12 @@ sealed interface ResolvedValueLangType : ValueLangType {
                     val paramsMatch = this.params == constraintInstanceType.params
                     val returnConstraintMatches = run {
                         val returnValue = this.returnConstraint.asValueType() as? ResolvedValueLangType
-                        val constraintReturnConstraint = constraintInstanceType.returnConstraint.asConstraintValue() as? ConstraintValueLangType
+                        val constraintReturnConstraint =
+                            constraintInstanceType.returnConstraint.asConstraintValue() as? ConstraintValueLangType
 
-                        returnValue != null && constraintReturnConstraint != null && returnValue.isAssignableTo(constraintReturnConstraint)
+                        returnValue != null && constraintReturnConstraint != null && returnValue.isAssignableTo(
+                            constraintReturnConstraint
+                        )
                     }
 
                     paramsMatch && returnConstraintMatches

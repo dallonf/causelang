@@ -247,6 +247,77 @@ object Resolver {
                 val pendingNodeBreadcrumbs = pendingKey.breadcrumbs
                 val node = fileNode.findNode(pendingNodeBreadcrumbs)
                 val pendingNodeTags = nodeTags[pendingKey.breadcrumbs] ?: emptyList()
+
+                fun resolveFunction(
+                    nameNode: Identifier?,
+                    paramNodes: List<FunctionSignatureParameterNode>,
+                    returnTypeNode: TypeReferenceNode?
+                ) {
+                    val returnConstraint = run returnConstraint@{
+                        val explicitReturnType =
+                            returnTypeNode?.let {
+                                getResolvedTypeOf(returnTypeNode).expectConstraint().let { resolvedReturnType ->
+                                    if (resolvedReturnType is ConstraintValueLangType) {
+                                        resolvedReturnType.asConstraintReference()
+                                    } else {
+                                        return@returnConstraint resolvedReturnType.valueToConstraintReference()
+                                    }
+                                }
+                            }
+
+                        val canReturn = pendingNodeTags.mapNotNull { tag ->
+                            (tag as? NodeTag.FunctionCanReturnTypeOf)?.let {
+                                it.returnExpression to getResolvedTypeOf(it.returnExpression)
+                            }
+                        }
+
+                        explicitReturnType?.let {
+                            for (possibleReturn in canReturn) {
+                                iterationResolvedReferences.add(
+                                    Pair(
+                                        ResolutionKey(CONSTRAINT, possibleReturn.first), explicitReturnType.asConstraintValue()
+                                    )
+                                )
+                            }
+                            return@returnConstraint explicitReturnType
+                        }
+
+                        if (canReturn.any { it.second.isPending() }) {
+                            return@returnConstraint ConstraintReference.Pending
+                        }
+
+                        val actionReturns = canReturn.filter { it.second is ActionValueLangType }
+                        val valueReturns = canReturn.filter { it.second !is ActionValueLangType }
+                        if (actionReturns.size > 1 && valueReturns.size > 1) {
+                            return@returnConstraint ErrorLangType.ActionIncompatibleWithValueTypes(actionReturns.map {
+                                getSourcePosition(
+                                    it.first
+                                )
+                            }, valueReturns.map {
+                                ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                    type = it.second, position = getSourcePosition(it.first)
+                                )
+                            }).asConstraintReference()
+                        }
+
+                        val returnType = OptionValueLangType(canReturn.map { (_, returnType) ->
+                            returnType.valueToConstraintReference()
+                        }).simplifyToValue()
+
+                        returnType.getError()?.let { error ->
+                            ConstraintReference.Error(error)
+                        } ?: returnType.valueToConstraintReference()
+                    }
+
+                    val params = paramNodes.map { paramNode ->
+                        val typeReference =
+                            paramNode.typeReference?.let { getResolvedTypeOf(it) } ?: ValueLangType.Pending
+                        LangParameter(paramNode.name.text, typeReference.asConstraintReference())
+                    }
+
+                    resolveWith(FunctionValueLangType(nameNode?.text, returnConstraint, params))
+                }
+
                 when (pendingKey.type) {
                     INFERRED -> when (node) {
                         is TypeReferenceNode.IdentifierTypeReferenceNode -> {
@@ -278,33 +349,7 @@ object Resolver {
                         is ExpressionNode.BlockExpressionNode -> resolveWith(getResolvedTypeOf(node.block))
 
                         is ExpressionNode.FunctionExpressionNode -> {
-                            val explicitReturnConstraint = node.returnType?.let {
-                                getResolvedTypeOf(it).expectConstraint().asConstraintReference()
-                            }
-
-                            (explicitReturnConstraint as? ConstraintReference.ResolvedConstraint)?.let {
-                                iterationResolvedReferences.add(
-                                    Pair(
-                                        ResolutionKey(
-                                            CONSTRAINT,
-                                            node.body.info.breadcrumbs
-                                        ), it.asResolvedConstraintValue()
-                                    )
-                                )
-                            }
-
-                            val returnConstraint =
-                                explicitReturnConstraint ?: getResolvedTypeOf(node.body).valueToConstraintReference()
-
-                            val params: List<LangParameter> = node.params.map { param ->
-                                val paramTypeConstraint = param.typeReference?.let {
-                                    getResolvedTypeOf(it).expectConstraint().asConstraintReference()
-                                }
-                                // TODO: try to infer type of parameters
-                                LangParameter(param.name.text, paramTypeConstraint ?: ConstraintReference.Pending)
-                            }
-
-                            resolveWith(FunctionValueLangType(name = null, returnConstraint, params))
+                            resolveFunction(null, node.params, node.returnType)
                         }
 
                         is ExpressionNode.IdentifierExpression -> {
@@ -831,61 +876,7 @@ object Resolver {
                         }
 
                         is DeclarationNode.Function -> {
-                            val returnConstraint = run returnConstraint@{
-                                val explicitReturnType =
-                                    node.returnType?.let { getResolvedTypeOf(it).expectConstraint() } as? ConstraintValueLangType
-
-                                val canReturn = pendingNodeTags.mapNotNull { tag ->
-                                    (tag as? NodeTag.FunctionCanReturnTypeOf)?.let {
-                                        it.returnExpression to getResolvedTypeOf(it.returnExpression)
-                                    }
-                                }
-
-                                explicitReturnType?.let {
-                                    for (possibleReturn in canReturn) {
-                                        iterationResolvedReferences.add(
-                                            Pair(
-                                                ResolutionKey(CONSTRAINT, possibleReturn.first), explicitReturnType
-                                            )
-                                        )
-                                    }
-                                    return@returnConstraint explicitReturnType.asConstraintReference()
-                                }
-
-                                if (canReturn.any { it.second.isPending() }) {
-                                    return@returnConstraint ConstraintReference.Pending
-                                }
-
-                                val actionReturns = canReturn.filter { it.second is ActionValueLangType }
-                                val valueReturns = canReturn.filter { it.second !is ActionValueLangType }
-                                if (actionReturns.size > 1 && valueReturns.size > 1) {
-                                    return@returnConstraint ErrorLangType.ActionIncompatibleWithValueTypes(actionReturns.map {
-                                        getSourcePosition(
-                                            it.first
-                                        )
-                                    }, valueReturns.map {
-                                        ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
-                                            type = it.second, position = getSourcePosition(it.first)
-                                        )
-                                    }).asConstraintReference()
-                                }
-
-                                val returnType = OptionValueLangType(canReturn.map { (_, returnType) ->
-                                    returnType.valueToConstraintReference()
-                                }).simplifyToValue()
-
-                                returnType.getError()?.let { error ->
-                                    ConstraintReference.Error(error)
-                                } ?: returnType.valueToConstraintReference()
-                            }
-
-                            val params = node.params.map { paramNode ->
-                                val typeReference =
-                                    paramNode.typeReference?.let { getResolvedTypeOf(it) } ?: ValueLangType.Pending
-                                LangParameter(paramNode.name.text, typeReference.asConstraintReference())
-                            }
-
-                            resolveWith(FunctionValueLangType(node.name.text, returnConstraint, params))
+                            resolveFunction(node.name, node.params, node.returnType)
                         }
 
                         is DeclarationNode.Import.MappingNode -> {
