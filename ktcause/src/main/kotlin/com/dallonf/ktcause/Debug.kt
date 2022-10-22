@@ -86,6 +86,10 @@ object Debug {
         return Debug.debugSerializer.encodeToString(this.toJson())
     }
 
+    fun ValueLangType.debug(): kotlin.String {
+        return Debug.debugSerializer.encodeToString(this)
+    }
+
     fun RuntimeValue.debugMini(): kotlin.String {
         return when (this) {
             is RuntimeValue.Action -> "[Action]"

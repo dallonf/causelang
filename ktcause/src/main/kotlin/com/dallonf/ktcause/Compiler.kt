@@ -137,6 +137,10 @@ object Compiler {
             declaration.name.text, declaration.params, declaration.info, ctx
         ) { procedure ->
             compileBody(declaration.body, procedure, ctx)
+            ctx.resolved.checkForRuntimeErrors(declaration.body.info.breadcrumbs)?.let {
+                procedure.writeInstruction(Instruction.Pop(), declaration.body.info, InstructionPhase.CLEANUP)
+                compileBadValue(declaration.body, it, procedure, ctx)
+            }
         }
     }
 
@@ -164,7 +168,6 @@ object Compiler {
         compileBody(procedure)
         assert(ctx.scopeStack.last() == functionScope)
 
-        // TODO: make sure this is the right type to return
         procedure.writeInstruction(Instruction.Return, nodeInfo, InstructionPhase.CLEANUP)
 
         ctx.scopeStack.clear()

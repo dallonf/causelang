@@ -376,15 +376,294 @@ internal class ErrorHandlingBasicTest {
         }
         assertEquals(
             """
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.1.body",
+                        "position": "1:24-3:1"
+                    },
+                    "error": {
+                        "#type": "MismatchedType",
+                        "expected": {
+                            "valueType": {
+                                "#type": "Primitive",
+                                "kind": "Number"
+                            }
+                        },
+                        "actual": {
+                            "#type": "Primitive",
+                            "kind": "Text"
+                        }
+                    }
+                }
+            ]
             """.trimIndent(),
             vm.codeBundle.compileErrors.debug(),
         )
 
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
+        TestUtils.expectBadValue(
+            result.expectReturnValue(),
+            """
+            {
+                "#type": "BadValue",
+                "position": {
+                    "#type": "SourcePosition",
+                    "path": "project/hello.cau",
+                    "breadcrumbs": "declarations.1.body",
+                    "position": "1:24-3:1"
+                },
+                "error": {
+                    "#type": "MismatchedType",
+                    "expected": {
+                        "valueType": {
+                            "#type": "Primitive",
+                            "kind": "Number"
+                        }
+                    },
+                    "actual": {
+                        "#type": "Primitive",
+                        "kind": "Text"
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+    }
+
+    @Test
+    fun mistypedEarlyReturn() {
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """                    
+                    option MainReturn(Number, Text)
+                    object NotThat
+                    object OrThat
+                    
+                    function main(): MainReturn {
+                        branch {
+                            if equals(2, 2) => return NotThat
+                            if equals(1, 2) => return OrThat
+                            else => "maybe"
+                        }
+                    }
+                """.trimIndent()
+            )
+        }
         assertEquals(
             """
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.4.body.statements.0.expression.branches.0.body.statement.expression.value",
+                        "position": "7:34-7:41"
+                    },
+                    "error": {
+                        "#type": "MismatchedType",
+                        "expected": {
+                            "valueType": {
+                                "#type": "Option",
+                                "options": [
+                                    {
+                                        "#type": "Resolved",
+                                        "valueType": {
+                                            "#type": "Primitive",
+                                            "kind": "Number"
+                                        }
+                                    },
+                                    {
+                                        "#type": "Resolved",
+                                        "valueType": {
+                                            "#type": "Primitive",
+                                            "kind": "Text"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "actual": {
+                            "#type": "Constraint",
+                            "valueType": {
+                                "#type": "Instance",
+                                "canonicalType": {
+                                    "#type": "Object",
+                                    "id": "project/hello.cau:NotThat",
+                                    "name": "NotThat",
+                                    "fields": [
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.4.body.statements.0.expression.branches.1.body.statement.expression.value",
+                        "position": "8:34-8:40"
+                    },
+                    "error": {
+                        "#type": "MismatchedType",
+                        "expected": {
+                            "valueType": {
+                                "#type": "Option",
+                                "options": [
+                                    {
+                                        "#type": "Resolved",
+                                        "valueType": {
+                                            "#type": "Primitive",
+                                            "kind": "Number"
+                                        }
+                                    },
+                                    {
+                                        "#type": "Resolved",
+                                        "valueType": {
+                                            "#type": "Primitive",
+                                            "kind": "Text"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "actual": {
+                            "#type": "Constraint",
+                            "valueType": {
+                                "#type": "Instance",
+                                "canonicalType": {
+                                    "#type": "Object",
+                                    "id": "project/hello.cau:OrThat",
+                                    "name": "OrThat",
+                                    "fields": [
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
             """.trimIndent(),
-            TestUtils.expectTypeError(result, vm).debug(),
+            vm.codeBundle.compileErrors.debug(),
+        )
+        val result = vm.executeFunction("project/hello.cau", "main", listOf())
+        TestUtils.expectBadValue(
+            result.expectReturnValue(), """
+            {
+                "#type": "BadValue",
+                "position": {
+                    "#type": "SourcePosition",
+                    "path": "project/hello.cau",
+                    "breadcrumbs": "declarations.4.body.statements.0.expression.branches.0.body.statement.expression.value",
+                    "position": "7:34-7:41"
+                },
+                "error": {
+                    "#type": "MismatchedType",
+                    "expected": {
+                        "valueType": {
+                            "#type": "Option",
+                            "options": [
+                                {
+                                    "#type": "Resolved",
+                                    "valueType": {
+                                        "#type": "Primitive",
+                                        "kind": "Number"
+                                    }
+                                },
+                                {
+                                    "#type": "Resolved",
+                                    "valueType": {
+                                        "#type": "Primitive",
+                                        "kind": "Text"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "actual": {
+                        "#type": "Constraint",
+                        "valueType": {
+                            "#type": "Instance",
+                            "canonicalType": {
+                                "#type": "Object",
+                                "id": "project/hello.cau:NotThat",
+                                "name": "NotThat",
+                                "fields": [
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+    }
+
+    @Test
+    fun mistypedInlineFunctionReturn() {
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """                    
+                    function main() {
+                        let test = fn(): Number "not a number"
+                        test()
+                    }
+                """.trimIndent()
+            )
+        }
+        assertEquals(
+            """
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body",
+                        "position": "2:28-2:42"
+                    },
+                    "error": {
+                        "#type": "MismatchedType",
+                        "expected": {
+                            "valueType": {
+                                "#type": "Primitive",
+                                "kind": "Number"
+                            }
+                        },
+                        "actual": {
+                            "#type": "Primitive",
+                            "kind": "Text"
+                        }
+                    }
+                }
+            ]
+            """.trimIndent(),
+            vm.codeBundle.compileErrors.debug(),
+        )
+        val result = vm.executeFunction("project/hello.cau", "main", listOf())
+        TestUtils.expectBadValue(
+            result.expectReturnValue(), """
+            {
+                "#type": "BadValue",
+                "position": {
+                    "#type": "SourcePosition",
+                    "path": "project/hello.cau",
+                    "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body",
+                    "position": "2:28-2:42"
+                },
+                "error": {
+                    "#type": "MismatchedType",
+                    "expected": {
+                        "valueType": {
+                            "#type": "Primitive",
+                            "kind": "Number"
+                        }
+                    },
+                    "actual": {
+                        "#type": "Primitive",
+                        "kind": "Text"
+                    }
+                }
+            }
+            """.trimIndent()
         )
     }
 }

@@ -281,6 +281,18 @@ object Resolver {
                             val explicitReturnConstraint = node.returnType?.let {
                                 getResolvedTypeOf(it).expectConstraint().asConstraintReference()
                             }
+
+                            (explicitReturnConstraint as? ConstraintReference.ResolvedConstraint)?.let {
+                                iterationResolvedReferences.add(
+                                    Pair(
+                                        ResolutionKey(
+                                            CONSTRAINT,
+                                            node.body.info.breadcrumbs
+                                        ), it.asResolvedConstraintValue()
+                                    )
+                                )
+                            }
+
                             val returnConstraint =
                                 explicitReturnConstraint ?: getResolvedTypeOf(node.body).valueToConstraintReference()
 
@@ -821,15 +833,23 @@ object Resolver {
                         is DeclarationNode.Function -> {
                             val returnConstraint = run returnConstraint@{
                                 val explicitReturnType =
-                                    node.returnType?.let { getResolvedTypeOf(it).expectConstraint() }
-                                (explicitReturnType as? ConstraintValueLangType)?.let {
-                                    return@returnConstraint explicitReturnType.asConstraintReference()
-                                }
+                                    node.returnType?.let { getResolvedTypeOf(it).expectConstraint() } as? ConstraintValueLangType
 
                                 val canReturn = pendingNodeTags.mapNotNull { tag ->
                                     (tag as? NodeTag.FunctionCanReturnTypeOf)?.let {
                                         it.returnExpression to getResolvedTypeOf(it.returnExpression)
                                     }
+                                }
+
+                                explicitReturnType?.let {
+                                    for (possibleReturn in canReturn) {
+                                        iterationResolvedReferences.add(
+                                            Pair(
+                                                ResolutionKey(CONSTRAINT, possibleReturn.first), explicitReturnType
+                                            )
+                                        )
+                                    }
+                                    return@returnConstraint explicitReturnType.asConstraintReference()
                                 }
 
                                 if (canReturn.any { it.second.isPending() }) {

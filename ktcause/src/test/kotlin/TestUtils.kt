@@ -1,4 +1,5 @@
 import com.dallonf.ktcause.Debug
+import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RunResult
@@ -15,7 +16,7 @@ object TestUtils {
             throw AssertionError("Compile errors: ${compileErrors.debug()}")
         }
     }
-    
+
     fun printCompileErrors(vm: LangVm) {
         Debug.printCompileErrors(vm)
     }
@@ -25,6 +26,11 @@ object TestUtils {
         require(result is RunResult.Caused)
         assertEquals(vm.codeBundle.getTypeId("core/builtin.cau", "TypeError"), result.signal.typeDescriptor.id)
         return result.signal.values[0] as RuntimeValue.BadValue
+    }
+
+    fun expectBadValue(value: RuntimeValue, expectedError: String) {
+        require(value is RuntimeValue.BadValue) { "Expected BadValue, was ${value.debug()}" }
+        assertEquals(expectedError, value.debug())
     }
 
     fun expectInvalidSignal(result: RunResult): RuntimeValue.BadValue {
