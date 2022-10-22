@@ -94,6 +94,12 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
         fun popWithName(): Pair<RuntimeValue, ValueName?> = Pair(values.removeLast(), names?.removeLast())
 
+        fun peek(): RuntimeValue {
+            return values.last()
+        }
+
+        fun peekWithName(): Pair<RuntimeValue, ValueName?> = Pair(peek(), peekName())
+
         fun atIndex(index: Int): RuntimeValue = values[index]
 
         fun atIndexWithName(index: Int): Pair<RuntimeValue, ValueName?> = Pair(atIndex(index), nameAtIndex(index))
@@ -198,6 +204,12 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
             stack.push(param)
         }
 
+        stack.push(
+            RuntimeValue.Function(
+                functionName, file, function.procedureIndex, function.type, capturedValues = emptyList()
+            )
+        )
+
         stackFrame = StackFrame.Main(
             file,
             file.procedures[function.procedureIndex],
@@ -276,18 +288,26 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                 }
 
                 if (options.debugInstructionLevelExecution) {
-                    val debugStack = stack.all().reversed().joinToString(", ") { (value, name) ->
-                        val valueString = value.debugMini()
-                        if (name != null) {
-                            if (name.original && name.variable) {
-                                "let variable ${name.name} = $valueString"
-                            } else if (name.original) {
-                                "let ${name.name} = $valueString"
+                    val debugStack = stack.all().withIndex().reversed().joinToString(", ") { (i, pair) ->
+                        val (value, name) = pair
+                        val result = run {
+                            val valueString = value.debugMini()
+                            if (name != null) {
+                                if (name.original && name.variable) {
+                                    "let variable ${name.name} = $valueString"
+                                } else if (name.original) {
+                                    "let ${name.name} = $valueString"
+                                } else {
+                                    "${name.name} = $valueString"
+                                }
                             } else {
-                                "${name.name} = $valueString"
+                                valueString
                             }
+                        }
+                        if (stackFrame.stackStart == i) {
+                            "$result >|start|<"
                         } else {
-                            valueString
+                            result
                         }
                     }
                     println("stack (rtl): $debugStack")
@@ -299,7 +319,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                         }
                     }
                     val sourceMappingStr = sourceMapping?.let { ", l#${it}" } ?: ""
-                    println("i#${stackFrame.instruction - 1}${sourceMappingStr}: $instruction")
+                    println("#${stackFrame.instruction - 1}${sourceMappingStr}: $instruction")
                 }
 
                 when (instruction) {
@@ -472,8 +492,9 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                     }
 
                     is Instruction.CallFunction -> {
-                        when (val function = stack.pop()) {
+                        when (val function = stack.peek()) {
                             is RuntimeValue.NativeFunction -> {
+                                stack.pop() // pop the function off the stack
                                 // TODO: probably want to runtime typecheck native function
                                 // params in development
                                 val params = mutableListOf<RuntimeValue>()
@@ -488,7 +509,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                             is RuntimeValue.Function -> {
                                 val newStackFrame = StackFrame.Call(
                                     parent = stackFrame,
-                                    stackStart = stack.size - instruction.arity,
+                                    stackStart = stack.size - instruction.arity - 1,
                                     file = function.file,
                                     procedure = function.file.procedures[function.procedureIndex],
                                     stack = stack,

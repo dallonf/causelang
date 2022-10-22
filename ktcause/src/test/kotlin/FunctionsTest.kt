@@ -300,7 +300,7 @@ class FunctionsTest {
                 "project/test.cau", """
                     import core/math (subtract)
                     
-                    function count_down_from_10(): Number {
+                    function count_down_from_3(): Number {
                         function count_down(number: Number): Number {
                             cause Debug(number)
                             branch {
@@ -308,11 +308,11 @@ class FunctionsTest {
                                 else => count_down(subtract(number, 1))
                             }
                         }
-                        count_down(10)
+                        count_down(3)
                     }
                     
                     function main() {
-                        let result = count_down(3)
+                        let result = count_down_from_3()
                         cause Debug(result)
                     }
                 """.trimIndent()

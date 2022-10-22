@@ -157,12 +157,12 @@ object Compiler {
         ctx.scopeStack.clear() // brand-new scope for every function
         ctx.scopeStack.addLast(functionScope)
 
-        for ((i, param) in params.withIndex()) {
-            functionScope.namedValueIndices[param.info.breadcrumbs] = i
+        for (param in params) {
+            ctx.writeToScope(param.info.breadcrumbs)
         }
-
-        for ((i, captured) in ctx.getTagsOfType<NodeTag.CapturesValue>(nodeInfo.breadcrumbs).withIndex()) {
-            functionScope.namedValueIndices[captured.value] = i + params.size
+        ctx.writeToScope(nodeInfo.breadcrumbs) // the function itself is on the stack, just after the parameters
+        for (captured in ctx.getTagsOfType<NodeTag.CapturesValue>(nodeInfo.breadcrumbs)) {
+            ctx.writeToScope(captured.value)
         }
 
         compileBody(procedure)

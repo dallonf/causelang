@@ -328,6 +328,7 @@ object Analyzer {
             output,
             ctx
         )
+        newCtx.currentScope.items[declaration.name.text] = LocalScopeItem(declaration.info.breadcrumbs)
         output.addTag(
             declaration.info.breadcrumbs, NodeTag.FunctionCanReturnTypeOf(
                 declaration.body.info.breadcrumbs
