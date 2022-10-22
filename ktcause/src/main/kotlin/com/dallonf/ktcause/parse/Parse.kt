@@ -349,6 +349,12 @@ private fun parseExpression(
 ): ExpressionNode {
     val mainExpression = { innerBreadcrumbs: Breadcrumbs ->
         when (val child = expressionContext.getChild(0)) {
+            is GroupExpressionContext -> ExpressionNode.GroupExpressionNode(
+                NodeInfo(
+                    child.getRange(), innerBreadcrumbs
+                ), parseExpression(child.expression(), innerBreadcrumbs.appendName("expression"), ctx)
+            )
+
             is BlockExpressionContext -> parseBlockExpression(child, innerBreadcrumbs, ctx)
             is FunctionExpressionContext -> parseFunctionExpression(child, innerBreadcrumbs, ctx)
             is BranchExpressionContext -> parseBranchExpression(child, innerBreadcrumbs, ctx)

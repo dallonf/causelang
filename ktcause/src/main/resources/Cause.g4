@@ -88,9 +88,9 @@ declarationStatement : declaration ;
 effectStatement : EFFECT NEWLINE* FOR NEWLINE* pattern NEWLINE* body ;
 setStatement : SET NEWLINE* IDENTIFIER NEWLINE* EQUALS NEWLINE* expression ;
 
-expression : (blockExpression | functionExpression | branchExpression | loopExpression | causeExpression | returnExpression | breakExpression | stringLiteralExpression | numberLiteralExpression | identifierExpression)
+expression : (groupExpression | blockExpression | functionExpression | branchExpression | loopExpression | causeExpression | returnExpression | breakExpression | stringLiteralExpression | numberLiteralExpression | identifierExpression)
     expressionSuffix* ;
-
+groupExpression : PAREN_OPEN NEWLINE* expression NEWLINE* PAREN_CLOSE ;
 blockExpression : block ;
 functionExpression : FN NEWLINE* PAREN_OPEN NEWLINE*
                         (functionSignatureParam NEWLINE* (COMMA NEWLINE* functionSignatureParam NEWLINE*)* COMMA?)?
@@ -111,7 +111,7 @@ callExpressionSuffix : PAREN_OPEN NEWLINE* (callParam NEWLINE* (COMMA NEWLINE* c
 callParam : callPositionalParameter ;
 callPositionalParameter : expression ;
 
-memberExpressionSuffix : DOT NEWLINE* IDENTIFIER ;
+memberExpressionSuffix : NEWLINE* DOT NEWLINE* IDENTIFIER ;
 
 branchOption : ifBranchOption | isBranchOption | elseBranchOption ;
 ifBranchOption : IF expression body ;

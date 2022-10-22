@@ -36,7 +36,7 @@ object Compiler {
             return index
         }
 
-        fun writeToScope(breadcrumbs: Breadcrumbs): Int {
+        fun addToScope(breadcrumbs: Breadcrumbs): Int {
             val index = nextScopeIndex()
             scopeStack.last().namedValueIndices[breadcrumbs] = index
             return index
@@ -158,11 +158,11 @@ object Compiler {
         ctx.scopeStack.addLast(functionScope)
 
         for (param in params) {
-            ctx.writeToScope(param.info.breadcrumbs)
+            ctx.addToScope(param.info.breadcrumbs)
         }
-        ctx.writeToScope(nodeInfo.breadcrumbs) // the function itself is on the stack, just after the parameters
-        for (captured in ctx.getTagsOfType<NodeTag.CapturesValue>(nodeInfo.breadcrumbs)) {
-            ctx.writeToScope(captured.value)
+        ctx.addToScope(nodeInfo.breadcrumbs) // the function itself is on the stack, just after the parameters
+        for (captured in ctx.getTagsOfType<NodeTag.FunctionCapturesValue>(nodeInfo.breadcrumbs)) {
+            ctx.addToScope(captured.value)
         }
 
         compileBody(procedure)
@@ -294,12 +294,12 @@ object Compiler {
                     is DeclarationNode.SignalType -> declaration.name.text
                     else -> throw AssertionError()
                 }
-                ctx.writeToScope(declaration.info.breadcrumbs)
+                ctx.addToScope(declaration.info.breadcrumbs)
                 procedure.writeInstruction(Instruction.NameValue(procedure.addConstant(name)), declaration.info)
             }
 
             is DeclarationNode.Function -> {
-                val capturedValues = ctx.getTagsOfType<NodeTag.CapturesValue>(declaration.info.breadcrumbs)
+                val capturedValues = ctx.getTagsOfType<NodeTag.FunctionCapturesValue>(declaration.info.breadcrumbs)
                 for (captured in capturedValues) {
                     compileValueReference(declaration.info, captured.value, procedure, ctx)
                 }
@@ -320,7 +320,7 @@ object Compiler {
                         ), declaration.info
                     )
                 }
-                ctx.writeToScope(declaration.info.breadcrumbs)
+                ctx.addToScope(declaration.info.breadcrumbs)
                 procedure.writeInstruction(
                     Instruction.NameValue(procedure.addConstant(declaration.name.text)), declaration.info
                 )
@@ -332,7 +332,7 @@ object Compiler {
                     procedure.writeInstruction(Instruction.Pop(), declaration.info)
                     compileBadValue(declaration, error, procedure, ctx)
                 }
-                ctx.writeToScope(declaration.info.breadcrumbs)
+                ctx.addToScope(declaration.info.breadcrumbs)
                 procedure.writeInstruction(
                     Instruction.NameValue(
                         procedure.addConstant(declaration.name.text), declaration.isVariable
@@ -353,7 +353,7 @@ object Compiler {
         ctx.scopeStack.addLast(
             CompilerScope(statement.info.breadcrumbs, CompilerScope.ScopeType.EFFECT)
         )
-        ctx.writeToScope(statement.pattern.info.breadcrumbs)
+        ctx.addToScope(statement.pattern.info.breadcrumbs)
         statement.pattern.name?.text?.let {
             effectProcedure.writeInstruction(
                 Instruction.NameValue(
@@ -422,6 +422,8 @@ object Compiler {
         expression: ExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         when (expression) {
+            is ExpressionNode.GroupExpressionNode -> compileExpression(expression.expression, procedure, ctx)
+
             is ExpressionNode.BlockExpressionNode -> compileBlockExpression(expression, procedure, ctx)
 
             is ExpressionNode.FunctionExpressionNode -> compileFunctionExpression(expression, procedure, ctx)
@@ -488,7 +490,7 @@ object Compiler {
         procedure: CompiledFile.MutableProcedure,
         ctx: CompilerContext
     ) {
-        val capturedValues = ctx.getTagsOfType<NodeTag.CapturesValue>(expression.info.breadcrumbs)
+        val capturedValues = ctx.getTagsOfType<NodeTag.FunctionCapturesValue>(expression.info.breadcrumbs)
         for (captured in capturedValues) {
             compileValueReference(expression.info, captured.value, procedure, ctx)
         }
@@ -520,7 +522,7 @@ object Compiler {
         ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY))
         val withValueIndex = expression.withValue?.let {
             compileExpression(it, procedure, ctx)
-            ctx.writeToScope(it.info.breadcrumbs)
+            ctx.addToScope(it.info.breadcrumbs)
         }
 
         val remainingBranchJumps = mutableListOf<CompiledFile.MutableProcedure.JumpPlaceholder>()
@@ -543,7 +545,7 @@ object Compiler {
 
                         ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY))
                         procedure.writeInstruction(Instruction.ReadLocal(withValueIndex), branch.info)
-                        ctx.writeToScope(branch.pattern.info.breadcrumbs)
+                        ctx.addToScope(branch.pattern.info.breadcrumbs)
                         branch.pattern.name?.text?.let {
                             procedure.writeInstruction(
                                 Instruction.NameValue(

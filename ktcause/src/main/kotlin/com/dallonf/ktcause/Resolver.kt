@@ -275,7 +275,8 @@ object Resolver {
                             for (possibleReturn in canReturn) {
                                 iterationResolvedReferences.add(
                                     Pair(
-                                        ResolutionKey(CONSTRAINT, possibleReturn.first), explicitReturnType.asConstraintValue()
+                                        ResolutionKey(CONSTRAINT, possibleReturn.first),
+                                        explicitReturnType.asConstraintValue()
                                     )
                                 )
                             }
@@ -345,6 +346,8 @@ object Resolver {
 
                         is ExpressionNode.StringLiteralExpression -> resolveWith(LangPrimitiveKind.TEXT.toValueLangType())
                         is ExpressionNode.NumberLiteralExpression -> resolveWith(LangPrimitiveKind.NUMBER.toValueLangType())
+
+                        is ExpressionNode.GroupExpressionNode -> resolveWith(getResolvedTypeOf(node.expression))
 
                         is ExpressionNode.BlockExpressionNode -> resolveWith(getResolvedTypeOf(node.block))
 

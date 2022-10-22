@@ -134,6 +134,52 @@ class FunctionsTest {
     }
 
     @Test
+    fun nestedFunctionCanAccessOuterScope() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math (add)                   
+                                    
+                    function main(): Number {
+                        let base = 1.0
+                        function x() {
+                            function y() {
+                                add(base, 2.0)
+                            }
+                            y()
+                        }
+                        x()
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
+        assertEquals(RuntimeValue.Number(3.0), result)
+    }
+
+    @Test
+    fun nestedInlineFunctionCanAccessOuterScope() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math (add)                   
+                                    
+                    function main(): Number {
+                        let base = 1.0
+                        (fn() (fn() add(base, 2.0))())()
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
+        assertEquals(RuntimeValue.Number(3.0), result)
+    }
+
+    @Test
     fun functionWithParametersCanAccessOuterScope() {
         val vm = LangVm {
             addFile(
@@ -219,8 +265,7 @@ class FunctionsTest {
         TestUtils.expectNoCompileErrors(vm)
 
         assertEquals(
-            RuntimeValue.Number(3),
-            vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
+            RuntimeValue.Number(3), vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         )
     }
 
@@ -251,8 +296,7 @@ class FunctionsTest {
                     }
                 }
             ]
-            """.trimIndent(),
-            vm.codeBundle.compileErrors.debug()
+            """.trimIndent(), vm.codeBundle.compileErrors.debug()
         )
 
         TestUtils.expectTypeError(vm.executeFunction("project/test.cau", "main", listOf()), vm)
@@ -327,6 +371,40 @@ class FunctionsTest {
                 RuntimeValue.Number(1),
                 RuntimeValue.Number(0),
                 RuntimeValue.Number(0),
+            )
+        )
+    }
+
+    @Test
+    fun nestedRecursion() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    function main() {
+                        function x(done: BinaryAnswer): Action {
+                            cause Debug("x")
+                            function y(done: BinaryAnswer): Action {
+                                cause Debug("y")
+                                function z(done: BinaryAnswer): Action {
+                                    cause Debug("z")
+                                    branch {
+                                        if done => {}
+                                        else => x(True)
+                                    }
+                                }
+                                z(done)
+                            }
+                            y(done)
+                        }
+                        x(False)
+                    }
+                """.trimIndent()
+            )
+        }
+
+        TestUtils.runMainExpectingDebugs(
+            vm, "project/test.cau", listOf(
+                "x", "y", "z", "x", "y", "z"
             )
         )
     }
