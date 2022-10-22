@@ -48,11 +48,7 @@ object Compiler {
     )
 
     private class CompilerScope(
-        val scopeRoot: Breadcrumbs,
-        val type: ScopeType,
-        val openLoop: OpenLoop? = null,
-        val stackPrefix: Int = 0,
-        var effectCount: Int = 0
+        val scopeRoot: Breadcrumbs, val type: ScopeType, val openLoop: OpenLoop? = null, var effectCount: Int = 0
     ) {
         enum class ScopeType {
             BODY, FUNCTION, EFFECT
@@ -61,7 +57,7 @@ object Compiler {
         // indices are computed from the top of the current call frame
         val namedValueIndices = mutableMapOf<Breadcrumbs, Int>()
 
-        fun size() = stackPrefix + namedValueIndices.size
+        fun size() = namedValueIndices.size
     }
 
     fun compile(fileNode: FileNode, analyzed: AnalyzedNode, resolved: ResolvedFile): CompiledFile {
@@ -157,13 +153,21 @@ object Compiler {
         ctx.scopeStack.clear() // brand-new scope for every function
         ctx.scopeStack.addLast(functionScope)
 
+        ctx.addToScope(nodeInfo.breadcrumbs) // the function itself is on the stack
         for (param in params) {
             ctx.addToScope(param.info.breadcrumbs)
+            procedure.writeInstruction(
+                Instruction.NameValue(
+                    procedure.addConstant(param.name.text),
+                    variable = false,
+                    localIndex = ctx.scopeStack.last().size() - 1
+                ), param.info
+            )
         }
-        ctx.addToScope(nodeInfo.breadcrumbs) // the function itself is on the stack, just after the parameters
         for (captured in ctx.getTagsOfType<NodeTag.FunctionCapturesValue>(nodeInfo.breadcrumbs)) {
             ctx.addToScope(captured.value)
         }
+
 
         compileBody(procedure)
         assert(ctx.scopeStack.last() == functionScope)
@@ -218,16 +222,25 @@ object Compiler {
     private fun compileBadValue(
         node: AstNode, error: ErrorLangType, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
-        procedure.writeLiteral(
-            CompiledFile.CompiledConstant.ErrorConst(
-                SourcePosition.Source(
-                    ctx.resolved.path, node.info.breadcrumbs, node.info.position
-                ),
-                error,
-            ),
+        procedure.writeInstruction(
+            Instruction.Literal(makeErrorConst(error, node, procedure, ctx)),
             node.info,
         )
     }
+
+    private fun makeErrorConst(
+        error: ErrorLangType,
+        node: AstNode,
+        procedure: CompiledFile.MutableProcedure,
+        ctx: CompilerContext,
+    ) = procedure.addConstant(
+        CompiledFile.CompiledConstant.ErrorConst(
+            SourcePosition.Source(
+                ctx.resolved.path, node.info.breadcrumbs, node.info.position
+            ),
+            error,
+        )
+    )
 
     private fun compileStatement(
         statement: StatementNode,
@@ -392,13 +405,15 @@ object Compiler {
 
         ctx.resolved.checkForRuntimeErrors(statement.info.breadcrumbs)?.let { error ->
             procedure.writeInstruction(Instruction.Pop(), statement.info)
-            compileBadValue(statement, error, procedure, ctx)
+            val errorConst = makeErrorConst(error, statement, procedure, ctx)
 
             when (error) {
                 // these errors are recoverable
-                is ErrorLangType.MismatchedType -> {}
+                is ErrorLangType.MismatchedType -> {
+                    procedure.writeInstruction(Instruction.Literal(errorConst), nodeInfo = statement.info)
+                }
                 // others, like NotVariable... not so much
-                else -> compileTypeErrorFromStackBadValue(procedure)
+                else -> compileTypeError(errorConst, procedure)
             }
             return
         }
@@ -577,13 +592,7 @@ object Compiler {
             val error = returnType.getRuntimeError() ?: ErrorLangType.MissingElseBranch(
                 null
             )
-            procedure.writeLiteral(
-                CompiledFile.CompiledConstant.ErrorConst(
-                    SourcePosition.Source(
-                        ctx.resolved.path, expression.info.breadcrumbs, expression.info.position
-                    ), error
-                ), expression.info, InstructionPhase.PLUMBING
-            )
+            val errorConst = makeErrorConst(error, expression, procedure, ctx)
 
             // If we're supposed to return an Action or NeverContinues, then this should be an immediate error
             // because the BadValue has nowhere to go
@@ -592,7 +601,9 @@ object Compiler {
                     returnOptionsNotNull.options.asSequence().map { it.asValueType() }
                         .all { it is ValueLangType.Pending || it is ErrorLangType || it is ActionValueLangType || it is NeverContinuesValueLangType }
                 } == true) {
-                compileTypeErrorFromStackBadValue(procedure)
+                compileTypeError(errorConst, procedure)
+            } else {
+                procedure.writeInstruction(Instruction.Literal(errorConst), expression.info)
             }
         }
 
@@ -608,12 +619,9 @@ object Compiler {
         (ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs) as? ErrorLangType.ActionIncompatibleWithValueTypes)?.let {
             // This specific type of error should cause an immediate failure,
             // because you might have expected a side effect but gotten a value instead
-            procedure.writeLiteral(
-                CompiledFile.CompiledConstant.ErrorConst(
-                    SourcePosition.Source(ctx.resolved.path, expression.info.breadcrumbs, expression.info.position), it
-                ), expression.info, InstructionPhase.CLEANUP
+            compileTypeError(
+                makeErrorConst(it, expression, procedure, ctx), procedure
             )
-            compileTypeErrorFromStackBadValue(procedure)
         }
     }
 
@@ -729,8 +737,9 @@ object Compiler {
 
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
             procedure.writeInstruction(Instruction.Pop(), expression.info)
-            compileBadValue(expression, error, procedure, ctx)
-            compileTypeErrorFromStackBadValue(procedure)
+            compileTypeError(
+                makeErrorConst(error, expression, procedure, ctx), procedure
+            )
             return;
         }
 
@@ -740,6 +749,8 @@ object Compiler {
     private fun compileCallExpression(
         expression: ExpressionNode.CallExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
+        compileExpression(expression.callee, procedure, ctx)
+
         for (param in expression.parameters) {
             compileExpression(param.value, procedure, ctx)
             ctx.resolved.checkForRuntimeErrors(param.info.breadcrumbs)?.let { error ->
@@ -747,8 +758,6 @@ object Compiler {
                 compileBadValue(param, error, procedure, ctx)
             }
         }
-
-        compileExpression(expression.callee, procedure, ctx)
 
         val errorPreventingCall = run {
             val error = ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)
@@ -767,8 +776,7 @@ object Compiler {
             // Don't call; pop all the arguments and the callee off the stack
             // and then raise an error
             procedure.writeInstruction(Instruction.Pop(expression.parameters.size + 1), expression.info)
-            compileBadValue(expression, errorPreventingCall, procedure, ctx)
-            compileTypeErrorFromStackBadValue(procedure)
+            compileTypeError(makeErrorConst(errorPreventingCall, expression, procedure, ctx), procedure)
             return
         }
 
@@ -839,14 +847,7 @@ object Compiler {
 
         ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)?.let { error ->
             procedure.writeInstruction(Instruction.Pop(), expression.info)
-            procedure.writeLiteral(
-                CompiledFile.CompiledConstant.ErrorConst(
-                    SourcePosition.Source(
-                        ctx.resolved.path, expression.info.breadcrumbs, expression.info.position
-                    ), error
-                ), expression.info
-            )
-            compileTypeErrorFromStackBadValue(procedure)
+            compileTypeError(makeErrorConst(error, expression, procedure, ctx), procedure)
             return
         }
 
@@ -883,13 +884,14 @@ object Compiler {
         procedure.writeInstruction(Instruction.GetMember(fieldIndex), expression.info)
     }
 
-    private fun compileTypeErrorFromStackBadValue(procedure: CompiledFile.MutableProcedure) {
+    private fun compileTypeError(errorConst: Int, procedure: CompiledFile.MutableProcedure) {
         procedure.writeInstruction(
             Instruction.Import(
                 filePathConstant = procedure.addConstant(CompiledFile.CompiledConstant.StringConst("core/builtin.cau")),
                 exportNameConstant = procedure.addConstant(CompiledFile.CompiledConstant.StringConst("TypeError")),
             ), nodeInfo = null
         )
+        procedure.writeInstruction(Instruction.Literal(errorConst), nodeInfo = null)
         procedure.writeInstruction(
             Instruction.Construct(1), nodeInfo = null
         )

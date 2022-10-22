@@ -20,14 +20,15 @@ sealed interface Instruction {
     data class DefineFunction(val procedureIndex: Int, val typeConstant: Int, val capturedValues: Int) : Instruction
 
     data class ReadLocal(val index: Int) : Instruction
-    data class WriteLocal(val index: Int): Instruction
+    data class WriteLocal(val index: Int) : Instruction
     data class ReadLocalThroughEffectScope(val effectDepth: Int, val index: Int) : Instruction
-    data class WriteLocalThroughEffectScope(val effectDepth: Int, val index: Int): Instruction
+    data class WriteLocalThroughEffectScope(val effectDepth: Int, val index: Int) : Instruction
     data class Construct(val arity: Int) : Instruction
     data class CallFunction(val arity: Int) : Instruction
     data class GetMember(val index: Int) : Instruction
 
-    data class NameValue(val nameConstant: Int, val variable: Boolean = false) : Instruction
+    data class NameValue(val nameConstant: Int, val variable: Boolean = false, val localIndex: Int? = null) :
+        Instruction
 
     object IsAssignableTo : Instruction
 

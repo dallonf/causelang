@@ -98,6 +98,11 @@ data class CompiledFile(
             nodeInfo: NodeInfo?,
             phase: Procedure.InstructionPhase = Procedure.InstructionPhase.EXECUTE
         ) {
+            if ((instruction is Instruction.Pop && instruction.number == 0) || (instruction is Instruction.PopEffects && instruction.number == 0) || (instruction is Instruction.PopScope && instruction.values == 0)) {
+                // don't write no-op instructions
+                return
+            }
+
             instructions.add(instruction)
             sourceMap.add(nodeInfo?.let { Procedure.InstructionMapping(nodeInfo, phase) })
         }

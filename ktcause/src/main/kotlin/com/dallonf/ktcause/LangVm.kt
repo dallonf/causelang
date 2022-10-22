@@ -118,6 +118,10 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
             names?.set(names.lastIndex, name)
         }
 
+        fun setNameAt(index: Int, name: ValueName) {
+            names?.set(index, name)
+        }
+
         fun all(): List<Pair<RuntimeValue, ValueName?>> {
             return if (names != null) {
                 values.zip(names).map { (value, name) -> Pair(value, name) }
@@ -200,15 +204,15 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
         }
 
         val stack = ValueStack(withNames = options.trackValueNames)
-        for (param in parameters) {
-            stack.push(param)
-        }
-
         stack.push(
             RuntimeValue.Function(
                 functionName, file, function.procedureIndex, function.type, capturedValues = emptyList()
             )
         )
+        stack.setName(ValueStack.ValueName(functionName, original = false, variable = false))
+        for (param in parameters) {
+            stack.push(param)
+        }
 
         stackFrame = StackFrame.Main(
             file,
@@ -469,18 +473,18 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                     }
 
                     is Instruction.Construct -> {
+                        val params = mutableListOf<RuntimeValue>()
+                        for (i in 0 until instruction.arity) {
+                            params.add(stack.pop())
+                        }
+                        params.reverse()
+
                         val constructorTypeValue = stack.pop()
                         val constructorType = constructorTypeValue.let { stackValue ->
                             (stackValue as? RuntimeValue.RuntimeTypeConstraint)?.let {
                                 it.valueType as? InstanceValueLangType
                             } ?: throw InternalVmError("Tried to construct a $stackValue.")
                         }
-
-                        val params = mutableListOf<RuntimeValue>()
-                        for (i in 0 until instruction.arity) {
-                            params.add(stack.pop())
-                        }
-                        params.reverse()
 
                         if (constructorType.canonicalType.isUnique()) {
                             stack.push(constructorTypeValue)
@@ -492,15 +496,15 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                     }
 
                     is Instruction.CallFunction -> {
-                        when (val function = stack.peek()) {
+                        when (val function = stack.atIndex(stack.lastIndex - instruction.arity)) {
                             is RuntimeValue.NativeFunction -> {
-                                stack.pop() // pop the function off the stack
                                 // TODO: probably want to runtime typecheck native function
                                 // params in development
                                 val params = mutableListOf<RuntimeValue>()
                                 for (i in 0 until instruction.arity) {
                                     params.add(stack.pop())
                                 }
+                                stack.pop() // pop the function off the stack
                                 params.reverse()
                                 val result = function.function(params)
                                 stack.push(result)
@@ -557,13 +561,17 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                     }
 
                     is Instruction.NameValue -> {
+                        if (!options.trackValueNames) return@iteration
                         val nameString =
                             getConstant(instruction.nameConstant) as CompiledFile.CompiledConstant.StringConst
-                        stack.setName(
-                            ValueStack.ValueName(
-                                nameString.value, original = true, variable = instruction.variable
-                            )
+                        val name = ValueStack.ValueName(
+                            nameString.value, original = true, variable = instruction.variable
                         )
+                        if (instruction.localIndex != null) {
+                            stack.setNameAt(instruction.localIndex + stackFrame.stackStart, name)
+                        } else {
+                            stack.setName(name)
+                        }
                     }
 
                     is Instruction.IsAssignableTo -> {
@@ -744,8 +752,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                         when (returnFromFrame) {
                             is StackFrame.Call -> {
-                                val functionScopeLength =
-                                    (returnFromFrame.stack.size - returnFromFrame.stackStart)
+                                val functionScopeLength = (returnFromFrame.stack.size - returnFromFrame.stackStart)
                                 for (i in 0 until functionScopeLength) {
                                     returnFromFrame.stack.pop()
                                 }
