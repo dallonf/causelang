@@ -513,43 +513,50 @@ data class OptionValueLangType(val options: List<ConstraintReference>) : Resolve
     }
 
     fun simplify(): OptionValueLangType {
-        var allPossibleValues = options.flatMap {
+        var allPossibleConstraints = options.flatMap {
             when (val value = it.asValueType()) {
                 is OptionValueLangType -> value.simplify().options.asSequence()
                 else -> sequenceOf(it)
             }
         }
 
-        allPossibleValues = if (allPossibleValues.size > 1) {
+        allPossibleConstraints = if (allPossibleConstraints.size > 1) {
             val notDuplicated = mutableListOf<ConstraintReference>()
-            for (possibleValue in allPossibleValues) {
-                val isDuplicate = notDuplicated.any { checkDuplicate ->
-                    if (possibleValue.asValueType() == checkDuplicate.asValueType()) {
+            for (possibleConstraint in allPossibleConstraints) {
+                if (possibleConstraint !is ConstraintReference.ResolvedConstraint) {
+                    notDuplicated.add(possibleConstraint)
+                    continue
+                }
+
+                val isDuplicate = notDuplicated.any { existingConstraint ->
+                    if (possibleConstraint.valueType == existingConstraint.asValueType()) {
                         true
                     } else {
-                        val possibleValueResolved = possibleValue.asValueType() as? ResolvedValueLangType
-                        val checkDuplicatedConstraint = checkDuplicate.asConstraintValue() as? ConstraintValueLangType
-                        possibleValueResolved != null && checkDuplicatedConstraint != null && possibleValueResolved.isAssignableTo(
-                            checkDuplicatedConstraint
+                        val existingConstraintResolved =
+                            existingConstraint.asConstraintValue() as? ConstraintValueLangType
+                        existingConstraintResolved != null && possibleConstraint.valueType.isAssignableTo(
+                            existingConstraintResolved
                         )
                     }
                 }
                 if (!isDuplicate) {
-                    notDuplicated.add(possibleValue)
+                    val redundantExistingTypes = notDuplicated.filter { existingConstraint ->
+                        val existingValueResolved = existingConstraint.asValueType() as? ResolvedValueLangType
+                        existingValueResolved != null && existingValueResolved.isAssignableTo(possibleConstraint.asResolvedConstraintValue())
+                    }
+
+                    notDuplicated.add(possibleConstraint)
+                    for (redundant in redundantExistingTypes) {
+                        notDuplicated.remove(redundant)
+                    }
                 }
             }
             notDuplicated
         } else {
-            allPossibleValues
+            allPossibleConstraints
         }
 
-        // if NeverContinues is part of the option, but only a part, then remove it
-        val nonNeverContinues = allPossibleValues.filter { it.asValueType() !is NeverContinuesValueLangType }
-        if (nonNeverContinues.isNotEmpty()) {
-            allPossibleValues = nonNeverContinues
-        }
-
-        return OptionValueLangType(allPossibleValues)
+        return OptionValueLangType(allPossibleConstraints)
     }
 
     fun simplifyToValue(): ValueLangType {

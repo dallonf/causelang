@@ -441,4 +441,32 @@ class BranchesTest {
         }
         TestUtils.expectNoCompileErrors(vm)
     }
+
+    @Test
+    fun canGetObjectTypeOutOfAnything() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    object Something(
+                        a: Text,
+                        b: Text,
+                    )
+                    
+                    function main() {
+                        let value: Anything = Something("ay", "bee")
+                        let cast = branch with value {
+                            is Something as value => value
+                            else => cause AssumptionBroken("Not Something")
+                        }
+                        cast.a
+                    }
+                """.trimIndent()
+            )
+        }
+
+        TestUtils.expectNoCompileErrors(vm)
+
+        val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
+        assertEquals(RuntimeValue.Text("ay"), result)
+    }
 }

@@ -254,16 +254,15 @@ object Resolver {
                     returnTypeNode: TypeReferenceNode?
                 ) {
                     val returnConstraint = run returnConstraint@{
-                        val explicitReturnType =
-                            returnTypeNode?.let {
-                                getResolvedTypeOf(returnTypeNode).expectConstraint().let { resolvedReturnType ->
-                                    if (resolvedReturnType is ConstraintValueLangType) {
-                                        resolvedReturnType.asConstraintReference()
-                                    } else {
-                                        return@returnConstraint resolvedReturnType.valueToConstraintReference()
-                                    }
+                        val explicitReturnType = returnTypeNode?.let {
+                            getResolvedTypeOf(returnTypeNode).expectConstraint().let { resolvedReturnType ->
+                                if (resolvedReturnType is ConstraintValueLangType) {
+                                    resolvedReturnType.asConstraintReference()
+                                } else {
+                                    return@returnConstraint resolvedReturnType.valueToConstraintReference()
                                 }
                             }
+                        }
 
                         val canReturn = pendingNodeTags.mapNotNull { tag ->
                             (tag as? NodeTag.FunctionCanReturnTypeOf)?.let {
@@ -420,6 +419,7 @@ object Resolver {
                                                 fields.map { it.asLangParameter() }, resultType, strictParams = true
                                             )
                                         }
+
                                         is StopgapDictionaryLangType -> {
                                             Callee(
                                                 expectedParams = emptyList(),
@@ -427,6 +427,7 @@ object Resolver {
                                                 strictParams = true
                                             )
                                         }
+
                                         else -> {
                                             resolveWith(ErrorLangType.NotCallable)
                                             return@eachPendingNode
@@ -621,13 +622,12 @@ object Resolver {
                                     it.value is ResolvedValueLangType && it.value !is ActionValueLangType && it.value !is NeverContinuesValueLangType
                                 }
                                 if (nonActionReturns.isNotEmpty()) {
-                                    resolveWith(
-                                        ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
-                                            types = nonActionReturns.map {
-                                                ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
-                                                    it.value, it.source!!
-                                                )
-                                            })
+                                    resolveWith(ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
+                                        types = nonActionReturns.map {
+                                            ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                                it.value, it.source!!
+                                            )
+                                        })
                                     )
                                     return@eachPendingNode
                                 }
@@ -697,6 +697,11 @@ object Resolver {
 
                         is ExpressionNode.MemberExpression -> {
                             val obj = getResolvedTypeOf(node.objectExpression)
+
+                            if (obj.isPending()) {
+                                return@eachPendingNode
+                            }
+
                             when (obj) {
                                 is ValueLangType.Pending, is ErrorLangType -> resolveWith(obj)
                                 is ConstraintValueLangType -> resolveWith(ErrorLangType.ImplementationTodo("Can't get members of a type"))
