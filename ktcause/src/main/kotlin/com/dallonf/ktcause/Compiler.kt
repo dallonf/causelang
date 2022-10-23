@@ -38,7 +38,11 @@ object Compiler {
 
         fun addToScope(breadcrumbs: Breadcrumbs): Int {
             val index = nextScopeIndex()
-            scopeStack.last().namedValueIndices[breadcrumbs] = index
+            val currentScope = scopeStack.last().namedValueIndices
+            if (currentScope.containsKey(breadcrumbs)) {
+                throw AssertionError("$breadcrumbs already exists on scope!")
+            }
+            currentScope[breadcrumbs] = index
             return index
         }
     }

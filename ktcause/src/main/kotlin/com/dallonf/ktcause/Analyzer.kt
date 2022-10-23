@@ -67,15 +67,25 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(value, ValueCapturedByFunction(function = breadcrumbs))
     }
 
-    data class FunctionCanReturnTypeOf(val returnExpression: Breadcrumbs) : NodeTag() {
+    data class FunctionCanReturnTypeOf(val returnExpressionValue: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) =
-            Pair(returnExpression, ReturnsFromFunction(function = breadcrumbs))
+            Pair(returnExpressionValue, ReturnsFromFunction(function = breadcrumbs))
     }
 
     data class ReturnsFromFunction(val function: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) =
-            Pair(function, FunctionCanReturnTypeOf(returnExpression = breadcrumbs))
+            Pair(function, FunctionCanReturnTypeOf(returnExpressionValue = breadcrumbs))
     }
+
+    data class FunctionCanReturnAction(val returnExpression: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(returnExpression, ActionReturn(function = breadcrumbs))
+
+    }
+
+    data class ActionReturn(val function: Breadcrumbs) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(function, FunctionCanReturnAction(returnExpression = breadcrumbs))
+    }
+
 
     data class LoopBreaksAt(val breakExpression: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(breakExpression, BreaksLoop(loop = breadcrumbs))
@@ -102,7 +112,7 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
-    data class ParameterForCall(val callExprssion: Breadcrumbs, val index: Int) : NodeTag() {
+    data class ParameterForCall(val callExpression: Breadcrumbs, val index: Int) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 }
@@ -225,10 +235,8 @@ object Analyzer {
                 val scopeItem = ctx.currentScope.items[typeReference.identifier.text]
                 if (scopeItem != null) {
                     output.addValueFlowTag(scopeItem.origin, typeReference.info.breadcrumbs)
-                    // TODO: think harder about whether type references are actually captured
                     if (scopeItem is CapturedValueScopeItem) {
-                        output.addTag(scopeItem.origin, NodeTag.ValueCapturedByFunction(ctx.currentFunction!!))
-                        output.addTag(typeReference.info.breadcrumbs, NodeTag.UsesCapturedValue(ctx.currentFunction))
+                        captureValue(scopeItem.origin, typeReference.info.breadcrumbs, output, ctx)
                     }
                 } else {
                     output.addTag(typeReference.info.breadcrumbs, NodeTag.ReferenceNotInScope)
@@ -241,6 +249,24 @@ object Analyzer {
                 }
                 analyzeTypeReference(typeReference.returnType, output, ctx)
             }
+        }
+    }
+
+    private fun captureValue(
+        valueOrigin: Breadcrumbs,
+        usage: Breadcrumbs?,
+        output: AnalyzedNode,
+        ctx: AnalyzerContext
+    ) {
+        requireNotNull(ctx.currentFunction)
+        val hasExistingCapture =
+            output.nodeTags[valueOrigin]?.any { (it as? NodeTag.ValueCapturedByFunction)?.function == ctx.currentFunction }
+                ?: false
+        if (!hasExistingCapture) {
+            output.addTag(valueOrigin, NodeTag.ValueCapturedByFunction(ctx.currentFunction))
+        }
+        if (usage != null) {
+            output.addTag(usage, NodeTag.UsesCapturedValue(ctx.currentFunction))
         }
     }
 
@@ -342,16 +368,14 @@ object Analyzer {
     }
 
     private fun propagateCapturedValues(
-        functionDefinition: Breadcrumbs,
-        output: AnalyzedNode,
-        ctx: AnalyzerContext
+        functionDefinition: Breadcrumbs, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         val tagsForFunction = output.nodeTags[functionDefinition] ?: emptyList()
         val capturedValues = tagsForFunction.mapNotNull { it as? NodeTag.FunctionCapturesValue }
         for (capturedValue in capturedValues) {
             val matchingScopeItem = ctx.currentScope.items.values.find { it.origin == capturedValue.value }
             if (matchingScopeItem is CapturedValueScopeItem) {
-                output.addTag(matchingScopeItem.origin, NodeTag.ValueCapturedByFunction(ctx.currentFunction!!))
+                captureValue(matchingScopeItem.origin, null, output, ctx)
             }
         }
     }
@@ -596,8 +620,7 @@ object Analyzer {
         if (foundItem != null) {
             output.addValueFlowTag(foundItem.origin, expression.info.breadcrumbs)
             if (foundItem is CapturedValueScopeItem) {
-                output.addTag(foundItem.origin, NodeTag.ValueCapturedByFunction(ctx.currentFunction!!))
-                output.addTag(expression.info.breadcrumbs, NodeTag.UsesCapturedValue(ctx.currentFunction))
+                captureValue(foundItem.origin, expression.info.breadcrumbs, output, ctx)
             }
         } else {
             output.addTag(expression.info.breadcrumbs, NodeTag.ReferenceNotInScope)
@@ -630,10 +653,13 @@ object Analyzer {
     private fun analyzeReturnExpression(
         expression: ExpressionNode.ReturnExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-
-        expression.value?.let { value ->
+        val value = expression.value
+        if (value != null) {
             analyzeExpression(value, output, ctx)
             ctx.currentFunction?.let { output.addTag(value.info.breadcrumbs, NodeTag.ReturnsFromFunction(it)) }
+        } else {
+            ctx.currentFunction?.let { output.addTag(expression.info.breadcrumbs, NodeTag.ActionReturn(it)) }
+
         }
     }
 

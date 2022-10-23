@@ -224,6 +224,35 @@ class FunctionsTest {
     }
 
     @Test
+    fun nonTrivialOuterScopeAccess() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math (add)          
+                                    
+                    function main(): Number {
+                        let x = 1
+                        function inner() {
+                            let y = 2
+                            function innest() {
+                                let z = 3
+                                let result = add(add(x, x), add(y, z))
+                                add(x, result)
+                            }
+                            innest()
+                        }
+                        inner()
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
+        assertEquals(RuntimeValue.Number(8), result)
+    }
+
+    @Test
     fun higherOrderFunctions() {
         val vm = LangVm {
             addFile(
@@ -451,6 +480,66 @@ class FunctionsTest {
                         log_number(as_number_with_explicit_type(2))
                         log_number(as_number_without_early_return(3))
                         log_number(as_number_without_early_return_and_with_explicit_type(4))
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        TestUtils.runMainExpectingDebugValues(
+            vm, "project/test.cau", listOf(
+                RuntimeValue.Number(1),
+                RuntimeValue.Number(2),
+                RuntimeValue.Number(3),
+                RuntimeValue.Number(4),
+            )
+        )
+    }
+
+    @Test
+    fun handlesNeverContinuingBranchWithAction() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    function log_if_number(this: Anything) {
+                      branch with this {
+                        is Number as this => {
+                            cause Debug(this)
+                            return
+                        }
+                        else => cause AssumptionBroken("expected number")
+                      } 
+                    }
+                    
+                    function log_if_number_with_explicit_type(this: Anything): Action {
+                      branch with this {
+                        is Number as this => {
+                            cause Debug(this)
+                            return
+                        }
+                        else => cause AssumptionBroken("expected number")
+                      } 
+                    }
+                    
+                    function log_if_number_without_early_return(this: Anything) {
+                      branch with this {
+                        is Number as this => cause Debug(this)
+                        else => cause AssumptionBroken("expected number")
+                      } 
+                    }
+                    
+                    function log_if_number_without_early_return_and_with_explicit_type(this: Anything): Action {
+                      branch with this {
+                        is Number as this => cause Debug(this)
+                        else => cause AssumptionBroken("expected number")
+                      } 
+                    }
+                    
+                    function main() {
+                        log_if_number(1)
+                        log_if_number_with_explicit_type(2)
+                        log_if_number_without_early_return(3)
+                        log_if_number_without_early_return_and_with_explicit_type(4)
                     }
                 """.trimIndent()
             )

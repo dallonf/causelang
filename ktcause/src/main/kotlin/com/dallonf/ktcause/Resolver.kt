@@ -265,8 +265,10 @@ object Resolver {
                         }
 
                         val canReturn = pendingNodeTags.mapNotNull { tag ->
-                            (tag as? NodeTag.FunctionCanReturnTypeOf)?.let {
-                                it.returnExpression to getResolvedTypeOf(it.returnExpression)
+                            when (tag) {
+                                is NodeTag.FunctionCanReturnTypeOf -> tag.returnExpressionValue to getResolvedTypeOf(tag.returnExpressionValue)
+                                is NodeTag.FunctionCanReturnAction -> tag.returnExpression to ActionValueLangType
+                                else -> null
                             }
                         }
 
@@ -622,12 +624,13 @@ object Resolver {
                                     it.value is ResolvedValueLangType && it.value !is ActionValueLangType && it.value !is NeverContinuesValueLangType
                                 }
                                 if (nonActionReturns.isNotEmpty()) {
-                                    resolveWith(ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
-                                        types = nonActionReturns.map {
-                                            ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
-                                                it.value, it.source!!
-                                            )
-                                        })
+                                    resolveWith(
+                                        ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
+                                            types = nonActionReturns.map {
+                                                ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                                    it.value, it.source!!
+                                                )
+                                            })
                                     )
                                     return@eachPendingNode
                                 }
