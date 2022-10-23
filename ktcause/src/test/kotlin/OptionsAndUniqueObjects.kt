@@ -121,26 +121,14 @@ class OptionsAndUniqueObjects {
                         "expected": {
                             "valueType": {
                                 "#type": "Instance",
-                                "canonicalType": {
-                                    "#type": "Object",
-                                    "id": "project/test.cau:Test2",
-                                    "name": "Test2",
-                                    "fields": [
-                                    ]
-                                }
+                                "canonicalType": "project/test.cau:Test2"
                             }
                         },
                         "actual": {
                             "#type": "Constraint",
                             "valueType": {
                                 "#type": "Instance",
-                                "canonicalType": {
-                                    "#type": "Object",
-                                    "id": "project/test.cau:Test1",
-                                    "name": "Test1",
-                                    "fields": [
-                                    ]
-                                }
+                                "canonicalType": "project/test.cau:Test1"
                             }
                         }
                     }
@@ -231,26 +219,14 @@ class OptionsAndUniqueObjects {
                                         "#type": "Resolved",
                                         "valueType": {
                                             "#type": "Instance",
-                                            "canonicalType": {
-                                                "#type": "Object",
-                                                "id": "project/test.cau:Hearts",
-                                                "name": "Hearts",
-                                                "fields": [
-                                                ]
-                                            }
+                                            "canonicalType": "project/test.cau:Hearts"
                                         }
                                     },
                                     {
                                         "#type": "Resolved",
                                         "valueType": {
                                             "#type": "Instance",
-                                            "canonicalType": {
-                                                "#type": "Object",
-                                                "id": "project/test.cau:Diamonds",
-                                                "name": "Diamonds",
-                                                "fields": [
-                                                ]
-                                            }
+                                            "canonicalType": "project/test.cau:Diamonds"
                                         }
                                     }
                                 ]
@@ -285,26 +261,14 @@ class OptionsAndUniqueObjects {
                                     "#type": "Resolved",
                                     "valueType": {
                                         "#type": "Instance",
-                                        "canonicalType": {
-                                            "#type": "Object",
-                                            "id": "project/test.cau:Hearts",
-                                            "name": "Hearts",
-                                            "fields": [
-                                            ]
-                                        }
+                                        "canonicalType": "project/test.cau:Hearts"
                                     }
                                 },
                                 {
                                     "#type": "Resolved",
                                     "valueType": {
                                         "#type": "Instance",
-                                        "canonicalType": {
-                                            "#type": "Object",
-                                            "id": "project/test.cau:Diamonds",
-                                            "name": "Diamonds",
-                                            "fields": [
-                                            ]
-                                        }
+                                        "canonicalType": "project/test.cau:Diamonds"
                                     }
                                 }
                             ]

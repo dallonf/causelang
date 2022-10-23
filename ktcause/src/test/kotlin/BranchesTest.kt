@@ -144,26 +144,14 @@ class BranchesTest {
                                     "#type": "Resolved",
                                     "valueType": {
                                         "#type": "Instance",
-                                        "canonicalType": {
-                                            "#type": "Object",
-                                            "id": "project/test.cau:Spades",
-                                            "name": "Spades",
-                                            "fields": [
-                                            ]
-                                        }
+                                        "canonicalType": "project/test.cau:Spades"
                                     }
                                 },
                                 {
                                     "#type": "Resolved",
                                     "valueType": {
                                         "#type": "Instance",
-                                        "canonicalType": {
-                                            "#type": "Object",
-                                            "id": "project/test.cau:Clubs",
-                                            "name": "Clubs",
-                                            "fields": [
-                                            ]
-                                        }
+                                        "canonicalType": "project/test.cau:Clubs"
                                     }
                                 }
                             ]
@@ -226,26 +214,14 @@ class BranchesTest {
                                             "#type": "Resolved",
                                             "valueType": {
                                                 "#type": "Instance",
-                                                "canonicalType": {
-                                                    "#type": "Object",
-                                                    "id": "project/test.cau:Spades",
-                                                    "name": "Spades",
-                                                    "fields": [
-                                                    ]
-                                                }
+                                                "canonicalType": "project/test.cau:Spades"
                                             }
                                         },
                                         {
                                             "#type": "Resolved",
                                             "valueType": {
                                                 "#type": "Instance",
-                                                "canonicalType": {
-                                                    "#type": "Object",
-                                                    "id": "project/test.cau:Clubs",
-                                                    "name": "Clubs",
-                                                    "fields": [
-                                                    ]
-                                                }
+                                                "canonicalType": "project/test.cau:Clubs"
                                             }
                                         }
                                     ]

@@ -487,13 +487,7 @@ internal class ErrorHandlingBasicTest {
                             "#type": "Constraint",
                             "valueType": {
                                 "#type": "Instance",
-                                "canonicalType": {
-                                    "#type": "Object",
-                                    "id": "project/hello.cau:NotThat",
-                                    "name": "NotThat",
-                                    "fields": [
-                                    ]
-                                }
+                                "canonicalType": "project/hello.cau:NotThat"
                             }
                         }
                     }
@@ -531,13 +525,7 @@ internal class ErrorHandlingBasicTest {
                             "#type": "Constraint",
                             "valueType": {
                                 "#type": "Instance",
-                                "canonicalType": {
-                                    "#type": "Object",
-                                    "id": "project/hello.cau:OrThat",
-                                    "name": "OrThat",
-                                    "fields": [
-                                    ]
-                                }
+                                "canonicalType": "project/hello.cau:OrThat"
                             }
                         }
                     }
@@ -584,13 +572,7 @@ internal class ErrorHandlingBasicTest {
                         "#type": "Constraint",
                         "valueType": {
                             "#type": "Instance",
-                            "canonicalType": {
-                                "#type": "Object",
-                                "id": "project/hello.cau:NotThat",
-                                "name": "NotThat",
-                                "fields": [
-                                ]
-                            }
+                            "canonicalType": "project/hello.cau:NotThat"
                         }
                     }
                 }
@@ -734,6 +716,65 @@ internal class ErrorHandlingBasicTest {
                 }
             }
             """.trimIndent()
+        )
+    }
+
+    @Test
+    fun canSerializeRecursiveTypeErrors() {
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """
+                    object Nothing
+                    object Wrapped(next: MaybeWrapped)
+                    option MaybeWrapped(Nothing, Wrapped)
+                    
+                    function maybe_wrap(): MaybeWrapped {
+                        "nah"
+                    }
+                """.trimIndent()
+            )
+        }
+        assertEquals(
+            """
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.4.body",
+                        "position": "5:36-7:1"
+                    },
+                    "error": {
+                        "#type": "MismatchedType",
+                        "expected": {
+                            "valueType": {
+                                "#type": "Option",
+                                "options": [
+                                    {
+                                        "#type": "Resolved",
+                                        "valueType": {
+                                            "#type": "Instance",
+                                            "canonicalType": "project/hello.cau:Nothing"
+                                        }
+                                    },
+                                    {
+                                        "#type": "Resolved",
+                                        "valueType": {
+                                            "#type": "Instance",
+                                            "canonicalType": "project/hello.cau:Wrapped"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "actual": {
+                            "#type": "Primitive",
+                            "kind": "Text"
+                        }
+                    }
+                }
+            ]
+            """.trimIndent(),
+            vm.codeBundle.compileErrors.debug(),
         )
     }
 }

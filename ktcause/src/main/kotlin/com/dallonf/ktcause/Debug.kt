@@ -18,6 +18,7 @@ object Debug {
             subclass(FunctionValueLangType::class)
             subclass(PrimitiveValueLangType::class)
             subclass(InstanceValueLangType::class)
+            subclass(StopgapDictionaryLangType::class)
             subclass(OptionValueLangType::class)
             subclass(AnythingValueLangType::class)
             subclass(AnySignalValueLangType::class)

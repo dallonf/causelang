@@ -5,11 +5,10 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import kotlinx.serialization.descriptors.PrimitiveKind
-import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
-import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.encoding.encodeStructure
 
 @Serializable(with = CanonicalLangTypeIdSerializer::class)
 data class CanonicalLangTypeId(
@@ -442,12 +441,32 @@ data class PrimitiveValueLangType(val kind: LangPrimitiveKind) : ResolvedValueLa
 @SerialName("StopgapDictionary")
 object StopgapDictionaryLangType : ResolvedValueLangType
 
-@Serializable
-@SerialName("Instance")
+@Serializable(with = InstanceValueLangType.InstanceValueLangTypeSerializer::class)
 data class InstanceValueLangType(val canonicalType: CanonicalLangType) : ResolvedValueLangType {
 
     override fun isPending() = canonicalType.isPending()
     override fun getError() = canonicalType.getError()
+
+    object InstanceValueLangTypeSerializer : KSerializer<InstanceValueLangType> {
+        override val descriptor: SerialDescriptor
+            get() = buildClassSerialDescriptor("Instance") {
+                element("canonicalType", CanonicalLangTypeId.serializer().descriptor)
+            }
+
+        override fun serialize(encoder: Encoder, value: InstanceValueLangType) {
+            encoder.encodeStructure(
+                descriptor
+            ) {
+                encodeSerializableElement(
+                    descriptor, 0, CanonicalLangTypeId.serializer(), value.canonicalType.id
+                )
+            }
+        }
+
+        override fun deserialize(decoder: Decoder): InstanceValueLangType {
+            TODO("Not yet implemented")
+        }
+    }
 }
 
 @Serializable
