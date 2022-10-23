@@ -335,6 +335,8 @@ sealed interface ResolvedValueLangType : ValueLangType {
             is PrimitiveValueLangType -> this is PrimitiveValueLangType && this.kind == constraintInstanceType.kind
             is OptionValueLangType -> constraintInstanceType.isSupersetOf(this)
 
+            StopgapDictionaryLangType -> this is StopgapDictionaryLangType
+
             AnySignalValueLangType -> this is InstanceValueLangType && this.canonicalType is CanonicalLangType.SignalCanonicalLangType
             AnythingValueLangType -> true
 
@@ -428,11 +430,17 @@ enum class LangPrimitiveKind() {
 
     fun toValueLangType() = PrimitiveValueLangType(this)
     fun toConstraintLangType() = ConstraintValueLangType(toValueLangType())
+
+    fun toConstraintReference() = toConstraintLangType().asConstraintReference()
 }
 
 @Serializable
 @SerialName("Primitive")
 data class PrimitiveValueLangType(val kind: LangPrimitiveKind) : ResolvedValueLangType
+
+@Serializable
+@SerialName("StopgapDictionary")
+object StopgapDictionaryLangType : ResolvedValueLangType
 
 @Serializable
 @SerialName("Instance")

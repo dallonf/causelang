@@ -325,11 +325,16 @@ object CoreFiles {
     val stopgapCollections by lazy {
         val filename = "core/stopgap/collections.cau"
 
+        val dictionaryType = ConstraintReference.ResolvedConstraint(StopgapDictionaryLangType)
+
         var maybeStack: OptionValueLangType
+        val emptyId = CanonicalLangTypeId(filename, name = "Empty", number = 0u)
+        val stackId = CanonicalLangTypeId(filename, name = "Stack", number = 0u)
+        val keyValuePairId = CanonicalLangTypeId(filename, name = "KeyValuePair", number = 0u)
         val types = buildMap {
             val empty = add(
                 CanonicalLangType.ObjectCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "Empty", number = 0u),
+                    emptyId,
                     name = "Empty",
                     fields = emptyList(),
                 )
@@ -337,8 +342,17 @@ object CoreFiles {
 
             val stack = add(
                 CanonicalLangType.ObjectCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "Stack", number = 0u), name = "Stack", fields = emptyList()
+                    stackId, name = "Stack", fields = emptyList()
                 ),
+            )
+
+            add(
+                CanonicalLangType.ObjectCanonicalLangType(
+                    keyValuePairId, name = "KeyValuePair", fields = listOf(
+                        CanonicalLangType.ObjectField("key", LangPrimitiveKind.TEXT.toConstraintReference()),
+                        CanonicalLangType.ObjectField("value", AnythingValueLangType.valueToConstraintReference()),
+                    )
+                )
             )
 
             maybeStack = OptionValueLangType(
@@ -359,6 +373,82 @@ object CoreFiles {
                 put(type.id.name!!, CompiledExport.Constraint(type.asConstraintReference()))
             }
             put("MaybeStack", CompiledExport.Constraint(maybeStack.valueToConstraintReference()))
+
+            put("Dictionary", CompiledExport.Constraint(dictionaryType))
+
+            put("get_item", CompiledExport.NativeFunction(
+                FunctionValueLangType(
+                    "get_item", AnythingValueLangType.valueToConstraintReference(), listOf(
+                        LangParameter("this", dictionaryType),
+                        LangParameter("key", LangPrimitiveKind.TEXT.toConstraintReference())
+                    )
+                )
+            ) { params ->
+                val thisVal = (params[0] as RuntimeValue.StopgapDictionary).map
+                val key = (params[1] as RuntimeValue.Text).value
+                thisVal[key] ?: RuntimeValue.RuntimeObject(types[emptyId]!!, emptyList())
+            })
+
+            put("with_item_at_key", CompiledExport.NativeFunction(
+                FunctionValueLangType(
+                    "with_item_at_key", dictionaryType, listOf(
+                        LangParameter("this", dictionaryType),
+                        LangParameter("key", LangPrimitiveKind.TEXT.toConstraintReference()),
+                        LangParameter("value", AnythingValueLangType.valueToConstraintReference())
+                    )
+                )
+            ) { params ->
+                val thisVal = (params[0] as RuntimeValue.StopgapDictionary).map
+                val key = (params[1] as RuntimeValue.Text).value
+                val value = params[2]
+
+                val result = thisVal.plus(key to value)
+
+                RuntimeValue.StopgapDictionary(result)
+            })
+
+            put("without_key", CompiledExport.NativeFunction(
+                FunctionValueLangType(
+                    "without_key", dictionaryType, listOf(
+                        LangParameter("this", dictionaryType),
+                        LangParameter("key", LangPrimitiveKind.TEXT.toConstraintReference())
+                    )
+                )
+            ) { params ->
+                val thisVal = (params[0] as RuntimeValue.StopgapDictionary).map
+                val key = (params[1] as RuntimeValue.Text).value
+
+                val result = thisVal.minus(key)
+
+                RuntimeValue.StopgapDictionary(result)
+            })
+
+            put("list_entries", CompiledExport.NativeFunction(
+                FunctionValueLangType(
+                    "list_entries", maybeStack.valueToConstraintReference(), listOf(
+                        LangParameter("this", dictionaryType)
+                    )
+                )
+            ) { params ->
+                val thisValue = (params[0] as RuntimeValue.StopgapDictionary).map
+
+                thisValue.entries.toList().foldRight(
+                    RuntimeValue.RuntimeObject(types[emptyId]!!, emptyList())
+                ) { next, prev ->
+                    val pair = RuntimeValue.RuntimeObject(
+                        types[keyValuePairId]!!, listOf(
+                            RuntimeValue.Text(next.key),
+                            next.value
+                        )
+                    )
+                    RuntimeValue.RuntimeObject(
+                        types[stackId]!!, listOf(
+                            pair,
+                            prev
+                        )
+                    )
+                }
+            })
         }
 
         CompiledFile(filename, types, procedures = emptyList(), exports)

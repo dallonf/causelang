@@ -49,6 +49,10 @@ object TestUtils {
     }
 
     fun runMainExpectingDebugValues(vm: LangVm, path: String, expected: List<RuntimeValue>) {
+        assertEquals(expected, runMainAndGetDebugValues(vm, path))
+    }
+
+    fun runMainAndGetDebugValues(vm: LangVm, path: String): List<RuntimeValue> {
         var result = vm.executeFunction(path, "main", listOf())
         val debugType = vm.codeBundle.getTypeId("core/builtin.cau", "Debug")
 
@@ -61,6 +65,6 @@ object TestUtils {
         }
 
         assertEquals(RuntimeValue.Action, result.expectReturnValue())
-        assertEquals(expected, debugs)
+        return debugs
     }
 }

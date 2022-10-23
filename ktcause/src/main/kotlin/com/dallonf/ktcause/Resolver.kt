@@ -402,26 +402,35 @@ object Resolver {
                                 }
 
                                 is ConstraintValueLangType -> {
-                                    val canonicalType = calleeType.tryGetCanonicalType()
-                                    if (canonicalType != null) {
+                                    when (val valueType = calleeType.valueType) {
+                                        is InstanceValueLangType -> {
+                                            val canonicalType = valueType.canonicalType
+                                            val fields = when (canonicalType) {
+                                                is CanonicalLangType.SignalCanonicalLangType -> canonicalType.fields
+                                                is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.fields
+                                            }
 
-                                        val fields = when (canonicalType) {
-                                            is CanonicalLangType.SignalCanonicalLangType -> canonicalType.fields
-                                            is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.fields
+                                            val resultType = if (canonicalType.isUnique()) {
+                                                calleeType.toConstraint().asConstraintReference()
+                                            } else {
+                                                calleeType.asConstraintReference()
+                                            }
+
+                                            Callee(
+                                                fields.map { it.asLangParameter() }, resultType, strictParams = true
+                                            )
                                         }
-
-                                        val resultType = if (canonicalType.isUnique()) {
-                                            calleeType.toConstraint().asConstraintReference()
-                                        } else {
-                                            calleeType.asConstraintReference()
+                                        is StopgapDictionaryLangType -> {
+                                            Callee(
+                                                expectedParams = emptyList(),
+                                                returnConstraint = valueType.valueToConstraintReference(),
+                                                strictParams = true
+                                            )
                                         }
-
-                                        Callee(
-                                            fields.map { it.asLangParameter() }, resultType, strictParams = true
-                                        )
-                                    } else {
-                                        resolveWith(ErrorLangType.NotCallable)
-                                        return@eachPendingNode
+                                        else -> {
+                                            resolveWith(ErrorLangType.NotCallable)
+                                            return@eachPendingNode
+                                        }
                                     }
                                 }
 

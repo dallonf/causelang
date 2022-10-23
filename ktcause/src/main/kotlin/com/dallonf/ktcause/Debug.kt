@@ -119,11 +119,15 @@ object Debug {
                         LangPrimitiveKind.TEXT -> "Text"
                         LangPrimitiveKind.NUMBER -> "Number"
                     }
+
+                    StopgapDictionaryLangType -> "StopgapDictionary"
                 }
                 "[TypeConstraint: $valueType]"
             }
 
             is RuntimeValue.Text -> debugSerializer.encodeToString(this.toJson())
+
+            is RuntimeValue.StopgapDictionary -> "[StopgapDictionary (${this.map.size})]"
         }
     }
 

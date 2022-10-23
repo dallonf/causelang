@@ -808,6 +808,14 @@ object Compiler {
                         }
                     }
 
+                    is StopgapDictionaryLangType -> {
+                        procedure.writeInstruction(
+                            Instruction.Construct(
+                                arity = expression.parameters.size
+                            ), expression.info
+                        )
+                    }
+
                     else -> error("Can't construct a $calleeType")
                 }
             }

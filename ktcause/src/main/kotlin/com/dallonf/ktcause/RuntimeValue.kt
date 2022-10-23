@@ -25,6 +25,8 @@ sealed class RuntimeValue {
         }
     }
 
+    data class StopgapDictionary(val map: Map<String, RuntimeValue> = emptyMap()) : RuntimeValue()
+
     // TODO: probably want to make it harder to make an invalid RuntimeObject
     data class RuntimeObject(val typeDescriptor: CanonicalLangType, val values: List<RuntimeValue>) : RuntimeValue()
 
@@ -107,6 +109,8 @@ sealed class RuntimeValue {
                 this.isAssignableTo(it)
             }
 
+            is StopgapDictionaryLangType -> this is StopgapDictionary
+
             is AnySignalValueLangType -> this is RuntimeObject && this.typeDescriptor is CanonicalLangType.SignalCanonicalLangType
             is AnythingValueLangType -> true
 
@@ -135,16 +139,25 @@ sealed class RuntimeValue {
         return when (this) {
             is Action, is BadValue, is Text, is Number, is RuntimeTypeConstraint, is NativeFunction, is Function -> this
             is RuntimeObject -> {
-                // TODO: we shouldn't make a brand new object if it's all valid
-                val newValues = mutableListOf<RuntimeValue>()
                 for (value in values) {
                     when (val validatedValue = value.validate()) {
                         is BadValue -> return validatedValue
-                        else -> newValues.add(validatedValue)
+                        else -> {}
                     }
                 }
 
-                this.copy(values = newValues)
+                this
+            }
+
+            is StopgapDictionary -> {
+                for (value in this.map.values) {
+                    when (val validatedValue = value.validate()) {
+                        is BadValue -> return validatedValue
+                        else -> {}
+                    }
+                }
+
+                this
             }
         }
     }
@@ -154,6 +167,7 @@ sealed class RuntimeValue {
             is BadValue -> false
             is Action, is Text, is Number, is RuntimeTypeConstraint, is NativeFunction, is Function -> true
             is RuntimeObject -> this.values.all { it.isValid() }
+            is StopgapDictionary -> this.map.values.all { it.isValid() }
         }
     }
 
@@ -194,6 +208,15 @@ sealed class RuntimeValue {
                     put("#type", JsonPrimitive(this@RuntimeValue.typeDescriptor.id.toString()))
                     for ((i, objectTypeField) in objectTypeFields.withIndex()) {
                         put(objectTypeField.name, values[i].toJson())
+                    }
+                }
+            }
+
+            is StopgapDictionary -> {
+                buildJsonObject {
+                    put("#type", "StopgapDictionary")
+                    for ((key, value) in map.entries) {
+                        put(key, value.toJson())
                     }
                 }
             }

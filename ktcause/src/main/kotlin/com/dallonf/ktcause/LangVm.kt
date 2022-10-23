@@ -466,20 +466,30 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                         }
                         params.reverse()
 
-                        val constructorTypeValue = stack.pop()
-                        val constructorType = constructorTypeValue.let { stackValue ->
-                            (stackValue as? RuntimeValue.RuntimeTypeConstraint)?.let {
-                                it.valueType as? InstanceValueLangType
-                            } ?: throw InternalVmError("Tried to construct a $stackValue.")
-                        }
+                        val constructorConstraint = stack.pop()
+                        val constructorType = constructorConstraint.let { stackValue ->
+                            (stackValue as? RuntimeValue.RuntimeTypeConstraint)
+                                ?: throw InternalVmError("Tried to construct a value (instead of a constraint): $stackValue.")
+                        }.valueType
 
-                        if (constructorType.canonicalType.isUnique()) {
-                            stack.push(constructorTypeValue)
-                        } else {
-                            val obj = RuntimeValue.RuntimeObject(constructorType.canonicalType, params)
-                            stack.push(obj)
-                        }
+                        when (constructorType) {
+                            is InstanceValueLangType -> {
+                                if (constructorType.canonicalType.isUnique()) {
+                                    stack.push(constructorConstraint)
+                                } else {
+                                    val obj = RuntimeValue.RuntimeObject(constructorType.canonicalType, params)
+                                    stack.push(obj)
+                                }
+                            }
 
+                            is StopgapDictionaryLangType -> {
+                                stack.push(RuntimeValue.StopgapDictionary())
+                            }
+
+                            else -> {
+                                throw InternalVmError("Tried to construct a $constructorType.")
+                            }
+                        }
                     }
 
                     is Instruction.CallFunction -> {
