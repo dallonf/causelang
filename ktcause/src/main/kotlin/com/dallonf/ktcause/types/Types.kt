@@ -316,7 +316,13 @@ sealed interface ResolvedValueLangType : ValueLangType {
 
             is FunctionValueLangType -> {
                 this is FunctionValueLangType && run {
-                    val paramsMatch = this.params == constraintInstanceType.params
+                    val paramsMatch =
+                        this.params.size == constraintInstanceType.params.size && this.params.zip(constraintInstanceType.params)
+                            .all { (thisParam, constraintParam) ->
+                                // Names can be different, but types can't be
+                                // at least until we work out variance
+                                thisParam.valueConstraint == constraintParam.valueConstraint
+                            }
                     val returnConstraintMatches = run {
                         val returnValue = this.returnConstraint.asValueType() as? ResolvedValueLangType
                         val constraintReturnConstraint =

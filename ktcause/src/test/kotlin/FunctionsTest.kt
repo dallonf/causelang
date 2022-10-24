@@ -278,6 +278,30 @@ class FunctionsTest {
     }
 
     @Test
+    fun higherOrderFunctionsRenameParameters() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/math (add, multiply)
+                    
+                    function single_map(this: Number, callback: Function(it: Number): Number) {
+                        cause Debug(callback(this))
+                    }
+                                    
+                    function main() {
+                        single_map(1, fn(x: Number) add(x, 2))
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        TestUtils.runMainExpectingDebugValues(
+            vm, "project/test.cau", listOf(RuntimeValue.Number(3))
+        )
+    }
+
+    @Test
     fun returnTypeVariance() {
         val vm = LangVm {
             addFile(
