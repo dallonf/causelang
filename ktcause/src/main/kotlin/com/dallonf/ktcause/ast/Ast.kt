@@ -183,6 +183,11 @@ data class Identifier(override val info: NodeInfo, val text: String) : AstNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
 }
 
+data class FunctionCallParameterNode(override val info: NodeInfo, val value: ExpressionNode) : AstNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
+        buildMap { put("value", value) }
+}
+
 data class FunctionSignatureParameterNode(
     override val info: NodeInfo, val name: Identifier, val typeReference: TypeReferenceNode?
 ) : AstNode {
@@ -424,17 +429,28 @@ sealed interface ExpressionNode : AstNode {
 
     }
 
+
     data class CallExpression(
-        override val info: NodeInfo, val callee: ExpressionNode, val parameters: List<ParameterNode>
+        override val info: NodeInfo, val callee: ExpressionNode, val parameters: List<FunctionCallParameterNode>
     ) : ExpressionNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
             put("callee", callee)
             put("parameters", parameters)
         }
 
-        data class ParameterNode(override val info: NodeInfo, val value: ExpressionNode) : AstNode {
-            override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
-                buildMap { put("value", value) }
+
+    }
+
+    data class PipeCallExpression(
+        override val info: NodeInfo,
+        val subject: ExpressionNode,
+        val callee: ExpressionNode,
+        val parameters: List<FunctionCallParameterNode>
+    ) : ExpressionNode {
+        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+            put("subject", subject)
+            put("callee", callee)
+            put("parameters", parameters)
         }
     }
 

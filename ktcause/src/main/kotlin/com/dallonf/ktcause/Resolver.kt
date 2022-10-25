@@ -320,6 +320,100 @@ object Resolver {
                     resolveWith(FunctionValueLangType(nameNode?.text, returnConstraint, params))
                 }
 
+                fun resolveCall(callee: Breadcrumbs, params: List<Breadcrumbs>) {
+                    data class Callee(
+                        val expectedParams: List<LangParameter>,
+                        val returnConstraint: ConstraintReference,
+                        val strictParams: Boolean
+                    )
+                    val (expectedParams, returnConstraint, strictParams) = when (val calleeType =
+                        getResolvedTypeOf(callee)) {
+                        is ValueLangType.Pending, is ErrorLangType -> {
+                            resolveWith(calleeType)
+                            return
+                        }
+
+                        is FunctionValueLangType -> {
+                            Callee(calleeType.params, calleeType.returnConstraint, strictParams = false)
+                        }
+
+                        is ConstraintValueLangType -> {
+                            when (val valueType = calleeType.valueType) {
+                                is InstanceValueLangType -> {
+                                    val canonicalType = valueType.canonicalType
+                                    val fields = when (canonicalType) {
+                                        is CanonicalLangType.SignalCanonicalLangType -> canonicalType.fields
+                                        is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.fields
+                                    }
+
+                                    val resultType = if (canonicalType.isUnique()) {
+                                        calleeType.toConstraint().asConstraintReference()
+                                    } else {
+                                        calleeType.asConstraintReference()
+                                    }
+
+                                    Callee(
+                                        fields.map { it.asLangParameter() }, resultType, strictParams = true
+                                    )
+                                }
+
+                                is StopgapDictionaryLangType -> {
+                                    Callee(
+                                        expectedParams = emptyList(),
+                                        returnConstraint = valueType.valueToConstraintReference(),
+                                        strictParams = true
+                                    )
+                                }
+
+                                else -> {
+                                    resolveWith(ErrorLangType.NotCallable)
+                                    return
+                                }
+                            }
+                        }
+
+                        is ResolvedValueLangType -> {
+                            resolveWith(ErrorLangType.NotCallable)
+                            return
+                        }
+                    }
+
+                    val paramTypes = arrayOfNulls<ValueLangType>(expectedParams.size)
+                    params.forEachIndexed { i, paramBreadcrumbs ->
+                        val paramType = getResolvedTypeOf(paramBreadcrumbs)
+                        if (strictParams && paramType is ErrorLangType) {
+                            resolveWith(paramType)
+                            return
+                        }
+                        paramTypes[i] = paramType
+                    }
+
+                    val foundParams = mutableListOf<ValueLangType>()
+                    val missingParams = mutableListOf<LangParameter>()
+                    for ((i, param) in paramTypes.withIndex()) {
+                        if (param != null) {
+                            foundParams.add(param)
+                        } else {
+                            missingParams.add(expectedParams[i])
+                        }
+                    }
+
+                    if (missingParams.isNotEmpty()) {
+                        resolveWith(ErrorLangType.MissingParameters(missingParams.map { it.name }))
+                    } else if (foundParams.all { !it.isPending() }) {
+                        resolveWith(
+                            when (returnConstraint) {
+                                is ConstraintReference.Pending -> ValueLangType.Pending
+                                is ConstraintReference.Error -> ErrorLangType.ProxyError.from(
+                                    returnConstraint.errorType, getSourcePosition(callee)
+                                )
+
+                                is ConstraintReference.ResolvedConstraint -> returnConstraint.valueType
+                            }
+                        )
+                    }
+                }
+
                 when (pendingKey.type) {
                     INFERRED -> when (node) {
                         is TypeReferenceNode.IdentifierTypeReferenceNode -> {
@@ -386,100 +480,16 @@ object Resolver {
                         }
 
                         is ExpressionNode.CallExpression -> {
-                            data class Callee(
-                                val expectedParams: List<LangParameter>,
-                                val returnConstraint: ConstraintReference,
-                                val strictParams: Boolean
-                            )
-                            val (expectedParams, returnConstraint, strictParams) = when (val calleeType =
-                                getResolvedTypeOf(node.callee)) {
-                                is ValueLangType.Pending, is ErrorLangType -> {
-                                    resolveWith(calleeType)
-                                    return@eachPendingNode
-                                }
-
-                                is FunctionValueLangType -> {
-                                    Callee(calleeType.params, calleeType.returnConstraint, strictParams = false)
-                                }
-
-                                is ConstraintValueLangType -> {
-                                    when (val valueType = calleeType.valueType) {
-                                        is InstanceValueLangType -> {
-                                            val canonicalType = valueType.canonicalType
-                                            val fields = when (canonicalType) {
-                                                is CanonicalLangType.SignalCanonicalLangType -> canonicalType.fields
-                                                is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.fields
-                                            }
-
-                                            val resultType = if (canonicalType.isUnique()) {
-                                                calleeType.toConstraint().asConstraintReference()
-                                            } else {
-                                                calleeType.asConstraintReference()
-                                            }
-
-                                            Callee(
-                                                fields.map { it.asLangParameter() }, resultType, strictParams = true
-                                            )
-                                        }
-
-                                        is StopgapDictionaryLangType -> {
-                                            Callee(
-                                                expectedParams = emptyList(),
-                                                returnConstraint = valueType.valueToConstraintReference(),
-                                                strictParams = true
-                                            )
-                                        }
-
-                                        else -> {
-                                            resolveWith(ErrorLangType.NotCallable)
-                                            return@eachPendingNode
-                                        }
-                                    }
-                                }
-
-                                is ResolvedValueLangType -> {
-                                    resolveWith(ErrorLangType.NotCallable)
-                                    return@eachPendingNode
-                                }
-                            }
-
-                            val params = arrayOfNulls<ValueLangType>(expectedParams.size)
-                            node.parameters.forEachIndexed { i, paramNode ->
-                                val paramType = getResolvedTypeOf(paramNode)
-                                if (strictParams && paramType is ErrorLangType) {
-                                    resolveWith(paramType)
-                                    return@eachPendingNode
-                                }
-                                params[i] = paramType
-                            }
-
-                            val foundParams = mutableListOf<ValueLangType>()
-                            val missingParams = mutableListOf<LangParameter>()
-                            for ((i, param) in params.withIndex()) {
-                                if (param != null) {
-                                    foundParams.add(param)
-                                } else {
-                                    missingParams.add(expectedParams[i])
-                                }
-                            }
-
-                            if (missingParams.isNotEmpty()) {
-                                resolveWith(ErrorLangType.MissingParameters(missingParams.map { it.name }))
-                            } else if (foundParams.all { !it.isPending() }) {
-                                resolveWith(
-                                    when (returnConstraint) {
-                                        is ConstraintReference.Pending -> ValueLangType.Pending
-                                        is ConstraintReference.Error -> ErrorLangType.ProxyError.from(
-                                            returnConstraint.errorType, getSourcePosition(node.callee)
-                                        )
-
-                                        is ConstraintReference.ResolvedConstraint -> returnConstraint.valueType
-                                    }
-                                )
-                            }
+                            resolveCall(node.callee.info.breadcrumbs, node.parameters.map { it.info.breadcrumbs })
                         }
 
-                        is ExpressionNode.CallExpression.ParameterNode -> {
+                        is ExpressionNode.PipeCallExpression -> {
+                            // TODO: it could be a warning to use this syntax where the first parameter isn't named "this" or "it"
+                            resolveCall(node.callee.info.breadcrumbs,
+                                listOf(node.subject.info.breadcrumbs) + node.parameters.map { it.info.breadcrumbs })
+                        }
+
+                        is FunctionCallParameterNode -> {
                             resolveWith(getResolvedTypeOf(node.value))
                         }
 
@@ -941,7 +951,7 @@ object Resolver {
                             node.typeReference?.let { resolveWith(getResolvedTypeOf(it).expectConstraint()) }
                         }
 
-                        is ExpressionNode.CallExpression.ParameterNode -> {
+                        is FunctionCallParameterNode -> {
                             val paramTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.ParameterForCall }
                             val (callBreadcrumbs, index) = paramTag
                             val call = fileNode.findNode(callBreadcrumbs) as ExpressionNode.CallExpression

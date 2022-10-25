@@ -83,7 +83,8 @@ sealed class NodeTag {
     }
 
     data class ActionReturn(val function: Breadcrumbs) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = Pair(function, FunctionCanReturnAction(returnExpression = breadcrumbs))
+        override fun inverse(breadcrumbs: Breadcrumbs) =
+            Pair(function, FunctionCanReturnAction(returnExpression = breadcrumbs))
     }
 
 
@@ -559,6 +560,7 @@ object Analyzer {
 
             is ExpressionNode.CallExpression -> analyzeCallExpression(expression, output, ctx)
             is ExpressionNode.MemberExpression -> analyzeMemberExpression(expression, output, ctx)
+            is ExpressionNode.PipeCallExpression -> analyzePipeCallExpression(expression, output, ctx)
         }
     }
 
@@ -636,12 +638,12 @@ object Analyzer {
     private fun analyzeCallExpression(
         expression: ExpressionNode.CallExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
+        analyzeExpression(expression.callee, output, ctx)
+
         for ((i, parameterNode) in expression.parameters.withIndex()) {
             analyzeExpression(parameterNode.value, output, ctx)
             output.addTag(parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(expression.info.breadcrumbs, i))
         }
-
-        analyzeExpression(expression.callee, output, ctx)
     }
 
     private fun analyzeMemberExpression(
@@ -649,6 +651,20 @@ object Analyzer {
     ) {
         analyzeExpression(expression.objectExpression, output, ctx)
     }
+
+    private fun analyzePipeCallExpression(
+        expression: ExpressionNode.PipeCallExpression, output: AnalyzedNode, ctx: AnalyzerContext
+    ) {
+        analyzeExpression(expression.subject, output, ctx)
+
+        analyzeExpression(expression.callee, output, ctx)
+
+        for ((i, parameterNode) in expression.parameters.withIndex()) {
+            analyzeExpression(parameterNode.value, output, ctx)
+            output.addTag(parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(expression.info.breadcrumbs, i))
+        }
+    }
+
 
     private fun analyzeReturnExpression(
         expression: ExpressionNode.ReturnExpression, output: AnalyzedNode, ctx: AnalyzerContext

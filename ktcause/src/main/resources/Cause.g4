@@ -7,6 +7,7 @@ NEWLINE : '\n';
 COMMA : ',' ;
 COLON : ':' ;
 THICK_ARROW : '=>' ;
+THIN_ARROW : '->' ;
 EQUALS : '=' ;
 PAREN_OPEN : '(' ;
 PAREN_CLOSE : ')' ;
@@ -105,13 +106,16 @@ stringLiteralExpression : STRING_LITERAL ;
 numberLiteralExpression : NUMBER_LITERAL ;
 identifierExpression : IDENTIFIER ;
 
-expressionSuffix : callExpressionSuffix | memberExpressionSuffix ;
+expressionSuffix : callExpressionSuffix | memberExpressionSuffix | pipeCallExpressionSuffix ;
 
 callExpressionSuffix : PAREN_OPEN NEWLINE* (callParam NEWLINE* (COMMA NEWLINE* callParam NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
 callParam : callPositionalParameter ;
 callPositionalParameter : expression ;
 
 memberExpressionSuffix : NEWLINE* DOT NEWLINE* IDENTIFIER ;
+
+pipeCallExpressionSuffix : NEWLINE* THIN_ARROW NEWLINE* expression NEWLINE* PAREN_OPEN NEWLINE*
+    (callParam NEWLINE* (COMMA NEWLINE* callParam NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
 
 branchOption : ifBranchOption | isBranchOption | elseBranchOption ;
 ifBranchOption : IF expression body ;

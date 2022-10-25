@@ -383,6 +383,13 @@ private fun parseExpression(
                     suffix, innerBreadcrumbs, prevLazyExpression, ctx
                 )
 
+                is PipeCallExpressionSuffixContext -> parsePipeCallExpressionSuffix(
+                    suffix,
+                    innerBreadcrumbs,
+                    prevLazyExpression,
+                    ctx
+                )
+
                 else -> throw Error("unexpected call expression suffix")
             }
         }
@@ -576,11 +583,38 @@ private fun parseMemberExpressionSuffix(
     )
 }
 
+private fun parsePipeCallExpressionSuffix(
+    suffix: PipeCallExpressionSuffixContext,
+    breadcrumbs: Breadcrumbs,
+    lazySubject: (Breadcrumbs) -> ExpressionNode,
+    ctx: ParserContext
+): ExpressionNode {
+    val subjectExpression = lazySubject(breadcrumbs.appendName("subject"))
+    val callee = parseExpression(suffix.expression(), breadcrumbs.appendName("callee"), ctx)
+    val paramsBreadcrumbs = breadcrumbs.appendName("parameters")
+    val params = suffix.callParam().mapIndexed { i, paramContainer ->
+        when (val param = paramContainer.getChild(0)) {
+            is CallPositionalParameterContext -> parsePositionalParameter(
+                param, paramsBreadcrumbs.appendIndex(i), ctx
+            )
+
+            else -> throw Error("Unexpected call parameter type")
+        }
+    }
+
+    return ExpressionNode.PipeCallExpression(
+        NodeInfo(suffix.getRange(), breadcrumbs),
+        subjectExpression,
+        callee,
+        params
+    )
+}
+
 private fun parsePositionalParameter(
     param: CallPositionalParameterContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): ExpressionNode.CallExpression.ParameterNode {
+): FunctionCallParameterNode {
     val value = parseExpression(param.expression(), breadcrumbs.appendName("value"), ctx)
-    return ExpressionNode.CallExpression.ParameterNode(
+    return FunctionCallParameterNode(
         NodeInfo(param.getRange(), breadcrumbs), value
     )
 }

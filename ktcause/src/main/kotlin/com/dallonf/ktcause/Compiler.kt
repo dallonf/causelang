@@ -5,6 +5,7 @@ import com.dallonf.ktcause.CompiledFile.Procedure.ProcedureIdentity
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.types.*
 import org.apache.commons.numbers.fraction.BigFraction
+import kotlin.math.exp
 import kotlin.reflect.KClass
 
 object Compiler {
@@ -455,6 +456,7 @@ object Compiler {
 
             is ExpressionNode.CallExpression -> compileCallExpression(expression, procedure, ctx)
             is ExpressionNode.MemberExpression -> compileMemberExpression(expression, procedure, ctx)
+            is ExpressionNode.PipeCallExpression -> compilePipeCallExpression(expression, procedure, ctx)
 
             is ExpressionNode.IdentifierExpression -> compileIdentifierExpression(expression, procedure, ctx)
             is ExpressionNode.StringLiteralExpression -> procedure.writeLiteral(
@@ -827,6 +829,96 @@ object Compiler {
             is FunctionValueLangType -> {
                 procedure.writeInstruction(
                     Instruction.CallFunction(arity = expression.parameters.size), nodeInfo = expression.info
+                )
+            }
+
+            // any other case should have been handled by the resolver as an
+            // error on the CallExpression itself, which was checked above
+            else -> throw AssertionError()
+        }
+    }
+
+    private fun compilePipeCallExpression(
+        expression: ExpressionNode.PipeCallExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+    ) {
+        // TODO: pretty much all of this is the same as compileCallExpression
+        compileExpression(expression.subject, procedure, ctx)
+        compileExpression(expression.callee, procedure, ctx)
+
+        procedure.writeInstruction(Instruction.Swap, nodeInfo = expression.info, phase = InstructionPhase.PLUMBING)
+
+        for (param in expression.parameters) {
+            compileExpression(param.value, procedure, ctx)
+            ctx.resolved.checkForRuntimeErrors(param.info.breadcrumbs)?.let { error ->
+                procedure.writeInstruction(Instruction.Pop(), expression.info)
+                compileBadValue(param, error, procedure, ctx)
+            }
+        }
+
+        val errorPreventingCall = run {
+            val error = ctx.resolved.checkForRuntimeErrors(expression.info.breadcrumbs)
+            if (error is ErrorLangType.NotCallable) {
+                return@run error
+            }
+            val calleeType = ctx.resolved.getInferredType(expression.callee.info.breadcrumbs)
+            if (calleeType is ConstraintValueLangType || calleeType.getRuntimeError() != null) {
+                return@run error
+            }
+
+            null
+        }
+
+        errorPreventingCall?.let {
+            // Don't call; pop all the arguments and the callee off the stack
+            // and then raise an error
+            procedure.writeInstruction(Instruction.Pop(expression.parameters.size + 1), expression.info)
+            compileTypeError(makeErrorConst(errorPreventingCall, expression, procedure, ctx), procedure)
+            return
+        }
+
+        when (val calleeType = ctx.resolved.getExpectedType(expression.callee.info.breadcrumbs)) {
+            is ConstraintValueLangType -> {
+                when (calleeType.valueType) {
+                    is InstanceValueLangType -> {
+                        if (calleeType.valueType.canonicalType.isUnique()) {
+                            // ignore this, unique objects don't need to be constructed.
+                            // Kiiind of abusing PopScope here to keep the value in place while popping
+                            // any erroneous params
+                            procedure.writeInstruction(
+                                Instruction.PopScope(expression.parameters.size), expression.info
+                            )
+                        } else {
+                            when (calleeType.valueType.canonicalType) {
+                                is CanonicalLangType.SignalCanonicalLangType -> procedure.writeInstruction(
+                                    Instruction.Construct(
+                                        arity = expression.parameters.size
+                                    ), expression.info
+                                )
+
+                                is CanonicalLangType.ObjectCanonicalLangType -> procedure.writeInstruction(
+                                    Instruction.Construct(
+                                        arity = expression.parameters.size
+                                    ), expression.info
+                                )
+                            }
+                        }
+                    }
+
+                    is StopgapDictionaryLangType -> {
+                        procedure.writeInstruction(
+                            Instruction.Construct(
+                                arity = expression.parameters.size
+                            ), expression.info
+                        )
+                    }
+
+                    else -> error("Can't construct a $calleeType")
+                }
+            }
+
+            is FunctionValueLangType -> {
+                procedure.writeInstruction(
+                    Instruction.CallFunction(arity = expression.parameters.size + 1), nodeInfo = expression.info
                 )
             }
 

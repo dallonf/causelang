@@ -322,6 +322,13 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                         }
                     }
 
+                    is Instruction.Swap -> {
+                        val a = stack.popWithName()
+                        val b = stack.popWithName()
+                        stack.push(a.first, a.second)
+                        stack.push(b.first, b.second)
+                    }
+
                     is Instruction.PopScope -> {
                         val name = stack.peekName()
                         val result = stack.pop()

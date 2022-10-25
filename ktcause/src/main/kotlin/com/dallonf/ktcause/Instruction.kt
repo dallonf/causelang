@@ -5,6 +5,11 @@ sealed interface Instruction {
     data class Pop(val number: Int = 1) : Instruction
 
     /**
+     * Reverses the top two items on the stack
+     */
+    object Swap : Instruction
+
+    /**
      * Pops a number of values while preserving the top of the stack
      */
     data class PopScope(val values: Int) : Instruction
