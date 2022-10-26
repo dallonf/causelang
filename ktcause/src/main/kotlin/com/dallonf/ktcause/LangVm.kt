@@ -28,27 +28,11 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
         set(value) {
             field = value
             if (options.debugInstructionLevelExecution && value != null) {
-                val filePath = value.file.path
-                val procedureInfo = when (val identity = value.procedure.identity) {
-                    is CompiledFile.Procedure.ProcedureIdentity.Function -> {
-                        val functionName = (identity.name?.let { "function $it" } ?: "fn") + "()"
-                        "$functionName at $filePath:${identity.declaration.position.start}"
-                    }
-
-                    is CompiledFile.Procedure.ProcedureIdentity.Effect -> {
-                        val signalName = run {
-                            val type = identity.matchesType as? ConstraintReference.ResolvedConstraint
-                            val canonicalType = type?.let { it.valueType as? InstanceValueLangType }
-                            val signalId = canonicalType?.canonicalType?.id
-                            signalId?.name
-                        }
-                        val patternDescription = signalName?.let { " for $it" }
-                        "effect${patternDescription ?: ""} at $filePath:${identity.declaration.position.start}"
-                    }
-                }
-                println("=> proc: $procedureInfo:")
+                val procedureInfo = value.info()
+                println("=> proc: $procedureInfo:${value.procedure.identity.declaration.position.start}")
             }
         }
+
 
     private data class RuntimeEffect(
         val file: CompiledFile,
@@ -138,6 +122,28 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
         var firstEffect: RuntimeEffect?,
         var currentLoop: OpenLoop?
     ) {
+        fun info(): String {
+            val filePath = file.path
+            val procedureInfo = when (val identity = procedure.identity) {
+                is CompiledFile.Procedure.ProcedureIdentity.Function -> {
+                    val functionName = (identity.name?.let { "function $it" } ?: "fn") + "()"
+                    "$functionName at $filePath"
+                }
+
+                is CompiledFile.Procedure.ProcedureIdentity.Effect -> {
+                    val signalName = run {
+                        val type = identity.matchesType as? ConstraintReference.ResolvedConstraint
+                        val canonicalType = type?.let { it.valueType as? InstanceValueLangType }
+                        val signalId = canonicalType?.canonicalType?.id
+                        signalId?.name
+                    }
+                    val patternDescription = signalName?.let { " for $it" }
+                    "effect${patternDescription ?: ""} at $filePath"
+                }
+            }
+            return procedureInfo
+        }
+
         var instruction: Int = 0
         var pendingSignal: RuntimeValue.RuntimeObject? = null
 
@@ -302,13 +308,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                         }
                         println("stack (${stackFrame.stackStart}, rtl): $debugStack")
                     }
-                    val sourceMapping = stackFrame.procedure.sourceMap?.let { it[stackFrame.instruction - 1] }?.let {
-                        if (it.phase == CompiledFile.Procedure.InstructionPhase.CLEANUP) {
-                            it.nodeInfo.position.end
-                        } else {
-                            it.nodeInfo.position.start
-                        }
-                    }
+                    val sourceMapping = stackFrame.procedure.sourceMap?.let { it[stackFrame.instruction - 1] }?.position
                     val sourceMappingStr = sourceMapping?.let { ", l#${it}" } ?: ""
                     println("#${stackFrame.instruction - 1}${sourceMappingStr}: $instruction")
                 }
@@ -790,6 +790,29 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
             }
         }
         return result
+    }
+
+    fun getExecutionTrace(): String {
+        val builder = StringBuilder()
+        builder.appendLine("Traceback (most recent call last):")
+        val calls = mutableListOf<StackFrame>()
+        var frame = stackFrame
+        while (frame != null) {
+            calls.add(frame)
+            frame = frame.executionParent
+        }
+        for (call in calls.reversed()) {
+            val instructionMapping = call.procedure.sourceMap?.let {
+                it[call.instruction]
+            }
+            val line = instructionMapping?.position?.line
+            builder.append("\t${call.info()}")
+            if (line != null) {
+                builder.append(" at line $line")
+            }
+            builder.appendLine()
+        }
+        return builder.toString()
     }
 }
 

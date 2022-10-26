@@ -1,8 +1,6 @@
 package com.dallonf.ktcause
 
-import com.dallonf.ktcause.ast.Identifier
-import com.dallonf.ktcause.ast.NodeInfo
-import com.dallonf.ktcause.ast.SourcePosition
+import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.types.*
 import org.apache.commons.numbers.fraction.BigFraction
 
@@ -49,15 +47,23 @@ data class CompiledFile(
         val sourceMap: List<InstructionMapping?>?
     ) {
         sealed class ProcedureIdentity {
-            data class Function(val name: String?, val declaration: NodeInfo) : ProcedureIdentity()
-            data class Effect(val matchesType: ConstraintReference, val declaration: NodeInfo) : ProcedureIdentity()
+            abstract val declaration: NodeInfo
+
+            data class Function(val name: String?, override val declaration: NodeInfo) : ProcedureIdentity()
+            data class Effect(val matchesType: ConstraintReference, override val declaration: NodeInfo) : ProcedureIdentity()
         }
 
         enum class InstructionPhase {
             SETUP, EXECUTE, PLUMBING, CLEANUP,
         }
 
-        data class InstructionMapping(val nodeInfo: NodeInfo, val phase: InstructionPhase = InstructionPhase.EXECUTE)
+        data class InstructionMapping(val nodeInfo: NodeInfo, val phase: InstructionPhase = InstructionPhase.EXECUTE) {
+            val position: DocumentPosition
+                get() = when (phase) {
+                    InstructionPhase.CLEANUP -> nodeInfo.position.end
+                    else -> nodeInfo.position.start
+                }
+        }
     }
 
     data class MutableProcedure(
