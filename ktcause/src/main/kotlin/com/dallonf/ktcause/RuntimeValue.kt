@@ -23,6 +23,14 @@ sealed class RuntimeValue {
         override fun hashCode(): Int {
             return value.hashCode()
         }
+
+        fun asDouble(): Double {
+            return value.toDouble()
+        }
+
+        fun asLong(): Long {
+            return value.toLong()
+        }
     }
 
     data class StopgapDictionary(val map: Map<String, RuntimeValue> = emptyMap()) : RuntimeValue()
