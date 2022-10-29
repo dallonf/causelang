@@ -2,10 +2,13 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.Debug.debugMini
+import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.types.*
 
 
 class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
+
+    val hasTypeErrors by lazy { codeBundle.compileErrors.isNotEmpty() }
 
     data class Options(
         val runawayLoopThreshold: Long? = 5_000,
@@ -298,6 +301,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                 }
 
                 if (options.debugInstructionLevelExecution) {
+                    val instructionNumber = stackFrame.instruction - 1
                     if (instruction !is Instruction.NameValue) {
                         // don't debug stack if we're about to name a value, that just makes things confusing
                         val stackValues = stack.all()
@@ -308,9 +312,9 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                         }
                         println("stack (${stackFrame.stackStart}, rtl): $debugStack")
                     }
-                    val sourceMapping = stackFrame.procedure.sourceMap?.let { it[stackFrame.instruction - 1] }?.position
+                    val sourceMapping = stackFrame.procedure.sourceMap?.let { it[instructionNumber] }?.position
                     val sourceMappingStr = sourceMapping?.let { ", l#${it}" } ?: ""
-                    println("#${stackFrame.instruction - 1}${sourceMappingStr}: $instruction")
+                    println("#${instructionNumber}${sourceMappingStr}: $instruction")
                 }
 
                 when (instruction) {
@@ -508,8 +512,49 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                                 for (i in 0 until instruction.arity) {
                                     params.add(stack.pop())
                                 }
-                                stack.pop() // pop the function off the stack
                                 params.reverse()
+                                stack.pop() // pop the function off the stack
+
+                                if (hasTypeErrors) {
+                                    val functionParams = function.type.params
+                                    val sourcePosition = stackFrame.procedure.sourceMap?.get(
+                                        stackFrame.instruction - 1
+                                    )?.let {
+                                        SourcePosition.Source(
+                                            stackFrame.file.path,
+                                            it.nodeInfo.breadcrumbs,
+                                            it.nodeInfo.position,
+                                        )
+                                    }
+                                    val error = if (params.size > functionParams.size) {
+                                        ErrorLangType.ExcessParameter(functionParams.size)
+                                    } else if (params.size < functionParams.size) {
+                                        ErrorLangType.MissingParameters(functionParams.takeLast(functionParams.size - params.size)
+                                            .map { it.name })
+                                    } else {
+                                        functionParams.zip(params).firstNotNullOfOrNull { (paramType, paramValue) ->
+                                            if (paramValue.isAssignableTo(paramType.valueConstraint)) {
+                                                null
+                                            } else {
+                                                when (val type = paramValue.typeOf()) {
+                                                    is ValueLangType.Pending -> ErrorLangType.NeverResolved
+                                                    is ErrorLangType -> ErrorLangType.ProxyError.from(
+                                                        type, sourcePosition
+                                                    )
+
+                                                    is ResolvedValueLangType -> ErrorLangType.MismatchedType(
+                                                        expected = paramType.valueConstraint.asConstraintValue() as ConstraintValueLangType,
+                                                        actual = type
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (error != null) {
+                                        throw VmError("I couldn't call a builtin function: " + error.debug())
+                                    }
+                                }
+
                                 val result = function.function(params)
                                 stack.push(result)
                             }

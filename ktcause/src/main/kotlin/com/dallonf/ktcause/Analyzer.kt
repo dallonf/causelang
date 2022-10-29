@@ -661,7 +661,7 @@ object Analyzer {
 
         for ((i, parameterNode) in expression.parameters.withIndex()) {
             analyzeExpression(parameterNode.value, output, ctx)
-            output.addTag(parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(expression.info.breadcrumbs, i))
+            output.addTag(parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(expression.info.breadcrumbs, i + 1))
         }
     }
 

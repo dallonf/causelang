@@ -6,14 +6,23 @@ import kotlinx.serialization.json.*
 import org.apache.commons.numbers.fraction.BigFraction
 
 sealed class RuntimeValue {
-    object Action : RuntimeValue()
+    object Action : RuntimeValue() {
+        override fun typeOf() = ActionValueLangType
+    }
 
-    data class BadValue(val position: SourcePosition, val error: ErrorLangType) : RuntimeValue()
+    data class BadValue(val position: SourcePosition?, val error: ErrorLangType) : RuntimeValue() {
+        override fun typeOf() = error
+    }
 
-    data class Text(val value: String) : RuntimeValue()
+    data class Text(val value: String) : RuntimeValue() {
+        override fun typeOf() = LangPrimitiveKind.TEXT.toValueLangType()
+    }
+
     data class Number(val value: BigFraction) : RuntimeValue() {
         constructor(value: Double) : this(BigFraction.from(value))
         constructor(value: Long) : this(BigFraction.of(value.toBigInteger()))
+
+        override fun typeOf() = LangPrimitiveKind.NUMBER.toValueLangType()
 
         override fun equals(other: Any?): Boolean {
             if (other !is Number) return false
@@ -33,10 +42,14 @@ sealed class RuntimeValue {
         }
     }
 
-    data class StopgapDictionary(val map: Map<String, RuntimeValue> = emptyMap()) : RuntimeValue()
+    data class StopgapDictionary(val map: Map<String, RuntimeValue> = emptyMap()) : RuntimeValue() {
+        override fun typeOf() = StopgapDictionaryLangType
+    }
 
     // TODO: probably want to make it harder to make an invalid RuntimeObject
-    data class RuntimeObject(val typeDescriptor: CanonicalLangType, val values: List<RuntimeValue>) : RuntimeValue()
+    data class RuntimeObject(val typeDescriptor: CanonicalLangType, val values: List<RuntimeValue>) : RuntimeValue() {
+        override fun typeOf() = InstanceValueLangType(typeDescriptor)
+    }
 
     data class RuntimeTypeConstraint(val valueType: ResolvedValueLangType) : RuntimeValue() {
         fun tryGetCanonicalType(): CanonicalLangType? {
@@ -46,11 +59,15 @@ sealed class RuntimeValue {
                 null
             }
         }
+
+        override fun typeOf() = ConstraintValueLangType(valueType)
     }
 
     data class NativeFunction internal constructor(
-        val name: String, val function: (List<RuntimeValue>) -> RuntimeValue
-    ) : RuntimeValue()
+        val name: String, val function: (List<RuntimeValue>) -> RuntimeValue, val type: FunctionValueLangType,
+    ) : RuntimeValue() {
+        override fun typeOf() = type
+    }
 
     data class Function(
         val name: String?,
@@ -58,7 +75,9 @@ sealed class RuntimeValue {
         val procedureIndex: Int,
         val type: FunctionValueLangType,
         val capturedValues: List<Pair<RuntimeValue, String?>>
-    ) : RuntimeValue()
+    ) : RuntimeValue() {
+        override fun typeOf() = type
+    }
 
     companion object {
         fun fromExport(
@@ -91,7 +110,7 @@ sealed class RuntimeValue {
                 }
 
                 is CompiledFile.CompiledExport.NativeFunction -> {
-                    NativeFunction(export.type.name ?: exportName, export.function)
+                    NativeFunction(export.type.name ?: exportName, export.function, export.type)
                 }
 
                 is CompiledFile.CompiledExport.Value -> TODO()
@@ -248,4 +267,6 @@ sealed class RuntimeValue {
             is Text -> JsonPrimitive(this.value)
         }
     }
+
+    abstract fun typeOf(): ValueLangType
 }

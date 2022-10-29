@@ -156,7 +156,14 @@ object Resolver {
                             track(INFERRED)
                             for (param in node.parameters) {
                                 track(INFERRED, param)
-                                track(CONSTRAINT, param)
+                            }
+                        }
+
+                        is ExpressionNode.PipeCallExpression -> {
+                            track(INFERRED)
+                            track(INFERRED, node.callee)
+                            for (param in node.parameters) {
+                                track(INFERRED, param)
                             }
                         }
 
@@ -378,6 +385,17 @@ object Resolver {
                         }
                     }
 
+                    params.forEachIndexed { i, paramBreadcrumbs ->
+                        expectedParams.getOrNull(i)?.let { expected ->
+                            iterationResolvedReferences.add(
+                                ResolutionKey(
+                                    CONSTRAINT,
+                                    paramBreadcrumbs
+                                ) to expected.valueConstraint.asConstraintValue()
+                            )
+                        }
+                    }
+
                     val paramTypes = arrayOfNulls<ValueLangType>(expectedParams.size)
                     params.forEachIndexed { i, paramBreadcrumbs ->
                         val paramType = getResolvedTypeOf(paramBreadcrumbs)
@@ -386,6 +404,7 @@ object Resolver {
                             return
                         }
                         paramTypes[i] = paramType
+
                     }
 
                     val foundParams = mutableListOf<ValueLangType>()
@@ -949,46 +968,6 @@ object Resolver {
 
                         is FunctionSignatureParameterNode -> {
                             node.typeReference?.let { resolveWith(getResolvedTypeOf(it).expectConstraint()) }
-                        }
-
-                        is FunctionCallParameterNode -> {
-                            val paramTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.ParameterForCall }
-                            val (callBreadcrumbs, index) = paramTag
-                            val call = fileNode.findNode(callBreadcrumbs) as ExpressionNode.CallExpression
-                            when (val callType = getResolvedTypeOf(call.callee)) {
-                                is ValueLangType.Pending, is ErrorLangType -> resolveWith(callType)
-                                is ResolvedValueLangType -> {
-                                    val params = when (callType) {
-                                        is FunctionValueLangType -> callType.params
-                                        is ConstraintValueLangType -> if (callType.valueType is InstanceValueLangType) {
-                                            when (val canonicalType = callType.valueType.canonicalType) {
-                                                is CanonicalLangType.SignalCanonicalLangType -> canonicalType.fields
-                                                is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.fields
-                                            }.map { it.asLangParameter() }
-                                        } else {
-                                            throw AssertionError("Call expression not callable (should have been caught by call resolution)")
-                                        }
-
-                                        else -> throw AssertionError("Call expression not callable (should have been caught by call resolution)")
-                                    }
-
-                                    if (index >= params.size) {
-                                        resolveWith(ErrorLangType.ExcessParameter(expected = params.size))
-                                    } else {
-                                        val param = params[index]
-                                        resolveWith(
-                                            when (param.valueConstraint) {
-                                                is ConstraintReference.Pending -> ValueLangType.Pending
-                                                is ConstraintReference.Error -> ErrorLangType.ProxyError.from(
-                                                    param.valueConstraint.errorType, getSourcePosition(call)
-                                                )
-
-                                                is ConstraintReference.ResolvedConstraint -> param.valueConstraint.asConstraintValue()
-                                            }
-                                        )
-                                    }
-                                }
-                            }
                         }
 
                         is PatternNode -> {

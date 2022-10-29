@@ -433,6 +433,39 @@ internal class ErrorHandlingBasicTest {
     }
 
     @Test
+    fun notFoundFunction() {
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """
+                    function main() {
+                        greet("bob")
+                    }
+                """.trimIndent()
+            )
+        }
+        assertEquals(
+            """
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.1.body.statements.0.expression.callee",
+                        "position": "2:4-2:9"
+                    },
+                    "error": {
+                        "#type": "NotInScope"
+                    }
+                }
+            ]
+            """.trimIndent(),
+            vm.codeBundle.compileErrors.debug(),
+        )
+
+        val result = vm.executeFunction("project/hello.cau", "main", listOf())
+        TestUtils.expectTypeError(result, vm)
+    }
+
+    @Test
     fun mistypedEarlyReturn() {
         val vm = LangVm {
             addFile(

@@ -209,16 +209,15 @@ sealed interface ErrorLangType : ValueLangType {
     @SerialName("ProxyError")
     data class ProxyError(val actualError: ErrorLangType, val proxyChain: List<SourcePosition>) : ErrorLangType {
         companion object {
-            fun from(error: ErrorLangType, source: SourcePosition): ProxyError {
+            fun from(error: ErrorLangType, source: SourcePosition?): ProxyError {
+                val sourceList = source?.let { listOf(it) } ?: emptyList()
                 return if (error is ProxyError) {
                     ProxyError(
-                        error.actualError, listOf(source) + error.proxyChain
+                        error.actualError, sourceList + error.proxyChain
                     )
                 } else {
                     ProxyError(
-                        error, listOf(
-                            source
-                        )
+                        error, sourceList
                     )
                 }
             }
