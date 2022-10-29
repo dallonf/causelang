@@ -12,11 +12,11 @@ class FunctionPiping {
                     import core/text (append, number_to_text)
                     
                     function main(name: Text, favorite_number: Number) {
-                        "hello"->append(", ")->append(name)->append("!")
-                            ->append(" ")
-                            ->append("My favorite number is")
-                            ->append(" ")
-                            ->append(favorite_number->number_to_text())
+                        "hello">>append(", ")>>append(name)>>append("!")
+                            >>append(" ")
+                            >>append("My favorite number is")
+                            >>append(" ")
+                            >>append(favorite_number>>number_to_text())
                     }
                 """.trimIndent()
             )

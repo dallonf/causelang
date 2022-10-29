@@ -7,8 +7,8 @@ NEWLINE : '\n';
 COMMA : ',' ;
 COLON : ':' ;
 THICK_ARROW : '=>' ;
-THIN_ARROW : '->' ;
 EQUALS : '=' ;
+PIPELINE : '>>' ;
 PAREN_OPEN : '(' ;
 PAREN_CLOSE : ')' ;
 CURLY_OPEN : '{' ;
@@ -114,7 +114,7 @@ callPositionalParameter : expression ;
 
 memberExpressionSuffix : NEWLINE* DOT NEWLINE* IDENTIFIER ;
 
-pipeCallExpressionSuffix : NEWLINE* THIN_ARROW NEWLINE* expression NEWLINE* PAREN_OPEN NEWLINE*
+pipeCallExpressionSuffix : NEWLINE* PIPELINE NEWLINE* expression NEWLINE* PAREN_OPEN NEWLINE*
     (callParam NEWLINE* (COMMA NEWLINE* callParam NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
 
 branchOption : ifBranchOption | isBranchOption | elseBranchOption ;
