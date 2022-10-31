@@ -439,47 +439,95 @@ object CoreFiles {
                 ) { next, prev ->
                     val pair = RuntimeValue.RuntimeObject(
                         types[keyValuePairId]!!, listOf(
-                            RuntimeValue.Text(next.key),
-                            next.value
+                            RuntimeValue.Text(next.key), next.value
                         )
                     )
                     RuntimeValue.RuntimeObject(
                         types[stackId]!!, listOf(
-                            pair,
-                            prev
+                            pair, prev
                         )
                     )
                 }
             })
 
-            put(
-                "count", CompiledExport.NativeFunction(
+            put("count", CompiledExport.NativeFunction(
+                FunctionValueLangType(
+                    "count", returnConstraint = LangPrimitiveKind.NUMBER.toConstraintReference(), listOf(
+                        LangParameter("it", listType),
+                    )
+                )
+            ) { params ->
+                val it = params[0] as RuntimeValue.StopgapList
+                RuntimeValue.Number(it.values.size.toLong())
+            })
+
+            put("append", CompiledExport.NativeFunction(
+                FunctionValueLangType(
+                    "append", returnConstraint = listType, listOf(
+                        LangParameter("it", listType),
+                        LangParameter("value", AnythingValueLangType.valueToConstraintReference()),
+                    )
+                )
+            ) { params ->
+                val it = params[0] as RuntimeValue.StopgapList
+                val value = params[1]
+
+                RuntimeValue.StopgapList(it.values + listOf(value))
+            })
+
+            listOf<Pair<String, (List<RuntimeValue>, Int) -> RuntimeValue?>>(
+                "nth" to { it, i -> it.getOrNull(i - 1) },
+                "nth_last" to { it, i -> it.getOrNull(it.size - i) },
+                "at_index" to { it, i -> it.getOrNull(i) },
+            ).forEach { (name, func) ->
+                put(name, CompiledExport.NativeFunction(
                     FunctionValueLangType(
-                        "count", returnConstraint = LangPrimitiveKind.NUMBER.toConstraintReference(), listOf(
-                            LangParameter("it", StopgapListLangType.valueToConstraintReference()),
+                        name, returnConstraint = AnythingValueLangType.valueToConstraintReference(), listOf(
+                            LangParameter("it", listType),
+                            LangParameter("number", LangPrimitiveKind.NUMBER.toConstraintReference()),
                         )
                     )
                 ) { params ->
                     val it = params[0] as RuntimeValue.StopgapList
-                    RuntimeValue.Number(it.values.size.toLong())
-                }
-            )
+                    val number = params[1] as RuntimeValue.Number
 
-            put(
-                "append", CompiledExport.NativeFunction(
+                    val result = func(it.values, number.value.toInt())
+
+                    result ?: RuntimeValue.RuntimeObject(types[emptyId]!!, listOf())
+                })
+            }
+
+            listOf<Pair<String, (List<RuntimeValue>, Int, RuntimeValue) -> List<RuntimeValue>>>("insert_at_index" to { it, i, value ->
+                it.subList(
+                    0, i
+                ) + listOf(value) + it.subList(i, it.size)
+            }, "insert_nth_item" to { it, i, value ->
+                val index = i - 1
+                it.subList(0, index) + listOf(value) + it.subList(index, it.size)
+            }, "with_nth_item" to { it, i, value ->
+                val index = i - 1
+                it.mapIndexed { currentIndex, currentValue -> if (currentIndex == index) value else currentValue }
+            }, "with_item_at_index" to { it, i, value ->
+                it.mapIndexed { currentIndex, currentValue -> if (currentIndex == i) value else currentValue }
+            }).forEach { (name, func) ->
+                put(name, CompiledExport.NativeFunction(
                     FunctionValueLangType(
-                        "append", returnConstraint = StopgapListLangType.valueToConstraintReference(), listOf(
-                            LangParameter("it", StopgapListLangType.valueToConstraintReference()),
+                        name, returnConstraint = listType, listOf(
+                            LangParameter("it", listType),
+                            LangParameter("number", LangPrimitiveKind.NUMBER.toConstraintReference()),
                             LangParameter("value", AnythingValueLangType.valueToConstraintReference()),
                         )
                     )
                 ) { params ->
                     val it = params[0] as RuntimeValue.StopgapList
-                    val value = params[1]
+                    val number = params[1] as RuntimeValue.Number
+                    val value = params[2]
 
-                    RuntimeValue.StopgapList(it.values + listOf(value))
-                }
-            )
+                    val result = func(it.values, number.value.toInt(), value)
+
+                    RuntimeValue.StopgapList(result)
+                })
+            }
         }
 
         CompiledFile(filename, types, procedures = emptyList(), exports)
