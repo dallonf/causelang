@@ -1,5 +1,6 @@
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
+import com.dallonf.ktcause.RunResult
 import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -32,7 +33,7 @@ class StopgapTests {
             )
         }
 
-        TestUtils.printCompileErrors(vm)
+        TestUtils.expectNoCompileErrors(vm)
 
         val output = TestUtils.runMainAndGetDebugValues(vm, "project/test.cau")
         assertEquals(RuntimeValue.Text("Bruce Wayne"), output[0])
@@ -66,5 +67,61 @@ class StopgapTests {
             }
             """.trimIndent(), output[4].debug()
         )
+    }
+
+    @Test
+    fun list() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/stopgap/collections (List, count, at_index, nth, nth_last, append, with_item_at_index, with_nth_item, insert_at_index, insert_nth_item)
+                    
+                    signal ExpectEqual(expected: Anything, actual: Anything): Action
+                    
+                    function main() {
+                        let list = List()
+                        let list = list>>append("hello")>>append("world")
+                        cause ExpectEqual(2, list>>count())
+                        cause ExpectEqual("hello", list>>nth(1))
+                        cause ExpectEqual("world", list>>at_index(1))
+                        
+                        let list = list>>insert_at_index(1, "there")
+                        cause ExpectEqual(3, list>>count()) // hello there world
+                        cause ExpectEqual("there", list>>nth_last(2))
+                        cause ExpectEqual("world", list>>nth_last(1))
+                        
+                        let list = list>>insert_nth_item(1, "oh") // oh hello there world
+                        cause ExpectEqual(4, list>>count()) // hello there world
+                        cause ExpectEqual("oh", list>>nth(1))
+                        cause ExpectEqual("hello", list>>nth(2))
+                        
+                        let list = list>>with_nth_item(2, "hi")>>with_item_at_index(3, "universe")
+                        cause ExpectEqual(
+                            List()>>append("oh")>>append("hi")>>append("there")>>append("universe"),
+                            list,
+                        )
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.printCompileErrors(vm)
+
+        var result = vm.executeFunction("project/test.cau", "main", listOf())
+        while (result is RunResult.Caused) {
+            assertEquals(
+                vm.codeBundle.getTypeId("project/test.cau", "ExpectEqual"), result.signal.typeDescriptor.id,
+                "${vm.getExecutionTrace()}\nerror: ${result.signal.debug()}"
+            )
+            val expected = result.signal.values[0]
+            val actual = result.signal.values[1]
+            assertEquals(
+                expected,
+                actual,
+                "${vm.getExecutionTrace()}\nExpected ${expected.debug()}, got ${actual.debug()}."
+            )
+            result = vm.resumeExecution(RuntimeValue.Action)
+        }
+
+        assertEquals(RuntimeValue.Action, result.expectReturnValue())
     }
 }

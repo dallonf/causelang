@@ -46,6 +46,10 @@ sealed class RuntimeValue {
         override fun typeOf() = StopgapDictionaryLangType
     }
 
+    data class StopgapList(val values: List<RuntimeValue> = emptyList()) : RuntimeValue() {
+        override fun typeOf() = StopgapListLangType
+    }
+
     // TODO: probably want to make it harder to make an invalid RuntimeObject
     data class RuntimeObject(val typeDescriptor: CanonicalLangType, val values: List<RuntimeValue>) : RuntimeValue() {
         override fun typeOf() = InstanceValueLangType(typeDescriptor)
@@ -137,6 +141,7 @@ sealed class RuntimeValue {
             }
 
             is StopgapDictionaryLangType -> this is StopgapDictionary
+            is StopgapListLangType -> this is StopgapList
 
             is AnySignalValueLangType -> this is RuntimeObject && this.typeDescriptor is CanonicalLangType.SignalCanonicalLangType
             is AnythingValueLangType -> true
@@ -186,6 +191,17 @@ sealed class RuntimeValue {
 
                 this
             }
+
+            is StopgapList -> {
+                for (value in this.values) {
+                    when (val validatedValue = value.validate()) {
+                        is BadValue -> return validatedValue
+                        else -> {}
+                    }
+                }
+
+                this
+            }
         }
     }
 
@@ -195,6 +211,7 @@ sealed class RuntimeValue {
             is Action, is Text, is Number, is RuntimeTypeConstraint, is NativeFunction, is Function -> true
             is RuntimeObject -> this.values.all { it.isValid() }
             is StopgapDictionary -> this.map.values.all { it.isValid() }
+            is StopgapList -> this.values.all { it.isValid() }
         }
     }
 
@@ -245,6 +262,13 @@ sealed class RuntimeValue {
                     for ((key, value) in map.entries) {
                         put(key, value.toJson())
                     }
+                }
+            }
+
+            is StopgapList -> {
+                buildJsonObject {
+                    put("#type", "StopgapList")
+                    put("values", JsonArray(values.map { it.toJson() }))
                 }
             }
 

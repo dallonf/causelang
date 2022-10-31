@@ -326,6 +326,7 @@ object CoreFiles {
         val filename = "core/stopgap/collections.cau"
 
         val dictionaryType = ConstraintReference.ResolvedConstraint(StopgapDictionaryLangType)
+        val listType = ConstraintReference.ResolvedConstraint(StopgapListLangType)
 
         var maybeStack: OptionValueLangType
         val emptyId = CanonicalLangTypeId(filename, name = "Empty", number = 0u)
@@ -375,6 +376,7 @@ object CoreFiles {
             put("MaybeStack", CompiledExport.Constraint(maybeStack.valueToConstraintReference()))
 
             put("Dictionary", CompiledExport.Constraint(dictionaryType))
+            put("List", CompiledExport.Constraint(listType))
 
             put("get_item", CompiledExport.NativeFunction(
                 FunctionValueLangType(
@@ -449,6 +451,35 @@ object CoreFiles {
                     )
                 }
             })
+
+            put(
+                "count", CompiledExport.NativeFunction(
+                    FunctionValueLangType(
+                        "count", returnConstraint = LangPrimitiveKind.NUMBER.toConstraintReference(), listOf(
+                            LangParameter("it", StopgapListLangType.valueToConstraintReference()),
+                        )
+                    )
+                ) { params ->
+                    val it = params[0] as RuntimeValue.StopgapList
+                    RuntimeValue.Number(it.values.size.toLong())
+                }
+            )
+
+            put(
+                "append", CompiledExport.NativeFunction(
+                    FunctionValueLangType(
+                        "append", returnConstraint = StopgapListLangType.valueToConstraintReference(), listOf(
+                            LangParameter("it", StopgapListLangType.valueToConstraintReference()),
+                            LangParameter("value", AnythingValueLangType.valueToConstraintReference()),
+                        )
+                    )
+                ) { params ->
+                    val it = params[0] as RuntimeValue.StopgapList
+                    val value = params[1]
+
+                    RuntimeValue.StopgapList(it.values + listOf(value))
+                }
+            )
         }
 
         CompiledFile(filename, types, procedures = emptyList(), exports)

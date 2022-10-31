@@ -497,6 +497,10 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                                 stack.push(RuntimeValue.StopgapDictionary())
                             }
 
+                            is StopgapListLangType -> {
+                                stack.push(RuntimeValue.StopgapList())
+                            }
+
                             else -> {
                                 throw InternalVmError("Tried to construct a $constructorType.")
                             }
@@ -506,8 +510,6 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                     is Instruction.CallFunction -> {
                         when (val function = stack.atIndex(stack.lastIndex - instruction.arity)) {
                             is RuntimeValue.NativeFunction -> {
-                                // TODO: probably want to runtime typecheck native function
-                                // params in development
                                 val params = mutableListOf<RuntimeValue>()
                                 for (i in 0 until instruction.arity) {
                                     params.add(stack.pop())

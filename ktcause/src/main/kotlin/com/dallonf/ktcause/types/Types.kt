@@ -340,6 +340,7 @@ sealed interface ResolvedValueLangType : ValueLangType {
             is OptionValueLangType -> constraintInstanceType.isSupersetOf(this)
 
             StopgapDictionaryLangType -> this is StopgapDictionaryLangType
+            StopgapListLangType -> this is StopgapListLangType
 
             AnySignalValueLangType -> this is InstanceValueLangType && this.canonicalType is CanonicalLangType.SignalCanonicalLangType
             AnythingValueLangType -> true
@@ -445,6 +446,10 @@ data class PrimitiveValueLangType(val kind: LangPrimitiveKind) : ResolvedValueLa
 @Serializable
 @SerialName("StopgapDictionary")
 object StopgapDictionaryLangType : ResolvedValueLangType
+
+@Serializable
+@SerialName("StopgapList")
+object StopgapListLangType : ResolvedValueLangType
 
 @Serializable(with = InstanceValueLangType.InstanceValueLangTypeSerializer::class)
 data class InstanceValueLangType(val canonicalType: CanonicalLangType) : ResolvedValueLangType {

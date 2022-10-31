@@ -814,7 +814,7 @@ object Compiler {
                         }
                     }
 
-                    is StopgapDictionaryLangType -> {
+                    is StopgapDictionaryLangType, StopgapListLangType -> {
                         procedure.writeInstruction(
                             Instruction.Construct(
                                 arity = expression.parameters.size

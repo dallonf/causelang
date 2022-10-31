@@ -372,6 +372,14 @@ object Resolver {
                                     )
                                 }
 
+                                is StopgapListLangType -> {
+                                    Callee(
+                                        expectedParams = emptyList(),
+                                        returnConstraint = valueType.valueToConstraintReference(),
+                                        strictParams = true
+                                    )
+                                }
+
                                 else -> {
                                     resolveWith(ErrorLangType.NotCallable)
                                     return

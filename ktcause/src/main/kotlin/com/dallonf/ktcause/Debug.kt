@@ -19,6 +19,7 @@ object Debug {
             subclass(PrimitiveValueLangType::class)
             subclass(InstanceValueLangType::class)
             subclass(StopgapDictionaryLangType::class)
+            subclass(StopgapListLangType::class)
             subclass(OptionValueLangType::class)
             subclass(AnythingValueLangType::class)
             subclass(AnySignalValueLangType::class)
@@ -122,6 +123,7 @@ object Debug {
                     }
 
                     StopgapDictionaryLangType -> "StopgapDictionary"
+                    StopgapListLangType -> "StopgapList"
                 }
                 "[TypeConstraint: $valueType]"
             }
@@ -129,6 +131,7 @@ object Debug {
             is RuntimeValue.Text -> debugSerializer.encodeToString(this.toJson())
 
             is RuntimeValue.StopgapDictionary -> "[StopgapDictionary (${this.map.size})]"
+            is RuntimeValue.StopgapList -> "[StopgapDictionary (${this.values.size})]"
         }
     }
 
