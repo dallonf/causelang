@@ -227,4 +227,31 @@ class ImportTest {
             """.trimIndent(), vm.codeBundle.compileErrors.debug()
         )
     }
+
+    @Test
+    fun renamesAnImportToAvoidAConflict() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/text (append as append_text)
+                    
+                    function append() {
+                        cause Debug("append function")
+                    }
+                    
+                    function main() {
+                        append()
+                        cause Debug("hello, ">>append_text("world!"))
+                    }
+                """.trimIndent()
+            )
+        }
+
+        TestUtils.expectNoCompileErrors(vm)
+
+        TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf(
+            "append function",
+            "hello, world!",
+        ))
+    }
 }
