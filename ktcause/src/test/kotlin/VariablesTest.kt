@@ -110,36 +110,42 @@ class VariablesTest {
             """.trimIndent(), vm.codeBundle.compileErrors.debug()
         )
 
-        val debug = vm.executeFunction("project/test.cau", "main", listOf()).expectCausedSignal().let {
-            assertEquals(vm.codeBundle.getBuiltinTypeId("Debug"), it.typeDescriptor.id)
-            it.values[0]
-        }
+        val signal = vm.executeFunction("project/test.cau", "main", listOf()).expectCausedSignal()
         assertEquals(
             """
             {
-                "#type": "BadValue",
-                "position": {
-                    "#type": "SourcePosition",
-                    "path": "project/test.cau",
-                    "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression.signal.parameters.0",
-                    "position": "4:20-4:21"
-                },
-                "error": {
-                    "#type": "ProxyError",
-                    "actualError": {
-                        "#type": "OuterVariable"
+                "#type": "core/builtin.cau:TypeError",
+                "badValue": {
+                    "#type": "BadValue",
+                    "position": {
+                        "#type": "SourcePosition",
+                        "path": "project/test.cau",
+                        "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression.signal",
+                        "position": "4:14-4:22"
                     },
-                    "proxyChain": [
-                        {
-                            "#type": "SourcePosition",
-                            "path": "project/test.cau",
-                            "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression.signal.parameters.0.value",
-                            "position": "4:20-4:21"
-                        }
-                    ]
+                    "error": {
+                        "#type": "ProxyError",
+                        "actualError": {
+                            "#type": "OuterVariable"
+                        },
+                        "proxyChain": [
+                            {
+                                "#type": "SourcePosition",
+                                "path": "project/test.cau",
+                                "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression.signal.parameters.0",
+                                "position": "4:20-4:21"
+                            },
+                            {
+                                "#type": "SourcePosition",
+                                "path": "project/test.cau",
+                                "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression.signal.parameters.0.value",
+                                "position": "4:20-4:21"
+                            }
+                        ]
+                    }
                 }
             }
-            """.trimIndent(), debug.debug()
+            """.trimIndent(), signal.debug()
         )
     }
 
