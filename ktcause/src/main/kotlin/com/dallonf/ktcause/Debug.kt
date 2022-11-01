@@ -40,7 +40,7 @@ object Debug {
             subclass(ErrorLangType.ImplementationTodo::class)
             subclass(ErrorLangType.MismatchedType::class)
             subclass(ErrorLangType.MissingParameters::class)
-            subclass(ErrorLangType.ExcessParameter::class)
+            subclass(ErrorLangType.ExcessParameters::class)
             subclass(ErrorLangType.UnknownParameter::class)
             subclass(ErrorLangType.MissingElseBranch::class)
             subclass(ErrorLangType.UnreachableBranch::class)

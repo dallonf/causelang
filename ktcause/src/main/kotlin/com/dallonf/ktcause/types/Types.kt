@@ -247,7 +247,7 @@ sealed interface ErrorLangType : ValueLangType {
 
     @Serializable
     @SerialName("ExcessParameters")
-    data class ExcessParameter(val expected: Int) : ErrorLangType
+    data class ExcessParameters(val expected: Int) : ErrorLangType
 
     @Serializable
     @SerialName("UnknownParameter")

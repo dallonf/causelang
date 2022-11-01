@@ -810,4 +810,85 @@ internal class ErrorHandlingBasicTest {
             vm.codeBundle.compileErrors.debug(),
         )
     }
+
+    @Test
+    fun functionWithExcessParams() {
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """               
+                    function main() {
+                        print("hello", "there")
+                    }
+                    
+                    function print(message: Text) {
+                        cause Debug(message)
+                    }
+                """.trimIndent()
+            )
+        }
+
+        assertEquals(
+            """
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.1.body.statements.0.expression",
+                        "position": "2:4-2:27"
+                    },
+                    "error": {
+                        "#type": "ExcessParameters",
+                        "expected": 1
+                    }
+                }
+            ]
+            """.trimIndent(), vm.codeBundle.compileErrors.debug()
+        )
+
+        val result = vm.executeFunction("project/hello.cau", "main", listOf())
+        assertEquals(
+            """
+                {
+                    "#type": "core/builtin.cau:Debug",
+                    "value": "hello"
+                }
+            """.trimIndent(),
+            result.expectCausedSignal().debug(),
+        )
+        assertEquals(
+            """
+            {
+                "#type": "BadValue",
+                "position": {
+                    "#type": "SourcePosition",
+                    "path": "project/hello.cau",
+                    "breadcrumbs": "declarations.1.body",
+                    "position": "1:16-3:1"
+                },
+                "error": {
+                    "#type": "ProxyError",
+                    "actualError": {
+                        "#type": "ExcessParameters",
+                        "expected": 1
+                    },
+                    "proxyChain": [
+                        {
+                            "#type": "SourcePosition",
+                            "path": "project/hello.cau",
+                            "breadcrumbs": "declarations.1.body.statements.0",
+                            "position": "2:4-2:27"
+                        },
+                        {
+                            "#type": "SourcePosition",
+                            "path": "project/hello.cau",
+                            "breadcrumbs": "declarations.1.body.statements.0.expression",
+                            "position": "2:4-2:27"
+                        }
+                    ]
+                }
+            }
+            """.trimIndent(),
+            vm.resumeExecution(RuntimeValue.Action).expectReturnValue().debug()
+        )
+    }
 }

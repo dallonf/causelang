@@ -529,7 +529,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                                         )
                                     }
                                     val error = if (params.size > functionParams.size) {
-                                        ErrorLangType.ExcessParameter(functionParams.size)
+                                        ErrorLangType.ExcessParameters(functionParams.size)
                                     } else if (params.size < functionParams.size) {
                                         ErrorLangType.MissingParameters(functionParams.takeLast(functionParams.size - params.size)
                                             .map { it.name })

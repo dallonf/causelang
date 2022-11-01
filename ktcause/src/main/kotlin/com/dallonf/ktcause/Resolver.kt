@@ -395,13 +395,23 @@ object Resolver {
 
                     params.forEachIndexed { i, paramBreadcrumbs ->
                         expectedParams.getOrNull(i)?.let { expected ->
+                            if (expected.valueConstraint.isPending()) {
+                                // Make sure parameters have resolved their constraints
+                                // before checking for other errors
+                                return
+                            }
+
                             iterationResolvedReferences.add(
                                 ResolutionKey(
-                                    CONSTRAINT,
-                                    paramBreadcrumbs
+                                    CONSTRAINT, paramBreadcrumbs
                                 ) to expected.valueConstraint.asConstraintValue()
                             )
                         }
+                    }
+
+                    if (params.size > expectedParams.size) {
+                        resolveWith(ErrorLangType.ExcessParameters(expectedParams.size))
+                        return
                     }
 
                     val paramTypes = arrayOfNulls<ValueLangType>(expectedParams.size)
@@ -412,7 +422,6 @@ object Resolver {
                             return
                         }
                         paramTypes[i] = paramType
-
                     }
 
                     val foundParams = mutableListOf<ValueLangType>()

@@ -149,7 +149,14 @@ private fun parseImportDeclaration(
         val name = (iterator.next() as TerminalNode).symbol
         assert(name.type == IDENTIFIER)
         iterator.skipNewlines()
-        val rename = (iterator.tryNext() as? TerminalNode)?.symbol
+        val rename = run {
+            if ((iterator.peek() as? TerminalNode)?.symbol?.type == AS) {
+                iterator.next()
+                (iterator.tryNext() as? TerminalNode)?.symbol
+            } else {
+                null
+            }
+        }
         if (rename != null) {
             assert(rename.type == IDENTIFIER)
         }
