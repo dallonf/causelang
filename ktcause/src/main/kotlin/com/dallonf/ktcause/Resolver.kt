@@ -579,7 +579,7 @@ object Resolver {
                                 return@eachPendingNode
                             }
 
-                            data class PossibleReturnValue(val value: ValueLangType, val source: SourcePosition?)
+                            data class PossibleReturnValue(val value: ValueLangType, val source: SourcePosition.Source?)
 
                             val possibleReturnValues = mutableListOf<PossibleReturnValue>()
 

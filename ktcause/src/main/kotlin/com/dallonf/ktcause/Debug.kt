@@ -92,6 +92,29 @@ object Debug {
         return Debug.debugSerializer.encodeToString(this)
     }
 
+    fun ValueLangType.debugMini(): String {
+        return when (this) {
+            ActionValueLangType -> "Action"
+            AnySignalValueLangType -> "AnySignal"
+            AnythingValueLangType -> "Anything"
+            BadValueLangType -> "BadValue"
+            is ConstraintValueLangType -> "TypeConstraint"
+            is FunctionValueLangType -> "Function"
+            is InstanceValueLangType -> this.canonicalType.id.name ?: "object"
+            NeverContinuesValueLangType -> "NeverContinues"
+            is OptionValueLangType -> "Option"
+            is PrimitiveValueLangType -> when (this.kind) {
+                LangPrimitiveKind.TEXT -> "Text"
+                LangPrimitiveKind.NUMBER -> "Number"
+            }
+
+            StopgapDictionaryLangType -> "StopgapDictionary"
+            StopgapListLangType -> "StopgapList"
+            is ErrorLangType -> "Error"
+            ValueLangType.Pending -> "Unknown"
+        }
+    }
+
     fun RuntimeValue.debugMini(): kotlin.String {
         return when (this) {
             is RuntimeValue.Action -> "[Action]"
@@ -107,25 +130,7 @@ object Debug {
             is RuntimeValue.RuntimeObject -> "[${this.typeDescriptor.id.name ?: "object"}]"
 
             is RuntimeValue.RuntimeTypeConstraint -> {
-                val valueType = when (this.valueType) {
-                    ActionValueLangType -> "Action"
-                    AnySignalValueLangType -> "AnySignal"
-                    AnythingValueLangType -> "Anything"
-                    BadValueLangType -> "BadValue"
-                    is ConstraintValueLangType -> "TypeConstraint"
-                    is FunctionValueLangType -> "Function"
-                    is InstanceValueLangType -> this.valueType.canonicalType.id.name ?: "object"
-                    NeverContinuesValueLangType -> "NeverContinues"
-                    is OptionValueLangType -> "Option"
-                    is PrimitiveValueLangType -> when (this.valueType.kind) {
-                        LangPrimitiveKind.TEXT -> "Text"
-                        LangPrimitiveKind.NUMBER -> "Number"
-                    }
-
-                    StopgapDictionaryLangType -> "StopgapDictionary"
-                    StopgapListLangType -> "StopgapList"
-                }
-                "[TypeConstraint: $valueType]"
+                "[TypeConstraint: ${this.valueType.debugMini()}]"
             }
 
             is RuntimeValue.Text -> debugSerializer.encodeToString(this.toJson())

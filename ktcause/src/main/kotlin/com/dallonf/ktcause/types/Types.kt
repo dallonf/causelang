@@ -1,5 +1,8 @@
 package com.dallonf.ktcause.types
 
+import com.dallonf.ktcause.Debug
+import com.dallonf.ktcause.Debug.debug
+import com.dallonf.ktcause.Debug.debugMini
 import com.dallonf.ktcause.ast.SourcePosition
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
@@ -185,25 +188,39 @@ sealed interface ErrorLangType : ValueLangType {
 
     override fun getError() = this
 
+    fun friendlyMessage(ctx: Debug.DebugContext? = null): String
+
     @Serializable
     @SerialName("NeverResolved")
-    object NeverResolved : ErrorLangType
+    object NeverResolved : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) =
+            "I couldn't figure out what type this is.\n" + "There might be a circular loop somewhere that you can resolve by adding a type annotation."
+    }
 
     @Serializable
     @SerialName("NotInScope")
-    object NotInScope : ErrorLangType
+    object NotInScope : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) = "I can't find anything with this name in scope."
+    }
 
     @Serializable
     @SerialName("FileNotFound")
-    object FileNotFound : ErrorLangType
+    object FileNotFound : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) = "I can't find this file."
+    }
 
     @Serializable
     @SerialName("ImportPathInvalid")
-    object ImportPathInvalid : ErrorLangType
+    object ImportPathInvalid : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?): String =
+            "This isn't a file path I understand.\n" + "If it's a relative path that goes up with \"..\", it might be going up too far."
+    }
 
     @Serializable
     @SerialName("ExportNotFound")
-    object ExportNotFound : ErrorLangType
+    object ExportNotFound : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) = "I can't find an export by that name in this file."
+    }
 
     @Serializable
     @SerialName("ProxyError")
@@ -222,81 +239,152 @@ sealed interface ErrorLangType : ValueLangType {
                 }
             }
         }
+
+        override fun friendlyMessage(ctx: Debug.DebugContext?): String {
+            val summary = "I can't use this value because of an earlier error:"
+            val chain = proxyChain.joinToString("\n") {
+                val position = when (it) {
+                    is SourcePosition.Export -> "${it.path} (${it.exportName})"
+                    is SourcePosition.Source -> "${it.path} line ${it.position.start}"
+                }
+                "  at $position"
+            }
+            val previousError = actualError.friendlyMessage(ctx)
+            return "$summary\n$chain\n$previousError"
+        }
     }
 
     @Serializable
     @SerialName("NotCallable")
-    object NotCallable : ErrorLangType
+    object NotCallable : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) =
+            "I was expecting a function or a type here; I can't call this as-is."
+    }
 
     @Serializable
     @SerialName("NotCausable")
-    object NotCausable : ErrorLangType
+    object NotCausable : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) =
+            "I was expecting a signal here; I can't cause this as-is."
+    }
 
     @Serializable
     @SerialName("ImplementationTodo")
-    data class ImplementationTodo(val description: String) : ErrorLangType
+    data class ImplementationTodo(val description: String) : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) =
+            "I don't support this feature yet. Details: $description"
+    }
 
     @Serializable
     @SerialName("MismatchedType")
-    data class MismatchedType(val expected: ConstraintValueLangType, val actual: ResolvedValueLangType) : ErrorLangType
+    data class MismatchedType(val expected: ConstraintValueLangType, val actual: ResolvedValueLangType) :
+        ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?): String {
+            val summary = "I was expecting this to be a ${expected.debugMini()}, but it was a ${actual.debugMini()}"
+
+            return "$summary\n" + "Expected type details: ${expected.debug()}\n" + "Actual type details: ${actual.debug()}\n"
+        }
+    }
 
     @Serializable
     @SerialName("MissingParameters")
 
-    data class MissingParameters(val names: List<String>) : ErrorLangType
+    data class MissingParameters(val names: List<String>) : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) =
+            "I was expecting more parameters; I'm missing: ${names.joinToString(", ")}}."
+    }
 
     @Serializable
     @SerialName("ExcessParameters")
-    data class ExcessParameters(val expected: Int) : ErrorLangType
+    data class ExcessParameters(val expected: Int) : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) =
+            "There are too many parameters here, I was only expecting $expected."
+    }
 
     @Serializable
     @SerialName("UnknownParameter")
-    object UnknownParameter : ErrorLangType
+    object UnknownParameter : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) =
+            "I wasn't expecting this parameter. Does it have the right name?"
+    }
 
     @Serializable
     @SerialName("MissingElseBranch")
-    data class MissingElseBranch(val options: OptionValueLangType?) : ErrorLangType
+    data class MissingElseBranch(val options: OptionValueLangType?) : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) =
+            "Not all possibilities of this branch are covered. You might need to add an \"else\" condition."
+    }
 
     @Serializable
     @SerialName("UnreachableBranch")
-    data class UnreachableBranch(val options: OptionValueLangType?) : ErrorLangType
+    data class UnreachableBranch(val options: OptionValueLangType?) : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) =
+            "I can never reach this condition because of the conditions above it."
+    }
 
     @Serializable
     @SerialName("ActionIncompatibleWithValueTypes")
     data class ActionIncompatibleWithValueTypes(
-        val actions: List<SourcePosition>, val types: List<ValueType>
+        val actions: List<SourcePosition.Source>, val types: List<ValueType>
     ) : ErrorLangType {
         @Serializable
-        data class ValueType(val type: ValueLangType, val position: SourcePosition)
+        data class ValueType(val type: ValueLangType, val position: SourcePosition.Source)
+
+        override fun friendlyMessage(ctx: Debug.DebugContext?): String {
+            return "Some code paths return as an Action: ${
+                actions.joinToString(", ") { "line ${it.position.start}" }
+            }\n" + "but others return a value:\n" + types.joinToString("\n") {
+                "  ${it.type.debugMini()} at line ${it.position.position.start}"
+            }
+        }
     }
 
     @Serializable
     @SerialName("ConstraintUsedAsValue")
-    data class ConstraintUsedAsValue(val type: ConstraintValueLangType) : ErrorLangType
+    data class ConstraintUsedAsValue(val type: ConstraintValueLangType) : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?): String =
+            "${type.debugMini()} is a type constraint, but it's used here like a value."
+    }
 
     @Serializable
     @SerialName("ValueUsedAsConstraint")
-    data class ValueUsedAsConstraint(val type: ValueLangType) : ErrorLangType
+    data class ValueUsedAsConstraint(val type: ValueLangType) : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?): String =
+            "This ${type.debugMini()} is a value, but it's used like here like a type constraint."
+    }
 
     @Serializable
     @SerialName("DoesNotHaveAnyMembers")
-    object DoesNotHaveAnyMembers : ErrorLangType
+    object DoesNotHaveAnyMembers : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) = "I can't use \".\" to get members of this value."
+    }
 
     @Serializable
     @SerialName("DoesNotHaveMember")
-    object DoesNotHaveMember : ErrorLangType
+    object DoesNotHaveMember : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) = "I can't find a member by that name on this object."
+    }
 
     @Serializable
     @SerialName("NotVariable")
-    object NotVariable : ErrorLangType
+    object NotVariable : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) =
+            "I can't set this because it's not a variable. You can add \"variable\" to its definition, like \"let variable x = ...\"."
+    }
 
     @Serializable
     @SerialName("OuterVariable")
-    object OuterVariable : ErrorLangType
+    object OuterVariable : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) =
+            "I can't use this value here because it's a variable in an outer function."
+    }
 
     @Serializable
     @SerialName("CannotBreakHere")
-    object CannotBreakHere : ErrorLangType
+    object CannotBreakHere : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) =
+            "I don't understand what \"break\" means here, because it's not inside a loop."
+    }
 }
 
 sealed interface ResolvedValueLangType : ValueLangType {
