@@ -320,13 +320,11 @@ class BranchesTest {
                         "#type": "ActionIncompatibleWithValueTypes",
                         "actions": [
                             {
-                                "#type": "SourcePosition",
                                 "path": "project/test.cau",
                                 "breadcrumbs": "declarations.7.body.statements.0.expression.branches.1",
                                 "position": "15:8-15:46"
                             },
                             {
-                                "#type": "SourcePosition",
                                 "path": "project/test.cau",
                                 "breadcrumbs": "declarations.7.body.statements.0.expression.branches.3",
                                 "position": "17:8-17:40"
@@ -339,7 +337,6 @@ class BranchesTest {
                                     "kind": "Text"
                                 },
                                 "position": {
-                                    "#type": "SourcePosition",
                                     "path": "project/test.cau",
                                     "breadcrumbs": "declarations.7.body.statements.0.expression.branches.0",
                                     "position": "14:8-14:29"
@@ -351,7 +348,6 @@ class BranchesTest {
                                     "kind": "Text"
                                 },
                                 "position": {
-                                    "#type": "SourcePosition",
                                     "path": "project/test.cau",
                                     "breadcrumbs": "declarations.7.body.statements.0.expression.branches.2",
                                     "position": "16:8-16:29"

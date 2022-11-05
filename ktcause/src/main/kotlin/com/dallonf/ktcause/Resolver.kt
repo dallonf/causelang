@@ -144,7 +144,7 @@ object Resolver {
 
                         is BranchOptionNode.IfBranchOptionNode -> {
                             resolvedTypes[ResolutionKey(CONSTRAINT, node.condition.info.breadcrumbs)] =
-                                builtins["BinaryAnswer"]!!
+                                builtins["TrueOrFalse"]!!
                         }
 
                         is ExpressionNode.LoopExpressionNode -> {
@@ -670,13 +670,12 @@ object Resolver {
                                     it.value is ResolvedValueLangType && it.value !is ActionValueLangType && it.value !is NeverContinuesValueLangType
                                 }
                                 if (nonActionReturns.isNotEmpty()) {
-                                    resolveWith(
-                                        ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
-                                            types = nonActionReturns.map {
-                                                ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
-                                                    it.value, it.source!!
-                                                )
-                                            })
+                                    resolveWith(ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
+                                        types = nonActionReturns.map {
+                                            ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                                it.value, it.source!!
+                                            )
+                                        })
                                     )
                                     return@eachPendingNode
                                 }

@@ -7,7 +7,7 @@ import org.apache.commons.numbers.fraction.BigFraction
 import java.math.RoundingMode
 
 object CoreFiles {
-    fun getBinaryAnswer(boolean: Boolean): RuntimeValue {
+    fun getTrueOrFalse(boolean: Boolean): RuntimeValue {
         return if (boolean) {
             RuntimeValue.fromExport(builtin, "True")
         } else {
@@ -103,23 +103,23 @@ object CoreFiles {
                 put(type.id.name!!, CompiledExport.Constraint(type.asConstraintReference()))
             }
 
-            val binaryAnswer = OptionValueLangType(
+            val trueOrFalse = OptionValueLangType(
                 listOf(
                     trueType.asConstraintReference(),
                     falseType.asConstraintReference(),
                 )
             )
-            put("BinaryAnswer", CompiledExport.Constraint(binaryAnswer.valueToConstraintReference()))
+            put("TrueOrFalse", CompiledExport.Constraint(trueOrFalse.valueToConstraintReference()))
 
             put("equals", CompiledExport.NativeFunction(
                 FunctionValueLangType(
                     "equals", params = listOf(
                         LangParameter("this", AnythingValueLangType.valueToConstraintReference()),
                         LangParameter("other", AnythingValueLangType.valueToConstraintReference()),
-                    ), returnConstraint = binaryAnswer.valueToConstraintReference()
+                    ), returnConstraint = trueOrFalse.valueToConstraintReference()
                 )
             ) { (thisVal, other) ->
-                getBinaryAnswer(thisVal == other)
+                getTrueOrFalse(thisVal == other)
             })
         }
 
@@ -210,12 +210,12 @@ object CoreFiles {
                                 "other", LangPrimitiveKind.NUMBER.toConstraintLangType().asConstraintReference()
                             )
                         ),
-                        returnConstraint = (builtin.exports["BinaryAnswer"] as CompiledExport.Constraint).constraint
+                        returnConstraint = (builtin.exports["TrueOrFalse"] as CompiledExport.Constraint).constraint
                     )
                 ) { (thisVal, otherVal) ->
                     require(thisVal is RuntimeValue.Number)
                     require(otherVal is RuntimeValue.Number)
-                    getBinaryAnswer(fn(thisVal.value, otherVal.value))
+                    getTrueOrFalse(fn(thisVal.value, otherVal.value))
                 })
             }
         }

@@ -434,11 +434,11 @@ class FunctionsTest {
             addFile(
                 "project/test.cau", """
                     function main() {
-                        function x(done: BinaryAnswer): Action {
+                        function x(done: TrueOrFalse): Action {
                             cause Debug("x")
-                            function y(done: BinaryAnswer): Action {
+                            function y(done: TrueOrFalse): Action {
                                 cause Debug("y")
-                                function z(done: BinaryAnswer): Action {
+                                function z(done: TrueOrFalse): Action {
                                     cause Debug("z")
                                     branch {
                                         if done => {}

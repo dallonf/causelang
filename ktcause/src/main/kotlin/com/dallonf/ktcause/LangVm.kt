@@ -635,7 +635,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                         val type = (typeValue as RuntimeValue.RuntimeTypeConstraint).valueType
 
-                        stack.push(CoreFiles.getBinaryAnswer(value.isAssignableTo(type.toConstraint())))
+                        stack.push(CoreFiles.getTrueOrFalse(value.isAssignableTo(type.toConstraint())))
                     }
 
                     is Instruction.Jump -> {
@@ -647,7 +647,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                         if (condition is RuntimeValue.BadValue) {
                             throw VmError(condition.debug())
                         }
-                        if (condition == CoreFiles.getBinaryAnswer(false)) {
+                        if (condition == CoreFiles.getTrueOrFalse(false)) {
                             stackFrame.instruction = instruction.instruction
                         }
                         Unit
