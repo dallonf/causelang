@@ -58,7 +58,7 @@ object CoreFiles {
             )
             add(
                 CanonicalLangType.SignalCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "AssumptionBroken", number = 0.toUByte()),
+                    CanonicalLangTypeId(filename, name = "AssumptionBroken", number = 0u),
                     name = "AssumptionBroken",
                     fields = listOf(
                         CanonicalLangType.ObjectField(
@@ -70,7 +70,7 @@ object CoreFiles {
             )
             add(
                 CanonicalLangType.SignalCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "RunawayLoop", number = 0.toUByte()),
+                    CanonicalLangTypeId(filename, name = "RunawayLoop", number = 0u),
                     name = "RunawayLoop",
                     fields = listOf(),
                     result = NeverContinuesValueLangType.toConstraint().asConstraintReference()

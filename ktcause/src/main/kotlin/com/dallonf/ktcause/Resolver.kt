@@ -670,12 +670,13 @@ object Resolver {
                                     it.value is ResolvedValueLangType && it.value !is ActionValueLangType && it.value !is NeverContinuesValueLangType
                                 }
                                 if (nonActionReturns.isNotEmpty()) {
-                                    resolveWith(ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
-                                        types = nonActionReturns.map {
-                                            ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
-                                                it.value, it.source!!
-                                            )
-                                        })
+                                    resolveWith(
+                                        ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
+                                            types = nonActionReturns.map {
+                                                ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                                    it.value, it.source!!
+                                                )
+                                            })
                                     )
                                     return@eachPendingNode
                                 }
@@ -907,8 +908,13 @@ object Resolver {
                         is DeclarationNode.NamedValue -> resolveWith(getResolvedTypeOf(node.value))
 
                         is DeclarationNode.ObjectType -> {
-                            // TODO: increment number to resolve dupes
-                            val id = CanonicalLangTypeId(path, null, node.name.text, 0u)
+                            val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
+                            val id = CanonicalLangTypeId(
+                                path,
+                                canonicalIdTag.parentName,
+                                node.name.text,
+                                canonicalIdTag.index
+                            )
                             val objectType = registerObjectType(id, node.name.text)
 
                             objectType.fields = node.fields?.map { field ->
@@ -920,8 +926,13 @@ object Resolver {
                         }
 
                         is DeclarationNode.SignalType -> {
-                            // TODO: increment number to resolve dupes
-                            val id = CanonicalLangTypeId(path, null, node.name.text, 0u)
+                            val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
+                            val id = CanonicalLangTypeId(
+                                path,
+                                canonicalIdTag.parentName,
+                                node.name.text,
+                                canonicalIdTag.index
+                            )
                             val signalType = registerSignalType(id, node.name.text)
 
                             signalType.fields = node.fields?.map { field ->

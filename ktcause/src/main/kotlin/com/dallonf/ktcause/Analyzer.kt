@@ -116,6 +116,10 @@ sealed class NodeTag {
     data class ParameterForCall(val callExpression: Breadcrumbs, val index: Int) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
+
+    data class CanonicalIdInfo(val parentName: String?, val index: UInt) : NodeTag() {
+        override fun inverse(breadcrumbs: Breadcrumbs) = null
+    }
 }
 
 
@@ -140,9 +144,19 @@ object Analyzer {
         val currentFunction: Breadcrumbs?,
         val currentLoop: Breadcrumbs?,
         val debugContext: Debug.DebugContext?,
+        val canonicalNameStack: List<CanonicalNameParent>,
     ) {
+        data class CanonicalNameParent(val parentName: String?, val numbers: MutableMap<String?, UInt> = mutableMapOf())
+
         fun clone(breadcrumbs: Breadcrumbs) = AnalyzerContext(
-            path, currentScope.extend(), fileRootScope, breadcrumbs, currentFunction, currentLoop, debugContext
+            path,
+            currentScope.extend(),
+            fileRootScope,
+            breadcrumbs,
+            currentFunction,
+            currentLoop,
+            debugContext,
+            canonicalNameStack
         )
     }
 
@@ -158,6 +172,7 @@ object Analyzer {
             currentFunction = null,
             currentLoop = null,
             debugContext,
+            canonicalNameStack = listOf(AnalyzerContext.CanonicalNameParent(parentName = null))
         )
 
         // loop over top-level declarations to hoist them into file scope
@@ -254,10 +269,7 @@ object Analyzer {
     }
 
     private fun captureValue(
-        valueOrigin: Breadcrumbs,
-        usage: Breadcrumbs?,
-        output: AnalyzedNode,
-        ctx: AnalyzerContext
+        valueOrigin: Breadcrumbs, usage: Breadcrumbs?, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         requireNotNull(ctx.currentFunction)
         val hasExistingCapture =
@@ -353,7 +365,7 @@ object Analyzer {
         declaration: DeclarationNode.Function, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         val newCtx = analyzeFunctionParams(
-            declaration.params, breadcrumbs = declaration.info.breadcrumbs, output, ctx
+            declaration.name.text, declaration.params, breadcrumbs = declaration.info.breadcrumbs, output, ctx
         )
         newCtx.currentScope.items[declaration.name.text] = LocalScopeItem(declaration.info.breadcrumbs)
         output.addTag(
@@ -382,6 +394,7 @@ object Analyzer {
     }
 
     private fun analyzeFunctionParams(
+        functionName: String?,
         params: List<FunctionSignatureParameterNode>,
         breadcrumbs: Breadcrumbs,
         output: AnalyzedNode,
@@ -390,10 +403,17 @@ object Analyzer {
         for (param in params) {
             param.typeReference?.let { analyzeTypeReference(it, output, ctx) }
         }
+        val currentCanonicalParent = ctx.canonicalNameStack.last()
+        val newCanonicalNameStack = if (functionName != null) {
+            val newName = currentCanonicalParent.parentName?.let { "$it.$functionName" } ?: functionName
+            ctx.canonicalNameStack + listOf(AnalyzerContext.CanonicalNameParent(newName))
+        } else {
+            ctx.canonicalNameStack
+        }
         val newCtx = AnalyzerContext(
             ctx.path,
             ctx.currentScope.copy(
-                items = ctx.currentScope.items.mapValues { (key, value) ->
+                items = ctx.currentScope.items.mapValues { (_, value) ->
                     if (value is LocalScopeItem) {
                         CapturedValueScopeItem(value.origin)
                     } else {
@@ -406,6 +426,7 @@ object Analyzer {
             currentFunction = breadcrumbs,
             currentLoop = null,
             ctx.debugContext,
+            newCanonicalNameStack,
         )
         for (param in params) {
             newCtx.currentScope.items[param.name.text] = LocalScopeItem(param.info.breadcrumbs)
@@ -428,6 +449,8 @@ object Analyzer {
     private fun analyzeObjectTypeDeclaration(
         declaration: DeclarationNode.ObjectType, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
+        tagCanonicalTypeId(declaration.name.text, declaration.info.breadcrumbs, ctx, output)
+
         declaration.fields?.let { fields ->
             for (field in fields) {
                 analyzeTypeReference(field.typeConstraint, output, ctx)
@@ -438,6 +461,8 @@ object Analyzer {
     private fun analyzeSignalTypeDeclaration(
         declaration: DeclarationNode.SignalType, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
+        tagCanonicalTypeId(declaration.name.text, declaration.info.breadcrumbs, ctx, output)
+
         declaration.fields?.let { fields ->
             for (field in fields) {
                 analyzeTypeReference(field.typeConstraint, output, ctx)
@@ -445,6 +470,15 @@ object Analyzer {
         }
 
         analyzeTypeReference(declaration.result, output, ctx)
+    }
+
+    private fun tagCanonicalTypeId(
+        name: String?, breadcrumbs: Breadcrumbs, ctx: AnalyzerContext, output: AnalyzedNode
+    ) {
+        val canonicalInfo = ctx.canonicalNameStack.last()
+        val number = canonicalInfo.numbers.putIfAbsent(name, 0u) ?: 0u
+        canonicalInfo.numbers[name] = number + 1u
+        output.addTag(breadcrumbs, NodeTag.CanonicalIdInfo(canonicalInfo.parentName, number))
     }
 
     private fun analyzeOptionTypeDeclaration(
@@ -496,6 +530,7 @@ object Analyzer {
                         ctx.currentFunction,
                         ctx.currentLoop,
                         ctx.debugContext,
+                        ctx.canonicalNameStack,
                     )
                     addDeclarationsToScope(
                         declarations.map { (name, item) -> name to LocalScopeItem(item) }, output, newCtx
@@ -513,6 +548,7 @@ object Analyzer {
                     ctx.currentFunction,
                     ctx.currentLoop,
                     ctx.debugContext,
+                    ctx.canonicalNameStack,
                 )
 
                 analyzePattern(statementNode.pattern, output, effectCtx)
@@ -603,7 +639,7 @@ object Analyzer {
         expression: ExpressionNode.FunctionExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         val newCtx = analyzeFunctionParams(
-            expression.params, breadcrumbs = expression.info.breadcrumbs, output, ctx
+            functionName = null, expression.params, breadcrumbs = expression.info.breadcrumbs, output, ctx
         )
         analyzeExpression(expression.body, output, newCtx)
         output.addTag(expression.info.breadcrumbs, NodeTag.FunctionCanReturnTypeOf(expression.body.info.breadcrumbs))

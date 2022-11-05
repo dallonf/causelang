@@ -1,6 +1,7 @@
 import com.dallonf.ktcause.CompiledFile
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
+import com.dallonf.ktcause.RunResult
 import com.dallonf.ktcause.RuntimeValue
 import com.dallonf.ktcause.types.ActionValueLangType
 import com.dallonf.ktcause.types.CanonicalLangType
@@ -164,8 +165,7 @@ class EffectsBasicTest {
 
         TestUtils.runMainExpectingDebugs(
             vm, "project/test.cau", listOf(
-                "hello",
-                "goodbye"
+                "hello", "goodbye"
             )
         )
     }
@@ -271,5 +271,42 @@ class EffectsBasicTest {
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(RuntimeValue.Number(2), result)
+    }
+
+    @Test
+    fun canDefineMultipleSignalsWithTheSameNameInScope() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                signal Test(value: Number): Action
+                
+                function main() {
+                    cause Test(42)
+                    
+                    signal Test(value: Text): Action
+                    cause Test("hello world")
+                }
+            """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        val signals = mutableListOf<RuntimeValue>()
+        var result = vm.executeFunction("project/test.cau", "main", listOf())
+        while (result is RunResult.Caused) {
+            signals.add(result.signal)
+            result = vm.resumeExecution(RuntimeValue.Action)
+        }
+        assertEquals("""
+            {
+                "#type": "project/test.cau:Test",
+                "value": 42
+            }
+            {
+                "#type": "project/test.cau:main_Test",
+                "value": "hello world"
+            }
+            """.trimIndent(), signals.joinToString("\n") { it.debug() })
+        assertEquals(RuntimeValue.Action, result.expectReturnValue())
     }
 }
