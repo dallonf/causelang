@@ -887,84 +887,8 @@ internal class ErrorHandlingBasicTest {
                     ]
                 }
             }
-            """.trimIndent(), vm.resumeExecution(RuntimeValue.Action).expectReturnValue().debug()
-        )
-    }
-
-    @Test
-    fun actionNotAnything() {
-        val vm = LangVm {
-            addFile(
-                "project/hello.cau", """               
-                    function main() {
-                        print("hello")
-                    }
-                    
-                    function print(message: Text): Anything {
-                        cause Debug(message)
-                    }
-                """.trimIndent()
-            )
-        }
-        assertEquals(
-            """
-            [
-                {
-                    "position": {
-                        "path": "project/hello.cau",
-                        "breadcrumbs": "declarations.2.body",
-                        "position": "5:40-7:1"
-                    },
-                    "error": {
-                        "#type": "MismatchedType",
-                        "expected": {
-                            "valueType": {
-                                "#type": "Anything"
-                            }
-                        },
-                        "actual": {
-                            "#type": "Action"
-                        }
-                    }
-                }
-            ]
-            """.trimIndent(), vm.codeBundle.compileErrors.debug()
-        )
-
-        val result = vm.executeFunction("project/hello.cau", "main", listOf())
-        assertEquals(
-            """
-            {
-                "#type": "core/builtin.cau:Debug",
-                "value": "hello"
-            }
             """.trimIndent(),
-            result.expectCausedSignal().debug(),
-        )
-        val finalResult = vm.resumeExecution(RuntimeValue.Action)
-        assertEquals(
-            """
-            {
-                "#type": "BadValue",
-                "position": {
-                    "#type": "SourcePosition",
-                    "path": "project/hello.cau",
-                    "breadcrumbs": "declarations.2.body",
-                    "position": "5:40-7:1"
-                },
-                "error": {
-                    "#type": "MismatchedType",
-                    "expected": {
-                        "valueType": {
-                            "#type": "Anything"
-                        }
-                    },
-                    "actual": {
-                        "#type": "Action"
-                    }
-                }
-            }
-            """.trimIndent(), finalResult.expectReturnValue().debug()
+            vm.resumeExecution(RuntimeValue.Action).expectReturnValue().debug()
         )
     }
 }

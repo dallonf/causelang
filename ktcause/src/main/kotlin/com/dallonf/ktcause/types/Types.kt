@@ -431,7 +431,7 @@ sealed interface ResolvedValueLangType : ValueLangType {
             StopgapListLangType -> this is StopgapListLangType
 
             AnySignalValueLangType -> this is InstanceValueLangType && this.canonicalType is CanonicalLangType.SignalCanonicalLangType
-            AnythingValueLangType -> this !is ActionValueLangType
+            AnythingValueLangType -> true
 
             ActionValueLangType -> this is ActionValueLangType
             BadValueLangType -> this is BadValueLangType
