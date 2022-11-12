@@ -234,7 +234,7 @@ private fun parseSignalDeclaration(
 ): DeclarationNode.SignalType {
     val name = parseIdentifier(signalDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
     val fields = signalDeclaration.objectFields()?.let { parseObjectFields(it, breadcrumbs.appendName("fields"), ctx) }
-    val result = parseTypeReference(signalDeclaration.typeReference(), breadcrumbs.appendName("result"), ctx)
+    val result = signalDeclaration.typeReference()?.let { parseTypeReference(it, breadcrumbs.appendName("result"), ctx) }
 
     return DeclarationNode.SignalType(
         NodeInfo(signalDeclaration.getRange(), breadcrumbs), name, fields, result

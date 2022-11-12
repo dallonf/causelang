@@ -670,13 +670,12 @@ object Resolver {
                                     it.value is ResolvedValueLangType && it.value !is ActionValueLangType && it.value !is NeverContinuesValueLangType
                                 }
                                 if (nonActionReturns.isNotEmpty()) {
-                                    resolveWith(
-                                        ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
-                                            types = nonActionReturns.map {
-                                                ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
-                                                    it.value, it.source!!
-                                                )
-                                            })
+                                    resolveWith(ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
+                                        types = nonActionReturns.map {
+                                            ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                                it.value, it.source!!
+                                            )
+                                        })
                                     )
                                     return@eachPendingNode
                                 }
@@ -910,10 +909,7 @@ object Resolver {
                         is DeclarationNode.ObjectType -> {
                             val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
                             val id = CanonicalLangTypeId(
-                                path,
-                                canonicalIdTag.parentName,
-                                node.name.text,
-                                canonicalIdTag.index
+                                path, canonicalIdTag.parentName, node.name.text, canonicalIdTag.index
                             )
                             val objectType = registerObjectType(id, node.name.text)
 
@@ -928,10 +924,7 @@ object Resolver {
                         is DeclarationNode.SignalType -> {
                             val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
                             val id = CanonicalLangTypeId(
-                                path,
-                                canonicalIdTag.parentName,
-                                node.name.text,
-                                canonicalIdTag.index
+                                path, canonicalIdTag.parentName, node.name.text, canonicalIdTag.index
                             )
                             val signalType = registerSignalType(id, node.name.text)
 
@@ -939,7 +932,8 @@ object Resolver {
                                 val fieldType = getResolvedTypeOf(field.typeConstraint).asConstraintReference()
                                 CanonicalLangType.ObjectField(field.name.text, fieldType)
                             } ?: emptyList()
-                            signalType.result = getResolvedTypeOf(node.result).asConstraintReference()
+                            signalType.result = node.result?.let { getResolvedTypeOf(it).asConstraintReference() }
+                                ?: ActionValueLangType.valueToConstraintReference()
 
                             resolveWith(ConstraintValueLangType(InstanceValueLangType(signalType)))
                         }

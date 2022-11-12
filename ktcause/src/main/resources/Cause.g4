@@ -71,7 +71,7 @@ functionReturnValue : COLON NEWLINE* typeReference ;
 namedValueDeclaration : LET NEWLINE* VARIABLE? NEWLINE* IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference NEWLINE*)? EQUALS NEWLINE* expression ;
 
 objectDeclaration : OBJECT NEWLINE* IDENTIFIER NEWLINE* objectFields? ;
-signalDeclaration : SIGNAL NEWLINE* IDENTIFIER NEWLINE* objectFields? NEWLINE* COLON NEWLINE* typeReference;
+signalDeclaration : SIGNAL NEWLINE* IDENTIFIER NEWLINE* objectFields? NEWLINE* (COLON NEWLINE* typeReference)?;
 objectFields : (PAREN_OPEN NEWLINE* (objectField NEWLINE* (COMMA NEWLINE* objectField NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE) ;
 objectField : IDENTIFIER NEWLINE* COLON NEWLINE* typeReference ;
 

@@ -143,6 +143,38 @@ class EffectsBasicTest {
     }
 
     @Test
+    fun signalResultDefaultsToAction() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    import core/text (append)
+                    
+                    signal Greet(name: Text)
+                    
+                    function main(): Action {
+                        effect for Greet as s {
+                            cause Debug(append("Howdy, ", s.name))
+                        }
+                        
+                        cause Greet("partner")
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+
+        TestUtils.expectValidCaused(
+            vm.executeFunction("project/test.cau", "main", listOf()), vm.codeBundle.getBuiltinTypeId("Debug")
+        ).let {
+            assertEquals(RuntimeValue.Text("Howdy, partner"), it.values[0])
+        }
+
+        vm.resumeExecution(RuntimeValue.Action).expectReturnValue().let {
+            assertEquals(RuntimeValue.Action, it)
+        }
+    }
+
+    @Test
     fun defineInlineSignal() {
         val vm = LangVm {
             addFile(
