@@ -1,18 +1,16 @@
-import core/math (add)
 import cli/console (Print, Prompt)
 
 function main() {
 	let result = {
-		with label LOOP
 		let variable counter = 0
 		loop {
 			cause Print("current value: ${counter.to_string()}")
 			cause Print("Type up/down/quit:")
 			let input = (cause Prompt()).to_lower_case()
 			branch with input {
-				equals "up" => set counter = ->add(1)
-				equals "down" => set counter = ->add(-1)
-				equals "quit" => return to LOOP counter
+				equals "up" => set counter = .add(1)
+				equals "down" => set counter = .add(-1)
+				equals "quit" => break with counter
 				else => cause Print("invalid input: ${input}")
 			}
 		}

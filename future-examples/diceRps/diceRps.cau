@@ -1,6 +1,6 @@
 import collection { map, first_that_exists }
 
-option DiceSide(
+let DiceSide = oneof(
 	object Rock,
 	object Paper,
 	object Scissors,
@@ -9,7 +9,7 @@ option DiceSide(
 	object Shield,
 )
 
-option RollOffWinner(object LeftWin, object RightWin, object Tie)
+let RollOffWinner = oneof(object LeftWin, object RightWin, object Tie)
 
 object RollOffResult(
 	winner: RollOffWinner
@@ -25,27 +25,27 @@ object RollOffResult(
 	}
 }
 
-private type RuleFn = Fn(left_die: DiceSide, right_die: DiceSide): Option<RollOffResult>
+private let RuleFn = Function(left_die: DiceSide, right_die: DiceSide, returns Option<RollOffResult>)
 
 // Explicit function output annotations are allowed but not required
-private fn beats_rule(winner: DiceSide, loser: DiceSide): RuleFn {
+private fn beats_rule(winner: DiceSide, loser: DiceSide, returns RuleFn) {
 	fn(left, right) {
 		branch {
-			if both(left->equals(winner), right_equals(loser)) =>
+			if both(left>>equals(winner), right_equals(loser)) =>
 				RollOffResult.with_winner(RollOffWinner.LeftWin)
-			if both(left->equals(loser), right->equals(winner)) =>
+			if both(left>>equals(loser), right>>equals(winner)) =>
 				RollOffResult.with_winner(RollOffWinner.RightWin)
 			else => Nothing
 		}
 	}
 }
 
-fn roll_off(left_die: DiceSide, right_die: DiceSide): RollOffResult {
+fn roll_off(left_die: DiceSide, right_die: DiceSide, returns RollOffResult) {
 	let rules = List<RuleFn>(
 		// Shield causes a tie and adds a "shield" extra
 		fn(left, right) {
-			let left_is_shield = left->equals(DiceSide.Shield)
-			let right_is_shield = right->equals(DiceSide.Shield)
+			let left_is_shield = left>>equals(DiceSide.Shield)
+			let right_is_shield = right>>equals(DiceSide.Shield)
 			if either(left_is_shield, right_is_shield) {
 				RollOffResult{
 					winner: RollOffWinner.Tie
@@ -58,7 +58,7 @@ fn roll_off(left_die: DiceSide, right_die: DiceSide): RollOffResult {
 		},
 		// If both are the same, they tie
 		fn(left, right) {
-			if left->equals(right) {
+			if left>>equals(right) {
 				RollOffResult.with_winner(RollOffWinner.Tie)
 			} else {
 				Nothing
@@ -67,9 +67,9 @@ fn roll_off(left_die: DiceSide, right_die: DiceSide): RollOffResult {
 		// Strawman loses to all
 		fn(left, right) {
 			branch {
-				if left->equals(DiceSide.Strawman) =>
+				if left>>equals(DiceSide.Strawman) =>
 					RollOffResult.with_winner(RollOffWinner.RightWin)
-				if right->equals(DiceSide.Strawman) =>
+				if right>>equals(DiceSide.Strawman) =>
 					RollOffResult.with_winner(RollOffWinner.LeftWin)
 				else => Nothing
 			}
@@ -77,9 +77,9 @@ fn roll_off(left_die: DiceSide, right_die: DiceSide): RollOffResult {
 		// Dynamite beats all
 		fn(left, right) {
 			branch {
-				if left->equals(DiceSide.Dynamite) =>
+				if left>>equals(DiceSide.Dynamite) =>
 					RollOffResult.with_winner(RollOffWinner.LeftWin)
-				if right->equals(DiceSide.Dynamite) =>
+				if right>>equals(DiceSide.Dynamite) =>
 					RollOffResult.with_winner(RollOffWinner.RightWin)
 				else => Nothing
 			}
@@ -91,10 +91,10 @@ fn roll_off(left_die: DiceSide, right_die: DiceSide): RollOffResult {
 	)
 
 	return rules
-		-> map(fn(a) a(left_die, right_die))
-		-> first_that_exists()
-		-> pipe(fn branch with it {
-			matches let result: Not<Nothing> => result
-			matches Nothing => RollOffResult.with_winner(RollOffWinner.Tie)
-		})
+		>> map() {it(left_die, right_die)}
+		>> first_that_exists()
+		>> pipe() {branch with it {
+			is Not<Nothing> as result => result
+			is Nothing => RollOffResult.with_winner(RollOffWinner.Tie)
+		}
 }

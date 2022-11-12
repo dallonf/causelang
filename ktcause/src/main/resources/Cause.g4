@@ -1,11 +1,14 @@
 grammar Cause;
 
 WHITESPACE : (' ' | '\t' | '\r')+ -> skip ;
+COMMENT : '//' ~'\n'* -> skip ;
+MULTILINE_COMMENT : '/*' .*? '*/' -> skip ;
 NEWLINE : '\n';
 COMMA : ',' ;
 COLON : ':' ;
 THICK_ARROW : '=>' ;
 EQUALS : '=' ;
+PIPELINE : '>>' ;
 PAREN_OPEN : '(' ;
 PAREN_CLOSE : ')' ;
 CURLY_OPEN : '{' ;
@@ -14,29 +17,44 @@ UNDERSCORE : '_' ;
 DOT : '.' ;
 
 STRING_LITERAL : '"' .*? '"' ;
-INT_LITERAL : [0-9][0-9_]* ;
+NUMBER_LITERAL : [0-9] [0-9_]* (DOT [0-9]+)? ;
 
 AS : 'as' ;
 BRANCH : 'branch' ;
+BREAK : 'break' ;
 CAUSE : 'cause' ;
 EFFECT : 'effect' ;
 ELSE : 'else' ;
 FN : 'fn' ;
+FOR : 'for' ;
 FUNCTION : 'function' ;
+FUNCTION_CAMEL: 'Function' ;
 IF : 'if' ;
+IS : 'is' ;
 IMPORT : 'import' ;
 LET : 'let' ;
+LOOP : 'loop' ;
 OBJECT : 'object' ;
 OPTION : 'option' ;
+RETURN : 'return' ;
 SET : 'set' ;
 SIGNAL : 'signal' ;
 VARIABLE : 'variable' ;
-PATH : [a-zA-Z0-9_\-]+ '/' [a-zA-Z_\-/]+ ;
+WITH : 'with' ;
+PATH : [a-zA-Z0-9_\-.]+ '/' [a-zA-Z_\-/.]+ ;
 IDENTIFIER : [a-zA-Z_] [a-zA-Z0-9_]* ; // TODO: need moar emoji
 
 file : NEWLINE* (declaration (NEWLINE+ declaration)*)? NEWLINE* EOF ;
 
-typeReference : IDENTIFIER ;
+typeReference : functionTypeReference | identifierTypeReference  ;
+identifierTypeReference : IDENTIFIER ;
+functionTypeReference : FUNCTION_CAMEL NEWLINE* PAREN_OPEN NEWLINE*
+    (functionSignatureParam NEWLINE* (COMMA NEWLINE* functionSignatureParam NEWLINE*)* COMMA?)?
+    NEWLINE* PAREN_CLOSE NEWLINE* functionTypeReferenceReturnValue
+;
+    functionTypeReferenceReturnValue : COLON NEWLINE* typeReference ;
+
+functionSignatureParam : IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference)? ;
 
 declaration : importDeclaration | functionDeclaration | namedValueDeclaration | objectDeclaration | signalDeclaration | optionDeclaration ;
 
@@ -45,55 +63,65 @@ importMappings : importMapping NEWLINE* (COMMA NEWLINE* importMapping NEWLINE*)*
 importMapping : IDENTIFIER (NEWLINE* AS NEWLINE* IDENTIFIER)? ;
 
 functionDeclaration : FUNCTION NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE*
-    (functionParam NEWLINE* (COMMA NEWLINE* functionParam NEWLINE*)* COMMA?)?
+    (functionSignatureParam NEWLINE* (COMMA NEWLINE* functionSignatureParam NEWLINE*)* COMMA?)?
     NEWLINE* PAREN_CLOSE NEWLINE* functionReturnValue?
     NEWLINE* body ;
-functionParam : IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference)? ;
 functionReturnValue : COLON NEWLINE* typeReference ;
 
 namedValueDeclaration : LET NEWLINE* VARIABLE? NEWLINE* IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference NEWLINE*)? EQUALS NEWLINE* expression ;
 
 objectDeclaration : OBJECT NEWLINE* IDENTIFIER NEWLINE* objectFields? ;
-signalDeclaration : SIGNAL NEWLINE* IDENTIFIER NEWLINE* objectFields? NEWLINE* COLON NEWLINE* typeReference;
+signalDeclaration : SIGNAL NEWLINE* IDENTIFIER NEWLINE* objectFields? NEWLINE* (COLON NEWLINE* typeReference)?;
 objectFields : (PAREN_OPEN NEWLINE* (objectField NEWLINE* (COMMA NEWLINE* objectField NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE) ;
 objectField : IDENTIFIER NEWLINE* COLON NEWLINE* typeReference ;
 
 optionDeclaration : OPTION NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE* (typeReference NEWLINE* (COMMA NEWLINE* typeReference NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
 
-body : block | singleExpressionBody ;
+body : block | singleStatementBody ;
 
 block : CURLY_OPEN NEWLINE* (statement (NEWLINE+ statement)*)? NEWLINE* CURLY_CLOSE ;
-singleExpressionBody : THICK_ARROW NEWLINE* expression ;
+singleStatementBody : THICK_ARROW NEWLINE* statement ;
 
 statement : effectStatement | setStatement | declarationStatement | expressionStatement  ;
 
 expressionStatement : expression ;
 declarationStatement : declaration ;
-effectStatement : EFFECT NEWLINE* PAREN_OPEN NEWLINE* pattern NEWLINE* PAREN_CLOSE body ;
+effectStatement : EFFECT NEWLINE* FOR NEWLINE* pattern NEWLINE* body ;
 setStatement : SET NEWLINE* IDENTIFIER NEWLINE* EQUALS NEWLINE* expression ;
 
-expression : (blockExpression | branchExpression | causeExpression | stringLiteralExpression | integerLiteralExpression | identifierExpression)
+expression : (groupExpression | blockExpression | functionExpression | branchExpression | loopExpression | causeExpression | returnExpression | breakExpression | stringLiteralExpression | numberLiteralExpression | identifierExpression)
     expressionSuffix* ;
-
+groupExpression : PAREN_OPEN NEWLINE* expression NEWLINE* PAREN_CLOSE ;
 blockExpression : block ;
-branchExpression : BRANCH NEWLINE* CURLY_OPEN NEWLINE* (branchOption (NEWLINE+ branchOption)*)? NEWLINE* CURLY_CLOSE ;
+functionExpression : FN NEWLINE* PAREN_OPEN NEWLINE*
+                        (functionSignatureParam NEWLINE* (COMMA NEWLINE* functionSignatureParam NEWLINE*)* COMMA?)?
+                        NEWLINE* PAREN_CLOSE NEWLINE* functionReturnValue? NEWLINE* expression ;
+branchExpression : BRANCH NEWLINE* branchWith? NEWLINE* CURLY_OPEN NEWLINE* (branchOption (NEWLINE+ branchOption)*)? NEWLINE* CURLY_CLOSE ;
+    branchWith: WITH NEWLINE* expression ;
+loopExpression : LOOP NEWLINE* body ;
 causeExpression : CAUSE NEWLINE* expression ;
+returnExpression : RETURN expression? ; // no newline supported here
+breakExpression : BREAK (WITH NEWLINE* expression)?;
 stringLiteralExpression : STRING_LITERAL ;
-integerLiteralExpression : INT_LITERAL ;
+numberLiteralExpression : NUMBER_LITERAL ;
 identifierExpression : IDENTIFIER ;
 
-expressionSuffix : callExpressionSuffix | memberExpressionSuffix ;
+expressionSuffix : callExpressionSuffix | memberExpressionSuffix | pipeCallExpressionSuffix ;
 
 callExpressionSuffix : PAREN_OPEN NEWLINE* (callParam NEWLINE* (COMMA NEWLINE* callParam NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
 callParam : callPositionalParameter ;
 callPositionalParameter : expression ;
 
-memberExpressionSuffix : DOT NEWLINE* IDENTIFIER ;
+memberExpressionSuffix : NEWLINE* DOT NEWLINE* IDENTIFIER ;
 
-branchOption : ifBranchOption | elseBranchOption ;
+pipeCallExpressionSuffix : NEWLINE* PIPELINE NEWLINE* expression NEWLINE* PAREN_OPEN NEWLINE*
+    (callParam NEWLINE* (COMMA NEWLINE* callParam NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
+
+branchOption : ifBranchOption | isBranchOption | elseBranchOption ;
 ifBranchOption : IF expression body ;
+isBranchOption : IS pattern body ;
 elseBranchOption : ELSE body ;
 
-pattern : placeholderPattern | captureValuePattern ;
-placeholderPattern : UNDERSCORE NEWLINE* COLON NEWLINE* typeReference ;
-captureValuePattern : LET NEWLINE* IDENTIFIER NEWLINE* COLON NEWLINE* typeReference ;
+pattern : captureValuePattern | typeReferencePattern ;
+captureValuePattern : typeReference NEWLINE* AS NEWLINE* IDENTIFIER ;
+typeReferencePattern : typeReference ;

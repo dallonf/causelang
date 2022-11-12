@@ -1,5 +1,3 @@
-import TestUtils.addFileAndPrintCompileErrors
-import TestUtils.addFileExpectingNoCompileErrors
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.RuntimeValue
@@ -9,19 +7,21 @@ import kotlin.test.assertEquals
 class ObjectTypesTest {
     @Test
     fun defineObjectAndInstantiateIt() {
-        val vm = LangVm()
-        vm.addFileExpectingNoCompileErrors(
-            "project/test.cau", """
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
                 object Card(
-                    suit: String,
-                    rank: Integer,
+                    suit: Text,
+                    rank: Number,
                 )
                 
                 function main(): Card {
                     Card("hearts", 3)
                 }
             """.trimIndent()
-        )
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(
@@ -31,32 +31,32 @@ class ObjectTypesTest {
                 "suit": "hearts",
                 "rank": 3
             }
-            """.trimIndent(),
-            result.debug()
+            """.trimIndent(), result.debug()
         )
     }
 
     @Test
     fun retrieveValuesFromACustomObject() {
-        val vm = LangVm()
-        vm.addFileAndPrintCompileErrors(
-            "project/test.cau", """
-                object Card(
-                    suit: String,
-                    rank: Integer,
-                )
-                
-                function main(): String {
-                    let card = Card("spades", 7)
-                    card.suit
-                }
-            """.trimIndent()
-        )
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    object Card(
+                        suit: Text,
+                        rank: Number,
+                    )
+                    
+                    function main(): Text {
+                        let card = Card("spades", 7)
+                        card.suit
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
 
         val result = vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue()
         assertEquals(
-            RuntimeValue.String("spades"),
-            result
+            RuntimeValue.Text("spades"), result
         )
     }
 }

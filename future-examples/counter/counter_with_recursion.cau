@@ -1,4 +1,3 @@
-import core/math (add)
 import cli/console (Print, Prompt)
 
 function main() {
@@ -8,8 +7,8 @@ function main() {
 		let input = (cause Prompt()).toLowerCase()
 
 		branch with input {
-			equals "up" => counter->add(1)
-			equals "down" => counter->add(-1)
+			equals "up" => counter.add(1)
+			equals "down" => counter.add(-1)
 			equals "quit" => cause BreakLoop(counter)
 			else {
 				cause Print("invalid input: ${input}")
@@ -23,8 +22,8 @@ function main() {
 
 signal BreakLoop<T>(value: T): NeverContinues
 
-fn loop<T>(start_value: T, loop_fn: Function(value: T): T): T  {
-	effect BreakLoop<T>(let value) {
+fn loop<T>(start_value: T, loop_fn: Function(value: T, returns T), returns T)  {
+	effect for BreakLoop<T>(let value) {
 		return value
 	}
 

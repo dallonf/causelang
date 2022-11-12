@@ -47,15 +47,24 @@ data class ResolvedFile(
         }
     }
 
-    fun getInferredType(breadcrumbs: Breadcrumbs): ValueLangType = resolvedTypes[ResolutionKey(
-        INFERRED, breadcrumbs
-    )]!!
+    fun getInferredType(breadcrumbs: Breadcrumbs): ValueLangType {
+        val foundType = resolvedTypes[ResolutionKey(
+            INFERRED, breadcrumbs
+        )]
+
+        if (foundType != null) {
+            return foundType
+        } else {
+            val debug = debugContext()?.getNodeContext(breadcrumbs)
+            error("Couldn't find any type for $breadcrumbs" + (debug?.let { ": $it" } ?: ""))
+        }
+    }
 }
 
 object Resolver {
     @Serializable
     data class ResolverError(val position: SourcePosition.Source, val error: ErrorLangType) {
-        internal fun debug(): String {
+        fun debug(): String {
             return Debug.debugSerializer.encodeToString(this)
         }
     }
@@ -77,9 +86,9 @@ object Resolver {
         debugContext: Debug.DebugContext? = null,
     ): Pair<ResolvedFile, List<ResolverError>> {
         val allOtherFiles = otherFiles.toMutableMap().also {
-            val core = CoreDescriptors.coreBuiltinFile
-            it[core.first] = core.second
-            it.putAll(CoreDescriptors.coreFiles)
+            for (file in CoreFiles.all) {
+                it[file.path] = file.toFileDescriptor()
+            }
         }.toMap()
 
         val nodeTags = analyzed.nodeTags
@@ -87,7 +96,23 @@ object Resolver {
         val resolvedTypes = mutableMapOf<ResolutionKey, ValueLangType>()
         val knownCanonicalTypes = mutableMapOf<CanonicalLangTypeId, CanonicalLangType>()
 
-        val builtins = CoreDescriptors.coreBuiltinFile.second.exports
+        fun registerObjectType(id: CanonicalLangTypeId, name: String): CanonicalLangType.ObjectCanonicalLangType {
+            return knownCanonicalTypes.getOrPut(id) {
+                CanonicalLangType.ObjectCanonicalLangType(
+                    id, name, listOf()
+                )
+            } as CanonicalLangType.ObjectCanonicalLangType
+        }
+
+        fun registerSignalType(id: CanonicalLangTypeId, name: String): CanonicalLangType.SignalCanonicalLangType {
+            return knownCanonicalTypes.getOrPut(id) {
+                CanonicalLangType.SignalCanonicalLangType(
+                    id, name, listOf(), ConstraintReference.Pending
+                )
+            } as CanonicalLangType.SignalCanonicalLangType
+        }
+
+        val builtins = CoreFiles.builtin.toFileDescriptor().exports
 
         // Seed the crawler with everything the compiler will want to know about
         run {
@@ -115,18 +140,30 @@ object Resolver {
 
                         is DeclarationNode.Import.MappingNode -> track(INFERRED)
 
-                        is DeclarationNode.Function.FunctionParameterNode -> track(CONSTRAINT)
+                        is FunctionSignatureParameterNode -> track(CONSTRAINT)
 
                         is BranchOptionNode.IfBranchOptionNode -> {
                             resolvedTypes[ResolutionKey(CONSTRAINT, node.condition.info.breadcrumbs)] =
-                                builtins["BinaryAnswer"]!!
+                                builtins["TrueOrFalse"]!!
+                        }
+
+                        is ExpressionNode.LoopExpressionNode -> {
+                            resolvedTypes[ResolutionKey(CONSTRAINT, node.body.info.breadcrumbs)] =
+                                ActionValueLangType.toConstraint()
                         }
 
                         is ExpressionNode.CallExpression -> {
                             track(INFERRED)
                             for (param in node.parameters) {
                                 track(INFERRED, param)
-                                track(CONSTRAINT, param)
+                            }
+                        }
+
+                        is ExpressionNode.PipeCallExpression -> {
+                            track(INFERRED)
+                            track(INFERRED, node.callee)
+                            for (param in node.parameters) {
+                                track(INFERRED, param)
                             }
                         }
 
@@ -138,6 +175,9 @@ object Resolver {
                         }
 
                         is StatementNode.SetStatement -> track(INFERRED)
+                        is StatementNode.ExpressionStatement -> track(INFERRED)
+
+                        is BodyNode -> track(INFERRED)
 
                         else -> {}
                     }
@@ -171,6 +211,10 @@ object Resolver {
                 val foundValue = resolvedTypes[ResolutionKey(
                     INFERRED, breadcrumbs
                 )]
+
+                if (foundValue is OptionValueLangType) {
+                    return foundValue.proxyAllErrors(getSourcePosition(breadcrumbs))
+                }
 
                 if (foundValue is ErrorLangType) {
                     return ErrorLangType.ProxyError.from(foundValue, getSourcePosition(breadcrumbs))
@@ -210,6 +254,202 @@ object Resolver {
                 val pendingNodeBreadcrumbs = pendingKey.breadcrumbs
                 val node = fileNode.findNode(pendingNodeBreadcrumbs)
                 val pendingNodeTags = nodeTags[pendingKey.breadcrumbs] ?: emptyList()
+
+                fun resolveFunction(
+                    nameNode: Identifier?,
+                    paramNodes: List<FunctionSignatureParameterNode>,
+                    returnTypeNode: TypeReferenceNode?
+                ) {
+                    val returnConstraint = run returnConstraint@{
+                        val explicitReturnType = returnTypeNode?.let {
+                            getResolvedTypeOf(returnTypeNode).expectConstraint().let { resolvedReturnType ->
+                                if (resolvedReturnType is ConstraintValueLangType) {
+                                    resolvedReturnType.asConstraintReference()
+                                } else {
+                                    return@returnConstraint resolvedReturnType.valueToConstraintReference()
+                                }
+                            }
+                        }
+
+                        val canReturn = pendingNodeTags.mapNotNull { tag ->
+                            when (tag) {
+                                is NodeTag.FunctionCanReturnTypeOf -> tag.returnExpressionValue to getResolvedTypeOf(tag.returnExpressionValue)
+                                is NodeTag.FunctionCanReturnAction -> tag.returnExpression to ActionValueLangType
+                                else -> null
+                            }
+                        }
+
+                        explicitReturnType?.let {
+                            for (possibleReturn in canReturn) {
+                                iterationResolvedReferences.add(
+                                    Pair(
+                                        ResolutionKey(CONSTRAINT, possibleReturn.first),
+                                        explicitReturnType.asConstraintValue()
+                                    )
+                                )
+                            }
+                            return@returnConstraint explicitReturnType
+                        }
+
+                        if (canReturn.any { it.second.isPending() }) {
+                            return@returnConstraint ConstraintReference.Pending
+                        }
+
+                        val actionReturns = canReturn.filter { it.second is ActionValueLangType }
+                        val valueReturns = canReturn.filter { it.second !is ActionValueLangType }
+                        if (actionReturns.size > 1 && valueReturns.size > 1) {
+                            return@returnConstraint ErrorLangType.ActionIncompatibleWithValueTypes(actionReturns.map {
+                                getSourcePosition(
+                                    it.first
+                                )
+                            }, valueReturns.map {
+                                ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                    type = it.second, position = getSourcePosition(it.first)
+                                )
+                            }).asConstraintReference()
+                        }
+
+                        val returnType = OptionValueLangType(canReturn.map { (_, returnType) ->
+                            returnType.valueToConstraintReference()
+                        }).simplifyToValue()
+
+                        returnType.getError()?.let { error ->
+                            ConstraintReference.Error(error)
+                        } ?: returnType.valueToConstraintReference()
+                    }
+
+                    val params = paramNodes.map { paramNode ->
+                        val typeReference =
+                            paramNode.typeReference?.let { getResolvedTypeOf(it) } ?: ValueLangType.Pending
+                        LangParameter(paramNode.name.text, typeReference.asConstraintReference())
+                    }
+
+                    resolveWith(FunctionValueLangType(nameNode?.text, returnConstraint, params))
+                }
+
+                fun resolveCall(callee: Breadcrumbs, params: List<Breadcrumbs>) {
+                    data class Callee(
+                        val expectedParams: List<LangParameter>,
+                        val returnConstraint: ConstraintReference,
+                        val strictParams: Boolean
+                    )
+                    val (expectedParams, returnConstraint, strictParams) = when (val calleeType =
+                        getResolvedTypeOf(callee)) {
+                        is ValueLangType.Pending, is ErrorLangType -> {
+                            resolveWith(calleeType)
+                            return
+                        }
+
+                        is FunctionValueLangType -> {
+                            Callee(calleeType.params, calleeType.returnConstraint, strictParams = false)
+                        }
+
+                        is ConstraintValueLangType -> {
+                            when (val valueType = calleeType.valueType) {
+                                is InstanceValueLangType -> {
+                                    val canonicalType = valueType.canonicalType
+                                    val fields = when (canonicalType) {
+                                        is CanonicalLangType.SignalCanonicalLangType -> canonicalType.fields
+                                        is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.fields
+                                    }
+
+                                    val resultType = if (canonicalType.isUnique()) {
+                                        calleeType.toConstraint().asConstraintReference()
+                                    } else {
+                                        calleeType.asConstraintReference()
+                                    }
+
+                                    Callee(
+                                        fields.map { it.asLangParameter() }, resultType, strictParams = true
+                                    )
+                                }
+
+                                is StopgapDictionaryLangType -> {
+                                    Callee(
+                                        expectedParams = emptyList(),
+                                        returnConstraint = valueType.valueToConstraintReference(),
+                                        strictParams = true
+                                    )
+                                }
+
+                                is StopgapListLangType -> {
+                                    Callee(
+                                        expectedParams = emptyList(),
+                                        returnConstraint = valueType.valueToConstraintReference(),
+                                        strictParams = true
+                                    )
+                                }
+
+                                else -> {
+                                    resolveWith(ErrorLangType.NotCallable)
+                                    return
+                                }
+                            }
+                        }
+
+                        is ResolvedValueLangType -> {
+                            resolveWith(ErrorLangType.NotCallable)
+                            return
+                        }
+                    }
+
+                    params.forEachIndexed { i, paramBreadcrumbs ->
+                        expectedParams.getOrNull(i)?.let { expected ->
+                            if (expected.valueConstraint.isPending()) {
+                                // Make sure parameters have resolved their constraints
+                                // before checking for other errors
+                                return
+                            }
+
+                            iterationResolvedReferences.add(
+                                ResolutionKey(
+                                    CONSTRAINT, paramBreadcrumbs
+                                ) to expected.valueConstraint.asConstraintValue()
+                            )
+                        }
+                    }
+
+                    if (params.size > expectedParams.size) {
+                        resolveWith(ErrorLangType.ExcessParameters(expectedParams.size))
+                        return
+                    }
+
+                    val paramTypes = arrayOfNulls<ValueLangType>(expectedParams.size)
+                    params.forEachIndexed { i, paramBreadcrumbs ->
+                        val paramType = getResolvedTypeOf(paramBreadcrumbs)
+                        if (strictParams && paramType is ErrorLangType) {
+                            resolveWith(paramType)
+                            return
+                        }
+                        paramTypes[i] = paramType
+                    }
+
+                    val foundParams = mutableListOf<ValueLangType>()
+                    val missingParams = mutableListOf<LangParameter>()
+                    for ((i, param) in paramTypes.withIndex()) {
+                        if (param != null) {
+                            foundParams.add(param)
+                        } else {
+                            missingParams.add(expectedParams[i])
+                        }
+                    }
+
+                    if (missingParams.isNotEmpty()) {
+                        resolveWith(ErrorLangType.MissingParameters(missingParams.map { it.name }))
+                    } else if (foundParams.all { !it.isPending() }) {
+                        resolveWith(
+                            when (returnConstraint) {
+                                is ConstraintReference.Pending -> ValueLangType.Pending
+                                is ConstraintReference.Error -> ErrorLangType.ProxyError.from(
+                                    returnConstraint.errorType, getSourcePosition(callee)
+                                )
+
+                                is ConstraintReference.ResolvedConstraint -> returnConstraint.valueType
+                            }
+                        )
+                    }
+                }
+
                 when (pendingKey.type) {
                     INFERRED -> when (node) {
                         is TypeReferenceNode.IdentifierTypeReferenceNode -> {
@@ -222,10 +462,29 @@ object Resolver {
                             resolveWith(getResolvedTypeOf(comesFromTag.source).expectConstraint())
                         }
 
-                        is ExpressionNode.StringLiteralExpression -> resolveWith(LangPrimitiveKind.STRING.toValueLangType())
-                        is ExpressionNode.IntegerLiteralExpression -> resolveWith(LangPrimitiveKind.INTEGER.toValueLangType())
+                        is TypeReferenceNode.FunctionTypeReferenceNode -> {
+                            val returnConstraint =
+                                getResolvedTypeOf(node.returnType).expectConstraint().asConstraintReference()
+                            val params: List<LangParameter> = node.params.map { param ->
+                                val paramTypeConstraint = param.typeReference?.let {
+                                    getResolvedTypeOf(it).expectConstraint().asConstraintReference()
+                                }
+                                LangParameter(param.name.text, paramTypeConstraint ?: ConstraintReference.Pending)
+                            }
+
+                            resolveWith(FunctionValueLangType(name = null, returnConstraint, params).toConstraint())
+                        }
+
+                        is ExpressionNode.StringLiteralExpression -> resolveWith(LangPrimitiveKind.TEXT.toValueLangType())
+                        is ExpressionNode.NumberLiteralExpression -> resolveWith(LangPrimitiveKind.NUMBER.toValueLangType())
+
+                        is ExpressionNode.GroupExpressionNode -> resolveWith(getResolvedTypeOf(node.expression))
 
                         is ExpressionNode.BlockExpressionNode -> resolveWith(getResolvedTypeOf(node.block))
+
+                        is ExpressionNode.FunctionExpressionNode -> {
+                            resolveFunction(null, node.params, node.returnType)
+                        }
 
                         is ExpressionNode.IdentifierExpression -> {
                             val comesFromTag = pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
@@ -244,93 +503,29 @@ object Resolver {
                                 }
                             }
 
-                            resolveWith(getResolvedTypeOf(comesFromTag.source))
+                            val resolvedType = getResolvedTypeOf(comesFromTag.source)
+
+                            // special case: using `Action` as a keyword creates an Action value,
+                            // not a reference to the type
+                            if (resolvedType is ConstraintValueLangType && resolvedType.valueType == ActionValueLangType) {
+                                resolveWith(ActionValueLangType)
+                                return@eachPendingNode
+                            }
+
+                            resolveWith(resolvedType)
                         }
 
                         is ExpressionNode.CallExpression -> {
-                            data class Callee(
-                                val expectedParams: List<LangParameter>,
-                                val returnConstraint: ConstraintReference,
-                                val strictParams: Boolean
-                            )
-                            val (expectedParams, returnConstraint, strictParams) = when (val calleeType =
-                                getResolvedTypeOf(node.callee)) {
-                                is ValueLangType.Pending, is ErrorLangType -> {
-                                    resolveWith(calleeType)
-                                    return@eachPendingNode
-                                }
-
-                                is FunctionValueLangType -> {
-                                    Callee(calleeType.params, calleeType.returnConstraint, strictParams = false)
-                                }
-
-                                is ConstraintValueLangType -> {
-                                    val canonicalType = calleeType.tryGetCanonicalType()
-                                    if (canonicalType != null) {
-
-                                        val fields = when (canonicalType) {
-                                            is CanonicalLangType.SignalCanonicalLangType -> canonicalType.fields
-                                            is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.fields
-                                        }
-
-                                        val resultType = if (canonicalType.isUnique()) {
-                                            calleeType.toConstraint().asConstraintReference()
-                                        } else {
-                                            calleeType.asConstraintReference()
-                                        }
-
-                                        Callee(
-                                            fields.map { it.asLangParameter() }, resultType, strictParams = true
-                                        )
-                                    } else {
-                                        resolveWith(ErrorLangType.NotCallable)
-                                        return@eachPendingNode
-                                    }
-                                }
-
-                                is ResolvedValueLangType -> {
-                                    resolveWith(ErrorLangType.NotCallable)
-                                    return@eachPendingNode
-                                }
-                            }
-
-                            val params = arrayOfNulls<ValueLangType>(expectedParams.size)
-                            node.parameters.forEachIndexed { i, paramNode ->
-                                val paramType = getResolvedTypeOf(paramNode)
-                                if (strictParams && paramType is ErrorLangType) {
-                                    resolveWith(paramType)
-                                    return@eachPendingNode
-                                }
-                                params[i] = paramType
-                            }
-
-                            val foundParams = mutableListOf<ValueLangType>()
-                            val missingParams = mutableListOf<LangParameter>()
-                            for ((i, param) in params.withIndex()) {
-                                if (param != null) {
-                                    foundParams.add(param)
-                                } else {
-                                    missingParams.add(expectedParams[i])
-                                }
-                            }
-
-                            if (missingParams.isNotEmpty()) {
-                                resolveWith(ErrorLangType.MissingParameters(missingParams.map { it.name }))
-                            } else if (foundParams.all { !it.isPending() }) {
-                                resolveWith(
-                                    when (returnConstraint) {
-                                        is ConstraintReference.Pending -> ValueLangType.Pending
-                                        is ConstraintReference.Error -> ErrorLangType.ProxyError.from(
-                                            returnConstraint.errorType, getSourcePosition(node.callee)
-                                        )
-
-                                        is ConstraintReference.ResolvedConstraint -> returnConstraint.valueType
-                                    }
-                                )
-                            }
+                            resolveCall(node.callee.info.breadcrumbs, node.parameters.map { it.info.breadcrumbs })
                         }
 
-                        is ExpressionNode.CallExpression.ParameterNode -> {
+                        is ExpressionNode.PipeCallExpression -> {
+                            // TODO: it could be a warning to use this syntax where the first parameter isn't named "this" or "it"
+                            resolveCall(node.callee.info.breadcrumbs,
+                                listOf(node.subject.info.breadcrumbs) + node.parameters.map { it.info.breadcrumbs })
+                        }
+
+                        is FunctionCallParameterNode -> {
                             resolveWith(getResolvedTypeOf(node.value))
                         }
 
@@ -358,13 +553,13 @@ object Resolver {
 
                             when (signalType) {
                                 is CanonicalLangType.SignalCanonicalLangType -> {
-                                    when (signalType.result) {
+                                    when (val result = signalType.result) {
                                         is ConstraintReference.Pending -> {}
                                         is ConstraintReference.Error -> resolveWithProxyError(
-                                            signalType.result.errorType, node.signal
+                                            result.errorType, node.signal
                                         )
 
-                                        is ConstraintReference.ResolvedConstraint -> resolveWith(signalType.result.valueType)
+                                        is ConstraintReference.ResolvedConstraint -> resolveWith(result.valueType)
                                     }
                                 }
 
@@ -375,44 +570,186 @@ object Resolver {
                         is ExpressionNode.BranchExpressionNode -> {
                             if (node.branches.isEmpty()) {
                                 resolveWith(ActionValueLangType)
-                            }
-
-                            val elseBranches = node.branches.mapNotNull { it as? BranchOptionNode.ElseBranchOptionNode }
-                            if (elseBranches.size > 1) {
-                                resolveWith(ErrorLangType.TooManyElseBranches)
-                                return@eachPendingNode
-                            }
-                            if (elseBranches.isEmpty()) {
-                                resolveWith(ErrorLangType.MissingElseBranch)
                                 return@eachPendingNode
                             }
 
-                            val branchValueTypes = node.branches.map {
-                                Pair(it, getResolvedTypeOf(it.body))
+                            var withValue = OptionValueLangType.from(node.withValue?.let { getResolvedTypeOf(it) }
+                                ?: AnythingValueLangType)
+                            if (withValue.isPending()) {
+                                return@eachPendingNode
                             }
 
-                            if (branchValueTypes.all { !it.second.isPending() }) {
-                                val nonErrorValueTypes = branchValueTypes.filter { it.second.getError() == null }
-                                if (nonErrorValueTypes.isEmpty()) {
-                                    resolveWith(branchValueTypes[0].second)
+                            data class PossibleReturnValue(val value: ValueLangType, val source: SourcePosition.Source?)
+
+                            val possibleReturnValues = mutableListOf<PossibleReturnValue>()
+
+                            val branchesBeforeElse =
+                                node.branches.takeWhile { it !is BranchOptionNode.ElseBranchOptionNode }
+                            for (branch in branchesBeforeElse) {
+                                var resolvedType = getResolvedTypeOf(branch.body)
+                                when (branch) {
+                                    is BranchOptionNode.IfBranchOptionNode -> {
+                                        if (withValue.isEmpty()) {
+                                            resolvedType = ErrorLangType.UnreachableBranch(withValue)
+                                        }
+                                    }
+
+                                    is BranchOptionNode.IsBranchOptionNode -> {
+                                        val patternType = getResolvedTypeOf(branch.pattern)
+                                        if (patternType is ResolvedValueLangType) {
+                                            if (withValue.isSupersetOf(patternType)) {
+                                                withValue = withValue.narrow(patternType)
+                                            } else {
+                                                resolvedType = ErrorLangType.UnreachableBranch(withValue)
+                                            }
+                                        }
+                                    }
+
+                                    is BranchOptionNode.ElseBranchOptionNode -> error("else branch in branches before else")
+                                }
+
+                                val sourcePosition = getSourcePosition(branch)
+                                iterationResolvedReferences.add(
+                                    ResolutionKey(
+                                        INFERRED, sourcePosition.breadcrumbs
+                                    ) to resolvedType
+                                )
+                                possibleReturnValues.add(PossibleReturnValue(resolvedType.letIfError {
+                                    ErrorLangType.ProxyError.from(
+                                        it, sourcePosition
+                                    )
+                                }, sourcePosition))
+                            }
+
+                            val elseBranch =
+                                node.branches.firstNotNullOfOrNull { it as? BranchOptionNode.ElseBranchOptionNode }
+                            if (elseBranch != null) {
+                                withValue = OptionValueLangType(emptyList())
+                                val resolvedType = getResolvedTypeOf(elseBranch.body)
+                                iterationResolvedReferences.add(
+                                    ResolutionKey(
+                                        INFERRED, elseBranch.info.breadcrumbs
+                                    ) to resolvedType
+                                )
+                                possibleReturnValues.add(PossibleReturnValue(resolvedType.letIfError {
+                                    ErrorLangType.ProxyError.from(
+                                        it, getSourcePosition(elseBranch)
+                                    )
+                                }, source = null))
+                            }
+
+                            val branchesAfterElse = node.branches.drop(branchesBeforeElse.size + 1)
+                            for (branch in branchesAfterElse) {
+                                val unreachableError = ErrorLangType.UnreachableBranch(null)
+                                val sourcePosition = getSourcePosition(branch)
+                                iterationResolvedReferences.add(
+                                    ResolutionKey(
+                                        INFERRED, sourcePosition.breadcrumbs
+                                    ) to unreachableError
+                                )
+                                possibleReturnValues.add(
+                                    PossibleReturnValue(
+                                        ErrorLangType.ProxyError.from(
+                                            unreachableError, sourcePosition
+                                        ), sourcePosition
+                                    )
+                                )
+                            }
+
+                            if (withValue.options.isNotEmpty()) {
+                                possibleReturnValues.add(
+                                    PossibleReturnValue(
+                                        ErrorLangType.MissingElseBranch(withValue), source = null
+                                    )
+                                )
+                            }
+
+                            val actionReturns = possibleReturnValues.filter { it.value is ActionValueLangType }
+                            if (actionReturns.isNotEmpty()) {
+                                val nonActionReturns = possibleReturnValues.filter {
+                                    it.value is ResolvedValueLangType && it.value !is ActionValueLangType && it.value !is NeverContinuesValueLangType
+                                }
+                                if (nonActionReturns.isNotEmpty()) {
+                                    resolveWith(ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
+                                        types = nonActionReturns.map {
+                                            ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                                it.value, it.source!!
+                                            )
+                                        })
+                                    )
+                                    return@eachPendingNode
+                                }
+                            }
+
+                            resolveWith(OptionValueLangType(possibleReturnValues.map { (value, _) ->
+                                value.letIfResolved { it.toConstraint() }.asConstraintReference()
+                            }).simplifyToValue())
+                        }
+
+                        is ExpressionNode.LoopExpressionNode -> {
+                            val breaks = pendingNodeTags.mapNotNull { it as? NodeTag.LoopBreaksAt }
+
+                            if (breaks.isEmpty()) {
+                                resolveWith(NeverContinuesValueLangType)
+                            } else {
+                                val breakTypes = breaks.map {
+                                    val breakExpression =
+                                        fileNode.findNode(it.breakExpression) as ExpressionNode.BreakExpression
+                                    breakExpression to if (breakExpression.withValue != null) {
+                                        getResolvedTypeOf(breakExpression.withValue)
+                                    } else {
+                                        ActionValueLangType
+                                    }
+                                }
+
+                                if (breakTypes.any { it.second.isPending() }) {
                                     return@eachPendingNode
                                 }
 
-                                val firstNonErrorValueType = nonErrorValueTypes[0].second
-                                if (nonErrorValueTypes.all { it.second.getError() != null || it.second == firstNonErrorValueType }) {
-                                    resolveWith(firstNonErrorValueType)
-                                } else {
-                                    resolveWith(ErrorLangType.IncompatibleTypes(branchValueTypes.map {
-                                        ErrorLangType.IncompatibleTypes.IncompatibleType(
-                                            it.second, getSourcePosition(it.first)
-                                        )
-                                    }))
+                                val actionReturns = breakTypes.filter { it.second is ActionValueLangType }
+                                val valueReturns = breakTypes.filter { it.second !is ActionValueLangType }
+                                if (actionReturns.size > 1 && valueReturns.size > 1) {
+                                    resolveWith(
+                                        ErrorLangType.ActionIncompatibleWithValueTypes(actionReturns.map {
+                                            getSourcePosition(
+                                                it.first
+                                            )
+                                        }, valueReturns.map {
+                                            ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                                type = it.second, position = getSourcePosition(it.first)
+                                            )
+                                        })
+                                    )
+                                    return@eachPendingNode
                                 }
+
+                                val loopResultType = OptionValueLangType(breakTypes.map { (_, returnType) ->
+                                    returnType.valueToConstraintReference()
+                                }).simplifyToValue()
+                                resolveWith(loopResultType)
+                            }
+                        }
+
+                        is ExpressionNode.ReturnExpression -> {
+                            resolveWith(NeverContinuesValueLangType)
+                        }
+
+                        is ExpressionNode.BreakExpression -> {
+                            val breakTag = pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.BreaksLoop }
+                            if (breakTag != null) {
+                                resolveWith(NeverContinuesValueLangType)
+                            } else {
+                                resolveWith(ErrorLangType.CannotBreakHere)
                             }
                         }
 
                         is ExpressionNode.MemberExpression -> {
                             val obj = getResolvedTypeOf(node.objectExpression)
+
+                            if (obj.isPending()) {
+                                return@eachPendingNode
+                            }
+
                             when (obj) {
                                 is ValueLangType.Pending, is ErrorLangType -> resolveWith(obj)
                                 is ConstraintValueLangType -> resolveWith(ErrorLangType.ImplementationTodo("Can't get members of a type"))
@@ -450,6 +787,17 @@ object Resolver {
                             resolveWith(getResolvedTypeOf(node.expression))
                         }
 
+                        is StatementNode.DeclarationStatement -> {
+                            if (node.declaration is DeclarationNode.NamedValue) {
+                                if (getResolvedTypeOf(node.declaration.value.info.breadcrumbs) == NeverContinuesValueLangType) {
+                                    resolveWith(NeverContinuesValueLangType)
+                                    return@eachPendingNode
+                                }
+                            }
+
+                            resolveWith(ActionValueLangType)
+                        }
+
                         is StatementNode.EffectStatement -> {
                             val resultType = run result@{
                                 val conditionType = getResolvedTypeOf(node.pattern).let {
@@ -480,7 +828,7 @@ object Resolver {
                                         return@eachPendingNode
                                     }
 
-                                    is ConstraintReference.ResolvedConstraint -> result.asConstraintValueWhat()
+                                    is ConstraintReference.ResolvedConstraint -> result.asConstraintValue()
                                 }
                                 resultType
                             }
@@ -489,23 +837,6 @@ object Resolver {
                                 ResolutionKey(
                                     CONSTRAINT, node.body.info.breadcrumbs
                                 ) to resultType
-                            )
-
-                            val bodyResult = getResolvedTypeOf(node.body).let {
-                                when (it) {
-                                    is ValueLangType.Pending, is ErrorLangType -> {
-                                        resolveWith(it)
-                                        return@eachPendingNode
-                                    }
-
-                                    is ResolvedValueLangType -> it
-                                }
-                            }
-
-                            iterationResolvedReferences.add(
-                                ResolutionKey(
-                                    INFERRED, node.body.info.breadcrumbs
-                                ) to bodyResult
                             )
 
                             resolveWith(ActionValueLangType)
@@ -555,54 +886,55 @@ object Resolver {
                         }
 
                         is BodyNode.BlockBodyNode -> {
-                            val lastStatement = node.statements.lastOrNull()
-                            if (lastStatement is StatementNode.ExpressionStatement) {
-                                resolveWith(getResolvedTypeOf(lastStatement))
-                            } else {
-                                resolveWith(ActionValueLangType)
+                            var lastType: ValueLangType = ActionValueLangType
+                            for (statement in node.statements) {
+                                if (lastType == NeverContinuesValueLangType) {
+//                                    TODO: unreachable code warnings?
+                                    resolveWith(lastType)
+                                    return@eachPendingNode
+                                }
+                                lastType = getResolvedTypeOf(statement)
+                                if (lastType == ValueLangType.Pending) {
+                                    return@eachPendingNode
+                                }
                             }
+
+                            resolveWith(lastType)
                         }
 
-                        is BodyNode.SingleExpressionBodyNode -> resolveWith(getResolvedTypeOf(node.expression))
+                        is BodyNode.SingleStatementBodyNode -> resolveWith(getResolvedTypeOf(node.statement))
 
                         is DeclarationNode.NamedValue -> resolveWith(getResolvedTypeOf(node.value))
 
                         is DeclarationNode.ObjectType -> {
-                            // TODO: increment number to resolve dupes
-                            val id = CanonicalLangTypeId(path, null, node.name.text, 0u)
-                            val fields = node.fields?.map { field ->
+                            val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
+                            val id = CanonicalLangTypeId(
+                                path, canonicalIdTag.parentName, node.name.text, canonicalIdTag.index
+                            )
+                            val objectType = registerObjectType(id, node.name.text)
+
+                            objectType.fields = node.fields?.map { field ->
                                 val fieldType = getResolvedTypeOf(field.typeConstraint).asConstraintReference()
                                 CanonicalLangType.ObjectField(field.name.text, fieldType)
                             } ?: emptyList()
-                            val objectType = CanonicalLangType.ObjectCanonicalLangType(id, node.name.text, fields)
 
-                            val existingKnownType = knownCanonicalTypes[id]
-                            if (existingKnownType != null && !existingKnownType.isPending()) {
-                                error("Accidentally clobbered canonical type: $existingKnownType with $objectType.")
-                            }
-
-                            knownCanonicalTypes[id] = objectType
                             resolveWith(ConstraintValueLangType(InstanceValueLangType(objectType)))
                         }
 
                         is DeclarationNode.SignalType -> {
-                            val id = CanonicalLangTypeId(path, null, node.name.text, 0u)
-                            // TODO: increment number to resolve dupes
-                            val fields = node.fields?.map { field ->
+                            val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
+                            val id = CanonicalLangTypeId(
+                                path, canonicalIdTag.parentName, node.name.text, canonicalIdTag.index
+                            )
+                            val signalType = registerSignalType(id, node.name.text)
+
+                            signalType.fields = node.fields?.map { field ->
                                 val fieldType = getResolvedTypeOf(field.typeConstraint).asConstraintReference()
                                 CanonicalLangType.ObjectField(field.name.text, fieldType)
                             } ?: emptyList()
-                            val result = getResolvedTypeOf(node.result).asConstraintReference()
+                            signalType.result = node.result?.let { getResolvedTypeOf(it).asConstraintReference() }
+                                ?: ActionValueLangType.valueToConstraintReference()
 
-                            val signalType =
-                                CanonicalLangType.SignalCanonicalLangType(id, node.name.text, fields, result)
-
-                            val existingKnownType = knownCanonicalTypes[id]
-                            if (existingKnownType != null && !existingKnownType.isPending()) {
-                                error("Accidentally clobbered canonical type: $existingKnownType with $signalType.")
-                            }
-
-                            knownCanonicalTypes[id] = signalType
                             resolveWith(ConstraintValueLangType(InstanceValueLangType(signalType)))
                         }
 
@@ -614,41 +946,34 @@ object Resolver {
                         }
 
                         is DeclarationNode.Function -> {
-                            val canReturn = pendingNodeTags.mapNotNull {
-                                it as? NodeTag.FunctionCanReturnTypeOf
-                            }
-                            val returnType = when (canReturn.size) {
-                                0 -> throw AssertionError("Every function should be able to return something")
-                                1 -> getResolvedTypeOf(canReturn[0].returnExpression)
-                                else -> ErrorLangType.ImplementationTodo("Can't infer a function that can return from multiple locations")
-                            }
-                            val returnConstraint = when (returnType) {
-                                is ValueLangType.Pending -> ConstraintReference.Pending
-                                is ErrorLangType -> ConstraintReference.Error(returnType)
-                                is ResolvedValueLangType -> ConstraintReference.ResolvedConstraint(returnType)
-                            }
-                            val params = node.params.map { paramNode ->
-                                val typeReference =
-                                    paramNode.typeReference?.let { getResolvedTypeOf(it) } ?: ValueLangType.Pending
-                                LangParameter(paramNode.name.text, typeReference.asConstraintReference())
-                            }
-
-                            resolveWith(FunctionValueLangType(node.name.text, returnConstraint, params))
+                            resolveFunction(node.name, node.params, node.returnType)
                         }
 
                         is DeclarationNode.Import.MappingNode -> {
-                            val referenceFileTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.ReferencesFile }
-                            val exportName = node.sourceName.text
-                            val file = allOtherFiles[referenceFileTag.path] ?: run {
-                                resolveWith(ErrorLangType.FileNotFound)
-                                return@eachPendingNode
-                            }
-                            val export = file.exports[exportName] ?: run {
-                                resolveWith(ErrorLangType.ExportNotFound)
-                                return@eachPendingNode
+                            val referenceFileTag =
+                                pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.ReferencesFile }
+                            if (referenceFileTag != null) {
+                                val exportName = node.sourceName.text
+                                val file = allOtherFiles[referenceFileTag.path] ?: run {
+                                    resolveWith(ErrorLangType.FileNotFound)
+                                    return@eachPendingNode
+                                }
+                                val export = file.exports[exportName] ?: run {
+                                    resolveWith(ErrorLangType.ExportNotFound)
+                                    return@eachPendingNode
+                                }
+
+                                resolveWith(export)
                             }
 
-                            resolveWith(export)
+                            val comesFromTag = pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
+                            val badFileTag =
+                                comesFromTag?.source.let { source -> nodeTags[source]?.firstNotNullOfOrNull { it as? NodeTag.BadFileReference } }
+
+                            if (badFileTag != null) {
+                                resolveWith(ErrorLangType.ImportPathInvalid)
+                                return@eachPendingNode
+                            }
                         }
 
                         else -> {}
@@ -662,48 +987,8 @@ object Resolver {
                             resolveWith(annotationType.expectConstraint())
                         }
 
-                        is DeclarationNode.Function.FunctionParameterNode -> {
+                        is FunctionSignatureParameterNode -> {
                             node.typeReference?.let { resolveWith(getResolvedTypeOf(it).expectConstraint()) }
-                        }
-
-                        is ExpressionNode.CallExpression.ParameterNode -> {
-                            val paramTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.ParameterForCall }
-                            val (callBreadcrumbs, index) = paramTag
-                            val call = fileNode.findNode(callBreadcrumbs) as ExpressionNode.CallExpression
-                            when (val callType = getResolvedTypeOf(call.callee)) {
-                                is ValueLangType.Pending, is ErrorLangType -> resolveWith(callType)
-                                is ResolvedValueLangType -> {
-                                    val params = when (callType) {
-                                        is FunctionValueLangType -> callType.params
-                                        is ConstraintValueLangType -> if (callType.valueType is InstanceValueLangType) {
-                                            when (val canonicalType = callType.valueType.canonicalType) {
-                                                is CanonicalLangType.SignalCanonicalLangType -> canonicalType.fields
-                                                is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.fields
-                                            }.map { it.asLangParameter() }
-                                        } else {
-                                            throw AssertionError("Call expression not callable (should have been caught by call resolution)")
-                                        }
-
-                                        else -> throw AssertionError("Call expression not callable (should have been caught by call resolution)")
-                                    }
-
-                                    if (index >= params.size) {
-                                        resolveWith(ErrorLangType.ExcessParameter(expected = params.size))
-                                    } else {
-                                        val param = params[index]
-                                        resolveWith(
-                                            when (param.valueConstraint) {
-                                                is ConstraintReference.Pending -> ValueLangType.Pending
-                                                is ConstraintReference.Error -> ErrorLangType.ProxyError.from(
-                                                    param.valueConstraint.errorType, getSourcePosition(call)
-                                                )
-
-                                                is ConstraintReference.ResolvedConstraint -> param.valueConstraint.asConstraintValueWhat()
-                                            }
-                                        )
-                                    }
-                                }
-                            }
                         }
 
                         is PatternNode -> {

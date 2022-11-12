@@ -14,9 +14,12 @@ import kotlin.math.max
 object Debug {
     val serializersModule = SerializersModule {
         fun PolymorphicModuleBuilder<ResolvedValueLangType>.registerResolvedValueLangTypeSubclasses() {
+            subclass(ActionValueLangType::class)
             subclass(FunctionValueLangType::class)
             subclass(PrimitiveValueLangType::class)
             subclass(InstanceValueLangType::class)
+            subclass(StopgapDictionaryLangType::class)
+            subclass(StopgapListLangType::class)
             subclass(OptionValueLangType::class)
             subclass(AnythingValueLangType::class)
             subclass(AnySignalValueLangType::class)
@@ -30,20 +33,25 @@ object Debug {
             subclass(ErrorLangType.NotInScope::class)
             subclass(ErrorLangType.FileNotFound::class)
             subclass(ErrorLangType.ExportNotFound::class)
+            subclass(ErrorLangType.ImportPathInvalid::class)
             subclass(ErrorLangType.ProxyError::class)
             subclass(ErrorLangType.NotCallable::class)
             subclass(ErrorLangType.NotCausable::class)
             subclass(ErrorLangType.ImplementationTodo::class)
             subclass(ErrorLangType.MismatchedType::class)
             subclass(ErrorLangType.MissingParameters::class)
-            subclass(ErrorLangType.ExcessParameter::class)
+            subclass(ErrorLangType.ExcessParameters::class)
             subclass(ErrorLangType.UnknownParameter::class)
+            subclass(ErrorLangType.MissingElseBranch::class)
+            subclass(ErrorLangType.UnreachableBranch::class)
+            subclass(ErrorLangType.ActionIncompatibleWithValueTypes::class)
             subclass(ErrorLangType.ConstraintUsedAsValue::class)
             subclass(ErrorLangType.ValueUsedAsConstraint::class)
             subclass(ErrorLangType.DoesNotHaveAnyMembers::class)
             subclass(ErrorLangType.DoesNotHaveMember::class)
             subclass(ErrorLangType.NotVariable::class)
             subclass(ErrorLangType.OuterVariable::class)
+            subclass(ErrorLangType.CannotBreakHere::class)
         }
 
         // TODO: in 17.20 you'll be able to just pop @Serializable on a sealed interface
@@ -80,14 +88,110 @@ object Debug {
         return Debug.debugSerializer.encodeToString(this.toJson())
     }
 
+    fun ValueLangType.debug(): kotlin.String {
+        return Debug.debugSerializer.encodeToString(this)
+    }
+
+    fun ValueLangType.debugMini(): String {
+        return when (this) {
+            ActionValueLangType -> "Action"
+            AnySignalValueLangType -> "AnySignal"
+            AnythingValueLangType -> "Anything"
+            BadValueLangType -> "BadValue"
+            is ConstraintValueLangType -> "TypeConstraint"
+            is FunctionValueLangType -> "Function"
+            is InstanceValueLangType -> this.canonicalType.id.name ?: "object"
+            NeverContinuesValueLangType -> "NeverContinues"
+            is OptionValueLangType -> "Option"
+            is PrimitiveValueLangType -> when (this.kind) {
+                LangPrimitiveKind.TEXT -> "Text"
+                LangPrimitiveKind.NUMBER -> "Number"
+            }
+
+            StopgapDictionaryLangType -> "StopgapDictionary"
+            StopgapListLangType -> "StopgapList"
+            is ErrorLangType -> "Error"
+            ValueLangType.Pending -> "Unknown"
+        }
+    }
+
+    fun RuntimeValue.debugMini(): kotlin.String {
+        return when (this) {
+            is RuntimeValue.Action -> "[Action]"
+            is RuntimeValue.BadValue -> "[BadValue: ${this.error::class.simpleName}]"
+            is RuntimeValue.Function -> if (this.name != null) {
+                "[Function: ${this.name}]"
+            } else {
+                "[Function]"
+            }
+
+            is RuntimeValue.NativeFunction -> "[NativeFunction: ${this.name}]"
+            is RuntimeValue.Number -> this.value.toString()
+            is RuntimeValue.RuntimeObject -> "[${this.typeDescriptor.id.name ?: "object"}]"
+
+            is RuntimeValue.RuntimeTypeConstraint -> {
+                "[TypeConstraint: ${this.valueType.debugMini()}]"
+            }
+
+            is RuntimeValue.Text -> debugSerializer.encodeToString(this.toJson())
+
+            is RuntimeValue.StopgapDictionary -> "[StopgapDictionary (${this.map.size})]"
+            is RuntimeValue.StopgapList -> "[StopgapDictionary (${this.values.size})]"
+        }
+    }
+
+    fun printCompileErrors(vm: LangVm) {
+        val (files, compileErrors) = vm.codeBundle
+        if (compileErrors.isNotEmpty()) {
+            println("Compile errors:\n")
+            for (error in compileErrors) {
+                println(error.debug())
+                val file = files[error.position.path]!!
+                if (file.debugCtx != null) {
+                    println(file.debugCtx.getNodeContext(error.position.breadcrumbs))
+                } else {
+                    println("Can't show error for ${file.path}")
+                }
+                println("------------------------------");
+            }
+        }
+    }
+
     data class DebugContext(
         val source: String? = null,
         val ast: FileNode? = null,
         val analyzed: AnalyzedNode? = null,
         val resolved: ResolvedFile? = null
     ) {
-        fun getNodeContext(breadcrumbs: Breadcrumbs): String {
+        fun getSourceContext(breadcrumbs: Breadcrumbs): String? {
             val contextLines = 2
+            val builder = StringBuilder()
+
+            val node = ast?.findNode(breadcrumbs)
+            val position = node?.info?.position
+
+            if (position == null || source == null) {
+                return null
+            }
+
+            val startLine = position.start.line
+            val contextStartLine = max(startLine - contextLines, 0)
+            for (line in source.lineSequence().drop(contextStartLine).take(startLine - contextStartLine)) {
+                builder.appendLine(line)
+            }
+            val col = position.start.column
+            val prefixLength = max(col - 1, 0)
+            val prefix = (0 until prefixLength).asSequence().map { '-' }.joinToString("")
+            builder.appendLine("$prefix^")
+            for (line in source.lineSequence().drop(position.end.line).take(contextLines)) {
+                builder.appendLine(line)
+            }
+
+            return builder.toString()
+        }
+
+        fun getNodeContext(breadcrumbs: Breadcrumbs): String {
+
 
             val builder = StringBuilder()
 
@@ -95,38 +199,23 @@ object Debug {
             val position = node?.info?.position
 
             if (node != null && position != null) {
-                builder.appendLine("${node::class.simpleName} at $position")
+                builder.appendLine("${node::class.simpleName} at $position${resolved?.let { " in ${resolved.path}" } ?: ""}")
             }
 
             if (position != null && source != null) {
                 builder.appendLine("```")
-                val startLine = position.start.line
-                val contextStartLine = max(startLine - contextLines, 0)
-                for (line in source.lineSequence().drop(contextStartLine).take(startLine - contextStartLine)) {
-                    builder.appendLine(line)
-                }
-                val col = position.start.column
-                val prefixLength = max(col - 1, 0)
-                val prefix = (0 until prefixLength).asSequence().map { '-' }.joinToString("")
-                builder.appendLine("$prefix^")
-                for (line in source.lineSequence().drop(position.end.line).take(contextLines)) {
-                    builder.appendLine(line)
-                }
+                builder.append(getSourceContext(breadcrumbs))
                 builder.appendLine("```")
             }
 
             if (resolved != null) {
-                builder.appendLine(
-                    "Inferred type: ${
-                        resolved.resolvedTypes[ResolutionKey(
-                            ResolutionType.INFERRED,
-                            breadcrumbs
-                        )]?.let { debugSerializer.encodeToString(it) }
-                    }"
-                )
+                builder.appendLine("Inferred type: ${
+                    resolved.resolvedTypes[ResolutionKey(
+                        ResolutionType.INFERRED, breadcrumbs
+                    )]?.let { debugSerializer.encodeToString(it) }
+                }")
                 val constraint = resolved.resolvedTypes[ResolutionKey(
-                    ResolutionType.CONSTRAINT,
-                    breadcrumbs
+                    ResolutionType.CONSTRAINT, breadcrumbs
                 )]
                 if (constraint != null) {
                     builder.appendLine(

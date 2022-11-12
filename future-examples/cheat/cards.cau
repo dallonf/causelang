@@ -1,11 +1,9 @@
-import core/math (greater_than, less_than)
-
 object Card(
 	suit: Suit,
 	rank: Rank,
 )
 
-option Suit(
+let Suit = oneof(
 	object Hearts,
 	object Clubs,
 	object Diamonds,
@@ -21,27 +19,26 @@ option Suit(
 
 // A protected type means that it can't be instantiated
 // or mutated outside of this file - but it can be used
-protected object Rank(value: Count) {
+protected object Rank(value: Integer) {
 	let ace = Rank(1)
 	let jack = Rank(11)
 	let queen = Rank(12)
 	let king = Rank(13)
 
-	function to_count(this) {
-		this.value
-	}
+	function to_integer(this) => this.value
 
-	function new(value: Count) {
+	function new(value: Integer) {
 		// Note no operators; everything is a function.
 		// Functions that benefit from infix ordering can be piped
+		// or defined as methods
 		if either(
-			i->greater_than(king.value),
-			i->less_than(ace.value),
+			i.greater_than(king.value),
+			i.less_than(ace.value),
 		) {
 			// `return cause`, combined with `effect Panic(String): Never`,
 			// works like `throw` in other languages
 			// string interpolation works with ${}
-			// Counts can be automatically converted to Strings
+			// Integers can be automatically converted to Strings
 			return cause Panic("${i} is outside the range of card ranks")
 		}
 

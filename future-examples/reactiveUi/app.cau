@@ -1,4 +1,3 @@
-import core/math ( add, multiply )
 import lib/reactive_ui ( Component, e )
 import lib/reactive_core ( Value, Computed )
 
@@ -7,12 +6,12 @@ let CounterApp = Component(
         let counter = Value.new(0)
         object(
             counter,
-            counter2 = Computed.new(fn multiply(counter.get(), 2))
+            counter2 = Computed.new(fn Integer.multiply(counter.get(), 2))
         )
     },
     render = fn(props, state) {
         let increment = fn {
-            state.counter.set(fn(prev) prev->add(1))
+            state.counter.set() {|prev| prev.add(1)}
         }
         e("div", Object(), List(
             e("h1", Object(), format("Counter: {0}", state.counter.get())),

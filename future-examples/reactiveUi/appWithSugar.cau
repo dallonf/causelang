@@ -1,4 +1,3 @@
-import core/math ( add, multiply )
 import lib/reactiveUi ( Component, e )
 import lib/reactiveCore ( ObservableObject, Computed, reactiveScope )
 
@@ -13,7 +12,7 @@ let CounterApp = Component(
     // and the object contains a field for each `export`ed name in the block
     function setup(props) => ObservableObject.new(factory {
         export let counter = 0
-        export let counter2 = Computed.new(fn multiply(counter, 2))
+        export let counter2 = Computed.new(fn Integer.multiply(counter, 2))
     }),
 
     function render(props, state) {
@@ -29,5 +28,12 @@ let CounterApp = Component(
             ["h2", [], "Counter x 2: ${state.counter2}"],
             ["button", [onClick = increment], "Increment"]
         ]]
+
+        // alternatively, a Kotlin-like DSL
+        e.div() {
+            element.h1() { "Counter: ${state.counter}" }
+            element.h2() { "Counter x 2: ${state.counter2}" }
+            element.button(onClick = increment) { "Increment" }
+        }
     },
 )

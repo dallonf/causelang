@@ -3,19 +3,19 @@
 // they're capable of implementing features like generators
 // That's how I'll know the model is robust enough to do everything I need
 
-signal YieldIncrement(amount_so_far: Count): Option<Count>
-signal Forbidden(): String
+signal YieldIncrement(amount_so_far: Integer, returns Option<Integer>)
+signal Forbidden(returns String)
 
 // This is a "generator" function
-// The return/causes type descriptor would normally be inferred, but
+// The returns/causes type descriptors would normally be inferred, but
 // it can be explicit to aid reading
-fn incrementor(): Count causes YieldIncrement, Forbidden {
+fn incrementor(returns Integer, causes YieldIncrement, causes Forbidden) {
 	let variables i = 0
 	loop {
 		let amount_to_add = cause YieldIncrement(i)
-		check (amount_to_add: Not<Nothing>) {
-			if amount_to_add->equals(13) {
-				if not((cause Forbidden())->equals("I'm sorry")) {
+		check amount_to_add is Not<Nothing> {
+			if amount_to_add>>equals(13) {
+				if not((cause Forbidden())>>equals("I'm sorry")) {
 					// AssumptionBroken is an optional signal; it doesn't need an explicit effect
 					cause AssumptionBroken("Failure to apologize")
 				}
@@ -28,17 +28,17 @@ fn incrementor(): Count causes YieldIncrement, Forbidden {
 
 // Tasks have to be handled by the VM
 
-fn call_generator() causes StartTask, TaskContinue {
+fn call_generator(causes StartTask, causes TaskContinue) {
 	let my_task = cause StartTask(incrementor)
 
 	loop {
 		branch with my_task.next() {
-			matches task_signal: TaskSignal<YieldIncrement> {
+			is TaskSignal<YieldIncrement> as task_signal {
 				cause Print("Counted to ${t.effect} so far")
 				task_signal.resolve_with(1)
 			}
-			matches let task_signal: TaskSignal<Forbidden> => task_signal.resolve_with("I'm sorry")
-			matches let result: TaskReturn<Count> => {
+			is TaskSignal<Forbidden> as task_signal => task_signal.resolve_with("I'm sorry")
+			is TaskReturn<Integer> as result => {
 				cause Print("Final value: ${t.value}")
 				return
 			}
