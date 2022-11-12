@@ -469,7 +469,7 @@ object Analyzer {
             }
         }
 
-        analyzeTypeReference(declaration.result, output, ctx)
+        declaration.result?.let { analyzeTypeReference(it, output, ctx) }
     }
 
     private fun tagCanonicalTypeId(
