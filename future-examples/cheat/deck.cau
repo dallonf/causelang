@@ -1,10 +1,10 @@
 import core/collection ( map_sublists, map )
 import ./cards and (Card)
 
-function standard(): List<Card> {
-	cards.Suit.all->map_sublists(fn(suit) {
-		cards.Rank.all->map(fn(rank) {
+function standard(returns List<Card>) {
+	cards.Suit.all>>map_sublists() {|suit|
+		cards.Rank.all>>map() {|rank|
 			Card(rank=rank, suit=suit)
-		})
-	})
+		}
+	}
 }

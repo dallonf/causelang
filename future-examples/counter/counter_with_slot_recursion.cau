@@ -1,7 +1,7 @@
 import cli/console (Print, Prompt)
 
 function main() {
-	let result = loop(0, fn(counter) {
+	let result = loop(0) {|counter|
 		cause Print("current value: ${counter.to_string()}")
 		cause Print("Type up/down/quit:")
 		let input = (cause Prompt()).toLowerCase()
@@ -15,18 +15,18 @@ function main() {
 				counter
 			}
 		}
-	})
+	}
 
 	cause Print("Counter quit with value: ${result.to_string()}")
 }
 
-signal BreakLoop<T>(value: T): NeverContinues
+signal BreakLoop<T>(value: T, returns NeverContinues)
 
-fn loop<T>(start_value: T, loop_fn: Function(value: T, returns T), returns T)  {
+fn loop<T>(start_value: T, returns T) with slot |current_value: T, returns Action|  {
 	effect for BreakLoop<T>(let value) {
 		return value
 	}
 
-	function inner_loop(value: T) => inner_loop(loop_fn(value))
-	inner_loop(start_value)
+	function inner_loop(value: T) with slot |current_value: T, returns Action| => inner_loop(slot|value|)
+	inner_loop(start_value) {|value| slot|value|}
 }
