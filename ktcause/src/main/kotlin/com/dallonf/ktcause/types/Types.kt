@@ -579,6 +579,15 @@ data class OptionValueLangType(val options: List<ConstraintReference>) : Resolve
                 OptionValueLangType(listOf(type.valueToConstraintReference()))
             }
         }
+
+        private fun isMergeable(lessSpecific: ConstraintReference, moreSpecific: ConstraintReference): Boolean {
+            if (lessSpecific == moreSpecific) return true
+
+            val type = moreSpecific.asConstraintValue() as? ConstraintValueLangType
+            val value = lessSpecific.asValueType() as? ResolvedValueLangType
+
+            return type != null && value != null && value.isAssignableTo(type)
+        }
     }
 
     override fun isPending() = options.any { it.isPending() }
@@ -610,6 +619,7 @@ data class OptionValueLangType(val options: List<ConstraintReference>) : Resolve
         return result
     }
 
+
     fun simplify(): OptionValueLangType {
         var allPossibleConstraints = options.flatMap {
             when (val value = it.asValueType()) {
@@ -627,20 +637,11 @@ data class OptionValueLangType(val options: List<ConstraintReference>) : Resolve
                 }
 
                 val isDuplicate = notDuplicated.any { existingConstraint ->
-                    if (possibleConstraint.valueType == existingConstraint.asValueType()) {
-                        true
-                    } else {
-                        val existingConstraintResolved =
-                            existingConstraint.asConstraintValue() as? ConstraintValueLangType
-                        existingConstraintResolved != null && possibleConstraint.valueType.isAssignableTo(
-                            existingConstraintResolved
-                        )
-                    }
+                    isMergeable(possibleConstraint, existingConstraint)
                 }
                 if (!isDuplicate) {
                     val redundantExistingTypes = notDuplicated.filter { existingConstraint ->
-                        val existingValueResolved = existingConstraint.asValueType() as? ResolvedValueLangType
-                        existingValueResolved != null && existingValueResolved.isAssignableTo(possibleConstraint.asResolvedConstraintValue())
+                        isMergeable(existingConstraint, possibleConstraint)
                     }
 
                     notDuplicated.add(possibleConstraint)
