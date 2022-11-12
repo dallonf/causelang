@@ -197,4 +197,86 @@ class FunctionPiping {
             """.trimIndent(), error.message
         )
     }
+
+    @Test
+    fun attemptToPipeConstraint() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    object SomeType(value: Text)
+                    
+                    function print_some_type(some_type: SomeType) {
+                        cause Debug(some_type.value)
+                    }
+                    
+                    function main() {
+                        SomeType>>print_some_type()
+                    }
+                """.trimIndent()
+            )
+        }
+        assertEquals(
+            """
+            [
+                {
+                    "position": {
+                        "path": "project/test.cau",
+                        "breadcrumbs": "declarations.3.body.statements.0.expression.subject",
+                        "position": "8:4-8:12"
+                    },
+                    "error": {
+                        "#type": "MismatchedType",
+                        "expected": {
+                            "valueType": {
+                                "#type": "Instance",
+                                "canonicalType": "project/test.cau:SomeType"
+                            }
+                        },
+                        "actual": {
+                            "#type": "Constraint",
+                            "valueType": {
+                                "#type": "Instance",
+                                "canonicalType": "project/test.cau:SomeType"
+                            }
+                        }
+                    }
+                }
+            ]
+            """.trimIndent(), vm.codeBundle.compileErrors.debug()
+        )
+        val error = assertThrows<LangVm.VmError> {
+            vm.executeFunction(
+                "project/test.cau", "main", listOf()
+            )
+        }
+        assertEquals(
+            """
+            I tried to get a member from a bad value: {
+                "#type": "BadValue",
+                "position": {
+                    "#type": "SourcePosition",
+                    "path": "project/test.cau",
+                    "breadcrumbs": "declarations.3.body.statements.0.expression.subject",
+                    "position": "8:4-8:12"
+                },
+                "error": {
+                    "#type": "MismatchedType",
+                    "expected": {
+                        "valueType": {
+                            "#type": "Instance",
+                            "canonicalType": "project/test.cau:SomeType"
+                        }
+                    },
+                    "actual": {
+                        "#type": "Constraint",
+                        "valueType": {
+                            "#type": "Instance",
+                            "canonicalType": "project/test.cau:SomeType"
+                        }
+                    }
+                }
+            }.
+            """.trimIndent(), error.message
+        )
+    }
 }
