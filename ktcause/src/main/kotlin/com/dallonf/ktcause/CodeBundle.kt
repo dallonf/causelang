@@ -79,6 +79,7 @@ class CodeBundleBuilder {
             referencedCompiledFiles: List<CompiledFile>,
         ) {
             val otherFiles = referencedCompiledFiles.associate { it.path to it.toFileDescriptor() }
+            assert(RustResolver.hello() == "Hello from Rust!")
             val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
                 file.path, file.ast, file.analyzed, otherFiles, file.debugContext
             )
