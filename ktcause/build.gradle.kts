@@ -28,6 +28,11 @@ tasks.test {
     useJUnitPlatform()
 }
 
+tasks.withType<Test> {
+    // probably need to be smarter about this - maybe copying the lib into the project??
+    systemProperty("java.library.path", "${projectDir}\\..\\rscause\\target\\debug")
+}
+
 tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "1.8"
 }

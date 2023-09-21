@@ -85,6 +85,8 @@ object Resolver {
         otherFiles: Map<String, ExternalFileDescriptor>,
         debugContext: Debug.DebugContext? = null,
     ): Pair<ResolvedFile, List<ResolverError>> {
+        assert(RustResolver.hello() == "Hello from Rust!")
+
         val allOtherFiles = otherFiles.toMutableMap().also {
             for (file in CoreFiles.all) {
                 it[file.path] = file.toFileDescriptor()
@@ -670,12 +672,13 @@ object Resolver {
                                     it.value is ResolvedValueLangType && it.value !is ActionValueLangType && it.value !is NeverContinuesValueLangType
                                 }
                                 if (nonActionReturns.isNotEmpty()) {
-                                    resolveWith(ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
-                                        types = nonActionReturns.map {
-                                            ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
-                                                it.value, it.source!!
-                                            )
-                                        })
+                                    resolveWith(
+                                        ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
+                                            types = nonActionReturns.map {
+                                                ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                                    it.value, it.source!!
+                                                )
+                                            })
                                     )
                                     return@eachPendingNode
                                 }
