@@ -8,10 +8,18 @@
       "path": "future-examples"
     },
     {
+      "path": "codegen"
+    },
+    {
       "path": "ktcause"
     },
     {
       "path": "rscause"
     }
-  ]
+  ],
+  "settings": {
+    "deno.enable": true,
+    "deno.lint": true,
+    "deno.unstable": false
+  }
 }
