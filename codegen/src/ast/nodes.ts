@@ -1,4 +1,4 @@
-import { NodeDeclaration, listOf } from "./types.ts";
+import { NodeDeclaration, listOf, stringPrimitive } from "./types.ts";
 
 export const categories = [
   {
@@ -17,7 +17,7 @@ export const nodes: NodeDeclaration[] = [
     name: "Function",
     category: "Declaration",
     fields: {
-      name: "string",
+      name: stringPrimitive,
       params: listOf("FunctionSignatureParameter"),
       body: "Body",
       returnType: "TypeReference",

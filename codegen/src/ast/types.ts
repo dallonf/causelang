@@ -16,7 +16,7 @@ export type NodeFieldType =
     }
   | {
       kind: "primitive";
-      type: string;
+      type: "string";
     };
 
 export function listOf(type: string): NodeFieldType {
