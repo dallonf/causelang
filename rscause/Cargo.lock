@@ -87,6 +87,10 @@ name = "rscause"
 version = "0.1.0"
 
 [[package]]
+name = "rscause_compiler"
+version = "0.1.0"
+
+[[package]]
 name = "rscause_jni"
 version = "0.1.0"
 dependencies = [
