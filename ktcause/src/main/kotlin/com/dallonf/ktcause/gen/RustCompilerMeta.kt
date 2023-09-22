@@ -4,6 +4,17 @@ import com.dallonf.ktcause.ast.*
 
 val rustCompilerSupportedTypes = setOf(
     *listOf(
-        FileNode::class
+        IdentifierNode::class,
+        IdentifierTypeReferenceNode::class,
+        FunctionSignatureParameterNode::class,
+        FunctionCallParameterNode::class,
+        FileNode::class,
+        FunctionNode::class,
+        BlockBodyNode::class,
+        ExpressionStatementNode::class,
+        CauseExpressionNode::class,
+        CallExpressionNode::class,
+        IdentifierExpressionNode::class,
+        StringLiteralExpressionNode::class,
     ).mapNotNull { it.simpleName }.toTypedArray()
 )

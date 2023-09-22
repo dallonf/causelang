@@ -1,0 +1,11 @@
+package com.dallonf.ktcause.gen
+
+import com.dallonf.ktcause.ast.*
+
+val rustCompilerSupportedTypes = setOf(
+    *listOf(
+        {{#each nodes}}
+        {{this.name}}Node::class,
+        {{/each}}
+    ).mapNotNull { it.simpleName }.toTypedArray()
+)

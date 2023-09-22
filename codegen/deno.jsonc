@@ -1,5 +1,5 @@
 {
   "tasks": {
-    "run": "deno run generate.ts"
+    "run": "deno run --watch --allow-read --allow-write generate.ts"
   }
 }
