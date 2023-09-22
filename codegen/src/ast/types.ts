@@ -11,17 +11,28 @@ export interface NodeDeclaration {
 export type NodeFieldType =
   | string
   | {
+      kind: "optional";
+      type: NodeFieldType;
+    }
+  | {
       kind: "list";
-      type: string;
+      type: NodeFieldType;
     }
   | {
       kind: "primitive";
       type: "string";
     };
 
-export function listOf(type: string): NodeFieldType {
+export function listOf(type: NodeFieldType): NodeFieldType {
   return {
     kind: "list",
+    type,
+  };
+}
+
+export function optional(type: NodeFieldType): NodeFieldType {
+  return {
+    kind: "optional",
     type,
   };
 }
