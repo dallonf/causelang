@@ -129,7 +129,7 @@ object Resolver {
                     }
 
                     when (node) {
-                        is DeclarationNode.NamedValue -> {
+                        is NamedValue -> {
                             track(INFERRED)
                             if (node.typeAnnotation != null) {
                                 track(CONSTRAINT)
@@ -138,7 +138,7 @@ object Resolver {
 
                         is PatternNode -> track(CONSTRAINT)
 
-                        is DeclarationNode.Import.MappingNode -> track(INFERRED)
+                        is ImportNode.MappingNode -> track(INFERRED)
 
                         is FunctionSignatureParameterNode -> track(CONSTRAINT)
 
@@ -147,19 +147,19 @@ object Resolver {
                                 builtins["TrueOrFalse"]!!
                         }
 
-                        is ExpressionNode.LoopExpressionNode -> {
+                        is LoopExpressionNode -> {
                             resolvedTypes[ResolutionKey(CONSTRAINT, node.body.info.breadcrumbs)] =
                                 ActionValueLangType.toConstraint()
                         }
 
-                        is ExpressionNode.CallExpression -> {
+                        is CallExpressionNode -> {
                             track(INFERRED)
                             for (param in node.parameters) {
                                 track(INFERRED, param)
                             }
                         }
 
-                        is ExpressionNode.PipeCallExpression -> {
+                        is PipeCallExpression -> {
                             track(INFERRED)
                             track(INFERRED, node.callee)
                             for (param in node.parameters) {
@@ -169,13 +169,13 @@ object Resolver {
 
                         is ExpressionNode -> track(INFERRED)
 
-                        is StatementNode.EffectStatement -> {
+                        is EffectStatementNode -> {
                             track(INFERRED)
                             track(CONSTRAINT, node.body)
                         }
 
-                        is StatementNode.SetStatement -> track(INFERRED)
-                        is StatementNode.ExpressionStatement -> track(INFERRED)
+                        is SetStatementNode -> track(INFERRED)
+                        is ExpressionStatementNode -> track(INFERRED)
 
                         is BodyNode -> track(INFERRED)
 
@@ -256,7 +256,7 @@ object Resolver {
                 val pendingNodeTags = nodeTags[pendingKey.breadcrumbs] ?: emptyList()
 
                 fun resolveFunction(
-                    nameNode: Identifier?,
+                    nameNode: IdentifierNode?,
                     paramNodes: List<FunctionSignatureParameterNode>,
                     returnTypeNode: TypeReferenceNode?
                 ) {
@@ -452,7 +452,7 @@ object Resolver {
 
                 when (pendingKey.type) {
                     INFERRED -> when (node) {
-                        is TypeReferenceNode.IdentifierTypeReferenceNode -> {
+                        is IdentifierTypeReferenceNode -> {
                             val comesFromTag = pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
                             if (comesFromTag == null) {
                                 resolveWith(ErrorLangType.NotInScope)
@@ -462,7 +462,7 @@ object Resolver {
                             resolveWith(getResolvedTypeOf(comesFromTag.source).expectConstraint())
                         }
 
-                        is TypeReferenceNode.FunctionTypeReferenceNode -> {
+                        is FunctionTypeReferenceNode -> {
                             val returnConstraint =
                                 getResolvedTypeOf(node.returnType).expectConstraint().asConstraintReference()
                             val params: List<LangParameter> = node.params.map { param ->
@@ -475,18 +475,18 @@ object Resolver {
                             resolveWith(FunctionValueLangType(name = null, returnConstraint, params).toConstraint())
                         }
 
-                        is ExpressionNode.StringLiteralExpression -> resolveWith(LangPrimitiveKind.TEXT.toValueLangType())
-                        is ExpressionNode.NumberLiteralExpression -> resolveWith(LangPrimitiveKind.NUMBER.toValueLangType())
+                        is StringLiteralExpressionNode -> resolveWith(LangPrimitiveKind.TEXT.toValueLangType())
+                        is NumberLiteralExpression -> resolveWith(LangPrimitiveKind.NUMBER.toValueLangType())
 
-                        is ExpressionNode.GroupExpressionNode -> resolveWith(getResolvedTypeOf(node.expression))
+                        is GroupExpressionNode -> resolveWith(getResolvedTypeOf(node.expression))
 
-                        is ExpressionNode.BlockExpressionNode -> resolveWith(getResolvedTypeOf(node.block))
+                        is BlockExpressionNode -> resolveWith(getResolvedTypeOf(node.block))
 
-                        is ExpressionNode.FunctionExpressionNode -> {
+                        is FunctionExpressionNode -> {
                             resolveFunction(null, node.params, node.returnType)
                         }
 
-                        is ExpressionNode.IdentifierExpression -> {
+                        is IdentifierExpressionNode -> {
                             val comesFromTag = pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
                             if (comesFromTag == null) {
                                 resolveWith(ErrorLangType.NotInScope)
@@ -497,7 +497,7 @@ object Resolver {
                                 pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.UsesCapturedValue }
                             if (usesCapturedValue != null) {
                                 val sourceNode = fileNode.findNode(comesFromTag.source)
-                                if (sourceNode is DeclarationNode.NamedValue && sourceNode.isVariable) {
+                                if (sourceNode is NamedValue && sourceNode.isVariable) {
                                     resolveWith(ErrorLangType.OuterVariable)
                                     return@eachPendingNode
                                 }
@@ -515,11 +515,11 @@ object Resolver {
                             resolveWith(resolvedType)
                         }
 
-                        is ExpressionNode.CallExpression -> {
+                        is CallExpressionNode -> {
                             resolveCall(node.callee.info.breadcrumbs, node.parameters.map { it.info.breadcrumbs })
                         }
 
-                        is ExpressionNode.PipeCallExpression -> {
+                        is PipeCallExpression -> {
                             // TODO: it could be a warning to use this syntax where the first parameter isn't named "this" or "it"
                             resolveCall(node.callee.info.breadcrumbs,
                                 listOf(node.subject.info.breadcrumbs) + node.parameters.map { it.info.breadcrumbs })
@@ -529,7 +529,7 @@ object Resolver {
                             resolveWith(getResolvedTypeOf(node.value))
                         }
 
-                        is ExpressionNode.CauseExpression -> {
+                        is CauseExpressionNode -> {
                             val signalType = when (val signalType = getResolvedTypeOf(node.signal)) {
                                 is ValueLangType.Pending, is ErrorLangType -> {
                                     resolveWith(signalType)
@@ -567,7 +567,7 @@ object Resolver {
                             }
                         }
 
-                        is ExpressionNode.BranchExpressionNode -> {
+                        is BranchExpressionNode -> {
                             if (node.branches.isEmpty()) {
                                 resolveWith(ActionValueLangType)
                                 return@eachPendingNode
@@ -686,7 +686,7 @@ object Resolver {
                             }).simplifyToValue())
                         }
 
-                        is ExpressionNode.LoopExpressionNode -> {
+                        is LoopExpressionNode -> {
                             val breaks = pendingNodeTags.mapNotNull { it as? NodeTag.LoopBreaksAt }
 
                             if (breaks.isEmpty()) {
@@ -694,7 +694,7 @@ object Resolver {
                             } else {
                                 val breakTypes = breaks.map {
                                     val breakExpression =
-                                        fileNode.findNode(it.breakExpression) as ExpressionNode.BreakExpression
+                                        fileNode.findNode(it.breakExpression) as BreakExpression
                                     breakExpression to if (breakExpression.withValue != null) {
                                         getResolvedTypeOf(breakExpression.withValue)
                                     } else {
@@ -730,11 +730,11 @@ object Resolver {
                             }
                         }
 
-                        is ExpressionNode.ReturnExpression -> {
+                        is ReturnExpression -> {
                             resolveWith(NeverContinuesValueLangType)
                         }
 
-                        is ExpressionNode.BreakExpression -> {
+                        is BreakExpression -> {
                             val breakTag = pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.BreaksLoop }
                             if (breakTag != null) {
                                 resolveWith(NeverContinuesValueLangType)
@@ -743,7 +743,7 @@ object Resolver {
                             }
                         }
 
-                        is ExpressionNode.MemberExpression -> {
+                        is MemberExpression -> {
                             val obj = getResolvedTypeOf(node.objectExpression)
 
                             if (obj.isPending()) {
@@ -783,12 +783,12 @@ object Resolver {
                             }
                         }
 
-                        is StatementNode.ExpressionStatement -> {
+                        is ExpressionStatementNode -> {
                             resolveWith(getResolvedTypeOf(node.expression))
                         }
 
-                        is StatementNode.DeclarationStatement -> {
-                            if (node.declaration is DeclarationNode.NamedValue) {
+                        is DeclarationStatementNode -> {
+                            if (node.declaration is NamedValue) {
                                 if (getResolvedTypeOf(node.declaration.value.info.breadcrumbs) == NeverContinuesValueLangType) {
                                     resolveWith(NeverContinuesValueLangType)
                                     return@eachPendingNode
@@ -798,7 +798,7 @@ object Resolver {
                             resolveWith(ActionValueLangType)
                         }
 
-                        is StatementNode.EffectStatement -> {
+                        is EffectStatementNode -> {
                             val resultType = run result@{
                                 val conditionType = getResolvedTypeOf(node.pattern).let {
                                     if (it is InstanceValueLangType && it.canonicalType is CanonicalLangType.SignalCanonicalLangType) {
@@ -842,7 +842,7 @@ object Resolver {
                             resolveWith(ActionValueLangType)
                         }
 
-                        is StatementNode.SetStatement -> {
+                        is SetStatementNode -> {
                             val tag = pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.SetsVariable } ?: run {
                                 resolveWith(ErrorLangType.NotInScope)
                                 return@eachPendingNode
@@ -850,7 +850,7 @@ object Resolver {
                             val variableBreadcrumbs = tag.variable
 
                             val variable = fileNode.findNode(variableBreadcrumbs)
-                            if (variable !is DeclarationNode.NamedValue || !variable.isVariable) {
+                            if (variable !is NamedValue || !variable.isVariable) {
                                 resolveWith(ErrorLangType.NotVariable)
                                 return@eachPendingNode
                             }
@@ -885,7 +885,7 @@ object Resolver {
                             }
                         }
 
-                        is BodyNode.BlockBodyNode -> {
+                        is BlockBodyNode -> {
                             var lastType: ValueLangType = ActionValueLangType
                             for (statement in node.statements) {
                                 if (lastType == NeverContinuesValueLangType) {
@@ -902,11 +902,11 @@ object Resolver {
                             resolveWith(lastType)
                         }
 
-                        is BodyNode.SingleStatementBodyNode -> resolveWith(getResolvedTypeOf(node.statement))
+                        is SingleStatementBodyNode -> resolveWith(getResolvedTypeOf(node.statement))
 
-                        is DeclarationNode.NamedValue -> resolveWith(getResolvedTypeOf(node.value))
+                        is NamedValue -> resolveWith(getResolvedTypeOf(node.value))
 
-                        is DeclarationNode.ObjectType -> {
+                        is ObjectType -> {
                             val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
                             val id = CanonicalLangTypeId(
                                 path, canonicalIdTag.parentName, node.name.text, canonicalIdTag.index
@@ -921,7 +921,7 @@ object Resolver {
                             resolveWith(ConstraintValueLangType(InstanceValueLangType(objectType)))
                         }
 
-                        is DeclarationNode.SignalType -> {
+                        is SignalType -> {
                             val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
                             val id = CanonicalLangTypeId(
                                 path, canonicalIdTag.parentName, node.name.text, canonicalIdTag.index
@@ -938,18 +938,18 @@ object Resolver {
                             resolveWith(ConstraintValueLangType(InstanceValueLangType(signalType)))
                         }
 
-                        is DeclarationNode.OptionType -> {
+                        is OptionType -> {
                             val options = node.options.map {
                                 getResolvedTypeOf(it).asConstraintReference()
                             }
                             resolveWith(ConstraintValueLangType(OptionValueLangType(options)))
                         }
 
-                        is DeclarationNode.Function -> {
+                        is FunctionNode -> {
                             resolveFunction(node.name, node.params, node.returnType)
                         }
 
-                        is DeclarationNode.Import.MappingNode -> {
+                        is ImportNode.MappingNode -> {
                             val referenceFileTag =
                                 pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.ReferencesFile }
                             if (referenceFileTag != null) {
@@ -980,7 +980,7 @@ object Resolver {
                     }
 
                     CONSTRAINT -> when (node) {
-                        is DeclarationNode.NamedValue -> {
+                        is NamedValue -> {
                             val annotation = requireNotNull(node.typeAnnotation)
                             val annotationType = getResolvedTypeOf(annotation)
 

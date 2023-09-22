@@ -198,11 +198,11 @@ object Analyzer {
         declaration: DeclarationNode
     ): List<Pair<String, Breadcrumbs>>? {
         when (declaration) {
-            is DeclarationNode.Function -> {
+            is FunctionNode -> {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
-            is DeclarationNode.Import -> {
+            is ImportNode -> {
                 val list = declaration.mappings.map { mapping ->
                     val sourceName = mapping.sourceName.text
                     val rename = mapping.rename?.text
@@ -211,19 +211,19 @@ object Analyzer {
                 return list.ifEmpty { null }
             }
 
-            is DeclarationNode.NamedValue -> {
+            is NamedValue -> {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
-            is DeclarationNode.ObjectType -> {
+            is ObjectType -> {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
-            is DeclarationNode.SignalType -> {
+            is SignalType -> {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
-            is DeclarationNode.OptionType -> {
+            is OptionType -> {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
         }
@@ -247,7 +247,7 @@ object Analyzer {
 
     private fun analyzeTypeReference(typeReference: TypeReferenceNode, output: AnalyzedNode, ctx: AnalyzerContext) {
         when (typeReference) {
-            is TypeReferenceNode.IdentifierTypeReferenceNode -> {
+            is IdentifierTypeReferenceNode -> {
                 val scopeItem = ctx.currentScope.items[typeReference.identifier.text]
                 if (scopeItem != null) {
                     output.addValueFlowTag(scopeItem.origin, typeReference.info.breadcrumbs)
@@ -259,7 +259,7 @@ object Analyzer {
                 }
             }
 
-            is TypeReferenceNode.FunctionTypeReferenceNode -> {
+            is FunctionTypeReferenceNode -> {
                 for (param in typeReference.params) {
                     param.typeReference?.let { analyzeTypeReference(it, output, ctx) }
                 }
@@ -300,17 +300,17 @@ object Analyzer {
 
     private fun analyzeDeclaration(declaration: DeclarationNode, output: AnalyzedNode, ctx: AnalyzerContext) {
         when (declaration) {
-            is DeclarationNode.Import -> analyzeImportDeclaration(declaration, output, ctx)
-            is DeclarationNode.Function -> analyzeFunctionDeclaration(declaration, output, ctx)
-            is DeclarationNode.NamedValue -> analyzeNamedValueDeclaration(declaration, output, ctx)
-            is DeclarationNode.ObjectType -> analyzeObjectTypeDeclaration(declaration, output, ctx)
-            is DeclarationNode.SignalType -> analyzeSignalTypeDeclaration(declaration, output, ctx)
-            is DeclarationNode.OptionType -> analyzeOptionTypeDeclaration(declaration, output, ctx)
+            is ImportNode -> analyzeImportDeclaration(declaration, output, ctx)
+            is FunctionNode -> analyzeFunctionDeclaration(declaration, output, ctx)
+            is NamedValue -> analyzeNamedValueDeclaration(declaration, output, ctx)
+            is ObjectType -> analyzeObjectTypeDeclaration(declaration, output, ctx)
+            is SignalType -> analyzeSignalTypeDeclaration(declaration, output, ctx)
+            is OptionType -> analyzeOptionTypeDeclaration(declaration, output, ctx)
         }
     }
 
     private fun analyzeImportDeclaration(
-        declaration: DeclarationNode.Import, output: AnalyzedNode, ctx: AnalyzerContext
+        declaration: ImportNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         val importedPath = run {
             val it = declaration.path.path
@@ -362,7 +362,7 @@ object Analyzer {
 
 
     private fun analyzeFunctionDeclaration(
-        declaration: DeclarationNode.Function, output: AnalyzedNode, ctx: AnalyzerContext
+        declaration: FunctionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         val newCtx = analyzeFunctionParams(
             declaration.name.text, declaration.params, breadcrumbs = declaration.info.breadcrumbs, output, ctx
@@ -436,7 +436,7 @@ object Analyzer {
     }
 
     private fun analyzeNamedValueDeclaration(
-        declaration: DeclarationNode.NamedValue, output: AnalyzedNode, ctx: AnalyzerContext
+        declaration: NamedValue, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         output.addValueFlowTag(declaration.value.info.breadcrumbs, declaration.info.breadcrumbs)
 
@@ -447,7 +447,7 @@ object Analyzer {
     }
 
     private fun analyzeObjectTypeDeclaration(
-        declaration: DeclarationNode.ObjectType, output: AnalyzedNode, ctx: AnalyzerContext
+        declaration: ObjectType, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         tagCanonicalTypeId(declaration.name.text, declaration.info.breadcrumbs, ctx, output)
 
@@ -459,7 +459,7 @@ object Analyzer {
     }
 
     private fun analyzeSignalTypeDeclaration(
-        declaration: DeclarationNode.SignalType, output: AnalyzedNode, ctx: AnalyzerContext
+        declaration: SignalType, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         tagCanonicalTypeId(declaration.name.text, declaration.info.breadcrumbs, ctx, output)
 
@@ -482,7 +482,7 @@ object Analyzer {
     }
 
     private fun analyzeOptionTypeDeclaration(
-        declaration: DeclarationNode.OptionType, output: AnalyzedNode, ctx: AnalyzerContext
+        declaration: OptionType, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         for (option in declaration.options) {
             analyzeTypeReference(option, output, ctx)
@@ -492,7 +492,7 @@ object Analyzer {
 
     private fun analyzeBody(body: BodyNode, output: AnalyzedNode, ctx: AnalyzerContext) {
         when (body) {
-            is BodyNode.BlockBodyNode -> {
+            is BlockBodyNode -> {
                 var currentCtx = ctx.clone(body.info.breadcrumbs)
 
                 for (statementNode in body.statements) {
@@ -500,7 +500,7 @@ object Analyzer {
                 }
             }
 
-            is BodyNode.SingleStatementBodyNode -> {
+            is SingleStatementBodyNode -> {
                 analyzeStatement(body.statement, output, ctx)
                 output.addValueFlowTag(body.statement.info.breadcrumbs, body.info.breadcrumbs)
             }
@@ -511,14 +511,14 @@ object Analyzer {
         statementNode: StatementNode, output: AnalyzedNode, ctx: AnalyzerContext
     ): AnalyzerContext {
         when (statementNode) {
-            is StatementNode.ExpressionStatement -> {
+            is ExpressionStatementNode -> {
                 output.addValueFlowTag(
                     statementNode.expression.info.breadcrumbs, statementNode.info.breadcrumbs
                 )
                 analyzeExpression(statementNode.expression, output, ctx)
             }
 
-            is StatementNode.DeclarationStatement -> {
+            is DeclarationStatementNode -> {
                 getDeclarationsForScope(statementNode.declaration)?.let { declarations ->
                     analyzeDeclaration(statementNode.declaration, output, ctx)
 
@@ -539,7 +539,7 @@ object Analyzer {
                 }
             }
 
-            is StatementNode.EffectStatement -> {
+            is EffectStatementNode -> {
                 val effectCtx = AnalyzerContext(
                     ctx.path,
                     ctx.currentScope.extend(),
@@ -555,7 +555,7 @@ object Analyzer {
                 analyzeBody(statementNode.body, output, effectCtx)
             }
 
-            is StatementNode.SetStatement -> {
+            is SetStatementNode -> {
                 analyzeSetStatement(statementNode, output, ctx)
             }
         }
@@ -563,7 +563,7 @@ object Analyzer {
     }
 
     private fun analyzeSetStatement(
-        statementNode: StatementNode.SetStatement, output: AnalyzedNode, ctx: AnalyzerContext
+        statementNode: SetStatementNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         analyzeExpression(statementNode.expression, output, ctx)
         val variable = ctx.currentScope.items[statementNode.identifier.text]
@@ -579,29 +579,29 @@ object Analyzer {
 
     private fun analyzeExpression(expression: ExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext) {
         when (expression) {
-            is ExpressionNode.GroupExpressionNode -> analyzeExpression(expression.expression, output, ctx)
+            is GroupExpressionNode -> analyzeExpression(expression.expression, output, ctx)
 
-            is ExpressionNode.BlockExpressionNode -> analyzeBlockExpression(expression, output, ctx)
-            is ExpressionNode.FunctionExpressionNode -> analyzeFunctionExpression(expression, output, ctx)
+            is BlockExpressionNode -> analyzeBlockExpression(expression, output, ctx)
+            is FunctionExpressionNode -> analyzeFunctionExpression(expression, output, ctx)
 
-            is ExpressionNode.CauseExpression -> analyzeCauseExpression(expression, output, ctx)
-            is ExpressionNode.BranchExpressionNode -> analyzeBranchExpressionNode(expression, output, ctx)
-            is ExpressionNode.LoopExpressionNode -> analyzeLoopExpressionNode(expression, output, ctx)
-            is ExpressionNode.ReturnExpression -> analyzeReturnExpression(expression, output, ctx)
-            is ExpressionNode.BreakExpression -> analyzeBreakExpression(expression, output, ctx)
+            is CauseExpressionNode -> analyzeCauseExpression(expression, output, ctx)
+            is BranchExpressionNode -> analyzeBranchExpressionNode(expression, output, ctx)
+            is LoopExpressionNode -> analyzeLoopExpressionNode(expression, output, ctx)
+            is ReturnExpression -> analyzeReturnExpression(expression, output, ctx)
+            is BreakExpression -> analyzeBreakExpression(expression, output, ctx)
 
-            is ExpressionNode.IdentifierExpression -> analyzeIdentifierExpression(expression, output, ctx)
-            is ExpressionNode.StringLiteralExpression -> {}
-            is ExpressionNode.NumberLiteralExpression -> {}
+            is IdentifierExpressionNode -> analyzeIdentifierExpression(expression, output, ctx)
+            is StringLiteralExpressionNode -> {}
+            is NumberLiteralExpression -> {}
 
-            is ExpressionNode.CallExpression -> analyzeCallExpression(expression, output, ctx)
-            is ExpressionNode.MemberExpression -> analyzeMemberExpression(expression, output, ctx)
-            is ExpressionNode.PipeCallExpression -> analyzePipeCallExpression(expression, output, ctx)
+            is CallExpressionNode -> analyzeCallExpression(expression, output, ctx)
+            is MemberExpression -> analyzeMemberExpression(expression, output, ctx)
+            is PipeCallExpression -> analyzePipeCallExpression(expression, output, ctx)
         }
     }
 
     private fun analyzeBranchExpressionNode(
-        expression: ExpressionNode.BranchExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: BranchExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         expression.withValue?.let { analyzeExpression(it, output, ctx) }
 
@@ -623,20 +623,20 @@ object Analyzer {
     }
 
     private fun analyzeLoopExpressionNode(
-        expression: ExpressionNode.LoopExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: LoopExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         analyzeBody(expression.body, output, ctx.copy(currentLoop = expression.info.breadcrumbs))
     }
 
     private fun analyzeBlockExpression(
-        expression: ExpressionNode.BlockExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: BlockExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         analyzeBody(expression.block, output, ctx)
         output.addValueFlowTag(expression.block.info.breadcrumbs, expression.info.breadcrumbs)
     }
 
     private fun analyzeFunctionExpression(
-        expression: ExpressionNode.FunctionExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: FunctionExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         val newCtx = analyzeFunctionParams(
             functionName = null, expression.params, breadcrumbs = expression.info.breadcrumbs, output, ctx
@@ -651,7 +651,7 @@ object Analyzer {
 
 
     private fun analyzeIdentifierExpression(
-        expression: ExpressionNode.IdentifierExpression, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: IdentifierExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         val identifierText = expression.identifier.text
         val foundItem = ctx.currentScope.items[identifierText]
@@ -666,13 +666,13 @@ object Analyzer {
     }
 
     private fun analyzeCauseExpression(
-        expression: ExpressionNode.CauseExpression, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: CauseExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         analyzeExpression(expression.signal, output, ctx)
     }
 
     private fun analyzeCallExpression(
-        expression: ExpressionNode.CallExpression, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: CallExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         analyzeExpression(expression.callee, output, ctx)
 
@@ -683,13 +683,13 @@ object Analyzer {
     }
 
     private fun analyzeMemberExpression(
-        expression: ExpressionNode.MemberExpression, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: MemberExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         analyzeExpression(expression.objectExpression, output, ctx)
     }
 
     private fun analyzePipeCallExpression(
-        expression: ExpressionNode.PipeCallExpression, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: PipeCallExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         analyzeExpression(expression.subject, output, ctx)
 
@@ -703,7 +703,7 @@ object Analyzer {
 
 
     private fun analyzeReturnExpression(
-        expression: ExpressionNode.ReturnExpression, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: ReturnExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         val value = expression.value
         if (value != null) {
@@ -711,12 +711,11 @@ object Analyzer {
             ctx.currentFunction?.let { output.addTag(value.info.breadcrumbs, NodeTag.ReturnsFromFunction(it)) }
         } else {
             ctx.currentFunction?.let { output.addTag(expression.info.breadcrumbs, NodeTag.ActionReturn(it)) }
-
         }
     }
 
     private fun analyzeBreakExpression(
-        expression: ExpressionNode.BreakExpression, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: BreakExpression, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         expression.withValue?.let { analyzeExpression(it, output, ctx) }
         ctx.currentLoop?.let { loop ->

@@ -5,7 +5,6 @@ import com.dallonf.ktcause.CompiledFile.Procedure.ProcedureIdentity
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.types.*
 import org.apache.commons.numbers.fraction.BigFraction
-import kotlin.math.exp
 import kotlin.reflect.KClass
 
 object Compiler {
@@ -72,8 +71,8 @@ object Compiler {
 
         for (declaration in fileNode.declarations) {
             when (declaration) {
-                is DeclarationNode.Import -> {}
-                is DeclarationNode.Function -> {
+                is ImportNode -> {}
+                is FunctionNode -> {
                     val procedure = compileFunctionDeclaration(declaration, ctx)
                     val functionType = resolved.getExpectedType(declaration.info.breadcrumbs)
 
@@ -82,7 +81,7 @@ object Compiler {
                         CompiledFile.CompiledExport.Function(ctx.procedures.lastIndex, functionType)
                 }
 
-                is DeclarationNode.ObjectType -> {
+                is ObjectType -> {
                     val objectType = resolved.getExpectedType(declaration.info.breadcrumbs)
 
                     val error = objectType.getRuntimeError()
@@ -97,7 +96,7 @@ object Compiler {
                     }
                 }
 
-                is DeclarationNode.SignalType -> {
+                is SignalType -> {
                     val signalType = resolved.getExpectedType(declaration.info.breadcrumbs)
 
                     val error = signalType.getRuntimeError()
@@ -112,7 +111,7 @@ object Compiler {
                     }
                 }
 
-                is DeclarationNode.OptionType -> {
+                is OptionType -> {
                     val optionType = resolved.getExpectedType(declaration.info.breadcrumbs)
                     val error = optionType.getRuntimeError()
                     if (optionType is ConstraintValueLangType && optionType.valueType is OptionValueLangType) {
@@ -124,7 +123,7 @@ object Compiler {
                     }
                 }
 
-                is DeclarationNode.NamedValue -> TODO()
+                is NamedValue -> TODO()
             }
         }
 
@@ -132,7 +131,7 @@ object Compiler {
     }
 
     private fun compileFunctionDeclaration(
-        declaration: DeclarationNode.Function, ctx: CompilerContext
+        declaration: FunctionNode, ctx: CompilerContext
     ): CompiledFile.MutableProcedure {
         return compileFunction(
             declaration.name.text, declaration.params, declaration.info, ctx
@@ -188,18 +187,18 @@ object Compiler {
         body: BodyNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         when (body) {
-            is BodyNode.BlockBodyNode -> {
+            is BlockBodyNode -> {
                 compileBlock(body, procedure, ctx)
             }
 
-            is BodyNode.SingleStatementBodyNode -> {
+            is SingleStatementBodyNode -> {
                 compileStatement(body.statement, procedure, ctx, isLastStatement = true)
             }
         }
     }
 
     private fun compileBlock(
-        block: BodyNode.BlockBodyNode,
+        block: BlockBodyNode,
         procedure: CompiledFile.MutableProcedure,
         ctx: CompilerContext,
     ) {
@@ -254,7 +253,7 @@ object Compiler {
         isLastStatement: Boolean
     ) {
         when (statement) {
-            is StatementNode.ExpressionStatement -> {
+            is ExpressionStatementNode -> {
                 compileExpression(statement.expression, procedure, ctx)
 
                 if (!isLastStatement) {
@@ -262,7 +261,7 @@ object Compiler {
                 }
             }
 
-            is StatementNode.DeclarationStatement -> {
+            is DeclarationStatementNode -> {
                 compileLocalDeclaration(statement, procedure, ctx)
 
                 if (isLastStatement) {
@@ -270,7 +269,7 @@ object Compiler {
                 }
             }
 
-            is StatementNode.EffectStatement -> {
+            is EffectStatementNode -> {
                 compileEffectStatement(statement, procedure, ctx)
 
                 if (isLastStatement) {
@@ -278,7 +277,7 @@ object Compiler {
                 }
             }
 
-            is StatementNode.SetStatement -> {
+            is SetStatementNode -> {
                 compileSetStatement(statement, procedure, ctx)
 
                 if (isLastStatement) {
@@ -289,11 +288,11 @@ object Compiler {
     }
 
     private fun compileLocalDeclaration(
-        statement: StatementNode.DeclarationStatement, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        statement: DeclarationStatementNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         when (val declaration = statement.declaration) {
-            is DeclarationNode.Import -> {}
-            is DeclarationNode.ObjectType, is DeclarationNode.SignalType, is DeclarationNode.OptionType -> {
+            is ImportNode -> {}
+            is ObjectType, is SignalType, is OptionType -> {
                 val type = ctx.resolved.getInferredType(declaration.info.breadcrumbs)
                 type.getRuntimeError().let {
                     if (it != null) {
@@ -307,16 +306,16 @@ object Compiler {
                     }
                 }
                 val name = when (declaration) {
-                    is DeclarationNode.ObjectType -> declaration.name.text
-                    is DeclarationNode.OptionType -> declaration.name.text
-                    is DeclarationNode.SignalType -> declaration.name.text
+                    is ObjectType -> declaration.name.text
+                    is OptionType -> declaration.name.text
+                    is SignalType -> declaration.name.text
                     else -> throw AssertionError()
                 }
                 ctx.addToScope(declaration.info.breadcrumbs)
                 procedure.writeInstruction(Instruction.NameValue(procedure.addConstant(name)), declaration.info)
             }
 
-            is DeclarationNode.Function -> {
+            is FunctionNode -> {
                 val capturedValues = ctx.getTagsOfType<NodeTag.FunctionCapturesValue>(declaration.info.breadcrumbs)
                 for (captured in capturedValues) {
                     compileValueReference(declaration.info, captured.value, procedure, ctx)
@@ -344,7 +343,7 @@ object Compiler {
                 )
             }
 
-            is DeclarationNode.NamedValue -> {
+            is NamedValue -> {
                 compileExpression(declaration.value, procedure, ctx)
                 ctx.resolved.checkForRuntimeErrors(declaration.info.breadcrumbs)?.let { error ->
                     procedure.writeInstruction(Instruction.Pop(), declaration.info)
@@ -361,7 +360,7 @@ object Compiler {
     }
 
     private fun compileEffectStatement(
-        statement: StatementNode.EffectStatement, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        statement: EffectStatementNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         val matchingType =
             ctx.resolved.getInferredType(statement.pattern.typeReference.info.breadcrumbs).asConstraintReference()
@@ -404,7 +403,7 @@ object Compiler {
     }
 
     private fun compileSetStatement(
-        statement: StatementNode.SetStatement, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        statement: SetStatementNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         compileExpression(statement.expression, procedure, ctx)
 
@@ -442,30 +441,30 @@ object Compiler {
         expression: ExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         when (expression) {
-            is ExpressionNode.GroupExpressionNode -> compileExpression(expression.expression, procedure, ctx)
+            is GroupExpressionNode -> compileExpression(expression.expression, procedure, ctx)
 
-            is ExpressionNode.BlockExpressionNode -> compileBlockExpression(expression, procedure, ctx)
+            is BlockExpressionNode -> compileBlockExpression(expression, procedure, ctx)
 
-            is ExpressionNode.FunctionExpressionNode -> compileFunctionExpression(expression, procedure, ctx)
+            is FunctionExpressionNode -> compileFunctionExpression(expression, procedure, ctx)
 
-            is ExpressionNode.BranchExpressionNode -> compileBranchExpression(expression, procedure, ctx)
-            is ExpressionNode.LoopExpressionNode -> compileLoopExpression(expression, procedure, ctx)
-            is ExpressionNode.CauseExpression -> compileCauseExpression(expression, procedure, ctx)
-            is ExpressionNode.ReturnExpression -> compileReturnExpression(expression, procedure, ctx)
-            is ExpressionNode.BreakExpression -> compileBreakExpression(expression, procedure, ctx)
+            is BranchExpressionNode -> compileBranchExpression(expression, procedure, ctx)
+            is LoopExpressionNode -> compileLoopExpression(expression, procedure, ctx)
+            is CauseExpressionNode -> compileCauseExpression(expression, procedure, ctx)
+            is ReturnExpression -> compileReturnExpression(expression, procedure, ctx)
+            is BreakExpression -> compileBreakExpression(expression, procedure, ctx)
 
-            is ExpressionNode.CallExpression -> compileCallExpression(expression, procedure, ctx)
-            is ExpressionNode.MemberExpression -> compileMemberExpression(expression, procedure, ctx)
-            is ExpressionNode.PipeCallExpression -> compilePipeCallExpression(expression, procedure, ctx)
+            is CallExpressionNode -> compileCallExpression(expression, procedure, ctx)
+            is MemberExpression -> compileMemberExpression(expression, procedure, ctx)
+            is PipeCallExpression -> compilePipeCallExpression(expression, procedure, ctx)
 
-            is ExpressionNode.IdentifierExpression -> compileIdentifierExpression(expression, procedure, ctx)
-            is ExpressionNode.StringLiteralExpression -> procedure.writeLiteral(
+            is IdentifierExpressionNode -> compileIdentifierExpression(expression, procedure, ctx)
+            is StringLiteralExpressionNode -> procedure.writeLiteral(
                 CompiledFile.CompiledConstant.StringConst(
                     expression.text
                 ), expression.info
             )
 
-            is ExpressionNode.NumberLiteralExpression -> {
+            is NumberLiteralExpression -> {
                 val numerator = expression.value.unscaledValue()
                 val denominator = 10.toBigInteger().pow(expression.value.scale())
                 val fraction = BigFraction.of(numerator, denominator)
@@ -501,13 +500,13 @@ object Compiler {
     }
 
     private fun compileBlockExpression(
-        expression: ExpressionNode.BlockExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        expression: BlockExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         compileBlock(expression.block, procedure, ctx)
     }
 
     private fun compileFunctionExpression(
-        expression: ExpressionNode.FunctionExpressionNode,
+        expression: FunctionExpressionNode,
         procedure: CompiledFile.MutableProcedure,
         ctx: CompilerContext
     ) {
@@ -538,7 +537,7 @@ object Compiler {
     }
 
     private fun compileBranchExpression(
-        expression: ExpressionNode.BranchExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        expression: BranchExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         ctx.scopeStack.addLast(CompilerScope(expression.info.breadcrumbs, CompilerScope.ScopeType.BODY))
         val withValueIndex = expression.withValue?.let {
@@ -632,7 +631,7 @@ object Compiler {
     }
 
     private fun compileLoopExpression(
-        expression: ExpressionNode.LoopExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        expression: LoopExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         val startLoopPlaceholder = procedure.writeStartLoopPlaceholder(expression.info)
         val openLoop = OpenLoop(expression.info.breadcrumbs)
@@ -737,7 +736,7 @@ object Compiler {
     }
 
     private fun compileCauseExpression(
-        expression: ExpressionNode.CauseExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        expression: CauseExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         compileExpression(expression.signal, procedure, ctx)
 
@@ -753,7 +752,7 @@ object Compiler {
     }
 
     private fun compileCallExpression(
-        expression: ExpressionNode.CallExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        expression: CallExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         compileExpression(expression.callee, procedure, ctx)
 
@@ -839,7 +838,7 @@ object Compiler {
     }
 
     private fun compilePipeCallExpression(
-        expression: ExpressionNode.PipeCallExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        expression: PipeCallExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         // TODO: pretty much all of this is the same as compileCallExpression
         compileExpression(expression.subject, procedure, ctx)
@@ -929,7 +928,7 @@ object Compiler {
     }
 
     private fun compileReturnExpression(
-        expression: ExpressionNode.ReturnExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        expression: ReturnExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         if (expression.value != null) {
             compileExpression(expression.value, procedure, ctx)
@@ -941,7 +940,7 @@ object Compiler {
     }
 
     private fun compileBreakExpression(
-        expression: ExpressionNode.BreakExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        expression: BreakExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         if (expression.withValue != null) {
             compileExpression(expression.withValue, procedure, ctx)
@@ -965,7 +964,7 @@ object Compiler {
     }
 
     private fun compileMemberExpression(
-        expression: ExpressionNode.MemberExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        expression: MemberExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         compileExpression(expression.objectExpression, procedure, ctx)
 

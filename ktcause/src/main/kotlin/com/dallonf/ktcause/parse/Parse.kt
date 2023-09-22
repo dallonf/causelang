@@ -27,26 +27,26 @@ fun parse(source: String): FileNode {
     return FileNode(NodeInfo(tree.getRange(), Breadcrumbs.empty()), declarations)
 }
 
-fun generateCoreBuiltinsImport(breadcrumbs: Breadcrumbs): DeclarationNode.Import {
+fun generateCoreBuiltinsImport(breadcrumbs: Breadcrumbs): ImportNode {
     val coreBuiltinFilepath = CoreFiles.builtin.path
     val coreBuiltinFile = CoreFiles.builtin.toFileDescriptor()
     val coreBuiltinNames = coreBuiltinFile.exports.map { (key, _) -> key }
     val position = DocumentRange(DocumentPosition(0, 0), DocumentPosition(0, 0))
-    return DeclarationNode.Import(NodeInfo(position, breadcrumbs),
-        path = DeclarationNode.Import.PathNode(NodeInfo(position, breadcrumbs.appendName("path")), coreBuiltinFilepath),
+    return ImportNode(NodeInfo(position, breadcrumbs),
+        path = ImportNode.PathNode(NodeInfo(position, breadcrumbs.appendName("path")), coreBuiltinFilepath),
         mappings = coreBuiltinNames.mapIndexed { i, name ->
             val mappingBreadcrumbs = breadcrumbs.appendName("mappings").appendIndex(i)
-            DeclarationNode.Import.MappingNode(
+            ImportNode.MappingNode(
                 NodeInfo(position, mappingBreadcrumbs),
-                sourceName = Identifier(NodeInfo(position, mappingBreadcrumbs.appendName("sourceName")), name),
+                sourceName = IdentifierNode(NodeInfo(position, mappingBreadcrumbs.appendName("sourceName")), name),
                 rename = null
             )
         })
 }
 
-private fun parseIdentifier(token: Token, breadcrumbs: Breadcrumbs, ctx: ParserContext): Identifier {
+private fun parseIdentifier(token: Token, breadcrumbs: Breadcrumbs, ctx: ParserContext): IdentifierNode {
     assert(token.type == IDENTIFIER)
-    return Identifier(
+    return IdentifierNode(
         NodeInfo(token.getRange(), breadcrumbs), token.text
     )
 }
@@ -64,16 +64,16 @@ private fun parseTypeReference(
 
 private fun parseIdentifierTypeReference(
     typeReference: IdentifierTypeReferenceContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): TypeReferenceNode.IdentifierTypeReferenceNode {
+): IdentifierTypeReferenceNode {
     val identifier = parseIdentifier(typeReference.IDENTIFIER().symbol, breadcrumbs, ctx)
-    return TypeReferenceNode.IdentifierTypeReferenceNode(
+    return IdentifierTypeReferenceNode(
         NodeInfo(typeReference.getRange(), breadcrumbs), identifier
     )
 }
 
 private fun parseFunctionTypeReference(
     typeReference: FunctionTypeReferenceContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): TypeReferenceNode.FunctionTypeReferenceNode {
+): FunctionTypeReferenceNode {
 
     val paramsBreadcrumbs = breadcrumbs.appendName("params")
     val params = typeReference.functionSignatureParam().mapIndexed { i, param ->
@@ -88,7 +88,7 @@ private fun parseFunctionTypeReference(
         typeReference.functionTypeReferenceReturnValue().typeReference(), breadcrumbs.appendName("returnType"), ctx
     )
 
-    return TypeReferenceNode.FunctionTypeReferenceNode(
+    return FunctionTypeReferenceNode(
         NodeInfo(typeReference.getRange(), breadcrumbs),
         params,
         returnType,
@@ -113,7 +113,7 @@ private fun parseFunctionDeclaration(
     functionDeclaration: FunctionDeclarationContext,
     breadcrumbs: Breadcrumbs,
     ctx: ParserContext,
-): DeclarationNode.Function {
+): FunctionNode {
     val name = parseIdentifier(functionDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
     val paramsBreadcrumbs = breadcrumbs.appendName("params")
     val params = functionDeclaration.functionSignatureParam().mapIndexed { i, param ->
@@ -128,16 +128,16 @@ private fun parseFunctionDeclaration(
         parseTypeReference(it, breadcrumbs.appendName("returnType"), ctx)
     }
 
-    return DeclarationNode.Function(
+    return FunctionNode(
         NodeInfo(functionDeclaration.getRange(), breadcrumbs), name, params, body, returnType = returnType
     )
 }
 
 private fun parseImportDeclaration(
     importDeclaration: ImportDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): DeclarationNode.Import {
+): ImportNode {
     val pathToken = importDeclaration.PATH()
-    val path = DeclarationNode.Import.PathNode(
+    val path = ImportNode.PathNode(
         NodeInfo(pathToken.symbol.getRange(), breadcrumbs.appendName("path")), pathToken.text
     )
 
@@ -164,14 +164,14 @@ private fun parseImportDeclaration(
         iterator.skip { (it is TerminalNode && (it.symbol.type == COMMA || it.symbol.type == NEWLINE)) }
 
         val mappingBreadcrumbs = breadcrumbs.appendName("mappings").appendIndex(i)
-        DeclarationNode.Import.MappingNode(
+        ImportNode.MappingNode(
             NodeInfo(mappingRule.getRange(), mappingBreadcrumbs),
             parseIdentifier(name, mappingBreadcrumbs.appendName("sourceName"), ctx),
             rename?.let { parseIdentifier(it, mappingBreadcrumbs.appendName("rename"), ctx) },
         )
     }
 
-    return DeclarationNode.Import(
+    return ImportNode(
         NodeInfo(
             importDeclaration.getRange(), breadcrumbs
         ), path, mappings
@@ -182,7 +182,7 @@ private fun parseNamedValueDeclaration(
     namedValue: NamedValueDeclarationContext,
     breadcrumbs: Breadcrumbs,
     ctx: ParserContext,
-): DeclarationNode.NamedValue {
+): NamedValue {
     val iterator = namedValue.children.ruleIterator()
     iterator.skip { (it is TerminalNode && (it.symbol.type == LET || it.symbol.type == NEWLINE)) }
 
@@ -213,40 +213,40 @@ private fun parseNamedValueDeclaration(
 
     val value = parseExpression(valueRule as ExpressionContext, breadcrumbs.appendName("value"), ctx)
 
-    return DeclarationNode.NamedValue(
+    return NamedValue(
         NodeInfo(namedValue.getRange(), breadcrumbs), name, typeAnnotation, value, isVariable
     )
 }
 
 private fun parseObjectDeclaration(
     objectDeclaration: ObjectDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): DeclarationNode.ObjectType {
+): ObjectType {
     val name = parseIdentifier(objectDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
     val fields = objectDeclaration.objectFields()?.let { parseObjectFields(it, breadcrumbs.appendName("fields"), ctx) }
 
-    return DeclarationNode.ObjectType(
+    return ObjectType(
         NodeInfo(objectDeclaration.getRange(), breadcrumbs), name, fields
     )
 }
 
 private fun parseSignalDeclaration(
     signalDeclaration: SignalDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): DeclarationNode.SignalType {
+): SignalType {
     val name = parseIdentifier(signalDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
     val fields = signalDeclaration.objectFields()?.let { parseObjectFields(it, breadcrumbs.appendName("fields"), ctx) }
     val result = signalDeclaration.typeReference()?.let { parseTypeReference(it, breadcrumbs.appendName("result"), ctx) }
 
-    return DeclarationNode.SignalType(
+    return SignalType(
         NodeInfo(signalDeclaration.getRange(), breadcrumbs), name, fields, result
     )
 }
 
 private fun parseObjectFields(
     objectFields: ObjectFieldsContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): List<DeclarationNode.ObjectField> {
+): List<ObjectField> {
     return objectFields.objectField().mapIndexed { i, field ->
         val fieldBreadcrumbs = breadcrumbs.appendIndex(i)
-        DeclarationNode.ObjectField(
+        ObjectField(
             NodeInfo(field.getRange(), fieldBreadcrumbs),
             name = parseIdentifier(field.IDENTIFIER().symbol, fieldBreadcrumbs.appendName("name"), ctx),
             typeConstraint = parseTypeReference(
@@ -258,13 +258,13 @@ private fun parseObjectFields(
 
 private fun parseOptionDeclaration(
     declaration: OptionDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): DeclarationNode.OptionType {
+): OptionType {
     val name = parseIdentifier(declaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
     val optionsBreadcrumbs = breadcrumbs.appendName("options")
     val options = declaration.typeReference()
         .mapIndexed { option, it -> parseTypeReference(it, optionsBreadcrumbs.appendIndex(option), ctx) }
 
-    return DeclarationNode.OptionType(
+    return OptionType(
         NodeInfo(declaration.getRange(), breadcrumbs), name, options
     )
 }
@@ -277,7 +277,7 @@ private fun parseBody(
         is BlockContext -> parseBlock(child, breadcrumbs, ctx)
         is SingleStatementBodyContext -> {
             val statement = parseStatement(child.statement(), breadcrumbs.appendName("statement"), ctx)
-            BodyNode.SingleStatementBodyNode(
+            SingleStatementBodyNode(
                 NodeInfo(child.getRange(), breadcrumbs), statement
             )
         }
@@ -289,7 +289,7 @@ private fun parseBody(
 
 private fun parseBlock(
     blockBody: BlockContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): BodyNode.BlockBodyNode {
+): BlockBodyNode {
     val statementBreadcrumbs = breadcrumbs.appendName("statements")
     val statements = blockBody.statement().mapIndexed { i, statementRule ->
         parseStatement(
@@ -297,7 +297,7 @@ private fun parseBlock(
         )
     }
 
-    return BodyNode.BlockBodyNode(NodeInfo(blockBody.getRange(), breadcrumbs), statements)
+    return BlockBodyNode(NodeInfo(blockBody.getRange(), breadcrumbs), statements)
 }
 
 private fun parseStatement(
@@ -314,8 +314,8 @@ private fun parseStatement(
 
 private fun parseEffectStatement(
     child: EffectStatementContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): StatementNode.EffectStatement {
-    return StatementNode.EffectStatement(
+): EffectStatementNode {
+    return EffectStatementNode(
         NodeInfo(child.getRange(), breadcrumbs),
         parsePattern(child.pattern(), breadcrumbs.appendName("pattern"), ctx),
         parseBody(child.body(), breadcrumbs.appendName("body"), ctx)
@@ -324,18 +324,18 @@ private fun parseEffectStatement(
 
 private fun parseSetStatement(
     statement: SetStatementContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): StatementNode.SetStatement {
+): SetStatementNode {
     val identifier = parseIdentifier(statement.IDENTIFIER().symbol, breadcrumbs.appendName("identifier"), ctx)
     val expression = parseExpression(statement.expression(), breadcrumbs.appendName("expression"), ctx)
-    return StatementNode.SetStatement(
+    return SetStatementNode(
         NodeInfo(statement.getRange(), breadcrumbs), identifier, expression
     )
 }
 
 private fun parseDeclarationStatement(
     declarationStatement: DeclarationStatementContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): StatementNode.DeclarationStatement {
-    return StatementNode.DeclarationStatement(
+): DeclarationStatementNode {
+    return DeclarationStatementNode(
         NodeInfo(declarationStatement.getRange(), breadcrumbs),
         parseDeclaration(declarationStatement.declaration(), breadcrumbs.appendName("declaration"), ctx)
     )
@@ -343,8 +343,8 @@ private fun parseDeclarationStatement(
 
 private fun parseExpressionStatement(
     expressionStatement: ExpressionStatementContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): StatementNode.ExpressionStatement {
-    return StatementNode.ExpressionStatement(
+): ExpressionStatementNode {
+    return ExpressionStatementNode(
         NodeInfo(expressionStatement.getRange(), breadcrumbs),
         parseExpression(expressionStatement.expression(), breadcrumbs.appendName("expression"), ctx)
     )
@@ -356,7 +356,7 @@ private fun parseExpression(
 ): ExpressionNode {
     val mainExpression = { innerBreadcrumbs: Breadcrumbs ->
         when (val child = expressionContext.getChild(0)) {
-            is GroupExpressionContext -> ExpressionNode.GroupExpressionNode(
+            is GroupExpressionContext -> GroupExpressionNode(
                 NodeInfo(
                     child.getRange(), innerBreadcrumbs
                 ), parseExpression(child.expression(), innerBreadcrumbs.appendName("expression"), ctx)
@@ -407,7 +407,7 @@ private fun parseExpression(
 
 private fun parseFunctionExpression(
     expression: FunctionExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): ExpressionNode.FunctionExpressionNode {
+): FunctionExpressionNode {
     val paramsBreadcrumbs = breadcrumbs.appendName("params")
     val params = expression.functionSignatureParam().mapIndexed { i, param ->
         val paramBreadcrumbs = paramsBreadcrumbs.appendIndex(i)
@@ -420,7 +420,7 @@ private fun parseFunctionExpression(
     val returnType = expression.functionReturnValue()?.typeReference()?.let {
         parseTypeReference(it, breadcrumbs.appendName("returnType"), ctx)
     }
-    return ExpressionNode.FunctionExpressionNode(
+    return FunctionExpressionNode(
         NodeInfo(expression.getRange(), breadcrumbs), params, body, returnType
     )
 }
@@ -428,8 +428,8 @@ private fun parseFunctionExpression(
 
 private fun parseBlockExpression(
     expression: BlockExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): ExpressionNode.BlockExpressionNode {
-    return ExpressionNode.BlockExpressionNode(
+): BlockExpressionNode {
+    return BlockExpressionNode(
         NodeInfo(expression.getRange(), breadcrumbs),
         parseBlock(expression.block(), breadcrumbs.appendName("block"), ctx)
     )
@@ -445,7 +445,7 @@ private fun parseBranchExpression(
         parseExpression(it.expression(), breadcrumbs.appendName("withValue"), ctx)
     }
 
-    return ExpressionNode.BranchExpressionNode(
+    return BranchExpressionNode(
         NodeInfo(expression.getRange(), breadcrumbs), withExpression, options
     )
 }
@@ -483,8 +483,8 @@ private fun parseBranchOption(
 
 private fun parseLoopExpression(
     expression: LoopExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): ExpressionNode.LoopExpressionNode {
-    return ExpressionNode.LoopExpressionNode(
+): LoopExpressionNode {
+    return LoopExpressionNode(
         NodeInfo(expression.getRange(), breadcrumbs), body = parseBody(
             expression.body(), breadcrumbs.appendName("body"), ctx
         )
@@ -494,54 +494,54 @@ private fun parseLoopExpression(
 private fun parseReturnExpression(
     expression: ReturnExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ExpressionNode {
-    return ExpressionNode.ReturnExpression(NodeInfo(expression.getRange(), breadcrumbs),
+    return ReturnExpression(NodeInfo(expression.getRange(), breadcrumbs),
         expression.expression()?.let { parseExpression(it, breadcrumbs.appendName("value"), ctx) })
 }
 
 private fun parseBreakExpression(
     expression: BreakExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): ExpressionNode.BreakExpression {
+): BreakExpression {
     val withValue = expression.expression()?.let { parseExpression(it, breadcrumbs.appendName("withValue"), ctx) }
-    return ExpressionNode.BreakExpression(NodeInfo(expression.getRange(), breadcrumbs), withValue)
+    return BreakExpression(NodeInfo(expression.getRange(), breadcrumbs), withValue)
 }
 
 private fun parseStringLiteralExpression(
     expression: StringLiteralExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): ExpressionNode.StringLiteralExpression {
+): StringLiteralExpressionNode {
     val quotedText = expression.STRING_LITERAL().text
     val unquoted = quotedText.subSequence(1 until quotedText.length - 1)
 
-    return ExpressionNode.StringLiteralExpression(
+    return StringLiteralExpressionNode(
         NodeInfo(expression.getRange(), breadcrumbs), unquoted.toString()
     )
 }
 
 private fun parseNumberLiteralExpression(
     expression: NumberLiteralExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): ExpressionNode.NumberLiteralExpression {
+): NumberLiteralExpression {
     val text = expression.NUMBER_LITERAL().text
     val number = text.replace("_", "").toBigDecimal()
 
-    return ExpressionNode.NumberLiteralExpression(
+    return NumberLiteralExpression(
         NodeInfo(expression.getRange(), breadcrumbs), number
     )
 }
 
 private fun parseCauseExpression(
     expression: CauseExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): ExpressionNode.CauseExpression {
+): CauseExpressionNode {
     val signal = parseExpression(expression.expression(), breadcrumbs.appendName("signal"), ctx)
 
-    return ExpressionNode.CauseExpression(
+    return CauseExpressionNode(
         NodeInfo(expression.getRange(), breadcrumbs), signal
     )
 }
 
 private fun parseIdentifierExpression(
     expression: IdentifierExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): ExpressionNode.IdentifierExpression {
+): IdentifierExpressionNode {
     val identifier = parseIdentifier(expression.IDENTIFIER().symbol, breadcrumbs.appendName("identifier"), ctx)
-    return ExpressionNode.IdentifierExpression(
+    return IdentifierExpressionNode(
         NodeInfo(expression.getRange(), breadcrumbs), identifier
     )
 }
@@ -551,7 +551,7 @@ private fun parseCallExpressionSuffix(
     breadcrumbs: Breadcrumbs,
     lazyCallee: (Breadcrumbs) -> ExpressionNode,
     ctx: ParserContext
-): ExpressionNode.CallExpression {
+): CallExpressionNode {
     val callee = lazyCallee(breadcrumbs.appendName("callee"))
 
     val paramsBreadcrumbs = breadcrumbs.appendName("parameters")
@@ -568,7 +568,7 @@ private fun parseCallExpressionSuffix(
     val suffixRange = suffix.getRange()
     val range = DocumentRange(callee.info.position.start, suffixRange.end)
 
-    return ExpressionNode.CallExpression(
+    return CallExpressionNode(
         NodeInfo(range, breadcrumbs), callee, params
     )
 }
@@ -585,7 +585,7 @@ private fun parseMemberExpressionSuffix(
 
     val suffixRange = suffix.getRange()
     val range = DocumentRange(objectExpression.info.position.start, suffixRange.end)
-    return ExpressionNode.MemberExpression(
+    return MemberExpression(
         NodeInfo(range, breadcrumbs), objectExpression, identifier
     )
 }
@@ -609,7 +609,7 @@ private fun parsePipeCallExpressionSuffix(
         }
     }
 
-    return ExpressionNode.PipeCallExpression(
+    return PipeCallExpression(
         NodeInfo(suffix.getRange(), breadcrumbs),
         subjectExpression,
         callee,

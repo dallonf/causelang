@@ -179,7 +179,7 @@ sealed interface AstNode {
     fun allDescendants() = BreadcrumbWalkChild.Node(this).allDescendants()
 }
 
-data class Identifier(override val info: NodeInfo, val text: String) : AstNode {
+data class IdentifierNode(override val info: NodeInfo, val text: String) : AstNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
 }
 
@@ -189,7 +189,7 @@ data class FunctionCallParameterNode(override val info: NodeInfo, val value: Exp
 }
 
 data class FunctionSignatureParameterNode(
-    override val info: NodeInfo, val name: Identifier, val typeReference: TypeReferenceNode?
+    override val info: NodeInfo, val name: IdentifierNode, val typeReference: TypeReferenceNode?
 ) : AstNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
         put("name", name)
@@ -200,23 +200,23 @@ data class FunctionSignatureParameterNode(
 }
 
 
-sealed interface TypeReferenceNode : AstNode {
-    data class IdentifierTypeReferenceNode(override val info: NodeInfo, val identifier: Identifier) :
-        TypeReferenceNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("identifier", identifier)
-        }
-    }
+sealed interface TypeReferenceNode : AstNode
 
-    data class FunctionTypeReferenceNode(
-        override val info: NodeInfo,
-        val params: List<FunctionSignatureParameterNode>,
-        val returnType: TypeReferenceNode
-    ) : TypeReferenceNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("params", params)
-            put("returnType", returnType)
-        }
+data class IdentifierTypeReferenceNode(override val info: NodeInfo, val identifier: IdentifierNode) :
+    TypeReferenceNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("identifier", identifier)
+    }
+}
+
+data class FunctionTypeReferenceNode(
+    override val info: NodeInfo,
+    val params: List<FunctionSignatureParameterNode>,
+    val returnType: TypeReferenceNode
+) : TypeReferenceNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("params", params)
+        put("returnType", returnType)
     }
 }
 
@@ -226,258 +226,263 @@ data class FileNode(override val info: NodeInfo, val declarations: List<Declarat
     }
 }
 
-sealed interface DeclarationNode : AstNode {
-    data class Import(override val info: NodeInfo, val path: PathNode, val mappings: List<MappingNode>) :
-        DeclarationNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("path", path)
-            put("mappings", mappings)
-        }
-
-        data class PathNode(override val info: NodeInfo, val path: String) : AstNode {
-            override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
-        }
-
-        data class MappingNode(override val info: NodeInfo, val sourceName: Identifier, val rename: Identifier?) :
-            AstNode {
-            override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-                put("sourceName", sourceName)
-                if (rename != null) {
-                    put("rename", rename)
-                }
-            }
-        }
+sealed interface DeclarationNode : AstNode
+data class ImportNode(override val info: NodeInfo, val path: PathNode, val mappings: List<MappingNode>) :
+    DeclarationNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("path", path)
+        put("mappings", mappings)
     }
 
-    data class Function(
-        override val info: NodeInfo,
-        val name: Identifier,
-        val params: List<FunctionSignatureParameterNode>,
-        val body: BodyNode,
-        val returnType: TypeReferenceNode?
-    ) : DeclarationNode {
-
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("name", name)
-            put("params", params)
-            put("body", body)
-            if (returnType != null) {
-                put("returnType", returnType)
-            }
-        }
-    }
-
-    data class NamedValue(
-        override val info: NodeInfo,
-        val name: Identifier,
-        val typeAnnotation: TypeReferenceNode?,
-        val value: ExpressionNode,
-        val isVariable: Boolean = false,
-    ) : DeclarationNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("name", name)
-            if (typeAnnotation != null) {
-                put("typeAnnotation", typeAnnotation)
-            }
-            put("value", value)
-        }
-    }
-
-    data class ObjectType(
-        override val info: NodeInfo, val name: Identifier, val fields: List<ObjectField>?
-    ) : DeclarationNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("name", name)
-            if (fields != null) {
-                put("fields", fields)
-            }
-        }
-    }
-
-    data class SignalType(
-        override val info: NodeInfo,
-        val name: Identifier,
-        val fields: List<ObjectField>?,
-        val result: TypeReferenceNode?
-    ) : DeclarationNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("name", name)
-            if (fields != null) {
-                put("fields", fields)
-            }
-            if (result != null) {
-                put("result", result)
-            }
-        }
-    }
-
-    data class ObjectField(
-        override val info: NodeInfo, val name: Identifier, val typeConstraint: TypeReferenceNode
-    ) : AstNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("name", name)
-            put("typeConstraint", typeConstraint)
-        }
-    }
-
-    data class OptionType(
-        override val info: NodeInfo, val name: Identifier, val options: List<TypeReferenceNode>
-    ) : DeclarationNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("name", name)
-            put("options", options)
-        }
-    }
-}
-
-sealed interface BodyNode : AstNode {
-    data class BlockBodyNode(override val info: NodeInfo, val statements: List<StatementNode>) : BodyNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
-            buildMap { put("statements", statements) }
-    }
-
-    data class SingleStatementBodyNode(override val info: NodeInfo, val statement: StatementNode) : BodyNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("statement", statement)
-        }
-    }
-}
-
-sealed interface StatementNode : AstNode {
-    data class EffectStatement(override val info: NodeInfo, val pattern: PatternNode, val body: BodyNode) :
-        StatementNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("pattern", pattern)
-            put("body", body)
-        }
-    }
-
-    data class SetStatement(override val info: NodeInfo, val identifier: Identifier, val expression: ExpressionNode) :
-        StatementNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("identifier", identifier)
-            put("expression", expression)
-        }
-    }
-
-    data class ExpressionStatement(override val info: NodeInfo, val expression: ExpressionNode) : StatementNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("expression", expression)
-        }
-    }
-
-    data class DeclarationStatement(override val info: NodeInfo, val declaration: DeclarationNode) : StatementNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("declaration", declaration)
-        }
-    }
-}
-
-sealed interface ExpressionNode : AstNode {
-
-    data class GroupExpressionNode(override val info: NodeInfo, val expression: ExpressionNode) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
-            buildMap { put("expression", expression) }
-    }
-
-    data class BlockExpressionNode(override val info: NodeInfo, val block: BodyNode.BlockBodyNode) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
-            buildMap { put("block", block) }
-
-    }
-
-    data class FunctionExpressionNode(
-        override val info: NodeInfo,
-        val params: List<FunctionSignatureParameterNode>,
-        val body: ExpressionNode,
-        val returnType: TypeReferenceNode? = null,
-    ) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("params", params)
-            put("body", body)
-            returnType?.let { put("returnType", it) }
-        }
-    }
-
-    data class BranchExpressionNode(
-        override val info: NodeInfo, val withValue: ExpressionNode?, val branches: List<BranchOptionNode>
-    ) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("branches", branches)
-            withValue?.let { put("withValue", it) }
-        }
-    }
-
-    data class LoopExpressionNode(override val info: NodeInfo, val body: BodyNode) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("body", body)
-        }
-    }
-
-    data class IdentifierExpression(override val info: NodeInfo, val identifier: Identifier) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
-            buildMap { put("identifier", identifier) }
-    }
-
-    data class MemberExpression(
-        override val info: NodeInfo, val objectExpression: ExpressionNode, val memberIdentifier: Identifier
-    ) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("objectExpression", objectExpression)
-            put("memberIdentifier", memberIdentifier)
-        }
-    }
-
-    data class CauseExpression(override val info: NodeInfo, val signal: ExpressionNode) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
-            buildMap { put("signal", signal) }
-
-    }
-
-
-    data class CallExpression(
-        override val info: NodeInfo, val callee: ExpressionNode, val parameters: List<FunctionCallParameterNode>
-    ) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("callee", callee)
-            put("parameters", parameters)
-        }
-
-
-    }
-
-    data class PipeCallExpression(
-        override val info: NodeInfo,
-        val subject: ExpressionNode,
-        val callee: ExpressionNode,
-        val parameters: List<FunctionCallParameterNode>
-    ) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("subject", subject)
-            put("callee", callee)
-            put("parameters", parameters)
-        }
-    }
-
-    data class StringLiteralExpression(override val info: NodeInfo, val text: String) : ExpressionNode {
+    data class PathNode(override val info: NodeInfo, val path: String) : AstNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
     }
 
-
-    data class NumberLiteralExpression(override val info: NodeInfo, val value: BigDecimal) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
-    }
-
-    data class ReturnExpression(override val info: NodeInfo, val value: ExpressionNode?) : ExpressionNode {
+    data class MappingNode(
+        override val info: NodeInfo,
+        val sourceName: IdentifierNode,
+        val rename: IdentifierNode?
+    ) :
+        AstNode {
         override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            value?.let { put("value", it) }
+            put("sourceName", sourceName)
+            if (rename != null) {
+                put("rename", rename)
+            }
         }
     }
+}
 
-    data class BreakExpression(override val info: NodeInfo, val withValue: ExpressionNode? = null) : ExpressionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            withValue?.let { put("withValue", it) }
+data class FunctionNode(
+    override val info: NodeInfo,
+    val name: IdentifierNode,
+    val params: List<FunctionSignatureParameterNode>,
+    val body: BodyNode,
+    val returnType: TypeReferenceNode?
+) : DeclarationNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("name", name)
+        put("params", params)
+        put("body", body)
+        if (returnType != null) {
+            put("returnType", returnType)
         }
+    }
+}
+
+data class NamedValue(
+    override val info: NodeInfo,
+    val name: IdentifierNode,
+    val typeAnnotation: TypeReferenceNode?,
+    val value: ExpressionNode,
+    val isVariable: Boolean = false,
+) : DeclarationNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("name", name)
+        if (typeAnnotation != null) {
+            put("typeAnnotation", typeAnnotation)
+        }
+        put("value", value)
+    }
+}
+
+data class ObjectType(
+    override val info: NodeInfo, val name: IdentifierNode, val fields: List<ObjectField>?
+) : DeclarationNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("name", name)
+        if (fields != null) {
+            put("fields", fields)
+        }
+    }
+}
+
+data class SignalType(
+    override val info: NodeInfo,
+    val name: IdentifierNode,
+    val fields: List<ObjectField>?,
+    val result: TypeReferenceNode?
+) : DeclarationNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("name", name)
+        if (fields != null) {
+            put("fields", fields)
+        }
+        if (result != null) {
+            put("result", result)
+        }
+    }
+}
+
+data class ObjectField(
+    override val info: NodeInfo, val name: IdentifierNode, val typeConstraint: TypeReferenceNode
+) : AstNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("name", name)
+        put("typeConstraint", typeConstraint)
+    }
+}
+
+data class OptionType(
+    override val info: NodeInfo, val name: IdentifierNode, val options: List<TypeReferenceNode>
+) : DeclarationNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("name", name)
+        put("options", options)
+    }
+}
+
+sealed interface BodyNode : AstNode
+
+data class BlockBodyNode(override val info: NodeInfo, val statements: List<StatementNode>) : BodyNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
+        buildMap { put("statements", statements) }
+}
+
+data class SingleStatementBodyNode(override val info: NodeInfo, val statement: StatementNode) : BodyNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("statement", statement)
+    }
+}
+
+sealed interface StatementNode : AstNode
+
+data class EffectStatementNode(override val info: NodeInfo, val pattern: PatternNode, val body: BodyNode) :
+    StatementNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("pattern", pattern)
+        put("body", body)
+    }
+}
+
+data class SetStatementNode(
+    override val info: NodeInfo,
+    val identifier: IdentifierNode,
+    val expression: ExpressionNode
+) :
+    StatementNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("identifier", identifier)
+        put("expression", expression)
+    }
+}
+
+data class ExpressionStatementNode(override val info: NodeInfo, val expression: ExpressionNode) : StatementNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("expression", expression)
+    }
+}
+
+data class DeclarationStatementNode(override val info: NodeInfo, val declaration: DeclarationNode) : StatementNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("declaration", declaration)
+    }
+}
+
+sealed interface ExpressionNode : AstNode
+
+data class GroupExpressionNode(override val info: NodeInfo, val expression: ExpressionNode) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
+        buildMap { put("expression", expression) }
+}
+
+data class BlockExpressionNode(override val info: NodeInfo, val block: BlockBodyNode) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
+        buildMap { put("block", block) }
+
+}
+
+data class FunctionExpressionNode(
+    override val info: NodeInfo,
+    val params: List<FunctionSignatureParameterNode>,
+    val body: ExpressionNode,
+    val returnType: TypeReferenceNode? = null,
+) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("params", params)
+        put("body", body)
+        returnType?.let { put("returnType", it) }
+    }
+}
+
+data class BranchExpressionNode(
+    override val info: NodeInfo, val withValue: ExpressionNode?, val branches: List<BranchOptionNode>
+) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("branches", branches)
+        withValue?.let { put("withValue", it) }
+    }
+}
+
+data class LoopExpressionNode(override val info: NodeInfo, val body: BodyNode) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("body", body)
+    }
+}
+
+data class IdentifierExpressionNode(override val info: NodeInfo, val identifier: IdentifierNode) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
+        buildMap { put("identifier", identifier) }
+}
+
+data class MemberExpression(
+    override val info: NodeInfo, val objectExpression: ExpressionNode, val memberIdentifier: IdentifierNode
+) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("objectExpression", objectExpression)
+        put("memberIdentifier", memberIdentifier)
+    }
+}
+
+data class CauseExpressionNode(override val info: NodeInfo, val signal: ExpressionNode) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> =
+        buildMap { put("signal", signal) }
+
+}
+
+
+data class CallExpressionNode(
+    override val info: NodeInfo, val callee: ExpressionNode, val parameters: List<FunctionCallParameterNode>
+) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("callee", callee)
+        put("parameters", parameters)
+    }
+
+
+}
+
+data class PipeCallExpression(
+    override val info: NodeInfo,
+    val subject: ExpressionNode,
+    val callee: ExpressionNode,
+    val parameters: List<FunctionCallParameterNode>
+) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("subject", subject)
+        put("callee", callee)
+        put("parameters", parameters)
+    }
+}
+
+data class StringLiteralExpressionNode(override val info: NodeInfo, val text: String) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
+}
+
+
+data class NumberLiteralExpression(override val info: NodeInfo, val value: BigDecimal) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
+}
+
+data class ReturnExpression(override val info: NodeInfo, val value: ExpressionNode?) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        value?.let { put("value", it) }
+    }
+}
+
+data class BreakExpression(override val info: NodeInfo, val withValue: ExpressionNode? = null) : ExpressionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        withValue?.let { put("withValue", it) }
     }
 }
 
@@ -510,7 +515,7 @@ sealed interface BranchOptionNode : AstNode {
 
 }
 
-data class PatternNode(override val info: NodeInfo, val name: Identifier?, val typeReference: TypeReferenceNode) :
+data class PatternNode(override val info: NodeInfo, val name: IdentifierNode?, val typeReference: TypeReferenceNode) :
     AstNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
         if (name != null) {
