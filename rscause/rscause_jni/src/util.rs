@@ -1,5 +1,6 @@
 use jni::errors::Result;
-use jni::objects::JValue;
+use jni::objects::{JObject, JValue};
+use jni::sys::jvalue;
 use jni::JNIEnv;
 
 pub fn jprintln(env: &mut JNIEnv, str: &str) -> Result<()> {
@@ -11,4 +12,17 @@ pub fn jprintln(env: &mut JNIEnv, str: &str) -> Result<()> {
     let args = [value];
     env.call_method(print_stream, "println", "(Ljava/lang/String;)V", &args)?;
     Ok(())
+}
+
+pub fn jtry<Callback: FnOnce(&mut JNIEnv) -> Result<jvalue>>(
+    env: &mut JNIEnv,
+    callback: Callback,
+) -> jvalue {
+    match callback(env) {
+        Ok(result) => result,
+        Err(err) => {
+            let _ = env.throw_new("java/lang/RuntimeException", err.to_string());
+            JValue::Object(&JObject::null()).as_jni()
+        }
+    }
 }

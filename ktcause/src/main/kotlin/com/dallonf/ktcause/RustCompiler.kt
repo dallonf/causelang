@@ -2,6 +2,7 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.FileNode
 import com.dallonf.ktcause.gen.rustCompilerSupportedTypes
+import java.io.File
 
 object RustCompiler {
     init {
@@ -9,6 +10,7 @@ object RustCompiler {
     }
 
     external fun hello(): String
+    external fun logAst(ast: FileNode)
 
     fun canRunRustCompiler(ast: FileNode): Boolean {
         val incompatibleNodes = getIncompatibleNodeTypes(ast)
