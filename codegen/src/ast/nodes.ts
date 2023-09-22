@@ -46,6 +46,26 @@ export const nodes: NodeDeclaration[] = [
   },
 
   {
+    name: "Import",
+    fields: {
+      path: "ImportPath",
+      mappings: listOf("ImportMapping"),
+    },
+  },
+  {
+    name: "ImportPath",
+    fields: {
+      path: stringPrimitive,
+    },
+  },
+  {
+    name: "ImportMapping",
+    fields: {
+      sourceName: "Identifier",
+      rename: optional("Identifier"),
+    },
+  },
+  {
     name: "Function",
     category: "Declaration",
     fields: {

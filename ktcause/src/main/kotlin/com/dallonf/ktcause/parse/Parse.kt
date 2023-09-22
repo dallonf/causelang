@@ -33,10 +33,10 @@ fun generateCoreBuiltinsImport(breadcrumbs: Breadcrumbs): ImportNode {
     val coreBuiltinNames = coreBuiltinFile.exports.map { (key, _) -> key }
     val position = DocumentRange(DocumentPosition(0, 0), DocumentPosition(0, 0))
     return ImportNode(NodeInfo(position, breadcrumbs),
-        path = ImportNode.PathNode(NodeInfo(position, breadcrumbs.appendName("path")), coreBuiltinFilepath),
+        path = ImportPathNode(NodeInfo(position, breadcrumbs.appendName("path")), coreBuiltinFilepath),
         mappings = coreBuiltinNames.mapIndexed { i, name ->
             val mappingBreadcrumbs = breadcrumbs.appendName("mappings").appendIndex(i)
-            ImportNode.MappingNode(
+            ImportMappingNode(
                 NodeInfo(position, mappingBreadcrumbs),
                 sourceName = IdentifierNode(NodeInfo(position, mappingBreadcrumbs.appendName("sourceName")), name),
                 rename = null
@@ -137,7 +137,7 @@ private fun parseImportDeclaration(
     importDeclaration: ImportDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ImportNode {
     val pathToken = importDeclaration.PATH()
-    val path = ImportNode.PathNode(
+    val path = ImportPathNode(
         NodeInfo(pathToken.symbol.getRange(), breadcrumbs.appendName("path")), pathToken.text
     )
 
@@ -164,7 +164,7 @@ private fun parseImportDeclaration(
         iterator.skip { (it is TerminalNode && (it.symbol.type == COMMA || it.symbol.type == NEWLINE)) }
 
         val mappingBreadcrumbs = breadcrumbs.appendName("mappings").appendIndex(i)
-        ImportNode.MappingNode(
+        ImportMappingNode(
             NodeInfo(mappingRule.getRange(), mappingBreadcrumbs),
             parseIdentifier(name, mappingBreadcrumbs.appendName("sourceName"), ctx),
             rename?.let { parseIdentifier(it, mappingBreadcrumbs.appendName("rename"), ctx) },

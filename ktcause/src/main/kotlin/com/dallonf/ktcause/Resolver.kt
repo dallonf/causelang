@@ -138,7 +138,7 @@ object Resolver {
 
                         is PatternNode -> track(CONSTRAINT)
 
-                        is ImportNode.MappingNode -> track(INFERRED)
+                        is ImportMappingNode -> track(INFERRED)
 
                         is FunctionSignatureParameterNode -> track(CONSTRAINT)
 
@@ -949,7 +949,7 @@ object Resolver {
                             resolveFunction(node.name, node.params, node.returnType)
                         }
 
-                        is ImportNode.MappingNode -> {
+                        is ImportMappingNode -> {
                             val referenceFileTag =
                                 pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.ReferencesFile }
                             if (referenceFileTag != null) {

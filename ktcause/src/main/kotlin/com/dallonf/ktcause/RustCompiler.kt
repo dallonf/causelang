@@ -11,10 +11,19 @@ object RustCompiler {
     external fun hello(): String
 
     fun canRunRustCompiler(ast: FileNode): Boolean {
+        val incompatibleNodes = getIncompatibleNodeTypes(ast)
+        return !incompatibleNodes.any()
+    }
+
+    private fun getIncompatibleNodeTypes(ast: FileNode): Sequence<String> {
         val allNodes = ast.allDescendants()
-        return allNodes.all {
+        return allNodes.mapNotNull {
             val name = it::class.simpleName
-            rustCompilerSupportedTypes.contains(name)
+            if (rustCompilerSupportedTypes.contains(name)) {
+                null
+            } else {
+                name
+            }
         }
     }
 }

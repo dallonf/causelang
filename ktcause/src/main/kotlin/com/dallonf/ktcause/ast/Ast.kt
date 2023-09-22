@@ -227,28 +227,28 @@ data class FileNode(override val info: NodeInfo, val declarations: List<Declarat
 }
 
 sealed interface DeclarationNode : AstNode
-data class ImportNode(override val info: NodeInfo, val path: PathNode, val mappings: List<MappingNode>) :
+data class ImportNode(override val info: NodeInfo, val path: ImportPathNode, val mappings: List<ImportMappingNode>) :
     DeclarationNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
         put("path", path)
         put("mappings", mappings)
     }
+}
 
-    data class PathNode(override val info: NodeInfo, val path: String) : AstNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
-    }
+data class ImportPathNode(override val info: NodeInfo, val path: String) : AstNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
+}
 
-    data class MappingNode(
-        override val info: NodeInfo,
-        val sourceName: IdentifierNode,
-        val rename: IdentifierNode?
-    ) :
-        AstNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("sourceName", sourceName)
-            if (rename != null) {
-                put("rename", rename)
-            }
+data class ImportMappingNode(
+    override val info: NodeInfo,
+    val sourceName: IdentifierNode,
+    val rename: IdentifierNode?
+) :
+    AstNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("sourceName", sourceName)
+        if (rename != null) {
+            put("rename", rename)
         }
     }
 }
