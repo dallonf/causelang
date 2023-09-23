@@ -147,9 +147,22 @@ impl<'local> JniToAstNode<ast::FunctionSignatureParameterNode> for JObject<'loca
             let value = jni_string.to_str()?.to_owned();
             Arc::new(value)
               };
+      let type_reference = {
+            let jni_node = env
+                .call_method(&self, "getTypeReference", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            if env.is_same_object(&jni_node, JObject::null())? {
+                None
+            } else {
+                let node: ast::TypeReferenceNode = jni_node.to_ast_node(env)?;
+                Some(Box::new(node))
+            }
+      };
 
       Ok(ast::FunctionSignatureParameterNode {
           name,
+          type_reference,
       })
     }
 }
@@ -247,9 +260,22 @@ impl<'local> JniToAstNode<ast::ImportMappingNode> for JObject<'local> {
             let node: ast::IdentifierNode = jni_node.to_ast_node(env)?;
             node
       };
+      let rename = {
+            let jni_node = env
+                .call_method(&self, "getRename", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            if env.is_same_object(&jni_node, JObject::null())? {
+                None
+            } else {
+                let node: ast::IdentifierNode = jni_node.to_ast_node(env)?;
+                Some(node)
+            }
+      };
 
       Ok(ast::ImportMappingNode {
           source_name,
+          rename,
       })
     }
 }
@@ -285,11 +311,24 @@ impl<'local> JniToAstNode<ast::FunctionNode> for JObject<'local> {
             let node: ast::BodyNode = jni_node.to_ast_node(env)?;
             Box::new(node)
       };
+      let return_type = {
+            let jni_node = env
+                .call_method(&self, "getReturnType", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            if env.is_same_object(&jni_node, JObject::null())? {
+                None
+            } else {
+                let node: ast::TypeReferenceNode = jni_node.to_ast_node(env)?;
+                Some(Box::new(node))
+            }
+      };
 
       Ok(ast::FunctionNode {
           name,
           params,
           body,
+          return_type,
       })
     }
 }

@@ -94,6 +94,11 @@ async function generateAstMappingRs() {
       name: `${node.name}Node`,
       fields: Object.entries(node.fields).flatMap(
         ([fieldName, type]): Record<string, unknown>[] => {
+          let isOptional = false;
+          if (typeof type !== "string" && type.kind === "optional") {
+            isOptional = true;
+            type = type.type;
+          }
           const rsName = changeCase.snakeCase(fieldName);
           const getterName = `get${changeCase.pascalCase(fieldName)}`;
           if (typeof type === "string") {
@@ -103,6 +108,7 @@ async function generateAstMappingRs() {
                 name: rsName,
                 getterName,
                 type: `${type}Node`,
+                isOptional,
                 needsBoxing: categories.some(
                   (category) => type === category.name
                 ),
