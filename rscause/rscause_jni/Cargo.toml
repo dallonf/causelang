@@ -10,3 +10,4 @@ crate_type = ["cdylib"]
 
 [dependencies]
 jni = "0.21.1"
+rscause_compiler = { path = "../rscause_compiler" }

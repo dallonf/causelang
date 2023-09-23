@@ -1,3 +1,5 @@
+use std::panic::{self, AssertUnwindSafe};
+
 use jni::errors::Result;
 use jni::objects::{JObject, JValue};
 use jni::sys::jvalue;
@@ -14,14 +16,33 @@ pub fn jprintln(env: &mut JNIEnv, str: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn jtry<Callback: FnOnce(&mut JNIEnv) -> Result<jvalue>>(
+pub fn jtry<Callback: (FnOnce(&mut JNIEnv) -> Result<jvalue>)>(
     env: &mut JNIEnv,
     callback: Callback,
 ) -> jvalue {
-    match callback(env) {
+    let panicked = panic::catch_unwind(AssertUnwindSafe(|| match callback(env) {
         Ok(result) => result,
         Err(err) => {
             let _ = env.throw_new("java/lang/RuntimeException", err.to_string());
+            JValue::Object(&JObject::null()).as_jni()
+        }
+    }));
+    match panicked {
+        Ok(value) => value,
+        Err(err) => {
+            if err.is::<String>() {
+                let _ = env.throw_new(
+                    "java/lang/RuntimeException",
+                    err.downcast_ref::<String>().unwrap(),
+                );
+            } else if err.is::<&str>() {
+                let _ = env.throw_new(
+                    "java/lang/RuntimeException",
+                    err.downcast_ref::<&str>().unwrap(),
+                );
+            } else {
+                let _ = env.throw_new("java/lang/RuntimeException", "Unknown panic");
+            }
             JValue::Object(&JObject::null()).as_jni()
         }
     }
