@@ -12,7 +12,7 @@ export const nodes: NodeDeclaration[] = [
   {
     name: "Identifier",
     fields: {
-      value: stringPrimitive,
+      text: stringPrimitive,
     },
   },
 
@@ -47,6 +47,7 @@ export const nodes: NodeDeclaration[] = [
 
   {
     name: "Import",
+    category: "Declaration",
     fields: {
       path: "ImportPath",
       mappings: listOf("ImportMapping"),
@@ -69,7 +70,7 @@ export const nodes: NodeDeclaration[] = [
     name: "Function",
     category: "Declaration",
     fields: {
-      name: stringPrimitive,
+      name: "Identifier",
       params: listOf("FunctionSignatureParameter"),
       body: "Body",
       returnType: optional("TypeReference"),

@@ -37,6 +37,9 @@ impl<'local> JniToAstNode<ast::DeclarationNode> for JObject<'local> {
       let class_name = class_name.to_str()?;
 
       Ok(match class_name {
+            "ImportNode" => {
+                ast::DeclarationNode::Import(self.to_ast_node(env)?)
+            },
             "FunctionNode" => {
                 ast::DeclarationNode::Function(self.to_ast_node(env)?)
             },
@@ -110,9 +113,9 @@ impl<'local> JniToAstNode<ast::ExpressionNode> for JObject<'local> {
 
 impl<'local> JniToAstNode<ast::IdentifierNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::IdentifierNode> {
-      let value = {
+      let text = {
             let jni_string = env
-                .call_method(&self, "getValue", "()Ljava/lang/String;", &[])?
+                .call_method(&self, "getText", "()Ljava/lang/String;", &[])?
                 .l()?;
             let jni_string = JString::from(jni_string);
             let jni_string = env.get_string(&jni_string)?;
@@ -121,7 +124,7 @@ impl<'local> JniToAstNode<ast::IdentifierNode> for JObject<'local> {
               };
 
       Ok(ast::IdentifierNode {
-          value,
+          text,
       })
     }
 }
@@ -287,14 +290,13 @@ impl<'local> JniToAstNode<ast::ImportMappingNode> for JObject<'local> {
 impl<'local> JniToAstNode<ast::FunctionNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::FunctionNode> {
       let name = {
-            let jni_string = env
-                .call_method(&self, "getName", "()Ljava/lang/String;", &[])?
+            let jni_node = env
+                .call_method(&self, "getName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
                 .l()?;
-            let jni_string = JString::from(jni_string);
-            let jni_string = env.get_string(&jni_string)?;
-            let value = jni_string.to_str()?.to_owned();
-            Arc::new(value)
-              };
+            let jni_node = JObject::from(jni_node);
+            let node: ast::IdentifierNode = jni_node.to_ast_node(env)?;
+            node
+      };
       let params = {
           let jni_list = env
                 .call_method(&self, "getParams", "()Ljava/util/List;", &[])?

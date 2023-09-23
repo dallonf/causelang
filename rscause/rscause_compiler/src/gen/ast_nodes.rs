@@ -7,6 +7,7 @@ pub enum TypeReferenceNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DeclarationNode {
+    Import(ImportNode),
     Function(FunctionNode),
 }
 
@@ -31,7 +32,7 @@ pub enum ExpressionNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdentifierNode {
-    pub value: Arc<String>,
+    pub text: Arc<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -74,7 +75,7 @@ pub struct ImportMappingNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionNode {
-    pub name: Arc<String>,
+    pub name: IdentifierNode,
     pub params: Vec<FunctionSignatureParameterNode>,
     pub body: Box<BodyNode>,
     pub return_type: Option<Box<TypeReferenceNode>>,
