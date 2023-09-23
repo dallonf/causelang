@@ -122,8 +122,17 @@ impl<'local> JniToAstNode<ast::IdentifierNode> for JObject<'local> {
 }
 impl<'local> JniToAstNode<ast::IdentifierTypeReferenceNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::IdentifierTypeReferenceNode> {
+      let identifier = {
+            let jni_node = env
+                .call_method(&self, "getIdentifier", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            let node: ast::IdentifierNode = jni_node.to_ast_node(env)?;
+            node
+      };
 
       Ok(ast::IdentifierTypeReferenceNode {
+          identifier,
       })
     }
 }
@@ -146,8 +155,17 @@ impl<'local> JniToAstNode<ast::FunctionSignatureParameterNode> for JObject<'loca
 }
 impl<'local> JniToAstNode<ast::FunctionCallParameterNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::FunctionCallParameterNode> {
+      let value = {
+            let jni_node = env
+                .call_method(&self, "getValue", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            let node: ast::ExpressionNode = jni_node.to_ast_node(env)?;
+            Box::new(node)
+      };
 
       Ok(ast::FunctionCallParameterNode {
+          value,
       })
     }
 }
@@ -174,6 +192,14 @@ impl<'local> JniToAstNode<ast::FileNode> for JObject<'local> {
 }
 impl<'local> JniToAstNode<ast::ImportNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::ImportNode> {
+      let path = {
+            let jni_node = env
+                .call_method(&self, "getPath", "()Lcom/dallonf/ktcause/ast/ImportPathNode;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            let node: ast::ImportPathNode = jni_node.to_ast_node(env)?;
+            node
+      };
       let mappings = {
           let jni_list = env
                 .call_method(&self, "getMappings", "()Ljava/util/List;", &[])?
@@ -189,6 +215,7 @@ impl<'local> JniToAstNode<ast::ImportNode> for JObject<'local> {
       };
 
       Ok(ast::ImportNode {
+          path,
           mappings,
       })
     }
@@ -212,8 +239,17 @@ impl<'local> JniToAstNode<ast::ImportPathNode> for JObject<'local> {
 }
 impl<'local> JniToAstNode<ast::ImportMappingNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::ImportMappingNode> {
+      let source_name = {
+            let jni_node = env
+                .call_method(&self, "getSourceName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            let node: ast::IdentifierNode = jni_node.to_ast_node(env)?;
+            node
+      };
 
       Ok(ast::ImportMappingNode {
+          source_name,
       })
     }
 }
@@ -241,10 +277,19 @@ impl<'local> JniToAstNode<ast::FunctionNode> for JObject<'local> {
           }
           list
       };
+      let body = {
+            let jni_node = env
+                .call_method(&self, "getBody", "()Lcom/dallonf/ktcause/ast/BodyNode;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            let node: ast::BodyNode = jni_node.to_ast_node(env)?;
+            Box::new(node)
+      };
 
       Ok(ast::FunctionNode {
           name,
           params,
+          body,
       })
     }
 }
@@ -271,20 +316,46 @@ impl<'local> JniToAstNode<ast::BlockBodyNode> for JObject<'local> {
 }
 impl<'local> JniToAstNode<ast::ExpressionStatementNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::ExpressionStatementNode> {
+      let expression = {
+            let jni_node = env
+                .call_method(&self, "getExpression", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            let node: ast::ExpressionNode = jni_node.to_ast_node(env)?;
+            Box::new(node)
+      };
 
       Ok(ast::ExpressionStatementNode {
+          expression,
       })
     }
 }
 impl<'local> JniToAstNode<ast::CauseExpressionNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::CauseExpressionNode> {
+      let signal = {
+            let jni_node = env
+                .call_method(&self, "getSignal", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            let node: ast::ExpressionNode = jni_node.to_ast_node(env)?;
+            Box::new(node)
+      };
 
       Ok(ast::CauseExpressionNode {
+          signal,
       })
     }
 }
 impl<'local> JniToAstNode<ast::CallExpressionNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::CallExpressionNode> {
+      let callee = {
+            let jni_node = env
+                .call_method(&self, "getCallee", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            let node: ast::ExpressionNode = jni_node.to_ast_node(env)?;
+            Box::new(node)
+      };
       let parameters = {
           let jni_list = env
                 .call_method(&self, "getParameters", "()Ljava/util/List;", &[])?
@@ -300,14 +371,24 @@ impl<'local> JniToAstNode<ast::CallExpressionNode> for JObject<'local> {
       };
 
       Ok(ast::CallExpressionNode {
+          callee,
           parameters,
       })
     }
 }
 impl<'local> JniToAstNode<ast::IdentifierExpressionNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::IdentifierExpressionNode> {
+      let identifier = {
+            let jni_node = env
+                .call_method(&self, "getIdentifier", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            let node: ast::IdentifierNode = jni_node.to_ast_node(env)?;
+            node
+      };
 
       Ok(ast::IdentifierExpressionNode {
+          identifier,
       })
     }
 }

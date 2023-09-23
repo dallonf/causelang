@@ -35,7 +35,18 @@ impl<'local> JniToAstNode<ast::{{this.name}}> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::{{this.name}}> {
       {{#each this.fields}}
       let {{this.name}} = {
-        {{#if this.isList}}
+        {{#if this.isNode}}
+            let jni_node = env
+                .call_method(&self, "{{this.getterName}}", "()Lcom/dallonf/ktcause/ast/{{this.type}};", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            let node: ast::{{this.type}} = jni_node.to_ast_node(env)?;
+            {{#if this.needsBoxing}}
+            Box::new(node)
+            {{else}}
+            node
+            {{/if}}
+        {{else if this.isList}}
           let jni_list = env
                 .call_method(&self, "{{this.getterName}}", "()Ljava/util/List;", &[])?
                 .l()?;

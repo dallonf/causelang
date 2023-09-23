@@ -96,13 +96,25 @@ async function generateAstMappingRs() {
         ([fieldName, type]): Record<string, unknown>[] => {
           const rsName = changeCase.snakeCase(fieldName);
           const getterName = `get${changeCase.pascalCase(fieldName)}`;
-          if (typeof type === "string") return [];
+          if (typeof type === "string") {
+            return [
+              {
+                isNode: true,
+                name: rsName,
+                getterName,
+                type: `${type}Node`,
+                needsBoxing: categories.some(
+                  (category) => type === category.name
+                ),
+              },
+            ];
+          }
           if (type.kind === "list" && typeof type.type === "string") {
             return [
               {
+                isList: true,
                 name: rsName,
                 getterName,
-                isList: true,
                 type: `${type.type}Node`,
               },
             ];
@@ -111,9 +123,9 @@ async function generateAstMappingRs() {
             if (type.type === "string") {
               return [
                 {
+                  isString: true,
                   name: rsName,
                   getterName,
-                  isString: true,
                 },
               ];
             }
@@ -147,7 +159,8 @@ function rsFieldType(
   } = {}
 ): string {
   if (typeof type === "string") {
-    if (bare) return `Box<${type}Node>`;
+    if (bare && categories.some((category) => category.name === type))
+      return `Box<${type}Node>`;
     return `${type}Node`;
   }
   switch (type.kind) {

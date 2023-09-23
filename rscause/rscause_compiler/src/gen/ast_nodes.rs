@@ -36,7 +36,7 @@ pub struct IdentifierNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdentifierTypeReferenceNode {
-    pub identifier: Box<IdentifierNode>,
+    pub identifier: IdentifierNode,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -57,7 +57,7 @@ pub struct FileNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ImportNode {
-    pub path: Box<ImportPathNode>,
+    pub path: ImportPathNode,
     pub mappings: Vec<ImportMappingNode>,
 }
 
@@ -68,8 +68,8 @@ pub struct ImportPathNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ImportMappingNode {
-    pub source_name: Box<IdentifierNode>,
-    pub rename: Option<Box<IdentifierNode>>,
+    pub source_name: IdentifierNode,
+    pub rename: Option<IdentifierNode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -103,7 +103,7 @@ pub struct CallExpressionNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdentifierExpressionNode {
-    pub identifier: Box<IdentifierNode>,
+    pub identifier: IdentifierNode,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
