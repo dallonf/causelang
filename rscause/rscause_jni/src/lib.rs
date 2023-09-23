@@ -24,11 +24,8 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_logAst<'local>(
 ) -> jvalue {
     jtry(&mut env, move |mut env| {
         let declarations = env
-            .get_field(&ast, "declarations", "Lkotlin/collections/List;")?
+            .call_method(ast, "getDeclarations", "()Ljava/util/List;", &[])?
             .l()?;
-        // let declarations = env
-        //     .call_method(ast, "getDeclarations", "()Lkotlin/collections/List;", &[])?
-        //     .l()?;
         let count = env.call_method(declarations, "size", "()I", &[])?.i()?;
 
         jprintln(&mut env, format!("Found {} declarations", count).as_str())?;
