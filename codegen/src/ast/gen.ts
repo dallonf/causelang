@@ -92,21 +92,35 @@ async function generateAstMappingRs() {
   const templateNodes = nodes.map((node) => {
     return {
       name: `${node.name}Node`,
-      fields: Object.entries(node.fields).flatMap(([fieldName, type]) => {
-        const rsName = changeCase.snakeCase(fieldName);
-        if (typeof type === "string") return [];
-        if (type.kind === "list" && typeof type.type === "string") {
-          return [
-            {
-              name: rsName,
-              getterName: `get${changeCase.pascalCase(fieldName)}`,
-              isList: true,
-              type: `${type.type}Node`,
-            },
-          ];
+      fields: Object.entries(node.fields).flatMap(
+        ([fieldName, type]): Record<string, unknown>[] => {
+          const rsName = changeCase.snakeCase(fieldName);
+          const getterName = `get${changeCase.pascalCase(fieldName)}`;
+          if (typeof type === "string") return [];
+          if (type.kind === "list" && typeof type.type === "string") {
+            return [
+              {
+                name: rsName,
+                getterName,
+                isList: true,
+                type: `${type.type}Node`,
+              },
+            ];
+          }
+          if (type.kind === "primitive") {
+            if (type.type === "string") {
+              return [
+                {
+                  name: rsName,
+                  getterName,
+                  isString: true,
+                },
+              ];
+            }
+          }
+          return [];
         }
-        return [];
-      }),
+      ),
     };
   });
 

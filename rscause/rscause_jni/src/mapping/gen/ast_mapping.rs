@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::super::ast::JniToAstNode;
 use anyhow::Result;
 use jni::{
@@ -103,8 +105,18 @@ impl<'local> JniToAstNode<ast::ExpressionNode> for JObject<'local> {
 
 impl<'local> JniToAstNode<ast::IdentifierNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::IdentifierNode> {
+      let value = {
+            let jni_string = env
+                .call_method(&self, "getValue", "()Ljava/lang/String;", &[])?
+                .l()?;
+            let jni_string = JString::from(jni_string);
+            let jni_string = env.get_string(&jni_string)?;
+            let value = jni_string.to_str()?.to_owned();
+            Arc::new(value)
+              };
 
       Ok(ast::IdentifierNode {
+          value,
       })
     }
 }
@@ -117,8 +129,18 @@ impl<'local> JniToAstNode<ast::IdentifierTypeReferenceNode> for JObject<'local> 
 }
 impl<'local> JniToAstNode<ast::FunctionSignatureParameterNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::FunctionSignatureParameterNode> {
+      let name = {
+            let jni_string = env
+                .call_method(&self, "getName", "()Ljava/lang/String;", &[])?
+                .l()?;
+            let jni_string = JString::from(jni_string);
+            let jni_string = env.get_string(&jni_string)?;
+            let value = jni_string.to_str()?.to_owned();
+            Arc::new(value)
+              };
 
       Ok(ast::FunctionSignatureParameterNode {
+          name,
       })
     }
 }
@@ -173,8 +195,18 @@ impl<'local> JniToAstNode<ast::ImportNode> for JObject<'local> {
 }
 impl<'local> JniToAstNode<ast::ImportPathNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::ImportPathNode> {
+      let path = {
+            let jni_string = env
+                .call_method(&self, "getPath", "()Ljava/lang/String;", &[])?
+                .l()?;
+            let jni_string = JString::from(jni_string);
+            let jni_string = env.get_string(&jni_string)?;
+            let value = jni_string.to_str()?.to_owned();
+            Arc::new(value)
+              };
 
       Ok(ast::ImportPathNode {
+          path,
       })
     }
 }
@@ -187,6 +219,15 @@ impl<'local> JniToAstNode<ast::ImportMappingNode> for JObject<'local> {
 }
 impl<'local> JniToAstNode<ast::FunctionNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::FunctionNode> {
+      let name = {
+            let jni_string = env
+                .call_method(&self, "getName", "()Ljava/lang/String;", &[])?
+                .l()?;
+            let jni_string = JString::from(jni_string);
+            let jni_string = env.get_string(&jni_string)?;
+            let value = jni_string.to_str()?.to_owned();
+            Arc::new(value)
+              };
       let params = {
           let jni_list = env
                 .call_method(&self, "getParams", "()Ljava/util/List;", &[])?
@@ -202,6 +243,7 @@ impl<'local> JniToAstNode<ast::FunctionNode> for JObject<'local> {
       };
 
       Ok(ast::FunctionNode {
+          name,
           params,
       })
     }
@@ -271,8 +313,18 @@ impl<'local> JniToAstNode<ast::IdentifierExpressionNode> for JObject<'local> {
 }
 impl<'local> JniToAstNode<ast::StringLiteralExpressionNode> for JObject<'local> {
     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::StringLiteralExpressionNode> {
+      let text = {
+            let jni_string = env
+                .call_method(&self, "getText", "()Ljava/lang/String;", &[])?
+                .l()?;
+            let jni_string = JString::from(jni_string);
+            let jni_string = env.get_string(&jni_string)?;
+            let value = jni_string.to_str()?.to_owned();
+            Arc::new(value)
+              };
 
       Ok(ast::StringLiteralExpressionNode {
+          text,
       })
     }
 }

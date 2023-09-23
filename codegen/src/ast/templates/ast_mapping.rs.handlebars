@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::super::ast::JniToAstNode;
 use anyhow::Result;
 use jni::{
@@ -45,6 +47,14 @@ impl<'local> JniToAstNode<ast::{{this.name}}> for JObject<'local> {
               list.push(node);
           }
           list
+        {{else if this.isString}}
+            let jni_string = env
+                .call_method(&self, "{{this.getterName}}", "()Ljava/lang/String;", &[])?
+                .l()?;
+            let jni_string = JString::from(jni_string);
+            let jni_string = env.get_string(&jni_string)?;
+            let value = jni_string.to_str()?.to_owned();
+            Arc::new(value)
         {{/if}}
       };
       {{/each}}
