@@ -1,6 +1,6 @@
 use std::panic::{self, AssertUnwindSafe};
 
-use jni::errors::Result;
+use anyhow::Result;
 use jni::objects::{JObject, JValue};
 use jni::sys::jvalue;
 use jni::JNIEnv;
