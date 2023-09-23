@@ -16,7 +16,8 @@ impl<'local> JniToAstNode<ast::{{this.name}}> for JObject<'local> {
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
           .l()?
           .into();
-      let class_name = env.get_string(&class_name)?.to_str()?;
+      let class_name = env.get_string(&class_name)?;
+      let class_name = class_name.to_str()?;
 
       Ok(match class_name {
           {{#each this.nodes}}

@@ -15,7 +15,8 @@ impl<'local> JniToAstNode<ast::TypeReferenceNode> for JObject<'local> {
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
           .l()?
           .into();
-      let class_name = env.get_string(&class_name)?.to_str()?;
+      let class_name = env.get_string(&class_name)?;
+      let class_name = class_name.to_str()?;
 
       Ok(match class_name {
             "IdentifierTypeReferenceNode" => {
@@ -32,7 +33,8 @@ impl<'local> JniToAstNode<ast::DeclarationNode> for JObject<'local> {
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
           .l()?
           .into();
-      let class_name = env.get_string(&class_name)?.to_str()?;
+      let class_name = env.get_string(&class_name)?;
+      let class_name = class_name.to_str()?;
 
       Ok(match class_name {
             "FunctionNode" => {
@@ -49,7 +51,8 @@ impl<'local> JniToAstNode<ast::BodyNode> for JObject<'local> {
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
           .l()?
           .into();
-      let class_name = env.get_string(&class_name)?.to_str()?;
+      let class_name = env.get_string(&class_name)?;
+      let class_name = class_name.to_str()?;
 
       Ok(match class_name {
             "BlockBodyNode" => {
@@ -66,7 +69,8 @@ impl<'local> JniToAstNode<ast::StatementNode> for JObject<'local> {
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
           .l()?
           .into();
-      let class_name = env.get_string(&class_name)?.to_str()?;
+      let class_name = env.get_string(&class_name)?;
+      let class_name = class_name.to_str()?;
 
       Ok(match class_name {
             "ExpressionStatementNode" => {
@@ -83,7 +87,8 @@ impl<'local> JniToAstNode<ast::ExpressionNode> for JObject<'local> {
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
           .l()?
           .into();
-      let class_name = env.get_string(&class_name)?.to_str()?;
+      let class_name = env.get_string(&class_name)?;
+      let class_name = class_name.to_str()?;
 
       Ok(match class_name {
             "CauseExpressionNode" => {
