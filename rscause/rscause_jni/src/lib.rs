@@ -1,7 +1,7 @@
 use jni::objects::{JClass, JObject, JValue};
 use jni::sys::{jstring, jvalue};
 use jni::JNIEnv;
-use mapping::ast::JniToAstNode;
+use mapping::JniInto;
 use rscause_compiler::ast_nodes::FileNode;
 use util::{jprintln, jtry};
 
@@ -26,7 +26,7 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_logAst<'local>(
     jni_ast: JObject<'local>,
 ) -> jvalue {
     jtry(&mut env, move |mut env| {
-        let ast: FileNode = jni_ast.to_ast_node(&mut env)?;
+        let ast: FileNode = jni_ast.jni_into(&mut env)?;
 
         jprintln(&mut env, format!("AST: {:#?}", ast).as_str())?;
 

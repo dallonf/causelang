@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::super::ast::JniToAstNode;
+use super::super::{JniInto, FromJni};
 use anyhow::Result;
 use jni::{
     objects::{JObject, JString},
@@ -8,135 +8,122 @@ use jni::{
 };
 use rscause_compiler::ast_nodes as ast;
 
-impl<'local> JniToAstNode<ast::TypeReferenceNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::TypeReferenceNode> {
-      let class = env.get_object_class(&self)?;
+impl FromJni for ast::TypeReferenceNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let class = env.get_object_class(value)?;
       let class_name: JString = env
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
           .l()?
           .into();
-      let class_name = env.get_string(&class_name)?;
-      let class_name = class_name.to_str()?;
-
-      Ok(match class_name {
+      let class_name: String = class_name.jni_into(env)?;
+      Ok(match class_name.as_str() {
             "IdentifierTypeReferenceNode" => {
-                ast::TypeReferenceNode::Identifier(self.to_ast_node(env)?)
+                ast::TypeReferenceNode::Identifier(value.jni_into(env)?)
             },
           _ => panic!("Unknown class name for TypeReferenceNode: {}", class_name)
       })
     }
 }
-impl<'local> JniToAstNode<ast::DeclarationNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::DeclarationNode> {
-      let class = env.get_object_class(&self)?;
+impl FromJni for ast::DeclarationNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let class = env.get_object_class(value)?;
       let class_name: JString = env
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
           .l()?
           .into();
-      let class_name = env.get_string(&class_name)?;
-      let class_name = class_name.to_str()?;
-
-      Ok(match class_name {
+      let class_name: String = class_name.jni_into(env)?;
+      Ok(match class_name.as_str() {
             "ImportNode" => {
-                ast::DeclarationNode::Import(self.to_ast_node(env)?)
+                ast::DeclarationNode::Import(value.jni_into(env)?)
             },
             "FunctionNode" => {
-                ast::DeclarationNode::Function(self.to_ast_node(env)?)
+                ast::DeclarationNode::Function(value.jni_into(env)?)
             },
           _ => panic!("Unknown class name for DeclarationNode: {}", class_name)
       })
     }
 }
-impl<'local> JniToAstNode<ast::BodyNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::BodyNode> {
-      let class = env.get_object_class(&self)?;
+impl FromJni for ast::BodyNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let class = env.get_object_class(value)?;
       let class_name: JString = env
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
           .l()?
           .into();
-      let class_name = env.get_string(&class_name)?;
-      let class_name = class_name.to_str()?;
-
-      Ok(match class_name {
+      let class_name: String = class_name.jni_into(env)?;
+      Ok(match class_name.as_str() {
             "BlockBodyNode" => {
-                ast::BodyNode::Block(self.to_ast_node(env)?)
+                ast::BodyNode::Block(value.jni_into(env)?)
             },
           _ => panic!("Unknown class name for BodyNode: {}", class_name)
       })
     }
 }
-impl<'local> JniToAstNode<ast::StatementNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::StatementNode> {
-      let class = env.get_object_class(&self)?;
+impl FromJni for ast::StatementNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let class = env.get_object_class(value)?;
       let class_name: JString = env
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
           .l()?
           .into();
-      let class_name = env.get_string(&class_name)?;
-      let class_name = class_name.to_str()?;
-
-      Ok(match class_name {
+      let class_name: String = class_name.jni_into(env)?;
+      Ok(match class_name.as_str() {
             "ExpressionStatementNode" => {
-                ast::StatementNode::Expression(self.to_ast_node(env)?)
+                ast::StatementNode::Expression(value.jni_into(env)?)
             },
           _ => panic!("Unknown class name for StatementNode: {}", class_name)
       })
     }
 }
-impl<'local> JniToAstNode<ast::ExpressionNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::ExpressionNode> {
-      let class = env.get_object_class(&self)?;
+impl FromJni for ast::ExpressionNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let class = env.get_object_class(value)?;
       let class_name: JString = env
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
           .l()?
           .into();
-      let class_name = env.get_string(&class_name)?;
-      let class_name = class_name.to_str()?;
-
-      Ok(match class_name {
+      let class_name: String = class_name.jni_into(env)?;
+      Ok(match class_name.as_str() {
             "CauseExpressionNode" => {
-                ast::ExpressionNode::Cause(self.to_ast_node(env)?)
+                ast::ExpressionNode::Cause(value.jni_into(env)?)
             },
             "CallExpressionNode" => {
-                ast::ExpressionNode::Call(self.to_ast_node(env)?)
+                ast::ExpressionNode::Call(value.jni_into(env)?)
             },
             "IdentifierExpressionNode" => {
-                ast::ExpressionNode::Identifier(self.to_ast_node(env)?)
+                ast::ExpressionNode::Identifier(value.jni_into(env)?)
             },
             "StringLiteralExpressionNode" => {
-                ast::ExpressionNode::StringLiteral(self.to_ast_node(env)?)
+                ast::ExpressionNode::StringLiteral(value.jni_into(env)?)
             },
           _ => panic!("Unknown class name for ExpressionNode: {}", class_name)
       })
     }
 }
 
-impl<'local> JniToAstNode<ast::IdentifierNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::IdentifierNode> {
-      let text = {
-            let jni_string = env
-                .call_method(&self, "getText", "()Ljava/lang/String;", &[])?
-                .l()?;
-            let jni_string = JString::from(jni_string);
-            let jni_string = env.get_string(&jni_string)?;
-            let value = jni_string.to_str()?.to_owned();
-            Arc::new(value)
-              };
+impl FromJni for ast::IdentifierNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let text: Arc<String> = {
+        let jni_node = env
+          .call_method(value, "getText", "()Ljava/lang/String;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
 
       Ok(ast::IdentifierNode {
           text,
       })
     }
 }
-impl<'local> JniToAstNode<ast::IdentifierTypeReferenceNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::IdentifierTypeReferenceNode> {
-      let identifier = {
-            let jni_node = env
-                .call_method(&self, "getIdentifier", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            let node: ast::IdentifierNode = jni_node.to_ast_node(env)?;
-            node
+impl FromJni for ast::IdentifierTypeReferenceNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let identifier: ast::IdentifierNode = {
+        let jni_node = env
+          .call_method(value, "getIdentifier", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
 
       Ok(ast::IdentifierTypeReferenceNode {
@@ -144,28 +131,21 @@ impl<'local> JniToAstNode<ast::IdentifierTypeReferenceNode> for JObject<'local> 
       })
     }
 }
-impl<'local> JniToAstNode<ast::FunctionSignatureParameterNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::FunctionSignatureParameterNode> {
-      let name = {
-            let jni_string = env
-                .call_method(&self, "getName", "()Ljava/lang/String;", &[])?
-                .l()?;
-            let jni_string = JString::from(jni_string);
-            let jni_string = env.get_string(&jni_string)?;
-            let value = jni_string.to_str()?.to_owned();
-            Arc::new(value)
-              };
-      let type_reference = {
-            let jni_node = env
-                .call_method(&self, "getTypeReference", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            if env.is_same_object(&jni_node, JObject::null())? {
-                None
-            } else {
-                let node: ast::TypeReferenceNode = jni_node.to_ast_node(env)?;
-                Some(Box::new(node))
-            }
+impl FromJni for ast::FunctionSignatureParameterNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let name: Arc<String> = {
+        let jni_node = env
+          .call_method(value, "getName", "()Ljava/lang/String;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+      let type_reference: Option<Box<ast::TypeReferenceNode>> = {
+        let jni_node = env
+          .call_method(value, "getTypeReference", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
 
       Ok(ast::FunctionSignatureParameterNode {
@@ -174,15 +154,14 @@ impl<'local> JniToAstNode<ast::FunctionSignatureParameterNode> for JObject<'loca
       })
     }
 }
-impl<'local> JniToAstNode<ast::FunctionCallParameterNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::FunctionCallParameterNode> {
-      let value = {
-            let jni_node = env
-                .call_method(&self, "getValue", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            let node: ast::ExpressionNode = jni_node.to_ast_node(env)?;
-            Box::new(node)
+impl FromJni for ast::FunctionCallParameterNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let value: Box<ast::ExpressionNode> = {
+        let jni_node = env
+          .call_method(value, "getValue", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
 
       Ok(ast::FunctionCallParameterNode {
@@ -190,20 +169,14 @@ impl<'local> JniToAstNode<ast::FunctionCallParameterNode> for JObject<'local> {
       })
     }
 }
-impl<'local> JniToAstNode<ast::FileNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::FileNode> {
-      let declarations = {
-          let jni_list = env
-                .call_method(&self, "getDeclarations", "()Ljava/util/List;", &[])?
-                .l()?;
-          let jni_list = env.get_list(&jni_list)?;
-          let mut list = vec![];
-          let mut iter = jni_list.iter(env)?;
-          while let Some(jni_item) = iter.next(env)? {
-              let node: ast::DeclarationNode = jni_item.to_ast_node(env)?;
-              list.push(node);
-          }
-          list
+impl FromJni for ast::FileNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let declarations: Vec<ast::DeclarationNode> = {
+        let jni_node = env
+          .call_method(value, "getDeclarations", "()Ljava/util/List;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
 
       Ok(ast::FileNode {
@@ -211,28 +184,21 @@ impl<'local> JniToAstNode<ast::FileNode> for JObject<'local> {
       })
     }
 }
-impl<'local> JniToAstNode<ast::ImportNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::ImportNode> {
-      let path = {
-            let jni_node = env
-                .call_method(&self, "getPath", "()Lcom/dallonf/ktcause/ast/ImportPathNode;", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            let node: ast::ImportPathNode = jni_node.to_ast_node(env)?;
-            node
+impl FromJni for ast::ImportNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let path: ast::ImportPathNode = {
+        let jni_node = env
+          .call_method(value, "getPath", "()Lcom/dallonf/ktcause/ast/ImportPathNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
-      let mappings = {
-          let jni_list = env
-                .call_method(&self, "getMappings", "()Ljava/util/List;", &[])?
-                .l()?;
-          let jni_list = env.get_list(&jni_list)?;
-          let mut list = vec![];
-          let mut iter = jni_list.iter(env)?;
-          while let Some(jni_item) = iter.next(env)? {
-              let node: ast::ImportMappingNode = jni_item.to_ast_node(env)?;
-              list.push(node);
-          }
-          list
+      let mappings: Vec<ast::ImportMappingNode> = {
+        let jni_node = env
+          .call_method(value, "getMappings", "()Ljava/util/List;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
 
       Ok(ast::ImportNode {
@@ -241,44 +207,36 @@ impl<'local> JniToAstNode<ast::ImportNode> for JObject<'local> {
       })
     }
 }
-impl<'local> JniToAstNode<ast::ImportPathNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::ImportPathNode> {
-      let path = {
-            let jni_string = env
-                .call_method(&self, "getPath", "()Ljava/lang/String;", &[])?
-                .l()?;
-            let jni_string = JString::from(jni_string);
-            let jni_string = env.get_string(&jni_string)?;
-            let value = jni_string.to_str()?.to_owned();
-            Arc::new(value)
-              };
+impl FromJni for ast::ImportPathNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let path: Arc<String> = {
+        let jni_node = env
+          .call_method(value, "getPath", "()Ljava/lang/String;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
 
       Ok(ast::ImportPathNode {
           path,
       })
     }
 }
-impl<'local> JniToAstNode<ast::ImportMappingNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::ImportMappingNode> {
-      let source_name = {
-            let jni_node = env
-                .call_method(&self, "getSourceName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            let node: ast::IdentifierNode = jni_node.to_ast_node(env)?;
-            node
+impl FromJni for ast::ImportMappingNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let source_name: ast::IdentifierNode = {
+        let jni_node = env
+          .call_method(value, "getSourceName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
-      let rename = {
-            let jni_node = env
-                .call_method(&self, "getRename", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            if env.is_same_object(&jni_node, JObject::null())? {
-                None
-            } else {
-                let node: ast::IdentifierNode = jni_node.to_ast_node(env)?;
-                Some(node)
-            }
+      let rename: Option<ast::IdentifierNode> = {
+        let jni_node = env
+          .call_method(value, "getRename", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
 
       Ok(ast::ImportMappingNode {
@@ -287,48 +245,35 @@ impl<'local> JniToAstNode<ast::ImportMappingNode> for JObject<'local> {
       })
     }
 }
-impl<'local> JniToAstNode<ast::FunctionNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::FunctionNode> {
-      let name = {
-            let jni_node = env
-                .call_method(&self, "getName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            let node: ast::IdentifierNode = jni_node.to_ast_node(env)?;
-            node
+impl FromJni for ast::FunctionNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let name: ast::IdentifierNode = {
+        let jni_node = env
+          .call_method(value, "getName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
-      let params = {
-          let jni_list = env
-                .call_method(&self, "getParams", "()Ljava/util/List;", &[])?
-                .l()?;
-          let jni_list = env.get_list(&jni_list)?;
-          let mut list = vec![];
-          let mut iter = jni_list.iter(env)?;
-          while let Some(jni_item) = iter.next(env)? {
-              let node: ast::FunctionSignatureParameterNode = jni_item.to_ast_node(env)?;
-              list.push(node);
-          }
-          list
+      let params: Vec<ast::FunctionSignatureParameterNode> = {
+        let jni_node = env
+          .call_method(value, "getParams", "()Ljava/util/List;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
-      let body = {
-            let jni_node = env
-                .call_method(&self, "getBody", "()Lcom/dallonf/ktcause/ast/BodyNode;", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            let node: ast::BodyNode = jni_node.to_ast_node(env)?;
-            Box::new(node)
+      let body: Box<ast::BodyNode> = {
+        let jni_node = env
+          .call_method(value, "getBody", "()Lcom/dallonf/ktcause/ast/BodyNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
-      let return_type = {
-            let jni_node = env
-                .call_method(&self, "getReturnType", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            if env.is_same_object(&jni_node, JObject::null())? {
-                None
-            } else {
-                let node: ast::TypeReferenceNode = jni_node.to_ast_node(env)?;
-                Some(Box::new(node))
-            }
+      let return_type: Option<Box<ast::TypeReferenceNode>> = {
+        let jni_node = env
+          .call_method(value, "getReturnType", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
 
       Ok(ast::FunctionNode {
@@ -339,20 +284,14 @@ impl<'local> JniToAstNode<ast::FunctionNode> for JObject<'local> {
       })
     }
 }
-impl<'local> JniToAstNode<ast::BlockBodyNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::BlockBodyNode> {
-      let statements = {
-          let jni_list = env
-                .call_method(&self, "getStatements", "()Ljava/util/List;", &[])?
-                .l()?;
-          let jni_list = env.get_list(&jni_list)?;
-          let mut list = vec![];
-          let mut iter = jni_list.iter(env)?;
-          while let Some(jni_item) = iter.next(env)? {
-              let node: ast::StatementNode = jni_item.to_ast_node(env)?;
-              list.push(node);
-          }
-          list
+impl FromJni for ast::BlockBodyNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let statements: Vec<ast::StatementNode> = {
+        let jni_node = env
+          .call_method(value, "getStatements", "()Ljava/util/List;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
 
       Ok(ast::BlockBodyNode {
@@ -360,15 +299,14 @@ impl<'local> JniToAstNode<ast::BlockBodyNode> for JObject<'local> {
       })
     }
 }
-impl<'local> JniToAstNode<ast::ExpressionStatementNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::ExpressionStatementNode> {
-      let expression = {
-            let jni_node = env
-                .call_method(&self, "getExpression", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            let node: ast::ExpressionNode = jni_node.to_ast_node(env)?;
-            Box::new(node)
+impl FromJni for ast::ExpressionStatementNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let expression: Box<ast::ExpressionNode> = {
+        let jni_node = env
+          .call_method(value, "getExpression", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
 
       Ok(ast::ExpressionStatementNode {
@@ -376,15 +314,14 @@ impl<'local> JniToAstNode<ast::ExpressionStatementNode> for JObject<'local> {
       })
     }
 }
-impl<'local> JniToAstNode<ast::CauseExpressionNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::CauseExpressionNode> {
-      let signal = {
-            let jni_node = env
-                .call_method(&self, "getSignal", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            let node: ast::ExpressionNode = jni_node.to_ast_node(env)?;
-            Box::new(node)
+impl FromJni for ast::CauseExpressionNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let signal: Box<ast::ExpressionNode> = {
+        let jni_node = env
+          .call_method(value, "getSignal", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
 
       Ok(ast::CauseExpressionNode {
@@ -392,28 +329,21 @@ impl<'local> JniToAstNode<ast::CauseExpressionNode> for JObject<'local> {
       })
     }
 }
-impl<'local> JniToAstNode<ast::CallExpressionNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::CallExpressionNode> {
-      let callee = {
-            let jni_node = env
-                .call_method(&self, "getCallee", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            let node: ast::ExpressionNode = jni_node.to_ast_node(env)?;
-            Box::new(node)
+impl FromJni for ast::CallExpressionNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let callee: Box<ast::ExpressionNode> = {
+        let jni_node = env
+          .call_method(value, "getCallee", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
-      let parameters = {
-          let jni_list = env
-                .call_method(&self, "getParameters", "()Ljava/util/List;", &[])?
-                .l()?;
-          let jni_list = env.get_list(&jni_list)?;
-          let mut list = vec![];
-          let mut iter = jni_list.iter(env)?;
-          while let Some(jni_item) = iter.next(env)? {
-              let node: ast::FunctionCallParameterNode = jni_item.to_ast_node(env)?;
-              list.push(node);
-          }
-          list
+      let parameters: Vec<ast::FunctionCallParameterNode> = {
+        let jni_node = env
+          .call_method(value, "getParameters", "()Ljava/util/List;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
 
       Ok(ast::CallExpressionNode {
@@ -422,15 +352,14 @@ impl<'local> JniToAstNode<ast::CallExpressionNode> for JObject<'local> {
       })
     }
 }
-impl<'local> JniToAstNode<ast::IdentifierExpressionNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::IdentifierExpressionNode> {
-      let identifier = {
-            let jni_node = env
-                .call_method(&self, "getIdentifier", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            let node: ast::IdentifierNode = jni_node.to_ast_node(env)?;
-            node
+impl FromJni for ast::IdentifierExpressionNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let identifier: ast::IdentifierNode = {
+        let jni_node = env
+          .call_method(value, "getIdentifier", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
 
       Ok(ast::IdentifierExpressionNode {
@@ -438,17 +367,15 @@ impl<'local> JniToAstNode<ast::IdentifierExpressionNode> for JObject<'local> {
       })
     }
 }
-impl<'local> JniToAstNode<ast::StringLiteralExpressionNode> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::StringLiteralExpressionNode> {
-      let text = {
-            let jni_string = env
-                .call_method(&self, "getText", "()Ljava/lang/String;", &[])?
-                .l()?;
-            let jni_string = JString::from(jni_string);
-            let jni_string = env.get_string(&jni_string)?;
-            let value = jni_string.to_str()?.to_owned();
-            Arc::new(value)
-              };
+impl FromJni for ast::StringLiteralExpressionNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let text: Arc<String> = {
+        let jni_node = env
+          .call_method(value, "getText", "()Ljava/lang/String;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
 
       Ok(ast::StringLiteralExpressionNode {
           text,

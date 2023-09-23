@@ -94,49 +94,21 @@ async function generateAstMappingRs() {
       name: `${node.name}Node`,
       fields: Object.entries(node.fields).flatMap(
         ([fieldName, type]): Record<string, unknown>[] => {
-          let isOptional = false;
-          if (typeof type !== "string" && type.kind === "optional") {
-            isOptional = true;
-            type = type.type;
-          }
           const rsName = changeCase.snakeCase(fieldName);
           const getterName = `get${changeCase.pascalCase(fieldName)}`;
-          if (typeof type === "string") {
-            return [
-              {
-                isNode: true,
-                name: rsName,
-                getterName,
-                type: `${type}Node`,
-                isOptional,
-                needsBoxing: categories.some(
-                  (category) => type === category.name
-                ),
-              },
-            ];
-          }
-          if (type.kind === "list" && typeof type.type === "string") {
-            return [
-              {
-                isList: true,
-                name: rsName,
-                getterName,
-                type: `${type.type}Node`,
-              },
-            ];
-          }
-          if (type.kind === "primitive") {
-            if (type.type === "string") {
-              return [
-                {
-                  isString: true,
-                  name: rsName,
-                  getterName,
-                },
-              ];
-            }
-          }
-          return [];
+          const rsType = rsFieldType(type, {
+            astNamespace: "ast",
+          });
+          const javaType = javaFieldType(type);
+          return [
+            {
+              isNode: true,
+              name: rsName,
+              getterName,
+              rsType,
+              javaType,
+            },
+          ];
         }
       ),
     };
@@ -157,17 +129,21 @@ async function generateAstMappingRs() {
 
 function rsFieldType(
   type: NodeFieldType,
-  {
-    bare = true,
-  }: {
+  opts: {
     /** If true, indicates that the type has no wrapper, like `Vec` or `Box`. Categories will be boxed. */
     bare?: boolean;
+    astNamespace?: string;
   } = {}
 ): string {
   if (typeof type === "string") {
+    let name = `${type}Node`;
+    if (opts.astNamespace) {
+      name = `${opts.astNamespace}::${name}`;
+    }
+    const bare = opts.bare ?? true;
     if (bare && categories.some((category) => category.name === type))
-      return `Box<${type}Node>`;
-    return `${type}Node`;
+      name = `Box<${name}>`;
+    return name;
   }
   switch (type.kind) {
     case "primitive":
@@ -178,9 +154,30 @@ function rsFieldType(
           return type satisfies never;
       }
     case "list":
-      return `Vec<${rsFieldType(type.type, { bare: false })}>`;
+      return `Vec<${rsFieldType(type.type, { ...opts, bare: false })}>`;
     case "optional":
-      return `Option<${rsFieldType(type.type)}>`;
+      return `Option<${rsFieldType(type.type, opts)}>`;
+    default:
+      return type satisfies never;
+  }
+}
+
+function javaFieldType(type: NodeFieldType): string {
+  if (typeof type === "string") {
+    return `Lcom/dallonf/ktcause/ast/${type}Node;`;
+  }
+  switch (type.kind) {
+    case "primitive":
+      switch (type.type) {
+        case "string":
+          return "Ljava/lang/String;";
+        default:
+          return type satisfies never;
+      }
+    case "list":
+      return `Ljava/util/List;`;
+    case "optional":
+      return javaFieldType(type.type);
     default:
       return type satisfies never;
   }

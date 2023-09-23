@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::super::ast::JniToAstNode;
+use super::super::{JniInto, FromJni};
 use anyhow::Result;
 use jni::{
     objects::{JObject, JString},
@@ -9,20 +9,18 @@ use jni::{
 use rscause_compiler::ast_nodes as ast;
 
 {{#each categories}}
-impl<'local> JniToAstNode<ast::{{this.name}}> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::{{this.name}}> {
-      let class = env.get_object_class(&self)?;
+impl FromJni for ast::{{this.name}} {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let class = env.get_object_class(value)?;
       let class_name: JString = env
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
           .l()?
           .into();
-      let class_name = env.get_string(&class_name)?;
-      let class_name = class_name.to_str()?;
-
-      Ok(match class_name {
+      let class_name: String = class_name.jni_into(env)?;
+      Ok(match class_name.as_str() {
           {{#each this.nodes}}
             "{{this.nodeName}}" => {
-                ast::{{this.categoryName}}::{{this.variantName}}(self.to_ast_node(env)?)
+                ast::{{this.categoryName}}::{{this.variantName}}(value.jni_into(env)?)
             },
           {{/each}}
           _ => panic!("Unknown class name for {{this.name}}: {}", class_name)
@@ -32,55 +30,15 @@ impl<'local> JniToAstNode<ast::{{this.name}}> for JObject<'local> {
 {{/each}}
 
 {{#each nodes}}
-impl<'local> JniToAstNode<ast::{{this.name}}> for JObject<'local> {
-    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::{{this.name}}> {
+impl FromJni for ast::{{this.name}} {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
       {{#each this.fields}}
-      let {{this.name}} = {
-        {{#if this.isNode}}
-            let jni_node = env
-                .call_method(&self, "{{this.getterName}}", "()Lcom/dallonf/ktcause/ast/{{this.type}};", &[])?
-                .l()?;
-            let jni_node = JObject::from(jni_node);
-            {{#if this.isOptional}}
-            if env.is_same_object(&jni_node, JObject::null())? {
-                None
-            } else {
-                let node: ast::{{this.type}} = jni_node.to_ast_node(env)?;
-                {{#if this.needsBoxing}}
-                Some(Box::new(node))
-                {{else}}
-                Some(node)
-                {{/if}}
-            }
-            {{else}}
-            let node: ast::{{this.type}} = jni_node.to_ast_node(env)?;
-            {{#if this.needsBoxing}}
-            Box::new(node)
-            {{else}}
-            node
-            {{/if}}
-            {{/if}}
-        {{else if this.isList}}
-          let jni_list = env
-                .call_method(&self, "{{this.getterName}}", "()Ljava/util/List;", &[])?
-                .l()?;
-          let jni_list = env.get_list(&jni_list)?;
-          let mut list = vec![];
-          let mut iter = jni_list.iter(env)?;
-          while let Some(jni_item) = iter.next(env)? {
-              let node: ast::{{this.type}} = jni_item.to_ast_node(env)?;
-              list.push(node);
-          }
-          list
-        {{else if this.isString}}
-            let jni_string = env
-                .call_method(&self, "{{this.getterName}}", "()Ljava/lang/String;", &[])?
-                .l()?;
-            let jni_string = JString::from(jni_string);
-            let jni_string = env.get_string(&jni_string)?;
-            let value = jni_string.to_str()?.to_owned();
-            Arc::new(value)
-        {{/if}}
+      let {{this.name}}: {{this.rsType}} = {
+        let jni_node = env
+          .call_method(value, "{{this.getterName}}", "(){{this.javaType}}", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
       };
       {{/each}}
 
