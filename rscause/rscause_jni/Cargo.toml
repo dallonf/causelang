@@ -9,6 +9,6 @@ edition = "2021"
 crate_type = ["cdylib"]
 
 [dependencies]
-anyhow = { version = "1.0.75", features = ["backtrace"] }
+anyhow = "1.0.75"
 jni = "0.21.1"
 rscause_compiler = { path = "../rscause_compiler" }

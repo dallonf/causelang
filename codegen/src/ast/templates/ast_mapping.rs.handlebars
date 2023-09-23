@@ -1,0 +1,59 @@
+use super::super::ast::JniToAstNode;
+use anyhow::Result;
+use jni::{
+    objects::{JObject, JString},
+    JNIEnv,
+};
+use rscause_compiler::ast_nodes as ast;
+
+{{#each categories}}
+impl<'local> JniToAstNode<ast::{{this.name}}> for JObject<'local> {
+    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::{{this.name}}> {
+      let class = env.get_object_class(&self)?;
+      let class_name: JString = env
+          .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
+          .l()?
+          .into();
+      let class_name = env.get_string(&class_name)?.to_str()?;
+
+      Ok(match class_name {
+          {{#each this.nodes}}
+            "{{this.nodeName}}" => {
+                ast::{{this.categoryName}}::{{this.variantName}}(self.to_ast_node(env)?)
+            },
+          {{/each}}
+          _ => panic!("Unknown class name for {{this.name}}: {}", class_name)
+      })
+    }
+}
+{{/each}}
+
+{{#each nodes}}
+impl<'local> JniToAstNode<ast::{{this.name}}> for JObject<'local> {
+    fn to_ast_node(&self, env: &mut JNIEnv) -> Result<ast::{{this.name}}> {
+      {{#each this.fields}}
+      let {{this.name}} = {
+        {{#if this.isList}}
+          let jni_list = env
+                .call_method(&self, "{{this.getterName}}", "()Ljava/util/List;", &[])?
+                .l()?;
+          let jni_list = env.get_list(&jni_list)?;
+          let mut list = vec![];
+          let mut iter = jni_list.iter(env)?;
+          while let Some(jni_item) = iter.next(env)? {
+              let node: ast::{{this.type}} = jni_item.to_ast_node(env)?;
+              list.push(node);
+          }
+          list
+        {{/if}}
+      };
+      {{/each}}
+
+      Ok(ast::{{this.name}} {
+        {{#each this.fields}}
+          {{this.name}},
+        {{/each}}
+      })
+    }
+}
+{{/each}}

@@ -9,7 +9,11 @@ const projectRoot = path.resolve(dirname, "../../../");
 export async function generateAst() {
   if (!checkData()) return;
 
-  await Promise.all([generateRustCompilerMetaKt(), generateAstNodesRs()]);
+  await Promise.all([
+    generateRustCompilerMetaKt(),
+    generateAstNodesRs(),
+    generateAstMappingRs(),
+  ]);
 }
 
 async function generateRustCompilerMetaKt() {
@@ -63,6 +67,58 @@ async function generateAstNodesRs() {
 
   await Deno.writeTextFile(
     path.join(projectRoot, "rscause/rscause_compiler/src/gen/ast_nodes.rs"),
+    output
+  );
+}
+
+async function generateAstMappingRs() {
+  const template = await compileTemplate("ast_mapping.rs.handlebars");
+
+  const templateCategories = categories.map((category) => {
+    const suffixRegex = new RegExp(`${category.name}$`);
+    const name = `${category.name}Node`;
+    return {
+      name,
+      nodes: nodes
+        .filter((node) => node.category === category.name)
+        .map((node) => ({
+          categoryName: name,
+          variantName: node.name.replace(suffixRegex, ""),
+          nodeName: `${node.name}Node`,
+        })),
+    };
+  });
+
+  const templateNodes = nodes.map((node) => {
+    return {
+      name: `${node.name}Node`,
+      fields: Object.entries(node.fields).flatMap(([fieldName, type]) => {
+        const rsName = changeCase.snakeCase(fieldName);
+        if (typeof type === "string") return [];
+        if (type.kind === "list" && typeof type.type === "string") {
+          return [
+            {
+              name: rsName,
+              getterName: `get${changeCase.pascalCase(fieldName)}`,
+              isList: true,
+              type: `${type.type}Node`,
+            },
+          ];
+        }
+        return [];
+      }),
+    };
+  });
+
+  const output = template({
+    categories: templateCategories,
+    nodes: templateNodes,
+  });
+  await Deno.writeTextFile(
+    path.join(
+      projectRoot,
+      "rscause/rscause_jni/src/mapping/gen/ast_mapping.rs"
+    ),
     output
   );
 }
