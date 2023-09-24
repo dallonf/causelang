@@ -1,5 +1,5 @@
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum Instructions {
+pub enum Instruction {
     {{#each instructions}}
     {{this.name}}({{this.name}}Instruction),
     {{/each}}

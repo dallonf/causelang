@@ -1,0 +1,35 @@
+compiled_file
+path = "project/hello.cau"
+types = []
+procedures = [{
+  identity: Function {
+    name: "main"
+  }
+  constant_table: [
+    String("core/builtin.cau")
+    String("Debug")
+    String("Hello world!")
+  ]
+  instructions: [
+    Import { file_path_constant: 0, export_name_constant: 1 }
+    Literal { constant: 2 }
+    Construct { arity = 1 }
+    Cause
+    Return
+  ]
+}]
+exports = {
+  main: {
+    key: "main",
+    value: Function {
+      procedure_index: 0
+      type: Function {
+        name: "main"
+        return_constraint: {
+          value_type: Action
+        }
+        params: []
+      }
+    }
+  }
+}
