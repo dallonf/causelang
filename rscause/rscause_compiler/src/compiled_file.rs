@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use crate::instructions::Instruction;
+use crate::lang_types::LangType;
 
 #[derive(Debug, Clone)]
 pub struct CompiledFile {
     pub path: Arc<String>,
-    // pub types
+    // TODO: pub types
     pub procedures: Vec<Procedure>,
     pub exports: Vec<CompiledExport>,
 }
@@ -25,7 +26,7 @@ pub enum ProcedureIdentity {
 #[derive(Debug, Clone)]
 pub struct FunctionProcedureIdentity {
     pub name: Arc<String>,
-    // declaration
+    // TODO: declaration
 }
 
 #[derive(Debug, Clone)]
@@ -37,6 +38,6 @@ pub enum CompiledConstant {
 pub enum CompiledExport {
     Function {
         procedure_index: u32,
-        //type
+        function_type: LangType,
     },
 }
