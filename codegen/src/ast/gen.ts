@@ -1,4 +1,5 @@
-import { handlebars, path, changeCase } from "../../deps.ts";
+import { path, changeCase } from "../../deps.ts";
+import { compileTemplate } from "../utils/templates.ts";
 import { checkData } from "./check.ts";
 import { categories, nodes } from "./nodes.ts";
 import { NodeFieldType } from "./types.ts";
@@ -17,7 +18,10 @@ export async function generateAst() {
 }
 
 async function generateRustCompilerMetaKt() {
-  const template = await compileTemplate("RustCompilerMeta.kt.handlebars");
+  const template = await compileTemplate(
+    "RustCompilerMeta.kt.handlebars",
+    import.meta.url
+  );
 
   const output = template({
     nodes,
@@ -33,7 +37,10 @@ async function generateRustCompilerMetaKt() {
 }
 
 async function generateAstNodesRs() {
-  const template = await compileTemplate("ast_nodes.rs.handlebars");
+  const template = await compileTemplate(
+    "ast_nodes.rs.handlebars",
+    import.meta.url
+  );
 
   const templateCategories = categories.map((category) => {
     const suffixRegex = new RegExp(`${category.name}$`);
@@ -72,7 +79,10 @@ async function generateAstNodesRs() {
 }
 
 async function generateAstMappingRs() {
-  const template = await compileTemplate("ast_mapping.rs.handlebars");
+  const template = await compileTemplate(
+    "ast_mapping.rs.handlebars",
+    import.meta.url
+  );
 
   const templateCategories = categories.map((category) => {
     const suffixRegex = new RegExp(`${category.name}$`);
@@ -181,14 +191,4 @@ function javaFieldType(type: NodeFieldType): string {
     default:
       return type satisfies never;
   }
-}
-
-async function compileTemplate(templatePath: string) {
-  return handlebars.compile(
-    await Deno.readTextFile(path.join(dirname, "templates", templatePath)),
-    {
-      strict: true,
-      noEscape: true,
-    }
-  );
 }

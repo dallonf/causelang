@@ -1,0 +1,18 @@
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum Instructions {
+    {{#each instructions}}
+    {{this.name}}({{this.name}}Instruction),
+    {{/each}}
+}
+
+{{#each instructions}}
+{{#if this.description}}
+/// {{this.description}}
+{{/if}}
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct {{this.name}}Instruction {
+    {{#each this.fields}}
+    pub {{this.name}}: {{this.type}},
+    {{/each}}
+}
+{{/each}}

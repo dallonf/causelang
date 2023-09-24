@@ -1,3 +1,4 @@
 import { generateAst } from "./src/ast/gen.ts";
+import { generateInstructions } from "./src/ast/instructions/gen.ts";
 
-generateAst();
+await Promise.all([generateAst(), generateInstructions()]);
