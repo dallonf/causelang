@@ -1,6 +1,12 @@
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
+pub enum InferredType<T> {
+    Known(T),
+    Error,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum LangType {
     Action,
     Function(FunctionLangType),
