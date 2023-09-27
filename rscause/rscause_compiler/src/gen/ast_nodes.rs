@@ -1,5 +1,5 @@
-use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use std::sync::Arc;
+use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeReferenceNode {
@@ -68,6 +68,7 @@ impl HasBreadcrumbs for ExpressionNode {
         }
     }
 }
+
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdentifierNode {
@@ -240,3 +241,4 @@ impl HasBreadcrumbs for StringLiteralExpressionNode {
         &self.breadcrumbs
     }
 }
+

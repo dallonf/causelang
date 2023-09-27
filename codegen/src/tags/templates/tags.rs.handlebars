@@ -1,0 +1,45 @@
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NodeTag {
+  {{#each tags}}
+    {{this.name}}({{this.name}}NodeTag),
+  {{/each}}
+}
+impl NodeTag {
+  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> Option<NodeTag> {
+    match self {
+      {{#each tags}}
+      {{#if this.inverse}}
+        NodeTag::{{this.name}}(tag) => Some(tag.inverse(breadcrumbs).into()),
+      {{else}}
+        NodeTag::{{this.name}}(_) => None,
+      {{/if}}
+      {{/each}}
+    }
+  }
+}
+
+{{#each tags}}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct {{this.name}}NodeTag {
+  {{#each this.params}}
+    pub {{this.name}}: {{this.type}},
+  {{/each}}
+}
+{{#if this.inverse}}
+impl {{this.name}}NodeTag {
+  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> {{this.inverseName}}NodeTag {
+    {{this.inverseName}}NodeTag {
+      {{this.inverseParam}}: breadcrumbs.clone(),
+      {{#each this.inverseExtraParams}}
+      {{this.name}}: self.{{this.name}}.clone(),
+      {{/each}}
+    }
+  }
+}
+impl From<{{this.name}}NodeTag> for NodeTag {
+  fn from(tag: {{this.name}}NodeTag) -> Self {
+    NodeTag::{{this.name}}(tag)
+  }
+}
+{{/if}}
+{{/each}}
