@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::{
-    ast_nodes as ast,
+    ast,
     compiled_file::{CompiledExport, CompiledFile, Procedure},
     lang_types::{FunctionLangType, LangType},
 };

@@ -1,4 +1,4 @@
-use crate::ast_nodes as ast;
+use crate::ast;
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::lang_types::{InferredType, LangType};
 use std::collections::HashMap;
