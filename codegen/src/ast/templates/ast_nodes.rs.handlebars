@@ -1,6 +1,22 @@
 use std::sync::Arc;
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum AnyAstNode {
+    {{#each nodes}}
+    {{this.variantName}}({{this.name}}),
+    {{/each}}
+}
+impl HasBreadcrumbs for AnyAstNode {
+    fn breadcrumbs(&self) -> &Breadcrumbs {
+        match self {
+            {{#each nodes}}
+            AnyAstNode::{{this.variantName}}(node) => &node.breadcrumbs,
+            {{/each}}
+        }
+    }
+}
+
 {{#each categories}}
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum {{this.name}} {
@@ -27,6 +43,11 @@ pub struct {{this.name}} {
     {{#each this.fields}}
     pub {{this.name}}: {{this.type}},
     {{/each}}
+}
+impl From<{{this.name}}> for AnyAstNode {
+    fn from(node: {{this.name}}) -> Self {
+        AnyAstNode::{{this.variantName}}(node)
+    }
 }
 impl HasBreadcrumbs for {{this.name}} {
     fn breadcrumbs(&self) -> &Breadcrumbs {

@@ -58,10 +58,12 @@ async function generateAstNodesRs() {
   const templateNodes = nodes.map((node) => {
     return {
       name: `${node.name}Node`,
+      variantName: node.name,
       fields: Object.entries(node.fields).map(([name, type]) => {
         return {
           name: changeCase.snakeCase(name),
           type: rsFieldType(type),
+          isNode: isNode(type),
         };
       }),
     };
@@ -167,6 +169,20 @@ function rsFieldType(
       return `Vec<${rsFieldType(type.type, { ...opts, bare: false })}>`;
     case "optional":
       return `Option<${rsFieldType(type.type, opts)}>`;
+    default:
+      return type satisfies never;
+  }
+}
+
+function isNode(type: NodeFieldType): boolean {
+  if (typeof type === "string") return true;
+  switch (type.kind) {
+    case "primitive":
+      return false;
+    case "list":
+      return isNode(type.type);
+    case "optional":
+      return isNode(type.type);
     default:
       return type satisfies never;
   }

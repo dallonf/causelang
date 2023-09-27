@@ -2,6 +2,46 @@ use std::sync::Arc;
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum AnyAstNode {
+    Identifier(IdentifierNode),
+    IdentifierTypeReference(IdentifierTypeReferenceNode),
+    FunctionSignatureParameter(FunctionSignatureParameterNode),
+    FunctionCallParameter(FunctionCallParameterNode),
+    File(FileNode),
+    Import(ImportNode),
+    ImportPath(ImportPathNode),
+    ImportMapping(ImportMappingNode),
+    Function(FunctionNode),
+    BlockBody(BlockBodyNode),
+    ExpressionStatement(ExpressionStatementNode),
+    CauseExpression(CauseExpressionNode),
+    CallExpression(CallExpressionNode),
+    IdentifierExpression(IdentifierExpressionNode),
+    StringLiteralExpression(StringLiteralExpressionNode),
+}
+impl HasBreadcrumbs for AnyAstNode {
+    fn breadcrumbs(&self) -> &Breadcrumbs {
+        match self {
+            AnyAstNode::Identifier(node) => &node.breadcrumbs,
+            AnyAstNode::IdentifierTypeReference(node) => &node.breadcrumbs,
+            AnyAstNode::FunctionSignatureParameter(node) => &node.breadcrumbs,
+            AnyAstNode::FunctionCallParameter(node) => &node.breadcrumbs,
+            AnyAstNode::File(node) => &node.breadcrumbs,
+            AnyAstNode::Import(node) => &node.breadcrumbs,
+            AnyAstNode::ImportPath(node) => &node.breadcrumbs,
+            AnyAstNode::ImportMapping(node) => &node.breadcrumbs,
+            AnyAstNode::Function(node) => &node.breadcrumbs,
+            AnyAstNode::BlockBody(node) => &node.breadcrumbs,
+            AnyAstNode::ExpressionStatement(node) => &node.breadcrumbs,
+            AnyAstNode::CauseExpression(node) => &node.breadcrumbs,
+            AnyAstNode::CallExpression(node) => &node.breadcrumbs,
+            AnyAstNode::IdentifierExpression(node) => &node.breadcrumbs,
+            AnyAstNode::StringLiteralExpression(node) => &node.breadcrumbs,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeReferenceNode {
     Identifier(IdentifierTypeReferenceNode),
 }
@@ -75,6 +115,11 @@ pub struct IdentifierNode {
     pub breadcrumbs: Breadcrumbs,
     pub text: Arc<String>,
 }
+impl From<IdentifierNode> for AnyAstNode {
+    fn from(node: IdentifierNode) -> Self {
+        AnyAstNode::Identifier(node)
+    }
+}
 impl HasBreadcrumbs for IdentifierNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.breadcrumbs
@@ -85,6 +130,11 @@ impl HasBreadcrumbs for IdentifierNode {
 pub struct IdentifierTypeReferenceNode {
     pub breadcrumbs: Breadcrumbs,
     pub identifier: IdentifierNode,
+}
+impl From<IdentifierTypeReferenceNode> for AnyAstNode {
+    fn from(node: IdentifierTypeReferenceNode) -> Self {
+        AnyAstNode::IdentifierTypeReference(node)
+    }
 }
 impl HasBreadcrumbs for IdentifierTypeReferenceNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -98,6 +148,11 @@ pub struct FunctionSignatureParameterNode {
     pub name: Arc<String>,
     pub type_reference: Option<Box<TypeReferenceNode>>,
 }
+impl From<FunctionSignatureParameterNode> for AnyAstNode {
+    fn from(node: FunctionSignatureParameterNode) -> Self {
+        AnyAstNode::FunctionSignatureParameter(node)
+    }
+}
 impl HasBreadcrumbs for FunctionSignatureParameterNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.breadcrumbs
@@ -109,6 +164,11 @@ pub struct FunctionCallParameterNode {
     pub breadcrumbs: Breadcrumbs,
     pub value: Box<ExpressionNode>,
 }
+impl From<FunctionCallParameterNode> for AnyAstNode {
+    fn from(node: FunctionCallParameterNode) -> Self {
+        AnyAstNode::FunctionCallParameter(node)
+    }
+}
 impl HasBreadcrumbs for FunctionCallParameterNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.breadcrumbs
@@ -119,6 +179,11 @@ impl HasBreadcrumbs for FunctionCallParameterNode {
 pub struct FileNode {
     pub breadcrumbs: Breadcrumbs,
     pub declarations: Vec<DeclarationNode>,
+}
+impl From<FileNode> for AnyAstNode {
+    fn from(node: FileNode) -> Self {
+        AnyAstNode::File(node)
+    }
 }
 impl HasBreadcrumbs for FileNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -132,6 +197,11 @@ pub struct ImportNode {
     pub path: ImportPathNode,
     pub mappings: Vec<ImportMappingNode>,
 }
+impl From<ImportNode> for AnyAstNode {
+    fn from(node: ImportNode) -> Self {
+        AnyAstNode::Import(node)
+    }
+}
 impl HasBreadcrumbs for ImportNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.breadcrumbs
@@ -142,6 +212,11 @@ impl HasBreadcrumbs for ImportNode {
 pub struct ImportPathNode {
     pub breadcrumbs: Breadcrumbs,
     pub path: Arc<String>,
+}
+impl From<ImportPathNode> for AnyAstNode {
+    fn from(node: ImportPathNode) -> Self {
+        AnyAstNode::ImportPath(node)
+    }
 }
 impl HasBreadcrumbs for ImportPathNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -154,6 +229,11 @@ pub struct ImportMappingNode {
     pub breadcrumbs: Breadcrumbs,
     pub source_name: IdentifierNode,
     pub rename: Option<IdentifierNode>,
+}
+impl From<ImportMappingNode> for AnyAstNode {
+    fn from(node: ImportMappingNode) -> Self {
+        AnyAstNode::ImportMapping(node)
+    }
 }
 impl HasBreadcrumbs for ImportMappingNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -169,6 +249,11 @@ pub struct FunctionNode {
     pub body: Box<BodyNode>,
     pub return_type: Option<Box<TypeReferenceNode>>,
 }
+impl From<FunctionNode> for AnyAstNode {
+    fn from(node: FunctionNode) -> Self {
+        AnyAstNode::Function(node)
+    }
+}
 impl HasBreadcrumbs for FunctionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.breadcrumbs
@@ -179,6 +264,11 @@ impl HasBreadcrumbs for FunctionNode {
 pub struct BlockBodyNode {
     pub breadcrumbs: Breadcrumbs,
     pub statements: Vec<StatementNode>,
+}
+impl From<BlockBodyNode> for AnyAstNode {
+    fn from(node: BlockBodyNode) -> Self {
+        AnyAstNode::BlockBody(node)
+    }
 }
 impl HasBreadcrumbs for BlockBodyNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -191,6 +281,11 @@ pub struct ExpressionStatementNode {
     pub breadcrumbs: Breadcrumbs,
     pub expression: Box<ExpressionNode>,
 }
+impl From<ExpressionStatementNode> for AnyAstNode {
+    fn from(node: ExpressionStatementNode) -> Self {
+        AnyAstNode::ExpressionStatement(node)
+    }
+}
 impl HasBreadcrumbs for ExpressionStatementNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.breadcrumbs
@@ -201,6 +296,11 @@ impl HasBreadcrumbs for ExpressionStatementNode {
 pub struct CauseExpressionNode {
     pub breadcrumbs: Breadcrumbs,
     pub signal: Box<ExpressionNode>,
+}
+impl From<CauseExpressionNode> for AnyAstNode {
+    fn from(node: CauseExpressionNode) -> Self {
+        AnyAstNode::CauseExpression(node)
+    }
 }
 impl HasBreadcrumbs for CauseExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -214,6 +314,11 @@ pub struct CallExpressionNode {
     pub callee: Box<ExpressionNode>,
     pub parameters: Vec<FunctionCallParameterNode>,
 }
+impl From<CallExpressionNode> for AnyAstNode {
+    fn from(node: CallExpressionNode) -> Self {
+        AnyAstNode::CallExpression(node)
+    }
+}
 impl HasBreadcrumbs for CallExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.breadcrumbs
@@ -225,6 +330,11 @@ pub struct IdentifierExpressionNode {
     pub breadcrumbs: Breadcrumbs,
     pub identifier: IdentifierNode,
 }
+impl From<IdentifierExpressionNode> for AnyAstNode {
+    fn from(node: IdentifierExpressionNode) -> Self {
+        AnyAstNode::IdentifierExpression(node)
+    }
+}
 impl HasBreadcrumbs for IdentifierExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.breadcrumbs
@@ -235,6 +345,11 @@ impl HasBreadcrumbs for IdentifierExpressionNode {
 pub struct StringLiteralExpressionNode {
     pub breadcrumbs: Breadcrumbs,
     pub text: Arc<String>,
+}
+impl From<StringLiteralExpressionNode> for AnyAstNode {
+    fn from(node: StringLiteralExpressionNode) -> Self {
+        AnyAstNode::StringLiteralExpression(node)
+    }
 }
 impl HasBreadcrumbs for StringLiteralExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
