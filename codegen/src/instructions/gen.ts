@@ -1,5 +1,5 @@
-import { changeCase, path } from "../../../deps.ts";
-import { compileTemplate, projectRoot } from "../../utils/templates.ts";
+import { changeCase, path } from "../../deps.ts";
+import { compileTemplate, projectRoot } from "../utils/templates.ts";
 import { instructions } from "./instructions.ts";
 
 export async function generateInstructions() {
