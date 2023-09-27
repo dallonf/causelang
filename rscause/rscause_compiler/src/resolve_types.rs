@@ -54,23 +54,34 @@ impl ResolveTypes for ast::ImportMappingNode {
                 _ => None,
             })
         });
-        let export_type = reference_file_tag.map(|tag| {
-            let file = ctx.external_files.get(&tag.path);
-            if let Some(file) = file {
-                if let Some(export) = file.exports.get(&self.source_name.text) {
-                    InferredType::Known(export.clone())
-                } else {
-                    println!("Export not found: {}::{}", tag.path, self.source_name.text);
-                    InferredType::Error
-                }
-            } else {
-                println!("File not found: {}", tag.path);
-                InferredType::Error
-            }
-        });
+        let export = reference_file_tag
+            .ok_or_else(|| {
+                println!(
+                    "No reference file tag found for import mapping: {:?}",
+                    self.breadcrumbs
+                );
+                ()
+            })
+            .and_then(|tag| {
+                ctx.external_files
+                    .get(&tag.path)
+                    .ok_or_else(|| {
+                        println!("File not found: {}", &tag.path);
+                        ()
+                    })
+                    .map(|file| (tag, file))
+            })
+            .and_then(|(tag, file)| {
+                file.exports.get(&self.source_name.text).ok_or_else(|| {
+                    println!("Export not found: {}::{}", self.source_name.text, tag.path);
+                    ()
+                })
+            });
         ctx.value_types.insert(
             self.breadcrumbs.clone(),
-            export_type.unwrap_or(InferredType::Error),
+            export
+                .map(|export| InferredType::Known(export.clone()))
+                .unwrap_or_else(|_| InferredType::Error),
         );
     }
 }
