@@ -16,6 +16,27 @@ pub enum AnyAstNode {
     IdentifierExpression(Arc<IdentifierExpressionNode>),
     StringLiteralExpression(Arc<StringLiteralExpressionNode>),
 }
+impl AstNode for AnyAstNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        match self {
+            AnyAstNode::Identifier(node) => node.children(),
+            AnyAstNode::IdentifierTypeReference(node) => node.children(),
+            AnyAstNode::FunctionSignatureParameter(node) => node.children(),
+            AnyAstNode::FunctionCallParameter(node) => node.children(),
+            AnyAstNode::File(node) => node.children(),
+            AnyAstNode::Import(node) => node.children(),
+            AnyAstNode::ImportPath(node) => node.children(),
+            AnyAstNode::ImportMapping(node) => node.children(),
+            AnyAstNode::Function(node) => node.children(),
+            AnyAstNode::BlockBody(node) => node.children(),
+            AnyAstNode::ExpressionStatement(node) => node.children(),
+            AnyAstNode::CauseExpression(node) => node.children(),
+            AnyAstNode::CallExpression(node) => node.children(),
+            AnyAstNode::IdentifierExpression(node) => node.children(),
+            AnyAstNode::StringLiteralExpression(node) => node.children(),
+        }
+    }
+}
 impl HasBreadcrumbs for AnyAstNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
@@ -42,6 +63,22 @@ impl HasBreadcrumbs for AnyAstNode {
 pub enum TypeReferenceNode {
     Identifier(Arc<IdentifierTypeReferenceNode>),
 }
+impl AstNode for TypeReferenceNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        match self {
+            TypeReferenceNode::Identifier(node) => node.children(),
+        }
+    }
+}
+impl From<&TypeReferenceNode> for AnyAstNode {
+    fn from(value: &TypeReferenceNode) -> Self {
+        match value {
+            TypeReferenceNode::Identifier(node) => {
+                AnyAstNode::IdentifierTypeReference(node.clone())
+            }
+        }
+    }
+}
 impl HasBreadcrumbs for TypeReferenceNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
@@ -54,6 +91,22 @@ impl HasBreadcrumbs for TypeReferenceNode {
 pub enum DeclarationNode {
     Import(Arc<ImportNode>),
     Function(Arc<FunctionNode>),
+}
+impl AstNode for DeclarationNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        match self {
+            DeclarationNode::Import(node) => node.children(),
+            DeclarationNode::Function(node) => node.children(),
+        }
+    }
+}
+impl From<&DeclarationNode> for AnyAstNode {
+    fn from(value: &DeclarationNode) -> Self {
+        match value {
+            DeclarationNode::Import(node) => AnyAstNode::Import(node.clone()),
+            DeclarationNode::Function(node) => AnyAstNode::Function(node.clone()),
+        }
+    }
 }
 impl HasBreadcrumbs for DeclarationNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -68,6 +121,20 @@ impl HasBreadcrumbs for DeclarationNode {
 pub enum BodyNode {
     Block(Arc<BlockBodyNode>),
 }
+impl AstNode for BodyNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        match self {
+            BodyNode::Block(node) => node.children(),
+        }
+    }
+}
+impl From<&BodyNode> for AnyAstNode {
+    fn from(value: &BodyNode) -> Self {
+        match value {
+            BodyNode::Block(node) => AnyAstNode::BlockBody(node.clone()),
+        }
+    }
+}
 impl HasBreadcrumbs for BodyNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
@@ -79,6 +146,20 @@ impl HasBreadcrumbs for BodyNode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StatementNode {
     Expression(Arc<ExpressionStatementNode>),
+}
+impl AstNode for StatementNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        match self {
+            StatementNode::Expression(node) => node.children(),
+        }
+    }
+}
+impl From<&StatementNode> for AnyAstNode {
+    fn from(value: &StatementNode) -> Self {
+        match value {
+            StatementNode::Expression(node) => AnyAstNode::ExpressionStatement(node.clone()),
+        }
+    }
 }
 impl HasBreadcrumbs for StatementNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -95,6 +176,28 @@ pub enum ExpressionNode {
     Identifier(Arc<IdentifierExpressionNode>),
     StringLiteral(Arc<StringLiteralExpressionNode>),
 }
+impl AstNode for ExpressionNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        match self {
+            ExpressionNode::Cause(node) => node.children(),
+            ExpressionNode::Call(node) => node.children(),
+            ExpressionNode::Identifier(node) => node.children(),
+            ExpressionNode::StringLiteral(node) => node.children(),
+        }
+    }
+}
+impl From<&ExpressionNode> for AnyAstNode {
+    fn from(value: &ExpressionNode) -> Self {
+        match value {
+            ExpressionNode::Cause(node) => AnyAstNode::CauseExpression(node.clone()),
+            ExpressionNode::Call(node) => AnyAstNode::CallExpression(node.clone()),
+            ExpressionNode::Identifier(node) => AnyAstNode::IdentifierExpression(node.clone()),
+            ExpressionNode::StringLiteral(node) => {
+                AnyAstNode::StringLiteralExpression(node.clone())
+            }
+        }
+    }
+}
 impl HasBreadcrumbs for ExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
@@ -106,15 +209,20 @@ impl HasBreadcrumbs for ExpressionNode {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdentifierNode {
     pub breadcrumbs: Breadcrumbs,
     pub text: Arc<String>,
 }
-impl From<Arc<IdentifierNode>> for AnyAstNode {
-    fn from(value: Arc<IdentifierNode>) -> Self {
+impl From<&Arc<IdentifierNode>> for AnyAstNode {
+    fn from(value: &Arc<IdentifierNode>) -> Self {
         AnyAstNode::Identifier(value.clone())
+    }
+}
+impl AstNode for IdentifierNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result
     }
 }
 impl HasBreadcrumbs for IdentifierNode {
@@ -128,9 +236,19 @@ pub struct IdentifierTypeReferenceNode {
     pub breadcrumbs: Breadcrumbs,
     pub identifier: Arc<IdentifierNode>,
 }
-impl From<Arc<IdentifierTypeReferenceNode>> for AnyAstNode {
-    fn from(value: Arc<IdentifierTypeReferenceNode>) -> Self {
+impl From<&Arc<IdentifierTypeReferenceNode>> for AnyAstNode {
+    fn from(value: &Arc<IdentifierTypeReferenceNode>) -> Self {
         AnyAstNode::IdentifierTypeReference(value.clone())
+    }
+}
+impl AstNode for IdentifierTypeReferenceNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("identifier").into(),
+            (&self.identifier).into(),
+        );
+        result
     }
 }
 impl HasBreadcrumbs for IdentifierTypeReferenceNode {
@@ -145,9 +263,19 @@ pub struct FunctionSignatureParameterNode {
     pub name: Arc<String>,
     pub type_reference: Option<TypeReferenceNode>,
 }
-impl From<Arc<FunctionSignatureParameterNode>> for AnyAstNode {
-    fn from(value: Arc<FunctionSignatureParameterNode>) -> Self {
+impl From<&Arc<FunctionSignatureParameterNode>> for AnyAstNode {
+    fn from(value: &Arc<FunctionSignatureParameterNode>) -> Self {
         AnyAstNode::FunctionSignatureParameter(value.clone())
+    }
+}
+impl AstNode for FunctionSignatureParameterNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("type_reference").into(),
+            (&self.type_reference).into(),
+        );
+        result
     }
 }
 impl HasBreadcrumbs for FunctionSignatureParameterNode {
@@ -161,9 +289,16 @@ pub struct FunctionCallParameterNode {
     pub breadcrumbs: Breadcrumbs,
     pub value: ExpressionNode,
 }
-impl From<Arc<FunctionCallParameterNode>> for AnyAstNode {
-    fn from(value: Arc<FunctionCallParameterNode>) -> Self {
+impl From<&Arc<FunctionCallParameterNode>> for AnyAstNode {
+    fn from(value: &Arc<FunctionCallParameterNode>) -> Self {
         AnyAstNode::FunctionCallParameter(value.clone())
+    }
+}
+impl AstNode for FunctionCallParameterNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(BreadcrumbName::new("value").into(), (&self.value).into());
+        result
     }
 }
 impl HasBreadcrumbs for FunctionCallParameterNode {
@@ -177,9 +312,19 @@ pub struct FileNode {
     pub breadcrumbs: Breadcrumbs,
     pub declarations: Vec<DeclarationNode>,
 }
-impl From<Arc<FileNode>> for AnyAstNode {
-    fn from(value: Arc<FileNode>) -> Self {
+impl From<&Arc<FileNode>> for AnyAstNode {
+    fn from(value: &Arc<FileNode>) -> Self {
         AnyAstNode::File(value.clone())
+    }
+}
+impl AstNode for FileNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("declarations").into(),
+            (&self.declarations).into(),
+        );
+        result
     }
 }
 impl HasBreadcrumbs for FileNode {
@@ -194,9 +339,20 @@ pub struct ImportNode {
     pub path: Arc<ImportPathNode>,
     pub mappings: Vec<Arc<ImportMappingNode>>,
 }
-impl From<Arc<ImportNode>> for AnyAstNode {
-    fn from(value: Arc<ImportNode>) -> Self {
+impl From<&Arc<ImportNode>> for AnyAstNode {
+    fn from(value: &Arc<ImportNode>) -> Self {
         AnyAstNode::Import(value.clone())
+    }
+}
+impl AstNode for ImportNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(BreadcrumbName::new("path").into(), (&self.path).into());
+        result.insert(
+            BreadcrumbName::new("mappings").into(),
+            (&self.mappings).into(),
+        );
+        result
     }
 }
 impl HasBreadcrumbs for ImportNode {
@@ -210,9 +366,15 @@ pub struct ImportPathNode {
     pub breadcrumbs: Breadcrumbs,
     pub path: Arc<String>,
 }
-impl From<Arc<ImportPathNode>> for AnyAstNode {
-    fn from(value: Arc<ImportPathNode>) -> Self {
+impl From<&Arc<ImportPathNode>> for AnyAstNode {
+    fn from(value: &Arc<ImportPathNode>) -> Self {
         AnyAstNode::ImportPath(value.clone())
+    }
+}
+impl AstNode for ImportPathNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result
     }
 }
 impl HasBreadcrumbs for ImportPathNode {
@@ -227,9 +389,20 @@ pub struct ImportMappingNode {
     pub source_name: Arc<IdentifierNode>,
     pub rename: Option<Arc<IdentifierNode>>,
 }
-impl From<Arc<ImportMappingNode>> for AnyAstNode {
-    fn from(value: Arc<ImportMappingNode>) -> Self {
+impl From<&Arc<ImportMappingNode>> for AnyAstNode {
+    fn from(value: &Arc<ImportMappingNode>) -> Self {
         AnyAstNode::ImportMapping(value.clone())
+    }
+}
+impl AstNode for ImportMappingNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("source_name").into(),
+            (&self.source_name).into(),
+        );
+        result.insert(BreadcrumbName::new("rename").into(), (&self.rename).into());
+        result
     }
 }
 impl HasBreadcrumbs for ImportMappingNode {
@@ -246,9 +419,22 @@ pub struct FunctionNode {
     pub body: BodyNode,
     pub return_type: Option<TypeReferenceNode>,
 }
-impl From<Arc<FunctionNode>> for AnyAstNode {
-    fn from(value: Arc<FunctionNode>) -> Self {
+impl From<&Arc<FunctionNode>> for AnyAstNode {
+    fn from(value: &Arc<FunctionNode>) -> Self {
         AnyAstNode::Function(value.clone())
+    }
+}
+impl AstNode for FunctionNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(BreadcrumbName::new("name").into(), (&self.name).into());
+        result.insert(BreadcrumbName::new("params").into(), (&self.params).into());
+        result.insert(BreadcrumbName::new("body").into(), (&self.body).into());
+        result.insert(
+            BreadcrumbName::new("return_type").into(),
+            (&self.return_type).into(),
+        );
+        result
     }
 }
 impl HasBreadcrumbs for FunctionNode {
@@ -262,9 +448,19 @@ pub struct BlockBodyNode {
     pub breadcrumbs: Breadcrumbs,
     pub statements: Vec<StatementNode>,
 }
-impl From<Arc<BlockBodyNode>> for AnyAstNode {
-    fn from(value: Arc<BlockBodyNode>) -> Self {
+impl From<&Arc<BlockBodyNode>> for AnyAstNode {
+    fn from(value: &Arc<BlockBodyNode>) -> Self {
         AnyAstNode::BlockBody(value.clone())
+    }
+}
+impl AstNode for BlockBodyNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("statements").into(),
+            (&self.statements).into(),
+        );
+        result
     }
 }
 impl HasBreadcrumbs for BlockBodyNode {
@@ -278,9 +474,19 @@ pub struct ExpressionStatementNode {
     pub breadcrumbs: Breadcrumbs,
     pub expression: ExpressionNode,
 }
-impl From<Arc<ExpressionStatementNode>> for AnyAstNode {
-    fn from(value: Arc<ExpressionStatementNode>) -> Self {
+impl From<&Arc<ExpressionStatementNode>> for AnyAstNode {
+    fn from(value: &Arc<ExpressionStatementNode>) -> Self {
         AnyAstNode::ExpressionStatement(value.clone())
+    }
+}
+impl AstNode for ExpressionStatementNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("expression").into(),
+            (&self.expression).into(),
+        );
+        result
     }
 }
 impl HasBreadcrumbs for ExpressionStatementNode {
@@ -294,9 +500,16 @@ pub struct CauseExpressionNode {
     pub breadcrumbs: Breadcrumbs,
     pub signal: ExpressionNode,
 }
-impl From<Arc<CauseExpressionNode>> for AnyAstNode {
-    fn from(value: Arc<CauseExpressionNode>) -> Self {
+impl From<&Arc<CauseExpressionNode>> for AnyAstNode {
+    fn from(value: &Arc<CauseExpressionNode>) -> Self {
         AnyAstNode::CauseExpression(value.clone())
+    }
+}
+impl AstNode for CauseExpressionNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(BreadcrumbName::new("signal").into(), (&self.signal).into());
+        result
     }
 }
 impl HasBreadcrumbs for CauseExpressionNode {
@@ -311,9 +524,20 @@ pub struct CallExpressionNode {
     pub callee: ExpressionNode,
     pub parameters: Vec<Arc<FunctionCallParameterNode>>,
 }
-impl From<Arc<CallExpressionNode>> for AnyAstNode {
-    fn from(value: Arc<CallExpressionNode>) -> Self {
+impl From<&Arc<CallExpressionNode>> for AnyAstNode {
+    fn from(value: &Arc<CallExpressionNode>) -> Self {
         AnyAstNode::CallExpression(value.clone())
+    }
+}
+impl AstNode for CallExpressionNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(BreadcrumbName::new("callee").into(), (&self.callee).into());
+        result.insert(
+            BreadcrumbName::new("parameters").into(),
+            (&self.parameters).into(),
+        );
+        result
     }
 }
 impl HasBreadcrumbs for CallExpressionNode {
@@ -327,9 +551,19 @@ pub struct IdentifierExpressionNode {
     pub breadcrumbs: Breadcrumbs,
     pub identifier: Arc<IdentifierNode>,
 }
-impl From<Arc<IdentifierExpressionNode>> for AnyAstNode {
-    fn from(value: Arc<IdentifierExpressionNode>) -> Self {
+impl From<&Arc<IdentifierExpressionNode>> for AnyAstNode {
+    fn from(value: &Arc<IdentifierExpressionNode>) -> Self {
         AnyAstNode::IdentifierExpression(value.clone())
+    }
+}
+impl AstNode for IdentifierExpressionNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("identifier").into(),
+            (&self.identifier).into(),
+        );
+        result
     }
 }
 impl HasBreadcrumbs for IdentifierExpressionNode {
@@ -343,9 +577,15 @@ pub struct StringLiteralExpressionNode {
     pub breadcrumbs: Breadcrumbs,
     pub text: Arc<String>,
 }
-impl From<Arc<StringLiteralExpressionNode>> for AnyAstNode {
-    fn from(value: Arc<StringLiteralExpressionNode>) -> Self {
+impl From<&Arc<StringLiteralExpressionNode>> for AnyAstNode {
+    fn from(value: &Arc<StringLiteralExpressionNode>) -> Self {
         AnyAstNode::StringLiteralExpression(value.clone())
+    }
+}
+impl AstNode for StringLiteralExpressionNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result
     }
 }
 impl HasBreadcrumbs for StringLiteralExpressionNode {
@@ -353,4 +593,3 @@ impl HasBreadcrumbs for StringLiteralExpressionNode {
         &self.breadcrumbs
     }
 }
-

@@ -4,6 +4,15 @@ pub enum AnyAstNode {
     {{this.variantName}}(Arc<{{this.name}}>),
     {{/each}}
 }
+impl AstNode for AnyAstNode {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        match self {
+            {{#each nodes}}
+            AnyAstNode::{{this.variantName}}(node) => node.children(),
+            {{/each}}
+        }
+    }
+}
 impl HasBreadcrumbs for AnyAstNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
@@ -20,6 +29,24 @@ pub enum {{this.name}} {
     {{#each this.nodes}}
     {{this.variantName}}(Arc<{{this.nodeName}}>),
     {{/each}}
+}
+impl AstNode for {{this.name}} {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        match self {
+            {{#each this.nodes}}
+            {{../name}}::{{this.variantName}}(node) => node.children(),
+            {{/each}}
+        }
+    }
+}
+impl From<&{{this.name}}> for AnyAstNode {
+    fn from(value: &{{this.name}}) -> Self {
+        match value {
+            {{#each this.nodes}}
+            {{../name}}::{{this.variantName}}(node) => AnyAstNode::{{this.anyVariantName}}(node.clone()),
+            {{/each}}
+        }
+    }
 }
 impl HasBreadcrumbs for {{this.name}} {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -41,9 +68,23 @@ pub struct {{this.name}} {
     pub {{this.name}}: {{this.type}},
     {{/each}}
 }
-impl From<Arc<{{this.name}}>> for AnyAstNode {
-    fn from(value: Arc<{{this.name}}>) -> Self {
+impl From<&Arc<{{this.name}}>> for AnyAstNode {
+    fn from(value: &Arc<{{this.name}}>) -> Self {
         AnyAstNode::{{this.variantName}}(value.clone())
+    }
+}
+impl AstNode for {{this.name}} {
+    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        {{#each this.fields}}
+        {{#if this.isNode}}
+        result.insert(
+            BreadcrumbName::new("{{this.name}}").into(),
+            (&self.{{this.name}}).into(),
+        );
+        {{/if}}
+        {{/each}}
+        result
     }
 }
 impl HasBreadcrumbs for {{this.name}} {

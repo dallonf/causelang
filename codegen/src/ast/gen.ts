@@ -49,6 +49,7 @@ async function generateAstNodesRs() {
       nodes: nodes
         .filter((node) => node.category === category.name)
         .map((node) => ({
+          anyVariantName: node.name,
           variantName: node.name.replace(suffixRegex, ""),
           nodeName: `${node.name}Node`,
         })),

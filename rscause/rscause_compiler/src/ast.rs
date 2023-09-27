@@ -23,40 +23,34 @@ impl BreadcrumbTreeNode {
     }
 }
 
-impl AstNode for AnyAstNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
-        match self {
-            _ => todo!(),
-        }
-    }
-}
-
 pub trait AstNode {
     fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode>;
 }
 
-impl AstNode for FileNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
-        let mut result = HashMap::new();
-        result.insert(
-            BreadcrumbName::new("declarations").into(),
-            (&self.declarations).into(),
-        );
-        result
+impl<T> From<T> for BreadcrumbTreeNode
+where
+    T: Into<AnyAstNode>,
+{
+    fn from(value: T) -> Self {
+        Self::Node(Some(value.into()))
     }
 }
-impl From<DeclarationNode> for AnyAstNode {
-    fn from(node: DeclarationNode) -> Self {
-        match node {
-            DeclarationNode::Import(node) => AnyAstNode::Import(node),
-            DeclarationNode::Function(node) => AnyAstNode::Function(node),
+
+impl<T> From<&Option<T>> for BreadcrumbTreeNode
+where
+    for<'a> &'a T: Into<AnyAstNode>,
+{
+    fn from(value: &Option<T>) -> Self {
+        match value {
+            Some(value) => Self::Node(Some(value.into())),
+            None => Self::Node(None),
         }
     }
 }
 
 impl<T> From<&Vec<T>> for BreadcrumbTreeNode
 where
-    T: Into<AnyAstNode> + Clone,
+    for<'a> &'a T: Into<AnyAstNode>,
 {
     fn from(nodes: &Vec<T>) -> Self {
         Self::List(
