@@ -152,9 +152,9 @@ function rsFieldType(
     if (opts.astNamespace) {
       name = `${opts.astNamespace}::${name}`;
     }
-    const bare = opts.bare ?? true;
-    if (bare && categories.some((category) => category.name === type))
-      name = `Box<${name}>`;
+    if (!categories.some((category) => category.name === type)) {
+      name = `Arc<${name}>`;
+    }
     return name;
   }
   switch (type.kind) {

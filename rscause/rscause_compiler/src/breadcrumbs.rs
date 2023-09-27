@@ -1,7 +1,6 @@
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum BreadcrumbEntry {
@@ -11,12 +10,11 @@ pub enum BreadcrumbEntry {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BreadcrumbName {
-    pub name: Arc<String>,
+    pub name: &'static str,
     precomputed_hash: u64,
 }
-
 impl BreadcrumbName {
-    pub fn new(name: Arc<String>) -> Self {
+    pub fn new(name: &'static str) -> Self {
         let mut hasher = DefaultHasher::new();
         name.hash(&mut hasher);
         Self {
@@ -25,10 +23,14 @@ impl BreadcrumbName {
         }
     }
 }
-
 impl Hash for BreadcrumbName {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.precomputed_hash.hash(state);
+    }
+}
+impl From<BreadcrumbName> for BreadcrumbEntry {
+    fn from(name: BreadcrumbName) -> Self {
+        Self::Name(name)
     }
 }
 

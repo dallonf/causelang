@@ -1,23 +1,20 @@
-use std::sync::Arc;
-use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AnyAstNode {
-    Identifier(IdentifierNode),
-    IdentifierTypeReference(IdentifierTypeReferenceNode),
-    FunctionSignatureParameter(FunctionSignatureParameterNode),
-    FunctionCallParameter(FunctionCallParameterNode),
-    File(FileNode),
-    Import(ImportNode),
-    ImportPath(ImportPathNode),
-    ImportMapping(ImportMappingNode),
-    Function(FunctionNode),
-    BlockBody(BlockBodyNode),
-    ExpressionStatement(ExpressionStatementNode),
-    CauseExpression(CauseExpressionNode),
-    CallExpression(CallExpressionNode),
-    IdentifierExpression(IdentifierExpressionNode),
-    StringLiteralExpression(StringLiteralExpressionNode),
+    Identifier(Arc<IdentifierNode>),
+    IdentifierTypeReference(Arc<IdentifierTypeReferenceNode>),
+    FunctionSignatureParameter(Arc<FunctionSignatureParameterNode>),
+    FunctionCallParameter(Arc<FunctionCallParameterNode>),
+    File(Arc<FileNode>),
+    Import(Arc<ImportNode>),
+    ImportPath(Arc<ImportPathNode>),
+    ImportMapping(Arc<ImportMappingNode>),
+    Function(Arc<FunctionNode>),
+    BlockBody(Arc<BlockBodyNode>),
+    ExpressionStatement(Arc<ExpressionStatementNode>),
+    CauseExpression(Arc<CauseExpressionNode>),
+    CallExpression(Arc<CallExpressionNode>),
+    IdentifierExpression(Arc<IdentifierExpressionNode>),
+    StringLiteralExpression(Arc<StringLiteralExpressionNode>),
 }
 impl HasBreadcrumbs for AnyAstNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -43,7 +40,7 @@ impl HasBreadcrumbs for AnyAstNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeReferenceNode {
-    Identifier(IdentifierTypeReferenceNode),
+    Identifier(Arc<IdentifierTypeReferenceNode>),
 }
 impl HasBreadcrumbs for TypeReferenceNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -55,8 +52,8 @@ impl HasBreadcrumbs for TypeReferenceNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DeclarationNode {
-    Import(ImportNode),
-    Function(FunctionNode),
+    Import(Arc<ImportNode>),
+    Function(Arc<FunctionNode>),
 }
 impl HasBreadcrumbs for DeclarationNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -69,7 +66,7 @@ impl HasBreadcrumbs for DeclarationNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BodyNode {
-    Block(BlockBodyNode),
+    Block(Arc<BlockBodyNode>),
 }
 impl HasBreadcrumbs for BodyNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -81,7 +78,7 @@ impl HasBreadcrumbs for BodyNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StatementNode {
-    Expression(ExpressionStatementNode),
+    Expression(Arc<ExpressionStatementNode>),
 }
 impl HasBreadcrumbs for StatementNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -93,10 +90,10 @@ impl HasBreadcrumbs for StatementNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExpressionNode {
-    Cause(CauseExpressionNode),
-    Call(CallExpressionNode),
-    Identifier(IdentifierExpressionNode),
-    StringLiteral(StringLiteralExpressionNode),
+    Cause(Arc<CauseExpressionNode>),
+    Call(Arc<CallExpressionNode>),
+    Identifier(Arc<IdentifierExpressionNode>),
+    StringLiteral(Arc<StringLiteralExpressionNode>),
 }
 impl HasBreadcrumbs for ExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
@@ -115,9 +112,9 @@ pub struct IdentifierNode {
     pub breadcrumbs: Breadcrumbs,
     pub text: Arc<String>,
 }
-impl From<IdentifierNode> for AnyAstNode {
-    fn from(node: IdentifierNode) -> Self {
-        AnyAstNode::Identifier(node)
+impl From<Arc<IdentifierNode>> for AnyAstNode {
+    fn from(value: Arc<IdentifierNode>) -> Self {
+        AnyAstNode::Identifier(value.clone())
     }
 }
 impl HasBreadcrumbs for IdentifierNode {
@@ -129,11 +126,11 @@ impl HasBreadcrumbs for IdentifierNode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdentifierTypeReferenceNode {
     pub breadcrumbs: Breadcrumbs,
-    pub identifier: IdentifierNode,
+    pub identifier: Arc<IdentifierNode>,
 }
-impl From<IdentifierTypeReferenceNode> for AnyAstNode {
-    fn from(node: IdentifierTypeReferenceNode) -> Self {
-        AnyAstNode::IdentifierTypeReference(node)
+impl From<Arc<IdentifierTypeReferenceNode>> for AnyAstNode {
+    fn from(value: Arc<IdentifierTypeReferenceNode>) -> Self {
+        AnyAstNode::IdentifierTypeReference(value.clone())
     }
 }
 impl HasBreadcrumbs for IdentifierTypeReferenceNode {
@@ -146,11 +143,11 @@ impl HasBreadcrumbs for IdentifierTypeReferenceNode {
 pub struct FunctionSignatureParameterNode {
     pub breadcrumbs: Breadcrumbs,
     pub name: Arc<String>,
-    pub type_reference: Option<Box<TypeReferenceNode>>,
+    pub type_reference: Option<TypeReferenceNode>,
 }
-impl From<FunctionSignatureParameterNode> for AnyAstNode {
-    fn from(node: FunctionSignatureParameterNode) -> Self {
-        AnyAstNode::FunctionSignatureParameter(node)
+impl From<Arc<FunctionSignatureParameterNode>> for AnyAstNode {
+    fn from(value: Arc<FunctionSignatureParameterNode>) -> Self {
+        AnyAstNode::FunctionSignatureParameter(value.clone())
     }
 }
 impl HasBreadcrumbs for FunctionSignatureParameterNode {
@@ -162,11 +159,11 @@ impl HasBreadcrumbs for FunctionSignatureParameterNode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionCallParameterNode {
     pub breadcrumbs: Breadcrumbs,
-    pub value: Box<ExpressionNode>,
+    pub value: ExpressionNode,
 }
-impl From<FunctionCallParameterNode> for AnyAstNode {
-    fn from(node: FunctionCallParameterNode) -> Self {
-        AnyAstNode::FunctionCallParameter(node)
+impl From<Arc<FunctionCallParameterNode>> for AnyAstNode {
+    fn from(value: Arc<FunctionCallParameterNode>) -> Self {
+        AnyAstNode::FunctionCallParameter(value.clone())
     }
 }
 impl HasBreadcrumbs for FunctionCallParameterNode {
@@ -180,9 +177,9 @@ pub struct FileNode {
     pub breadcrumbs: Breadcrumbs,
     pub declarations: Vec<DeclarationNode>,
 }
-impl From<FileNode> for AnyAstNode {
-    fn from(node: FileNode) -> Self {
-        AnyAstNode::File(node)
+impl From<Arc<FileNode>> for AnyAstNode {
+    fn from(value: Arc<FileNode>) -> Self {
+        AnyAstNode::File(value.clone())
     }
 }
 impl HasBreadcrumbs for FileNode {
@@ -194,12 +191,12 @@ impl HasBreadcrumbs for FileNode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ImportNode {
     pub breadcrumbs: Breadcrumbs,
-    pub path: ImportPathNode,
-    pub mappings: Vec<ImportMappingNode>,
+    pub path: Arc<ImportPathNode>,
+    pub mappings: Vec<Arc<ImportMappingNode>>,
 }
-impl From<ImportNode> for AnyAstNode {
-    fn from(node: ImportNode) -> Self {
-        AnyAstNode::Import(node)
+impl From<Arc<ImportNode>> for AnyAstNode {
+    fn from(value: Arc<ImportNode>) -> Self {
+        AnyAstNode::Import(value.clone())
     }
 }
 impl HasBreadcrumbs for ImportNode {
@@ -213,9 +210,9 @@ pub struct ImportPathNode {
     pub breadcrumbs: Breadcrumbs,
     pub path: Arc<String>,
 }
-impl From<ImportPathNode> for AnyAstNode {
-    fn from(node: ImportPathNode) -> Self {
-        AnyAstNode::ImportPath(node)
+impl From<Arc<ImportPathNode>> for AnyAstNode {
+    fn from(value: Arc<ImportPathNode>) -> Self {
+        AnyAstNode::ImportPath(value.clone())
     }
 }
 impl HasBreadcrumbs for ImportPathNode {
@@ -227,12 +224,12 @@ impl HasBreadcrumbs for ImportPathNode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ImportMappingNode {
     pub breadcrumbs: Breadcrumbs,
-    pub source_name: IdentifierNode,
-    pub rename: Option<IdentifierNode>,
+    pub source_name: Arc<IdentifierNode>,
+    pub rename: Option<Arc<IdentifierNode>>,
 }
-impl From<ImportMappingNode> for AnyAstNode {
-    fn from(node: ImportMappingNode) -> Self {
-        AnyAstNode::ImportMapping(node)
+impl From<Arc<ImportMappingNode>> for AnyAstNode {
+    fn from(value: Arc<ImportMappingNode>) -> Self {
+        AnyAstNode::ImportMapping(value.clone())
     }
 }
 impl HasBreadcrumbs for ImportMappingNode {
@@ -244,14 +241,14 @@ impl HasBreadcrumbs for ImportMappingNode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionNode {
     pub breadcrumbs: Breadcrumbs,
-    pub name: IdentifierNode,
-    pub params: Vec<FunctionSignatureParameterNode>,
-    pub body: Box<BodyNode>,
-    pub return_type: Option<Box<TypeReferenceNode>>,
+    pub name: Arc<IdentifierNode>,
+    pub params: Vec<Arc<FunctionSignatureParameterNode>>,
+    pub body: BodyNode,
+    pub return_type: Option<TypeReferenceNode>,
 }
-impl From<FunctionNode> for AnyAstNode {
-    fn from(node: FunctionNode) -> Self {
-        AnyAstNode::Function(node)
+impl From<Arc<FunctionNode>> for AnyAstNode {
+    fn from(value: Arc<FunctionNode>) -> Self {
+        AnyAstNode::Function(value.clone())
     }
 }
 impl HasBreadcrumbs for FunctionNode {
@@ -265,9 +262,9 @@ pub struct BlockBodyNode {
     pub breadcrumbs: Breadcrumbs,
     pub statements: Vec<StatementNode>,
 }
-impl From<BlockBodyNode> for AnyAstNode {
-    fn from(node: BlockBodyNode) -> Self {
-        AnyAstNode::BlockBody(node)
+impl From<Arc<BlockBodyNode>> for AnyAstNode {
+    fn from(value: Arc<BlockBodyNode>) -> Self {
+        AnyAstNode::BlockBody(value.clone())
     }
 }
 impl HasBreadcrumbs for BlockBodyNode {
@@ -279,11 +276,11 @@ impl HasBreadcrumbs for BlockBodyNode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExpressionStatementNode {
     pub breadcrumbs: Breadcrumbs,
-    pub expression: Box<ExpressionNode>,
+    pub expression: ExpressionNode,
 }
-impl From<ExpressionStatementNode> for AnyAstNode {
-    fn from(node: ExpressionStatementNode) -> Self {
-        AnyAstNode::ExpressionStatement(node)
+impl From<Arc<ExpressionStatementNode>> for AnyAstNode {
+    fn from(value: Arc<ExpressionStatementNode>) -> Self {
+        AnyAstNode::ExpressionStatement(value.clone())
     }
 }
 impl HasBreadcrumbs for ExpressionStatementNode {
@@ -295,11 +292,11 @@ impl HasBreadcrumbs for ExpressionStatementNode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CauseExpressionNode {
     pub breadcrumbs: Breadcrumbs,
-    pub signal: Box<ExpressionNode>,
+    pub signal: ExpressionNode,
 }
-impl From<CauseExpressionNode> for AnyAstNode {
-    fn from(node: CauseExpressionNode) -> Self {
-        AnyAstNode::CauseExpression(node)
+impl From<Arc<CauseExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<CauseExpressionNode>) -> Self {
+        AnyAstNode::CauseExpression(value.clone())
     }
 }
 impl HasBreadcrumbs for CauseExpressionNode {
@@ -311,12 +308,12 @@ impl HasBreadcrumbs for CauseExpressionNode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CallExpressionNode {
     pub breadcrumbs: Breadcrumbs,
-    pub callee: Box<ExpressionNode>,
-    pub parameters: Vec<FunctionCallParameterNode>,
+    pub callee: ExpressionNode,
+    pub parameters: Vec<Arc<FunctionCallParameterNode>>,
 }
-impl From<CallExpressionNode> for AnyAstNode {
-    fn from(node: CallExpressionNode) -> Self {
-        AnyAstNode::CallExpression(node)
+impl From<Arc<CallExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<CallExpressionNode>) -> Self {
+        AnyAstNode::CallExpression(value.clone())
     }
 }
 impl HasBreadcrumbs for CallExpressionNode {
@@ -328,11 +325,11 @@ impl HasBreadcrumbs for CallExpressionNode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdentifierExpressionNode {
     pub breadcrumbs: Breadcrumbs,
-    pub identifier: IdentifierNode,
+    pub identifier: Arc<IdentifierNode>,
 }
-impl From<IdentifierExpressionNode> for AnyAstNode {
-    fn from(node: IdentifierExpressionNode) -> Self {
-        AnyAstNode::IdentifierExpression(node)
+impl From<Arc<IdentifierExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<IdentifierExpressionNode>) -> Self {
+        AnyAstNode::IdentifierExpression(value.clone())
     }
 }
 impl HasBreadcrumbs for IdentifierExpressionNode {
@@ -346,9 +343,9 @@ pub struct StringLiteralExpressionNode {
     pub breadcrumbs: Breadcrumbs,
     pub text: Arc<String>,
 }
-impl From<StringLiteralExpressionNode> for AnyAstNode {
-    fn from(node: StringLiteralExpressionNode) -> Self {
-        AnyAstNode::StringLiteralExpression(node)
+impl From<Arc<StringLiteralExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<StringLiteralExpressionNode>) -> Self {
+        AnyAstNode::StringLiteralExpression(value.clone())
     }
 }
 impl HasBreadcrumbs for StringLiteralExpressionNode {
