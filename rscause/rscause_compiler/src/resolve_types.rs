@@ -115,14 +115,12 @@ impl ResolveTypes for ast::FunctionNode {
         let name = self.name.text.clone();
         let explicit_return_type = self.return_type.as_ref().and_then(|it| {
             let type_reference = it.resolve_type_cached(ctx);
-            match type_reference {
-                Some(InferredType::Known(type_reference)) => match type_reference.as_ref() {
-                    LangType::TypeReference(referenced_type) => Some(referenced_type.clone()),
-                    _ => Some(InferredType::Error),
-                },
-                Some(InferredType::Error) => Some(InferredType::Error),
-                None => None,
-            }
+            type_reference.map(|type_reference| {
+                type_reference.and_then(|type_reference| match type_reference.as_ref() {
+                    LangType::TypeReference(referenced_type) => referenced_type.clone(),
+                    _ => InferredType::Error,
+                })
+            })
         });
         let get_inferred_return_type = || self.body.resolve_type_cached(ctx);
         let return_type = explicit_return_type.or_else(get_inferred_return_type);
@@ -130,8 +128,16 @@ impl ResolveTypes for ast::FunctionNode {
             name,
             return_type: return_type.unwrap_or(InferredType::Error),
         };
-        Some(InferredType::Known(Arc::new(LangType::Function(
-            function_type,
-        ))))
+        Some(function_type.into())
+    }
+}
+
+impl ResolveTypes for ast::BlockBodyNode {
+    fn resolve_type(&self, ctx: &mut ResolveTypesContext) -> Option<InferredType<Arc<LangType>>> {
+        let last_statement = self.statements.last();
+        let last_statement_type = last_statement
+            .and_then(|it| it.resolve_type_cached(ctx))
+            .unwrap_or(LangType::Action.into());
+        Some(last_statement_type)
     }
 }
