@@ -1,7 +1,7 @@
 use crate::ast::{self, AnyAstNode, AstNode, BreadcrumbTreeNode};
 use crate::breadcrumbs::Breadcrumbs;
 use crate::find_tag;
-use crate::lang_types::{FunctionLangType, InferredType, LangType};
+use crate::lang_types::{CanonicalLangType, FunctionLangType, InferredType, LangType};
 use crate::tags::NodeTag;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -14,11 +14,13 @@ pub struct ExternalFileDescriptor {
 pub fn resolve_types(
     file: &ast::FileNode,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
+    canonical_types: HashMap<Arc<String>, Arc<CanonicalLangType>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 ) -> ResolveTypesContext {
     let mut ctx = ResolveTypesContext {
         value_types: HashMap::new(),
         node_tags,
+        canonical_types,
         external_files,
     };
     let descendants = BreadcrumbTreeNode::from(&Arc::new(file.clone())).descendants();
@@ -30,6 +32,7 @@ pub fn resolve_types(
 
 pub struct ResolveTypesContext {
     value_types: HashMap<Breadcrumbs, Option<InferredType<Arc<LangType>>>>,
+    canonical_types: HashMap<Arc<String>, Arc<CanonicalLangType>>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 }
@@ -139,5 +142,36 @@ impl ResolveTypes for ast::BlockBodyNode {
             .and_then(|it| it.resolve_type_cached(ctx))
             .unwrap_or(LangType::Action.into());
         Some(last_statement_type)
+    }
+}
+
+impl ResolveTypes for ast::ExpressionStatementNode {
+    fn resolve_type(&self, ctx: &mut ResolveTypesContext) -> Option<InferredType<Arc<LangType>>> {
+        self.expression.resolve_type_cached(ctx)
+    }
+}
+
+impl ResolveTypes for ast::CauseExpressionNode {
+    fn resolve_type(&self, ctx: &mut ResolveTypesContext) -> Option<InferredType<Arc<LangType>>> {
+        let maybe_signal = self.signal.resolve_type_cached(ctx);
+        let signal_result_type = maybe_signal
+            .ok_or(())
+            .and_then(|maybe_signal| maybe_signal.to_result())
+            .and_then(|maybe_signal| match maybe_signal.as_ref() {
+                LangType::Instance(instance) => Ok(instance.type_id.clone()),
+                _ => Err(()),
+            })
+            .and_then(|signal_id| {
+                ctx.canonical_types
+                    .get(signal_id.as_ref())
+                    .cloned()
+                    .ok_or(())
+            })
+            .and_then(|canonical_type| match canonical_type.as_ref() {
+                CanonicalLangType::Signal(signal_type) => Ok(signal_type.result.clone()),
+                _ => Err(()),
+            })
+            .unwrap_or(InferredType::Error);
+        Some(signal_result_type)
     }
 }

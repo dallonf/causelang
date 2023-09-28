@@ -17,6 +17,13 @@ impl<T> InferredType<T> {
             InferredType::Error => InferredType::Error,
         }
     }
+    #[inline]
+    pub fn to_result(self) -> Result<T, ()> {
+        match self {
+            InferredType::Known(t) => Ok(t),
+            InferredType::Error => Err(()),
+        }
+    }
 }
 impl<T> From<T> for InferredLangType
 where
@@ -36,10 +43,11 @@ pub type InferredLangType = InferredType<Arc<LangType>>;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum LangType {
+    TypeReference(InferredLangType),
     Action,
+    Instance(InstanceLangType),
     Function(FunctionLangType),
     Primitive(PrimitiveLangType),
-    TypeReference(InferredLangType),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -62,4 +70,48 @@ impl From<PrimitiveLangType> for LangType {
     fn from(value: PrimitiveLangType) -> Self {
         Self::Primitive(value)
     }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct InstanceLangType {
+    pub type_id: Arc<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum CanonicalLangType {
+    Object(ObjectCanonicalLangType),
+    Signal(SignalCanonicalLangType),
+}
+impl CanonicalLangType {
+    pub fn type_id(&self) -> Arc<String> {
+        match self {
+            Self::Object(object) => object.type_id.clone(),
+            Self::Signal(signal) => signal.type_id.clone(),
+        }
+    }
+    pub fn fields(&self) -> Vec<CanonicalTypeField> {
+        match self {
+            Self::Object(object) => object.fields.clone(),
+            Self::Signal(signal) => signal.fields.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ObjectCanonicalLangType {
+    pub type_id: Arc<String>,
+    pub fields: Vec<CanonicalTypeField>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct SignalCanonicalLangType {
+    pub type_id: Arc<String>,
+    pub fields: Vec<CanonicalTypeField>,
+    pub result: InferredLangType,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct CanonicalTypeField {
+    pub name: Arc<String>,
+    pub value_type: InferredLangType,
 }
