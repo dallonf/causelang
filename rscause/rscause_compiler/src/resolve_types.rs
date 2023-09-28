@@ -1,12 +1,14 @@
-use crate::ast::{self, BreadcrumbTreeNode};
+use crate::ast::{self, AnyAstNode, AstNode, BreadcrumbTreeNode};
 use crate::breadcrumbs::Breadcrumbs;
-use crate::lang_types::{InferredType, LangType};
+use crate::find_tag;
+use crate::lang_types::{FunctionLangType, InferredType, LangType};
 use crate::tags::NodeTag;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 pub struct ExternalFileDescriptor {
-    pub exports: HashMap<Arc<String>, LangType>,
+    pub exports: HashMap<Arc<String>, Arc<LangType>>,
 }
 
 pub fn resolve_types(
@@ -21,39 +23,62 @@ pub fn resolve_types(
     };
     let descendants = BreadcrumbTreeNode::from(&Arc::new(file.clone())).descendants();
     for descendant in &descendants {
-        descendant.resolve_types(&mut ctx);
+        descendant.resolve_type_cached(&mut ctx);
     }
     ctx
 }
 
 pub struct ResolveTypesContext {
-    value_types: HashMap<Breadcrumbs, InferredType<LangType>>,
+    value_types: HashMap<Breadcrumbs, Option<InferredType<Arc<LangType>>>>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 }
 
-trait ResolveTypes {
-    fn resolve_types(&self, ctx: &mut ResolveTypesContext);
+trait ResolveTypes: ast::AstNode {
+    fn resolve_type(&self, ctx: &mut ResolveTypesContext) -> Option<InferredType<Arc<LangType>>>;
+    fn resolve_type_cached(
+        &self,
+        ctx: &mut ResolveTypesContext,
+    ) -> Option<InferredType<Arc<LangType>>> {
+        if let Some(already_resolved) = ctx.value_types.get(self.breadcrumbs()) {
+            return already_resolved.clone();
+        }
+        let resolved = self.resolve_type(ctx);
+        ctx.value_types
+            .insert(self.breadcrumbs().clone(), resolved.clone());
+        resolved
+    }
+    fn get_tags<'a, 'b>(&'a self, ctx: &'b ResolveTypesContext) -> Cow<'b, Vec<NodeTag>> {
+        ctx.node_tags
+            .get(&self.breadcrumbs())
+            .map(|it| Cow::Borrowed(it))
+            .unwrap_or(Cow::Owned(vec![]))
+    }
 }
 
-impl ResolveTypes for ast::AnyAstNode {
-    fn resolve_types(&self, ctx: &mut ResolveTypesContext) {
+impl ResolveTypes for AnyAstNode {
+    fn resolve_type(&self, ctx: &mut ResolveTypesContext) -> Option<InferredType<Arc<LangType>>> {
         match self {
-            Self::ImportMapping(node) => node.resolve_types(ctx),
-            _ => {}
+            Self::ImportMapping(node) => node.resolve_type(ctx),
+            _ => None,
         }
     }
 }
 
+impl<T> ResolveTypes for T
+where
+    T: AstNode,
+    AnyAstNode: for<'a> From<&'a T>,
+{
+    fn resolve_type(&self, ctx: &mut ResolveTypesContext) -> Option<InferredType<Arc<LangType>>> {
+        AnyAstNode::from(self).resolve_type(ctx)
+    }
+}
+
 impl ResolveTypes for ast::ImportMappingNode {
-    fn resolve_types(&self, ctx: &mut ResolveTypesContext) {
-        let tags = ctx.node_tags.get(&self.breadcrumbs);
-        let reference_file_tag = tags.and_then(|tags| {
-            tags.iter().find_map(|tag| match tag {
-                NodeTag::ReferencesFile(tag) => Some(tag.clone()),
-                _ => None,
-            })
-        });
+    fn resolve_type(&self, ctx: &mut ResolveTypesContext) -> Option<InferredType<Arc<LangType>>> {
+        let tags = self.get_tags(ctx);
+        let reference_file_tag = find_tag!(&tags, NodeTag::ReferencesFile);
         let export = reference_file_tag
             .ok_or_else(|| {
                 println!(
@@ -77,11 +102,36 @@ impl ResolveTypes for ast::ImportMappingNode {
                     ()
                 })
             });
-        ctx.value_types.insert(
-            self.breadcrumbs.clone(),
+        Some(
             export
                 .map(|export| InferredType::Known(export.clone()))
                 .unwrap_or_else(|_| InferredType::Error),
-        );
+        )
+    }
+}
+
+impl ResolveTypes for ast::FunctionNode {
+    fn resolve_type(&self, ctx: &mut ResolveTypesContext) -> Option<InferredType<Arc<LangType>>> {
+        let name = self.name.text.clone();
+        let explicit_return_type = self.return_type.as_ref().and_then(|it| {
+            let type_reference = it.resolve_type_cached(ctx);
+            match type_reference {
+                Some(InferredType::Known(type_reference)) => match type_reference.as_ref() {
+                    LangType::TypeReference(referenced_type) => Some(referenced_type.clone()),
+                    _ => Some(InferredType::Error),
+                },
+                Some(InferredType::Error) => Some(InferredType::Error),
+                None => None,
+            }
+        });
+        let get_inferred_return_type = || self.body.resolve_type_cached(ctx);
+        let return_type = explicit_return_type.or_else(get_inferred_return_type);
+        let function_type = FunctionLangType {
+            name,
+            return_type: return_type.unwrap_or(InferredType::Error),
+        };
+        Some(InferredType::Known(Arc::new(LangType::Function(
+            function_type,
+        ))))
     }
 }

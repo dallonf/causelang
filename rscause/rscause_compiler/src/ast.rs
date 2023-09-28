@@ -23,7 +23,7 @@ impl BreadcrumbTreeNode {
     }
 }
 
-pub trait AstNode {
+pub trait AstNode : HasBreadcrumbs {
     fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode>;
 }
 
