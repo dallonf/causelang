@@ -17,7 +17,7 @@ pub enum AnyAstNode {
     StringLiteralExpression(Arc<StringLiteralExpressionNode>),
 }
 impl AstNode for AnyAstNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         match self {
             AnyAstNode::Identifier(node) => node.children(),
             AnyAstNode::IdentifierTypeReference(node) => node.children(),
@@ -64,7 +64,7 @@ pub enum TypeReferenceNode {
     Identifier(Arc<IdentifierTypeReferenceNode>),
 }
 impl AstNode for TypeReferenceNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         match self {
             TypeReferenceNode::Identifier(node) => node.children(),
         }
@@ -91,7 +91,7 @@ pub enum DeclarationNode {
     Function(Arc<FunctionNode>),
 }
 impl AstNode for DeclarationNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         match self {
             DeclarationNode::Import(node) => node.children(),
             DeclarationNode::Function(node) => node.children(),
@@ -120,7 +120,7 @@ pub enum BodyNode {
     Block(Arc<BlockBodyNode>),
 }
 impl AstNode for BodyNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         match self {
             BodyNode::Block(node) => node.children(),
         }
@@ -146,7 +146,7 @@ pub enum StatementNode {
     Expression(Arc<ExpressionStatementNode>),
 }
 impl AstNode for StatementNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         match self {
             StatementNode::Expression(node) => node.children(),
         }
@@ -175,7 +175,7 @@ pub enum ExpressionNode {
     StringLiteral(Arc<StringLiteralExpressionNode>),
 }
 impl AstNode for ExpressionNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         match self {
             ExpressionNode::Cause(node) => node.children(),
             ExpressionNode::Call(node) => node.children(),
@@ -217,7 +217,7 @@ impl From<&Arc<IdentifierNode>> for AnyAstNode {
     }
 }
 impl AstNode for IdentifierNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result
     }
@@ -239,10 +239,10 @@ impl From<&Arc<IdentifierTypeReferenceNode>> for AnyAstNode {
     }
 }
 impl AstNode for IdentifierTypeReferenceNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("identifier").into(),
+            BreadcrumbName::new("identifier"),
             (&self.identifier).into(),
         );
         result
@@ -266,10 +266,10 @@ impl From<&Arc<FunctionSignatureParameterNode>> for AnyAstNode {
     }
 }
 impl AstNode for FunctionSignatureParameterNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("type_reference").into(),
+            BreadcrumbName::new("type_reference"),
             (&self.type_reference).into(),
         );
         result
@@ -292,10 +292,10 @@ impl From<&Arc<FunctionCallParameterNode>> for AnyAstNode {
     }
 }
 impl AstNode for FunctionCallParameterNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("value").into(),
+            BreadcrumbName::new("value"),
             (&self.value).into(),
         );
         result
@@ -318,10 +318,10 @@ impl From<&Arc<FileNode>> for AnyAstNode {
     }
 }
 impl AstNode for FileNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("declarations").into(),
+            BreadcrumbName::new("declarations"),
             (&self.declarations).into(),
         );
         result
@@ -345,14 +345,14 @@ impl From<&Arc<ImportNode>> for AnyAstNode {
     }
 }
 impl AstNode for ImportNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("path").into(),
+            BreadcrumbName::new("path"),
             (&self.path).into(),
         );
         result.insert(
-            BreadcrumbName::new("mappings").into(),
+            BreadcrumbName::new("mappings"),
             (&self.mappings).into(),
         );
         result
@@ -375,7 +375,7 @@ impl From<&Arc<ImportPathNode>> for AnyAstNode {
     }
 }
 impl AstNode for ImportPathNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result
     }
@@ -398,14 +398,14 @@ impl From<&Arc<ImportMappingNode>> for AnyAstNode {
     }
 }
 impl AstNode for ImportMappingNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("source_name").into(),
+            BreadcrumbName::new("source_name"),
             (&self.source_name).into(),
         );
         result.insert(
-            BreadcrumbName::new("rename").into(),
+            BreadcrumbName::new("rename"),
             (&self.rename).into(),
         );
         result
@@ -431,22 +431,22 @@ impl From<&Arc<FunctionNode>> for AnyAstNode {
     }
 }
 impl AstNode for FunctionNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("name").into(),
+            BreadcrumbName::new("name"),
             (&self.name).into(),
         );
         result.insert(
-            BreadcrumbName::new("params").into(),
+            BreadcrumbName::new("params"),
             (&self.params).into(),
         );
         result.insert(
-            BreadcrumbName::new("body").into(),
+            BreadcrumbName::new("body"),
             (&self.body).into(),
         );
         result.insert(
-            BreadcrumbName::new("return_type").into(),
+            BreadcrumbName::new("return_type"),
             (&self.return_type).into(),
         );
         result
@@ -469,10 +469,10 @@ impl From<&Arc<BlockBodyNode>> for AnyAstNode {
     }
 }
 impl AstNode for BlockBodyNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("statements").into(),
+            BreadcrumbName::new("statements"),
             (&self.statements).into(),
         );
         result
@@ -495,10 +495,10 @@ impl From<&Arc<ExpressionStatementNode>> for AnyAstNode {
     }
 }
 impl AstNode for ExpressionStatementNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("expression").into(),
+            BreadcrumbName::new("expression"),
             (&self.expression).into(),
         );
         result
@@ -521,10 +521,10 @@ impl From<&Arc<CauseExpressionNode>> for AnyAstNode {
     }
 }
 impl AstNode for CauseExpressionNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("signal").into(),
+            BreadcrumbName::new("signal"),
             (&self.signal).into(),
         );
         result
@@ -548,14 +548,14 @@ impl From<&Arc<CallExpressionNode>> for AnyAstNode {
     }
 }
 impl AstNode for CallExpressionNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("callee").into(),
+            BreadcrumbName::new("callee"),
             (&self.callee).into(),
         );
         result.insert(
-            BreadcrumbName::new("parameters").into(),
+            BreadcrumbName::new("parameters"),
             (&self.parameters).into(),
         );
         result
@@ -578,10 +578,10 @@ impl From<&Arc<IdentifierExpressionNode>> for AnyAstNode {
     }
 }
 impl AstNode for IdentifierExpressionNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("identifier").into(),
+            BreadcrumbName::new("identifier"),
             (&self.identifier).into(),
         );
         result
@@ -604,7 +604,7 @@ impl From<&Arc<StringLiteralExpressionNode>> for AnyAstNode {
     }
 }
 impl AstNode for StringLiteralExpressionNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result
     }

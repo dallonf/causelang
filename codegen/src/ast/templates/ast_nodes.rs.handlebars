@@ -5,7 +5,7 @@ pub enum AnyAstNode {
     {{/each}}
 }
 impl AstNode for AnyAstNode {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         match self {
             {{#each nodes}}
             AnyAstNode::{{this.variantName}}(node) => node.children(),
@@ -31,7 +31,7 @@ pub enum {{this.name}} {
     {{/each}}
 }
 impl AstNode for {{this.name}} {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         match self {
             {{#each this.nodes}}
             {{../name}}::{{this.variantName}}(node) => node.children(),
@@ -74,12 +74,12 @@ impl From<&Arc<{{this.name}}>> for AnyAstNode {
     }
 }
 impl AstNode for {{this.name}} {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode> {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         {{#each this.fields}}
         {{#if this.isNode}}
         result.insert(
-            BreadcrumbName::new("{{this.name}}").into(),
+            BreadcrumbName::new("{{this.name}}"),
             (&self.{{this.name}}).into(),
         );
         {{/if}}

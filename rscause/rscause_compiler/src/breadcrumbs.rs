@@ -38,6 +38,12 @@ impl From<BreadcrumbName> for BreadcrumbEntry {
 pub struct Breadcrumbs {
     pub entries: Vec<BreadcrumbEntry>,
 }
+impl Breadcrumbs {
+    pub fn pop_start(&self) -> Breadcrumbs {
+        let new_entries = self.entries[1..].to_vec();
+        Self { entries: new_entries }
+    }
+}
 
 impl Display for Breadcrumbs {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

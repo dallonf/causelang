@@ -1,8 +1,10 @@
 use crate::breadcrumbs::{BreadcrumbEntry, BreadcrumbName, Breadcrumbs, HasBreadcrumbs};
+use anyhow::{anyhow, Result};
 use std::{collections::HashMap, sync::Arc};
 
 include!("gen/ast_nodes.rs");
 
+#[derive(Debug, Clone)]
 pub enum BreadcrumbTreeNode {
     Node(Option<AnyAstNode>),
     List(Vec<BreadcrumbTreeNode>),
@@ -21,10 +23,55 @@ impl BreadcrumbTreeNode {
             }
         }
     }
+
+    pub fn at_path(&self, breadcrumbs: &Breadcrumbs) -> Result<Self> {
+        let entry = if let Some(entry) = breadcrumbs.entries.first() {
+            entry
+        } else {
+            return Ok(self.clone());
+        };
+
+        match (self, entry) {
+            (BreadcrumbTreeNode::Node(node), BreadcrumbEntry::Name(name)) => {
+                let children = node
+                    .clone()
+                    .ok_or_else(|| anyhow!("Tried to get child {:?} of empty node", name))?
+                    .children();
+                let child = children
+                    .get(name)
+                    .cloned()
+                    .ok_or_else(|| anyhow!("No child named {:?} on {:?}", name, node));
+                child?.at_path(&breadcrumbs.pop_start())
+            }
+            (BreadcrumbTreeNode::List(list), &BreadcrumbEntry::Index(index)) => {
+                let child = list
+                    .get(index)
+                    .ok_or_else(|| anyhow!("No child at index {:?} on {:?}", index, list));
+                child?.at_path(&breadcrumbs.pop_start())
+            }
+            _ => Err(anyhow!(
+                "Invalid breadcrumb entry {:?} for node {:?}",
+                entry,
+                self
+            )),
+        }
+    }
 }
 
-pub trait AstNode : HasBreadcrumbs {
-    fn children(&self) -> HashMap<BreadcrumbEntry, BreadcrumbTreeNode>;
+pub trait AstNode: HasBreadcrumbs {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode>;
+}
+
+impl AnyAstNode {
+    pub fn node_at_path(&self, breadcrumbs: &Breadcrumbs) -> Result<AnyAstNode> {
+        let breadcrumb_node = BreadcrumbTreeNode::from(self.clone());
+        let node = breadcrumb_node.at_path(breadcrumbs)?;
+        match node {
+            BreadcrumbTreeNode::Node(Some(node)) => Ok(node.clone()),
+            BreadcrumbTreeNode::Node(None) => Err(anyhow!("Empty node at path {:?}", breadcrumbs)),
+            BreadcrumbTreeNode::List(_) => Err(anyhow!("List node at path {:?}", breadcrumbs)),
+        }
+    }
 }
 
 impl<T> From<T> for BreadcrumbTreeNode

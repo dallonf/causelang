@@ -8,6 +8,7 @@ use crate::tags::NodeTag;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tap::prelude::*;
 
 pub struct ExternalFileDescriptor {
     pub exports: HashMap<Arc<String>, Arc<LangType>>,
@@ -205,9 +206,11 @@ impl ResolveTypes for ast::IdentifierExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let tags = self.get_tags(ctx);
         let reference_tag = find_tag!(&tags, NodeTag::ValuesComesFrom);
-        let referenced_type = reference_tag
-            .ok_or(())
-            .and_then(|reference_tag| ctx.root_node.at_path(&reference_tag.source));
+        let referenced_type = reference_tag.ok_or(()).and_then(|reference_tag| {
+            AnyAstNode::from(&ctx.root_node)
+                .node_at_path(&reference_tag.source)
+                .map_err(|_| ())
+        });
         todo!()
     }
 }
