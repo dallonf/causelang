@@ -6,8 +6,8 @@ export const tags: NodeTag[] = [
     exportName: { type: "string", nullable: true },
   }),
   singleNodeTag("BadFileReference", {}),
-  twoWayNodeTag(["source", "ValueComesFrom", "destination"], {
-    inverseName: "ValuesGoesTo",
+  twoWayNodeTag(["source", "ValuesGoesTo", "destination"], {
+    inverseName: "ValuesComesFrom",
   }),
   twoWayNodeTag(["function", "FunctionCanReturnTypeOf", "returnExpression"], {
     inverseName: "ReturnsFromFunction",

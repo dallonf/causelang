@@ -2,8 +2,8 @@
 pub enum NodeTag {
     ReferencesFile(ReferencesFileNodeTag),
     BadFileReference(BadFileReferenceNodeTag),
-    ValueComesFrom(ValueComesFromNodeTag),
     ValuesGoesTo(ValuesGoesToNodeTag),
+    ValuesComesFrom(ValuesComesFromNodeTag),
     FunctionCanReturnTypeOf(FunctionCanReturnTypeOfNodeTag),
     ReturnsFromFunction(ReturnsFromFunctionNodeTag),
     FunctionCanReturnAction(FunctionCanReturnActionNodeTag),
@@ -14,8 +14,8 @@ impl NodeTag {
     match self {
         NodeTag::ReferencesFile(_) => None,
         NodeTag::BadFileReference(_) => None,
-        NodeTag::ValueComesFrom(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::ValuesGoesTo(tag) => Some(tag.inverse(breadcrumbs).into()),
+        NodeTag::ValuesComesFrom(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::FunctionCanReturnTypeOf(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::ReturnsFromFunction(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::FunctionCanReturnAction(tag) => Some(tag.inverse(breadcrumbs).into()),
@@ -33,35 +33,35 @@ pub struct ReferencesFileNodeTag {
 pub struct BadFileReferenceNodeTag {
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ValueComesFromNodeTag {
+pub struct ValuesGoesToNodeTag {
     pub destination: Breadcrumbs,
 }
-impl ValueComesFromNodeTag {
-  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> ValuesGoesToNodeTag {
-    ValuesGoesToNodeTag {
-      source: breadcrumbs.clone(),
-    }
-  }
-}
-impl From<ValueComesFromNodeTag> for NodeTag {
-  fn from(tag: ValueComesFromNodeTag) -> Self {
-    NodeTag::ValueComesFrom(tag)
-  }
-}
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ValuesGoesToNodeTag {
-    pub source: Breadcrumbs,
-}
 impl ValuesGoesToNodeTag {
-  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> ValueComesFromNodeTag {
-    ValueComesFromNodeTag {
-      destination: breadcrumbs.clone(),
+  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> ValuesComesFromNodeTag {
+    ValuesComesFromNodeTag {
+      source: breadcrumbs.clone(),
     }
   }
 }
 impl From<ValuesGoesToNodeTag> for NodeTag {
   fn from(tag: ValuesGoesToNodeTag) -> Self {
     NodeTag::ValuesGoesTo(tag)
+  }
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValuesComesFromNodeTag {
+    pub source: Breadcrumbs,
+}
+impl ValuesComesFromNodeTag {
+  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> ValuesGoesToNodeTag {
+    ValuesGoesToNodeTag {
+      destination: breadcrumbs.clone(),
+    }
+  }
+}
+impl From<ValuesComesFromNodeTag> for NodeTag {
+  fn from(tag: ValuesComesFromNodeTag) -> Self {
+    NodeTag::ValuesComesFrom(tag)
   }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]

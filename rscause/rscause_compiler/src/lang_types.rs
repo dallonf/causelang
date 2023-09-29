@@ -25,7 +25,7 @@ impl<T> InferredType<T> {
         }
     }
 }
-impl<T> From<T> for InferredLangType
+impl<T> From<T> for AnyInferredLangType
 where
     T: Into<LangType>,
 {
@@ -33,17 +33,17 @@ where
         Self::Known(Arc::new(value.into()))
     }
 }
-impl From<Arc<LangType>> for InferredLangType {
+impl From<Arc<LangType>> for AnyInferredLangType {
     fn from(value: Arc<LangType>) -> Self {
         Self::Known(value)
     }
 }
 
-pub type InferredLangType = InferredType<Arc<LangType>>;
+pub type AnyInferredLangType = InferredType<Arc<LangType>>;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum LangType {
-    TypeReference(InferredLangType),
+    TypeReference(AnyInferredLangType),
     Action,
     Instance(InstanceLangType),
     Function(FunctionLangType),
@@ -54,7 +54,7 @@ pub enum LangType {
 pub struct FunctionLangType {
     pub name: Arc<String>,
     // TODO: pub params
-    pub return_type: InferredLangType,
+    pub return_type: AnyInferredLangType,
 }
 impl From<FunctionLangType> for LangType {
     fn from(value: FunctionLangType) -> Self {
@@ -75,6 +75,11 @@ impl From<PrimitiveLangType> for LangType {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct InstanceLangType {
     pub type_id: Arc<String>,
+}
+impl From<InstanceLangType> for LangType {
+    fn from(value: InstanceLangType) -> Self {
+        Self::Instance(value)
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -107,11 +112,11 @@ pub struct ObjectCanonicalLangType {
 pub struct SignalCanonicalLangType {
     pub type_id: Arc<String>,
     pub fields: Vec<CanonicalTypeField>,
-    pub result: InferredLangType,
+    pub result: AnyInferredLangType,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CanonicalTypeField {
     pub name: Arc<String>,
-    pub value_type: InferredLangType,
+    pub value_type: AnyInferredLangType,
 }
