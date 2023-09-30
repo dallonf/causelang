@@ -12,11 +12,10 @@ use rscause_compiler::ast;
 impl FromJni for ast::{{this.name}} {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
       let class = env.get_object_class(value)?;
-      let class_name: JString = env
+      let class_name: String = env
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
           .l()?
-          .into();
-      let class_name: String = class_name.jni_into(env)?;
+          .jni_into(env)?;
       Ok(match class_name.as_str() {
           {{#each this.nodes}}
             "{{this.nodeName}}" => {
@@ -38,7 +37,7 @@ impl FromJni for ast::{{this.name}} {
       let breadcrumbs = env
         .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
         .l()?
-        .into();
+        .jni_into(env)?;
       {{#each this.fields}}
       let {{this.name}}: {{this.rsType}} = {
         let jni_node = env

@@ -4,6 +4,7 @@ use anyhow::Result;
 use jni::{objects::JObject, JNIEnv};
 
 pub mod ast;
+pub mod breadcrumbs;
 
 pub trait FromJni: Sized {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self>;
