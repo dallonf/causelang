@@ -1,8 +1,10 @@
 package com.dallonf.ktcause
 
+import com.dallonf.ktcause.ast.Breadcrumbs
 import com.dallonf.ktcause.ast.FileNode
 import com.dallonf.ktcause.gen.rustCompilerSupportedTypes
-import java.io.File
+import com.dallonf.ktcause.types.CanonicalLangType
+import com.dallonf.ktcause.types.CanonicalLangTypeId
 
 object RustCompiler {
     init {
@@ -11,6 +13,13 @@ object RustCompiler {
 
     external fun hello(): String
     external fun logAst(ast: FileNode)
+
+    external fun logResolvedTypes(
+        ast: FileNode,
+        tags: Map<Breadcrumbs, List<NodeTag>>,
+        canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,
+        externalFiles: Map<String, Resolver.ExternalFileDescriptor>
+    )
 
     fun canRunRustCompiler(ast: FileNode): Boolean {
         val incompatibleNodes = getIncompatibleNodeTypes(ast)

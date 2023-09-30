@@ -2,8 +2,8 @@ use crate::ast::{self, AnyAstNode, AstNode, BreadcrumbTreeNode};
 use crate::breadcrumbs::Breadcrumbs;
 use crate::find_tag;
 use crate::lang_types::{
-    AnyInferredLangType, CanonicalLangType, FunctionLangType, InferredType, LangType,
-    PrimitiveLangType,
+    AnyInferredLangType, CanonicalLangType, CanonicalLangTypeId, FunctionLangType, InferredType,
+    LangType, PrimitiveLangType,
 };
 use crate::tags::NodeTag;
 use std::borrow::Cow;
@@ -22,7 +22,7 @@ pub struct ResolveTypesResult {
 pub fn resolve_types(
     file: Arc<ast::FileNode>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
-    canonical_types: HashMap<Arc<String>, Arc<CanonicalLangType>>,
+    canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 ) -> ResolveTypesResult {
     let mut ctx = ResolveTypesContext {
@@ -51,7 +51,7 @@ pub fn resolve_types(
 struct ResolveTypesContext {
     root_node: Arc<ast::FileNode>,
     value_types: HashMap<Breadcrumbs, Option<AnyInferredLangType>>,
-    canonical_types: HashMap<Arc<String>, Arc<CanonicalLangType>>,
+    canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 }

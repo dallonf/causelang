@@ -48,6 +48,7 @@ pub enum LangType {
     Instance(InstanceLangType),
     Function(FunctionLangType),
     Primitive(PrimitiveLangType),
+    Anything,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -74,12 +75,20 @@ impl From<PrimitiveLangType> for LangType {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct InstanceLangType {
-    pub type_id: Arc<String>,
+    pub type_id: Arc<CanonicalLangTypeId>,
 }
 impl From<InstanceLangType> for LangType {
     fn from(value: InstanceLangType) -> Self {
         Self::Instance(value)
     }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct CanonicalLangTypeId {
+    pub path: Arc<String>,
+    pub parent_name: Option<Arc<String>>,
+    pub name: Option<Arc<String>>,
+    pub number: u32,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -88,7 +97,7 @@ pub enum CanonicalLangType {
     Signal(SignalCanonicalLangType),
 }
 impl CanonicalLangType {
-    pub fn type_id(&self) -> Arc<String> {
+    pub fn type_id(&self) -> CanonicalLangTypeId {
         match self {
             Self::Object(object) => object.type_id.clone(),
             Self::Signal(signal) => signal.type_id.clone(),
@@ -104,13 +113,13 @@ impl CanonicalLangType {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ObjectCanonicalLangType {
-    pub type_id: Arc<String>,
+    pub type_id: CanonicalLangTypeId,
     pub fields: Vec<CanonicalTypeField>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SignalCanonicalLangType {
-    pub type_id: Arc<String>,
+    pub type_id: CanonicalLangTypeId,
     pub fields: Vec<CanonicalTypeField>,
     pub result: AnyInferredLangType,
 }

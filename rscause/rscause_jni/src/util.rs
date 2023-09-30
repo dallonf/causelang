@@ -5,6 +5,8 @@ use jni::objects::{JObject, JValue};
 use jni::sys::jvalue;
 use jni::JNIEnv;
 
+use crate::mapping::JniInto;
+
 pub fn jprintln(env: &mut JNIEnv, str: &str) -> Result<()> {
     let java_string = env.new_string(str)?;
     let value = JValue::Object(&java_string);
@@ -61,4 +63,13 @@ pub fn noisy_log(env: &mut JNIEnv, str: &str) {
         // ignore errors
         let _ = jprintln(env, str);
     }
+}
+
+pub fn get_class_name(env: &mut JNIEnv, object: &JObject) -> Result<String> {
+    let class = env.get_object_class(object)?;
+    let class_name: String = env
+        .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
+        .l()?
+        .jni_into(env)?;
+    Ok(class_name)
 }

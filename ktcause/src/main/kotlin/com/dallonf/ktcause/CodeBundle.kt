@@ -81,8 +81,14 @@ class CodeBundleBuilder {
             val otherFiles = referencedCompiledFiles.associate { it.path to it.toFileDescriptor() }
 
             if (RustCompiler.canRunRustCompiler(file.ast)) {
-                RustCompiler.logAst(file.ast)
-                assert(RustCompiler.hello() == "Hello from Rust!")
+                val canonicalTypes = run {
+                    val allEntries = otherFiles.flatMap { it.value.types.entries }
+                        // only supported core types for now
+                        .filter { it.key.name == "Debug" }
+                    val asPairs = allEntries.map { it.toPair() }
+                    mapOf(*asPairs.toTypedArray())
+                }
+                RustCompiler.logResolvedTypes(file.ast, file.analyzed.nodeTags, canonicalTypes, otherFiles)
             }
 
             val (resolvedFile, resolverErrors) = Resolver.resolveForFile(

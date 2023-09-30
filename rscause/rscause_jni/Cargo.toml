@@ -12,3 +12,4 @@ crate_type = ["cdylib"]
 anyhow = { version = "1.0.75", features = ["backtrace"] }
 jni = "0.21.1"
 rscause_compiler = { path = "../rscause_compiler" }
+tap = "1.0.1"
