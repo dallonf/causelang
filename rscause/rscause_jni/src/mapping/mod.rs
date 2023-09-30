@@ -4,9 +4,6 @@ use anyhow::Result;
 use jni::{objects::JObject, JNIEnv};
 
 pub mod ast;
-mod gen {
-    pub mod ast_mapping;
-}
 
 pub trait FromJni: Sized {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self>;
@@ -80,16 +77,3 @@ where
         Ok(Box::new(value.jni_into(env)?))
     }
 }
-
-// impl<'local, T> JniToRs<Vec<T>> for jni::objects::JObject<'local> {
-//     fn to_ast_node(&self, env: &mut JNIEnv) -> Result<Vec<T>> {
-//         let jni_list = env.get_list(self)?;
-//           let mut list = vec![];
-//           let mut iter = jni_list.iter(env)?;
-//           while let Some(jni_item) = iter.next(env)? {
-//               let node: T = jni_item.to_ast_node(env)?;
-//               list.push(node);
-//           }
-//           list
-//     }
-// }

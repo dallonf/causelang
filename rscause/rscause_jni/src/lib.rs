@@ -2,7 +2,7 @@ use jni::objects::{JClass, JObject, JValue};
 use jni::sys::{jstring, jvalue};
 use jni::JNIEnv;
 use mapping::JniInto;
-use rscause_compiler::ast_nodes::FileNode;
+use rscause_compiler::ast::FileNode;
 use util::{jprintln, jtry};
 
 mod mapping;

@@ -1,1 +1,1 @@
-pub use super::gen::ast_mapping::*;
+include!("gen/ast_mapping.rs");

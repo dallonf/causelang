@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use super::super::{JniInto, FromJni};
+use super::{JniInto, FromJni};
 use anyhow::Result;
 use jni::{
     objects::{JObject, JString},
     JNIEnv,
 };
-use rscause_compiler::ast_nodes as ast;
+use rscause_compiler::ast;
 
 impl FromJni for ast::TypeReferenceNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
@@ -103,6 +103,13 @@ impl FromJni for ast::ExpressionNode {
 
 impl FromJni for ast::IdentifierNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let text: Arc<String> = {
         let jni_node = env
           .call_method(value, "getText", "()Ljava/lang/String;", &[])?
@@ -112,12 +119,20 @@ impl FromJni for ast::IdentifierNode {
       };
 
       Ok(ast::IdentifierNode {
+          breadcrumbs,
           text,
       })
     }
 }
 impl FromJni for ast::IdentifierTypeReferenceNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let identifier: Arc<ast::IdentifierNode> = {
         let jni_node = env
           .call_method(value, "getIdentifier", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
@@ -127,12 +142,20 @@ impl FromJni for ast::IdentifierTypeReferenceNode {
       };
 
       Ok(ast::IdentifierTypeReferenceNode {
+          breadcrumbs,
           identifier,
       })
     }
 }
 impl FromJni for ast::FunctionSignatureParameterNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let name: Arc<String> = {
         let jni_node = env
           .call_method(value, "getName", "()Ljava/lang/String;", &[])?
@@ -149,6 +172,7 @@ impl FromJni for ast::FunctionSignatureParameterNode {
       };
 
       Ok(ast::FunctionSignatureParameterNode {
+          breadcrumbs,
           name,
           type_reference,
       })
@@ -156,6 +180,13 @@ impl FromJni for ast::FunctionSignatureParameterNode {
 }
 impl FromJni for ast::FunctionCallParameterNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let value: ast::ExpressionNode = {
         let jni_node = env
           .call_method(value, "getValue", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
@@ -165,12 +196,20 @@ impl FromJni for ast::FunctionCallParameterNode {
       };
 
       Ok(ast::FunctionCallParameterNode {
+          breadcrumbs,
           value,
       })
     }
 }
 impl FromJni for ast::FileNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let declarations: Vec<ast::DeclarationNode> = {
         let jni_node = env
           .call_method(value, "getDeclarations", "()Ljava/util/List;", &[])?
@@ -180,12 +219,20 @@ impl FromJni for ast::FileNode {
       };
 
       Ok(ast::FileNode {
+          breadcrumbs,
           declarations,
       })
     }
 }
 impl FromJni for ast::ImportNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let path: Arc<ast::ImportPathNode> = {
         let jni_node = env
           .call_method(value, "getPath", "()Lcom/dallonf/ktcause/ast/ImportPathNode;", &[])?
@@ -202,6 +249,7 @@ impl FromJni for ast::ImportNode {
       };
 
       Ok(ast::ImportNode {
+          breadcrumbs,
           path,
           mappings,
       })
@@ -209,6 +257,13 @@ impl FromJni for ast::ImportNode {
 }
 impl FromJni for ast::ImportPathNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let path: Arc<String> = {
         let jni_node = env
           .call_method(value, "getPath", "()Ljava/lang/String;", &[])?
@@ -218,12 +273,20 @@ impl FromJni for ast::ImportPathNode {
       };
 
       Ok(ast::ImportPathNode {
+          breadcrumbs,
           path,
       })
     }
 }
 impl FromJni for ast::ImportMappingNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let source_name: Arc<ast::IdentifierNode> = {
         let jni_node = env
           .call_method(value, "getSourceName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
@@ -240,6 +303,7 @@ impl FromJni for ast::ImportMappingNode {
       };
 
       Ok(ast::ImportMappingNode {
+          breadcrumbs,
           source_name,
           rename,
       })
@@ -247,6 +311,13 @@ impl FromJni for ast::ImportMappingNode {
 }
 impl FromJni for ast::FunctionNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let name: Arc<ast::IdentifierNode> = {
         let jni_node = env
           .call_method(value, "getName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
@@ -277,6 +348,7 @@ impl FromJni for ast::FunctionNode {
       };
 
       Ok(ast::FunctionNode {
+          breadcrumbs,
           name,
           params,
           body,
@@ -286,6 +358,13 @@ impl FromJni for ast::FunctionNode {
 }
 impl FromJni for ast::BlockBodyNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let statements: Vec<ast::StatementNode> = {
         let jni_node = env
           .call_method(value, "getStatements", "()Ljava/util/List;", &[])?
@@ -295,12 +374,20 @@ impl FromJni for ast::BlockBodyNode {
       };
 
       Ok(ast::BlockBodyNode {
+          breadcrumbs,
           statements,
       })
     }
 }
 impl FromJni for ast::ExpressionStatementNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let expression: ast::ExpressionNode = {
         let jni_node = env
           .call_method(value, "getExpression", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
@@ -310,12 +397,20 @@ impl FromJni for ast::ExpressionStatementNode {
       };
 
       Ok(ast::ExpressionStatementNode {
+          breadcrumbs,
           expression,
       })
     }
 }
 impl FromJni for ast::CauseExpressionNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let signal: ast::ExpressionNode = {
         let jni_node = env
           .call_method(value, "getSignal", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
@@ -325,12 +420,20 @@ impl FromJni for ast::CauseExpressionNode {
       };
 
       Ok(ast::CauseExpressionNode {
+          breadcrumbs,
           signal,
       })
     }
 }
 impl FromJni for ast::CallExpressionNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let callee: ast::ExpressionNode = {
         let jni_node = env
           .call_method(value, "getCallee", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
@@ -347,6 +450,7 @@ impl FromJni for ast::CallExpressionNode {
       };
 
       Ok(ast::CallExpressionNode {
+          breadcrumbs,
           callee,
           parameters,
       })
@@ -354,6 +458,13 @@ impl FromJni for ast::CallExpressionNode {
 }
 impl FromJni for ast::IdentifierExpressionNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let identifier: Arc<ast::IdentifierNode> = {
         let jni_node = env
           .call_method(value, "getIdentifier", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
@@ -363,12 +474,20 @@ impl FromJni for ast::IdentifierExpressionNode {
       };
 
       Ok(ast::IdentifierExpressionNode {
+          breadcrumbs,
           identifier,
       })
     }
 }
 impl FromJni for ast::StringLiteralExpressionNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       let text: Arc<String> = {
         let jni_node = env
           .call_method(value, "getText", "()Ljava/lang/String;", &[])?
@@ -378,6 +497,7 @@ impl FromJni for ast::StringLiteralExpressionNode {
       };
 
       Ok(ast::StringLiteralExpressionNode {
+          breadcrumbs,
           text,
       })
     }

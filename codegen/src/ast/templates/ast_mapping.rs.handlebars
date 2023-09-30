@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use super::super::{JniInto, FromJni};
+use super::{JniInto, FromJni};
 use anyhow::Result;
 use jni::{
     objects::{JObject, JString},
     JNIEnv,
 };
-use rscause_compiler::ast_nodes as ast;
+use rscause_compiler::ast;
 
 {{#each categories}}
 impl FromJni for ast::{{this.name}} {
@@ -32,6 +32,13 @@ impl FromJni for ast::{{this.name}} {
 {{#each nodes}}
 impl FromJni for ast::{{this.name}} {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?;
+      let breadcrumbs = env
+        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+        .l()?
+        .into();
       {{#each this.fields}}
       let {{this.name}}: {{this.rsType}} = {
         let jni_node = env
@@ -43,9 +50,10 @@ impl FromJni for ast::{{this.name}} {
       {{/each}}
 
       Ok(ast::{{this.name}} {
-        {{#each this.fields}}
+          breadcrumbs,
+          {{#each this.fields}}
           {{this.name}},
-        {{/each}}
+          {{/each}}
       })
     }
 }
