@@ -3,14 +3,21 @@ use std::sync::Arc;
 use super::{JniInto, FromJni};
 use anyhow::Result;
 use jni::{
-    objects::{JObject, JString},
+    objects::JObject,
     JNIEnv,
 };
 use rscause_compiler::ast;
 
+pub static J_BREADCRUMB_NAMES: &[&str] = &[
+    {{#each breadcrumbNames}}
+    "{{this}}",
+    {{/each}}
+];
+
 {{#each categories}}
 impl FromJni for ast::{{this.name}} {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "category {{this.name}}");
       let class = env.get_object_class(value)?;
       let class_name: String = env
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
@@ -31,6 +38,7 @@ impl FromJni for ast::{{this.name}} {
 {{#each nodes}}
 impl FromJni for ast::{{this.name}} {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node {{this.name}}");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;

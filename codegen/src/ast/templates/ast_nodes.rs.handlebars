@@ -1,3 +1,9 @@
+pub static BREADCRUMB_NAMES: &[&str] = &[
+    {{#each breadcrumbNames}}
+    "{{this}}",
+    {{/each}}
+];
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AnyAstNode {
     {{#each nodes}}

@@ -71,6 +71,7 @@ async function generateAstNodesRs() {
   });
 
   const output = template({
+    breadcrumbNames: breadcrumbNames.map((name) => changeCase.snakeCase(name)),
     categories: templateCategories,
     nodes: templateNodes,
   });
@@ -128,6 +129,7 @@ async function generateAstMappingRs() {
   });
 
   const output = template({
+    breadcrumbNames: breadcrumbNames,
     categories: templateCategories,
     nodes: templateNodes,
   });
@@ -209,3 +211,5 @@ function javaFieldType(type: NodeFieldType): string {
       return type satisfies never;
   }
 }
+
+const breadcrumbNames = nodes.flatMap((node) => Object.keys(node.fields));

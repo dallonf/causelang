@@ -3,13 +3,39 @@ use std::sync::Arc;
 use super::{JniInto, FromJni};
 use anyhow::Result;
 use jni::{
-    objects::{JObject, JString},
+    objects::JObject,
     JNIEnv,
 };
 use rscause_compiler::ast;
 
+pub static J_BREADCRUMB_NAMES: &[&str] = &[
+    "text",
+    "identifier",
+    "name",
+    "typeReference",
+    "value",
+    "declarations",
+    "path",
+    "mappings",
+    "path",
+    "sourceName",
+    "rename",
+    "name",
+    "params",
+    "body",
+    "returnType",
+    "statements",
+    "expression",
+    "signal",
+    "callee",
+    "parameters",
+    "identifier",
+    "text",
+];
+
 impl FromJni for ast::TypeReferenceNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "category TypeReferenceNode");
       let class = env.get_object_class(value)?;
       let class_name: String = env
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
@@ -25,6 +51,7 @@ impl FromJni for ast::TypeReferenceNode {
 }
 impl FromJni for ast::DeclarationNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "category DeclarationNode");
       let class = env.get_object_class(value)?;
       let class_name: String = env
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
@@ -43,6 +70,7 @@ impl FromJni for ast::DeclarationNode {
 }
 impl FromJni for ast::BodyNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "category BodyNode");
       let class = env.get_object_class(value)?;
       let class_name: String = env
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
@@ -58,6 +86,7 @@ impl FromJni for ast::BodyNode {
 }
 impl FromJni for ast::StatementNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "category StatementNode");
       let class = env.get_object_class(value)?;
       let class_name: String = env
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
@@ -73,6 +102,7 @@ impl FromJni for ast::StatementNode {
 }
 impl FromJni for ast::ExpressionNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "category ExpressionNode");
       let class = env.get_object_class(value)?;
       let class_name: String = env
           .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
@@ -98,6 +128,7 @@ impl FromJni for ast::ExpressionNode {
 
 impl FromJni for ast::IdentifierNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node IdentifierNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -121,6 +152,7 @@ impl FromJni for ast::IdentifierNode {
 }
 impl FromJni for ast::IdentifierTypeReferenceNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node IdentifierTypeReferenceNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -144,6 +176,7 @@ impl FromJni for ast::IdentifierTypeReferenceNode {
 }
 impl FromJni for ast::FunctionSignatureParameterNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node FunctionSignatureParameterNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -175,6 +208,7 @@ impl FromJni for ast::FunctionSignatureParameterNode {
 }
 impl FromJni for ast::FunctionCallParameterNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node FunctionCallParameterNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -198,6 +232,7 @@ impl FromJni for ast::FunctionCallParameterNode {
 }
 impl FromJni for ast::FileNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node FileNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -221,6 +256,7 @@ impl FromJni for ast::FileNode {
 }
 impl FromJni for ast::ImportNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node ImportNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -252,6 +288,7 @@ impl FromJni for ast::ImportNode {
 }
 impl FromJni for ast::ImportPathNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node ImportPathNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -275,6 +312,7 @@ impl FromJni for ast::ImportPathNode {
 }
 impl FromJni for ast::ImportMappingNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node ImportMappingNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -306,6 +344,7 @@ impl FromJni for ast::ImportMappingNode {
 }
 impl FromJni for ast::FunctionNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node FunctionNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -353,6 +392,7 @@ impl FromJni for ast::FunctionNode {
 }
 impl FromJni for ast::BlockBodyNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node BlockBodyNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -376,6 +416,7 @@ impl FromJni for ast::BlockBodyNode {
 }
 impl FromJni for ast::ExpressionStatementNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node ExpressionStatementNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -399,6 +440,7 @@ impl FromJni for ast::ExpressionStatementNode {
 }
 impl FromJni for ast::CauseExpressionNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node CauseExpressionNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -422,6 +464,7 @@ impl FromJni for ast::CauseExpressionNode {
 }
 impl FromJni for ast::CallExpressionNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node CallExpressionNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -453,6 +496,7 @@ impl FromJni for ast::CallExpressionNode {
 }
 impl FromJni for ast::IdentifierExpressionNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node IdentifierExpressionNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;
@@ -476,6 +520,7 @@ impl FromJni for ast::IdentifierExpressionNode {
 }
 impl FromJni for ast::StringLiteralExpressionNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node StringLiteralExpressionNode");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?;

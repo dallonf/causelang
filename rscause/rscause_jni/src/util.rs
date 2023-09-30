@@ -23,7 +23,11 @@ pub fn jtry<Callback: (FnOnce(&mut JNIEnv) -> Result<jvalue>)>(
     let panicked = panic::catch_unwind(AssertUnwindSafe(|| match callback(env) {
         Ok(result) => result,
         Err(err) => {
-            let _ = env.throw_new("java/lang/RuntimeException", err.to_string());
+            let backtrace = err.backtrace();
+            let _ = env.throw_new(
+                "java/lang/RuntimeException",
+                format!("{}\n{}", err.to_string(), backtrace),
+            );
             JValue::Object(&JObject::null()).as_jni()
         }
     }));
@@ -45,5 +49,16 @@ pub fn jtry<Callback: (FnOnce(&mut JNIEnv) -> Result<jvalue>)>(
             }
             JValue::Object(&JObject::null()).as_jni()
         }
+    }
+}
+
+pub fn is_noisy() -> bool {
+    std::env::var("CAUJNI_NOISY").is_ok()
+}
+
+pub fn noisy_log(env: &mut JNIEnv, str: &str) {
+    if is_noisy() {
+        // ignore errors
+        let _ = jprintln(env, str);
     }
 }

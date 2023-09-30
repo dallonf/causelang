@@ -1,3 +1,28 @@
+pub static BREADCRUMB_NAMES: &[&str] = &[
+    "text",
+    "identifier",
+    "name",
+    "type_reference",
+    "value",
+    "declarations",
+    "path",
+    "mappings",
+    "path",
+    "source_name",
+    "rename",
+    "name",
+    "params",
+    "body",
+    "return_type",
+    "statements",
+    "expression",
+    "signal",
+    "callee",
+    "parameters",
+    "identifier",
+    "text",
+];
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AnyAstNode {
     Identifier(Arc<IdentifierNode>),
