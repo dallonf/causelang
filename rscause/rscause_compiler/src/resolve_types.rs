@@ -3,15 +3,20 @@ use crate::breadcrumbs::Breadcrumbs;
 use crate::find_tag;
 use crate::lang_types::{
     AnyInferredLangType, CanonicalLangType, FunctionLangType, InferredType, LangType,
+    PrimitiveLangType,
 };
 use crate::tags::NodeTag;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tap::prelude::*;
 
 pub struct ExternalFileDescriptor {
     pub exports: HashMap<Arc<String>, Arc<LangType>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ResolveTypesResult {
+    pub value_types: HashMap<Breadcrumbs, AnyInferredLangType>,
 }
 
 pub fn resolve_types(
@@ -19,7 +24,7 @@ pub fn resolve_types(
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     canonical_types: HashMap<Arc<String>, Arc<CanonicalLangType>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
-) -> ResolveTypesContext {
+) -> ResolveTypesResult {
     let mut ctx = ResolveTypesContext {
         root_node: file.clone(),
         value_types: HashMap::new(),
@@ -31,10 +36,19 @@ pub fn resolve_types(
     for descendant in &descendants {
         descendant.get_resolved_type(&mut ctx);
     }
-    ctx
+    let result = ctx
+        .value_types
+        .into_iter()
+        .filter_map(|(breadcrumbs, value_type)| {
+            value_type.map(|value_type| (breadcrumbs, value_type))
+        })
+        .collect();
+    ResolveTypesResult {
+        value_types: result,
+    }
 }
 
-pub struct ResolveTypesContext {
+struct ResolveTypesContext {
     root_node: Arc<ast::FileNode>,
     value_types: HashMap<Breadcrumbs, Option<AnyInferredLangType>>,
     canonical_types: HashMap<Arc<String>, Arc<CanonicalLangType>>,
@@ -210,7 +224,14 @@ impl ResolveTypes for ast::IdentifierExpressionNode {
             AnyAstNode::from(&ctx.root_node)
                 .node_at_path(&reference_tag.source)
                 .map_err(|_| ())
+                .and_then(|node| node.get_resolved_type(ctx).ok_or(()))
         });
-        todo!()
+        Some(referenced_type.unwrap_or(InferredType::Error))
+    }
+}
+
+impl ResolveTypes for ast::StringLiteralExpressionNode {
+    fn compute_type(&self, _ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        Some(LangType::Primitive(PrimitiveLangType::Text).into())
     }
 }
