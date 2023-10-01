@@ -159,7 +159,7 @@ impl FromJni for LangType {
         noisy_log(env, "AnyInferredLangType::from_jni");
         let class_name = get_class_name(env, value)?;
         match class_name.as_ref() {
-            "Constraint" => {
+            "ConstraintValueLangType" => {
                 let value_type: LangType = env
                     .call_method(
                         value,
@@ -185,7 +185,7 @@ impl FromJni for LangType {
                     .call_method(
                         canonical_type,
                         "getId",
-                        "()Lcom.dallonf.ktcause.types.CanonicalLangTypeId;",
+                        "()Lcom/dallonf/ktcause/types/CanonicalLangTypeId;",
                         &[],
                     )?
                     .l()?

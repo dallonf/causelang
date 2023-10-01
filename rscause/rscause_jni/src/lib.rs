@@ -7,6 +7,7 @@ use jni::JNIEnv;
 use mapping::JniInto;
 use rscause_compiler::ast::FileNode;
 use rscause_compiler::lang_types::{CanonicalLangType, CanonicalLangTypeId};
+use rscause_compiler::resolve_types::ExternalFileDescriptor;
 use util::{jprintln, jtry};
 
 mod mapping;
@@ -48,13 +49,15 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_logResolvedTypes<'l
     jni_external_files: JObject<'local>,
 ) -> jvalue {
     jtry(&mut env, move |mut env| {
-        let ast: FileNode = jni_ast.jni_into(&mut env)?;
-        let canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>> =
-            jni_canonical_types.jni_into(&mut env)?;
+        // let ast: FileNode = jni_ast.jni_into(&mut env)?;
+        // let canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>> =
+        //     jni_canonical_types.jni_into(&mut env)?;
+        let external_files: HashMap<Arc<String>, ExternalFileDescriptor> =
+            jni_external_files.jni_into(&mut env)?;
 
         jprintln(
             &mut env,
-            format!("Canonical types: {:#?}", canonical_types).as_str(),
+            format!("External files: {:#?}", external_files).as_str(),
         )?;
 
         Ok(JValue::Object(&JObject::null()).as_jni())

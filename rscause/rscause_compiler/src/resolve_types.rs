@@ -10,6 +10,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub struct ExternalFileDescriptor {
     pub exports: HashMap<Arc<String>, Arc<LangType>>,
 }

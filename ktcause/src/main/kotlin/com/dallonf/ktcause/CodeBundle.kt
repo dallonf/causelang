@@ -2,10 +2,7 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.FileNode
 import com.dallonf.ktcause.parse.parse
-import com.dallonf.ktcause.types.CanonicalLangType
-import com.dallonf.ktcause.types.CanonicalLangTypeId
-import com.dallonf.ktcause.types.ConstraintValueLangType
-import com.dallonf.ktcause.types.InstanceValueLangType
+import com.dallonf.ktcause.types.*
 
 data class CodeBundle(val files: Map<String, CompiledFile>, val compileErrors: List<Resolver.ResolverError>) {
     fun getFileDescriptor(filePath: String): Resolver.ExternalFileDescriptor {
@@ -88,7 +85,23 @@ class CodeBundleBuilder {
                     val asPairs = allEntries.map { it.toPair() }
                     mapOf(*asPairs.toTypedArray())
                 }
-                RustCompiler.logResolvedTypes(file.ast, file.analyzed.nodeTags, canonicalTypes, otherFiles)
+                val filteredOtherFiles = otherFiles.mapValues { (key, value) ->
+                    if (key == "core/builtin.cau") {
+                        val filteredExports = value.exports.mapValues { (exportKey, exportValue) ->
+                            // only supported core exports for now
+                            // all others are just Actions
+                            if (exportKey == "Debug" || exportKey == "Action") {
+                                exportValue
+                            } else {
+                                ActionValueLangType
+                            }
+                        }
+                        Resolver.ExternalFileDescriptor(filteredExports, value.types)
+                    } else {
+                        value
+                    }
+                }
+                RustCompiler.logResolvedTypes(file.ast, file.analyzed.nodeTags, canonicalTypes, filteredOtherFiles)
             }
 
             val (resolvedFile, resolverErrors) = Resolver.resolveForFile(

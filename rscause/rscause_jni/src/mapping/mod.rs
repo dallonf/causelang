@@ -7,7 +7,8 @@ use crate::util::noisy_log;
 
 pub mod ast;
 pub mod breadcrumbs;
-mod lang_types;
+pub mod lang_types;
+pub mod compiler_misc;
 
 pub trait FromJni: Sized {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self>;
