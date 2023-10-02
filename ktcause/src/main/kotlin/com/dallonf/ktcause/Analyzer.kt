@@ -113,7 +113,7 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
-    data class ParameterForCall(val callExpression: Breadcrumbs, val index: Int) : NodeTag() {
+    data class ParameterForCall(val callExpression: Breadcrumbs, val index: UInt) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
@@ -678,7 +678,7 @@ object Analyzer {
 
         for ((i, parameterNode) in expression.parameters.withIndex()) {
             analyzeExpression(parameterNode.value, output, ctx)
-            output.addTag(parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(expression.info.breadcrumbs, i))
+            output.addTag(parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(expression.info.breadcrumbs, i.toUInt()))
         }
     }
 
@@ -697,7 +697,9 @@ object Analyzer {
 
         for ((i, parameterNode) in expression.parameters.withIndex()) {
             analyzeExpression(parameterNode.value, output, ctx)
-            output.addTag(parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(expression.info.breadcrumbs, i + 1))
+            output.addTag(parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(expression.info.breadcrumbs,
+                (i + 1).toUInt()
+            ))
         }
     }
 

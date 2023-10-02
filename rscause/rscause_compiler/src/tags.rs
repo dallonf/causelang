@@ -1,4 +1,5 @@
 use crate::breadcrumbs::Breadcrumbs;
+use std::sync::Arc;
 
 include!("gen/tags.rs");
 

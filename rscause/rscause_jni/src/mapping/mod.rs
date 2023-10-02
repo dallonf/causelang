@@ -9,6 +9,7 @@ pub mod ast;
 pub mod breadcrumbs;
 pub mod lang_types;
 pub mod compiler_misc;
+pub mod tags;
 
 pub trait FromJni: Sized {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self>;

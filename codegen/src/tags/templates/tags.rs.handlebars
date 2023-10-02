@@ -22,7 +22,7 @@ impl NodeTag {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct {{this.name}}NodeTag {
   {{#each this.params}}
-    pub {{this.name}}: {{this.type}},
+    pub {{this.snakeCaseName}}: {{this.rustType}},
   {{/each}}
 }
 {{#if this.inverse}}

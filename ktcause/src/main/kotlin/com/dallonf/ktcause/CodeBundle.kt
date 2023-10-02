@@ -101,7 +101,22 @@ class CodeBundleBuilder {
                         value
                     }
                 }
-                RustCompiler.logResolvedTypes(file.ast, file.analyzed.nodeTags, canonicalTypes, filteredOtherFiles)
+                val filteredTags = file.analyzed.nodeTags.mapValues { (breadcrumbs, tags) ->
+                    tags.filter {
+                        when (it) {
+                            is NodeTag.ReferencesFile -> true
+                            is NodeTag.BadFileReference -> true
+                            is NodeTag.ValueGoesTo -> true
+                            is NodeTag.ValueComesFrom -> true
+                            is NodeTag.FunctionCanReturnTypeOf -> true
+                            is NodeTag.ReturnsFromFunction -> true
+                            is NodeTag.FunctionCanReturnAction -> true
+                            is NodeTag.ActionReturn -> true
+                            else -> false
+                        }
+                    }
+                }
+                RustCompiler.logResolvedTypes(file.ast, filteredTags, canonicalTypes, filteredOtherFiles)
             }
 
             val (resolvedFile, resolverErrors) = Resolver.resolveForFile(

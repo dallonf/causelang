@@ -1,0 +1,35 @@
+impl FromJni for tags::NodeTag {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+        let class_name = get_class_name(env, value)?;
+        Ok(match class_name.as_str() {
+            {{#each tags}}
+            "{{this.name}}" => {
+                tags::NodeTag::{{this.name}}(value.jni_into(env)?)
+            },
+            {{/each}}
+            _ => panic!("Unknown class name for NodeTag: {}", class_name)
+        })
+    }
+}
+
+{{#each tags}}
+impl FromJni for tags::{{this.name}}NodeTag {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+        noisy_log(env, "tag {{this.name}}");
+        {{#each this.params}}
+        let {{this.snakeCaseName}}: {{this.rustType}} = {
+            let jni_node = env
+                .call_method(value, "{{this.getterName}}", "(){{this.javaType}}", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            jni_node.jni_into(env)?
+        };
+        {{/each}}
+        Ok(tags::{{this.name}}NodeTag {
+            {{#each this.params}}
+            {{this.snakeCaseName}},
+            {{/each}}
+        })
+    }
+}
+{{/each}}
