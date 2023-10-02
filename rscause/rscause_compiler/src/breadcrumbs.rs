@@ -1,5 +1,5 @@
 use std::collections::hash_map::DefaultHasher;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -34,14 +34,16 @@ impl From<BreadcrumbName> for BreadcrumbEntry {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub struct Breadcrumbs {
     pub entries: Vec<BreadcrumbEntry>,
 }
 impl Breadcrumbs {
     pub fn pop_start(&self) -> Breadcrumbs {
         let new_entries = self.entries[1..].to_vec();
-        Self { entries: new_entries }
+        Self {
+            entries: new_entries,
+        }
     }
 }
 
@@ -56,6 +58,14 @@ impl Display for Breadcrumbs {
             })
             .collect();
         write!(f, "{}", segments.join("."))
+    }
+}
+
+impl Debug for Breadcrumbs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Breadcrumbs")
+            .field(&self.to_string())
+            .finish()
     }
 }
 
