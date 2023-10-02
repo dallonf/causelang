@@ -8,7 +8,7 @@ use mapping::JniInto;
 use rscause_compiler::ast::FileNode;
 use rscause_compiler::breadcrumbs::Breadcrumbs;
 use rscause_compiler::lang_types::{CanonicalLangType, CanonicalLangTypeId};
-use rscause_compiler::resolve_types::ExternalFileDescriptor;
+use rscause_compiler::resolve_types::{resolve_types, ExternalFileDescriptor};
 use rscause_compiler::tags::NodeTag;
 use util::{jprintln, jtry};
 
@@ -51,16 +51,23 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_logResolvedTypes<'l
     jni_external_files: JObject<'local>,
 ) -> jvalue {
     jtry(&mut env, move |mut env| {
-        // let ast: FileNode = jni_ast.jni_into(&mut env)?;
-        // let canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>> =
-        //     jni_canonical_types.jni_into(&mut env)?;
-        // let external_files: HashMap<Arc<String>, ExternalFileDescriptor> =
-        //     jni_external_files.jni_into(&mut env)?;
+        let ast: FileNode = jni_ast.jni_into(&mut env)?;
+        let canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>> =
+            jni_canonical_types.jni_into(&mut env)?;
+        let external_files: HashMap<Arc<String>, ExternalFileDescriptor> =
+            jni_external_files.jni_into(&mut env)?;
         let tags: HashMap<Breadcrumbs, Vec<NodeTag>> = jni_tags.jni_into(&mut env)?;
+
+        let resolved_types = resolve_types(
+            ast.into(),
+            tags.into(),
+            canonical_types,
+            external_files.into(),
+        );
 
         jprintln(
             &mut env,
-            format!("tags: {:#?}", tags).as_str(),
+            format!("resolved types: {:#?}", resolved_types).as_str(),
         )?;
 
         Ok(JValue::Object(&JObject::null()).as_jni())
