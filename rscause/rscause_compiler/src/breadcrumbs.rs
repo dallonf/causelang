@@ -2,7 +2,10 @@ use std::collections::hash_map::DefaultHasher;
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 
+use serde::de::{self, Visitor};
 use serde::{Deserialize, Serialize};
+
+use crate::ast::BREADCRUMB_NAMES;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum BreadcrumbEntry {
@@ -10,7 +13,7 @@ pub enum BreadcrumbEntry {
     Name(BreadcrumbName),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BreadcrumbName {
     pub name: &'static str,
     precomputed_hash: u64,
@@ -33,6 +36,43 @@ impl Hash for BreadcrumbName {
 impl From<BreadcrumbName> for BreadcrumbEntry {
     fn from(name: BreadcrumbName) -> Self {
         Self::Name(name)
+    }
+}
+impl Serialize for BreadcrumbName {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_newtype_struct("BreadcrumbName", self.name)
+    }
+}
+impl<'de> Deserialize<'de> for BreadcrumbName {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct BreadcrumbNameVisitor;
+        impl<'de> Visitor<'de> for BreadcrumbNameVisitor {
+            type Value = &'static str;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a string matching one of the known breadcrumb names")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                let index = BREADCRUMB_NAMES
+                    .iter()
+                    .position(|it| it == &v)
+                    .ok_or(de::Error::custom(format!("Unknown breadcrumb name {}", v)))?;
+                Ok(BREADCRUMB_NAMES[index])
+            }
+        }
+        let name =
+            deserializer.deserialize_newtype_struct("BreadcrumbName", BreadcrumbNameVisitor)?;
+        Ok(BreadcrumbName::new(name))
     }
 }
 
