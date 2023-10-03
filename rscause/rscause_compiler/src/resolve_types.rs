@@ -6,11 +6,12 @@ use crate::lang_types::{
     LangType, PrimitiveLangType,
 };
 use crate::tags::NodeTag;
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ExternalFileDescriptor {
     pub exports: HashMap<Arc<String>, Arc<LangType>>,
 }

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::Write;
 use std::sync::Arc;
 
 use jni::objects::{JClass, JObject, JValue};
@@ -60,8 +59,10 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_logResolvedTypes<'l
             jni_external_files.jni_into(&mut env)?;
         let tags: HashMap<Breadcrumbs, Vec<NodeTag>> = jni_tags.jni_into(&mut env)?;
 
-        let ast_file = File::create("ast.json")?;
-        serde_json::to_writer_pretty(&ast_file, &ast)?;
+        serde_lexpr::to_writer(&File::create("ast.txt")?, &ast)?;
+        serde_lexpr::to_writer(&File::create("tags.txt")?, &tags)?;
+        serde_lexpr::to_writer(&File::create("canonical_types.txt")?, &canonical_types)?;
+        serde_lexpr::to_writer(&File::create("external_files.txt")?, &external_files)?;
 
         let resolved_types = resolve_types(
             ast.into(),

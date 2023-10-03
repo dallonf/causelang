@@ -13,4 +13,4 @@ anyhow = { version = "1.0.75", features = ["backtrace"] }
 jni = "0.21.1"
 rscause_compiler = { path = "../rscause_compiler" }
 tap = "1.0.1"
-serde_json = "1.0"
+serde-lexpr = "0.1.3"

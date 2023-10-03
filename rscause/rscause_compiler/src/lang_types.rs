@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum InferredType<T> {
     Known(T),
     Error,
@@ -41,7 +43,7 @@ impl From<Arc<LangType>> for AnyInferredLangType {
 
 pub type AnyInferredLangType = InferredType<Arc<LangType>>;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum LangType {
     TypeReference(AnyInferredLangType),
     Action,
@@ -51,7 +53,7 @@ pub enum LangType {
     Anything,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct FunctionLangType {
     pub name: Arc<String>,
     // TODO: pub params
@@ -63,7 +65,7 @@ impl From<FunctionLangType> for LangType {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum PrimitiveLangType {
     Text,
 }
@@ -73,7 +75,7 @@ impl From<PrimitiveLangType> for LangType {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct InstanceLangType {
     pub type_id: Arc<CanonicalLangTypeId>,
 }
@@ -83,7 +85,7 @@ impl From<InstanceLangType> for LangType {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct CanonicalLangTypeId {
     pub path: Arc<String>,
     pub parent_name: Option<Arc<String>>,
@@ -91,7 +93,7 @@ pub struct CanonicalLangTypeId {
     pub number: u32,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum CanonicalLangType {
     Object(ObjectCanonicalLangType),
     Signal(SignalCanonicalLangType),
@@ -111,20 +113,20 @@ impl CanonicalLangType {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ObjectCanonicalLangType {
     pub type_id: CanonicalLangTypeId,
     pub fields: Vec<CanonicalTypeField>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SignalCanonicalLangType {
     pub type_id: CanonicalLangTypeId,
     pub fields: Vec<CanonicalTypeField>,
     pub result: AnyInferredLangType,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CanonicalTypeField {
     pub name: Arc<String>,
     pub value_type: AnyInferredLangType,

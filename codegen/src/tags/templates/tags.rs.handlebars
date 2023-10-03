@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NodeTag {
   {{#each tags}}
     {{this.name}}({{this.name}}NodeTag),
@@ -19,7 +19,7 @@ impl NodeTag {
 }
 
 {{#each tags}}
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct {{this.name}}NodeTag {
   {{#each this.params}}
     pub {{this.snakeCaseName}}: {{this.rustType}},

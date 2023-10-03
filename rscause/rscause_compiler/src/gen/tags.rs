@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NodeTag {
     ReferencesFile(ReferencesFileNodeTag),
     BadFileReference(BadFileReferenceNodeTag),
@@ -24,15 +24,15 @@ impl NodeTag {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReferencesFileNodeTag {
     pub path: Arc<String>,
     pub export_name: Option<Arc<String>>,
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BadFileReferenceNodeTag {
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValueGoesToNodeTag {
     pub destination: Breadcrumbs,
 }
@@ -48,7 +48,7 @@ impl From<ValueGoesToNodeTag> for NodeTag {
     NodeTag::ValueGoesTo(tag)
   }
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValueComesFromNodeTag {
     pub source: Breadcrumbs,
 }
@@ -64,7 +64,7 @@ impl From<ValueComesFromNodeTag> for NodeTag {
     NodeTag::ValueComesFrom(tag)
   }
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FunctionCanReturnTypeOfNodeTag {
     pub return_expression_value: Breadcrumbs,
 }
@@ -80,7 +80,7 @@ impl From<FunctionCanReturnTypeOfNodeTag> for NodeTag {
     NodeTag::FunctionCanReturnTypeOf(tag)
   }
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReturnsFromFunctionNodeTag {
     pub function: Breadcrumbs,
 }
@@ -96,7 +96,7 @@ impl From<ReturnsFromFunctionNodeTag> for NodeTag {
     NodeTag::ReturnsFromFunction(tag)
   }
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FunctionCanReturnActionNodeTag {
     pub return_expression: Breadcrumbs,
 }
@@ -112,7 +112,7 @@ impl From<FunctionCanReturnActionNodeTag> for NodeTag {
     NodeTag::FunctionCanReturnAction(tag)
   }
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ActionReturnNodeTag {
     pub function: Breadcrumbs,
 }
