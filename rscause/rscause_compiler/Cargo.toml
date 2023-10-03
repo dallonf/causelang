@@ -10,3 +10,6 @@ anyhow = { version = "1.0.75", features = ["backtrace"] }
 tap = "1.0.1"
 thiserror = "1.0.48"
 serde = { version = "1.0", features = ["derive", "rc"] }
+
+[dev-dependencies]
+serde-lexpr = "0.1.3"

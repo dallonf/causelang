@@ -14,11 +14,14 @@ impl BreadcrumbTreeNode {
     pub fn descendants(&self) -> Vec<AnyAstNode> {
         match self {
             BreadcrumbTreeNode::Node(None) => vec![],
-            BreadcrumbTreeNode::Node(Some(node)) => node
-                .children()
-                .into_iter()
-                .flat_map(|(_, node)| node.descendants())
-                .collect(),
+            BreadcrumbTreeNode::Node(Some(node)) => {
+                let mut result = vec![node.to_owned()];
+                node.children()
+                    .into_iter()
+                    .flat_map(|(_, node)| node.descendants())
+                    .for_each(|node| result.push(node.to_owned()));
+                result
+            }
             BreadcrumbTreeNode::List(nodes) => {
                 nodes.iter().flat_map(|node| node.descendants()).collect()
             }

@@ -59,6 +59,13 @@ impl<'de> Deserialize<'de> for BreadcrumbName {
                 formatter.write_str("a string matching one of the known breadcrumb names")
             }
 
+            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                deserializer.deserialize_str(BreadcrumbNameVisitor)
+            }
+
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
@@ -113,4 +120,17 @@ impl Debug for Breadcrumbs {
 
 pub trait HasBreadcrumbs {
     fn breadcrumbs(&self) -> &Breadcrumbs;
+}
+
+#[cfg(test)]
+mod test {
+    use super::BreadcrumbName;
+
+    #[test]
+    fn serialize_breadcrumb_name() {
+        let name = BreadcrumbName::new("value");
+        let serialized = serde_lexpr::to_string(&name).unwrap();
+        let deserialized: BreadcrumbName = serde_lexpr::from_str(&serialized).unwrap();
+        assert_eq!(deserialized, name);
+    }
 }
