@@ -36,7 +36,7 @@ pub struct NoOpInstruction {
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct PopInstruction {
-    pub number: i32,
+    pub number: u32,
 }
 /// Reverses the top two items on the stack
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -45,88 +45,88 @@ pub struct SwapInstruction {
 /// Pops a number of values while preserving the top of the stack
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct PopScopeInstruction {
-    pub values: i32,
+    pub values: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct RegisterEffectInstruction {
-    pub procedure_index: i32,
+    pub procedure_index: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct PopEffectsInstruction {
-    pub number: i32,
+    pub number: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct PushActionInstruction {
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct LiteralInstruction {
-    pub constant: i32,
+    pub constant: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ImportInstruction {
-    pub file_path_constant: i32,
-    pub export_name_constant: i32,
+    pub file_path_constant: u32,
+    pub export_name_constant: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ImportSameFileInstruction {
-    pub export_name_constant: i32,
+    pub export_name_constant: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct DefineFunctionInstruction {
-    pub procedure_index: i32,
-    pub type_constant: i32,
-    pub captured_values: i32,
+    pub procedure_index: u32,
+    pub type_constant: u32,
+    pub captured_values: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ReadLocalInstruction {
-    pub index: i32,
+    pub index: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct WriteLocalInstruction {
-    pub index: i32,
+    pub index: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ReadLocalThroughEffectScopeInstruction {
-    pub effect_depth: i32,
-    pub index: i32,
+    pub effect_depth: u32,
+    pub index: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct WriteLocalThroughEffectScopeInstruction {
-    pub effect_depth: i32,
-    pub index: i32,
+    pub effect_depth: u32,
+    pub index: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ConstructInstruction {
-    pub arity: i32,
+    pub arity: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct CallFunctionInstruction {
-    pub arity: i32,
+    pub arity: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct GetMemberInstruction {
-    pub index: i32,
+    pub index: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NameValueInstruction {
-    pub name_constant: i32,
-    pub variable: Option<bool>,
-    pub local_index: Option<i32>,
+    pub name_constant: u32,
+    pub variable: bool,
+    pub local_index: Option<u32>,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct IsAssignableToInstruction {
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct JumpInstruction {
-    pub instruction: i32,
+    pub instruction: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct JumpIfFalseInstruction {
-    pub instruction: i32,
+    pub instruction: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct StartLoopInstruction {
-    pub end_instruction: i32,
+    pub end_instruction: u32,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ContinueLoopInstruction {

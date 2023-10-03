@@ -282,7 +282,7 @@ impl HasBreadcrumbs for IdentifierTypeReferenceNode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FunctionSignatureParameterNode {
     pub breadcrumbs: Breadcrumbs,
-    pub name: Arc<String>,
+    pub name: Arc<IdentifierNode>,
     pub type_reference: Option<TypeReferenceNode>,
 }
 impl From<&Arc<FunctionSignatureParameterNode>> for AnyAstNode {
@@ -293,6 +293,10 @@ impl From<&Arc<FunctionSignatureParameterNode>> for AnyAstNode {
 impl AstNode for FunctionSignatureParameterNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("name"),
+            (&self.name).into(),
+        );
         result.insert(
             BreadcrumbName::new("type_reference"),
             (&self.type_reference).into(),

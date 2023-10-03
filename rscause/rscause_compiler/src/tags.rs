@@ -13,3 +13,13 @@ macro_rules! find_tag {
         })
     };
 }
+
+#[macro_export]
+macro_rules! find_tags {
+    ($tags:expr, $tag_type:path) => {
+        $tags.iter().filter_map(|tag| match tag {
+            $tag_type(tag) => Some(tag.clone()),
+            _ => None,
+        })
+    };
+}

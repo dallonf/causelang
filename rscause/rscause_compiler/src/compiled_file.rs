@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::instructions::Instruction;
-use crate::lang_types::LangType;
+use crate::lang_types::{FunctionLangType, InferredType};
 
 #[derive(Debug, Clone)]
 pub struct CompiledFile {
@@ -29,7 +29,7 @@ pub struct FunctionProcedureIdentity {
     // TODO: declaration
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompiledConstant {
     String(Arc<String>),
 }
@@ -38,6 +38,6 @@ pub enum CompiledConstant {
 pub enum CompiledExport {
     Function {
         procedure_index: u32,
-        function_type: LangType,
+        function_type: InferredType<Arc<FunctionLangType>>,
     },
 }

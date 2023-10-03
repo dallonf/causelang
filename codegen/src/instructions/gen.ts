@@ -21,6 +21,9 @@ export async function generateInstructions() {
               case "int":
                 type = "i32";
                 break;
+              case "uint":
+                type = "u32";
+                break;
               case "boolean":
                 type = "bool";
                 break;

@@ -184,9 +184,9 @@ impl FromJni for ast::FunctionSignatureParameterNode {
         .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
         .l()?
         .jni_into(env)?;
-      let name: Arc<String> = {
+      let name: Arc<ast::IdentifierNode> = {
         let jni_node = env
-          .call_method(value, "getName", "()Ljava/lang/String;", &[])?
+          .call_method(value, "getName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?

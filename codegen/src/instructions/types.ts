@@ -6,6 +6,6 @@ export interface Instruction {
 }
 
 export interface InstructionParam {
-  type: "int" | "boolean";
+  type: "int" | "uint" | "boolean";
   nullable?: boolean;
 }

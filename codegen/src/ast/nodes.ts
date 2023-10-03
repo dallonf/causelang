@@ -27,7 +27,7 @@ export const nodes: NodeDeclaration[] = [
   {
     name: "FunctionSignatureParameter",
     fields: {
-      name: stringPrimitive,
+      name: "Identifier",
       typeReference: optional("TypeReference"),
     },
   },

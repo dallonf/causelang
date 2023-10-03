@@ -5,7 +5,7 @@ export const instructions: Record<string, Instruction> = {
   Pop: {
     params: {
       number: {
-        type: "int",
+        type: "uint",
       },
     },
   },
@@ -17,21 +17,21 @@ export const instructions: Record<string, Instruction> = {
       "Pops a number of values while preserving the top of the stack",
     params: {
       values: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   RegisterEffect: {
     params: {
       procedureIndex: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   PopEffects: {
     params: {
       number: {
-        type: "int",
+        type: "uint",
       },
     },
   },
@@ -39,106 +39,105 @@ export const instructions: Record<string, Instruction> = {
   Literal: {
     params: {
       constant: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   Import: {
     params: {
       filePathConstant: {
-        type: "int",
+        type: "uint",
       },
       exportNameConstant: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   ImportSameFile: {
     params: {
       exportNameConstant: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   DefineFunction: {
     params: {
       procedureIndex: {
-        type: "int",
+        type: "uint",
       },
       typeConstant: {
-        type: "int",
+        type: "uint",
       },
       capturedValues: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   ReadLocal: {
     params: {
       index: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   WriteLocal: {
     params: {
       index: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   ReadLocalThroughEffectScope: {
     params: {
       effectDepth: {
-        type: "int",
+        type: "uint",
       },
       index: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   WriteLocalThroughEffectScope: {
     params: {
       effectDepth: {
-        type: "int",
+        type: "uint",
       },
       index: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   Construct: {
     params: {
       arity: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   CallFunction: {
     params: {
       arity: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   GetMember: {
     params: {
       index: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   NameValue: {
     params: {
       nameConstant: {
-        type: "int",
+        type: "uint",
       },
       variable: {
         type: "boolean",
-        nullable: true,
       },
       localIndex: {
-        type: "int",
+        type: "uint",
         nullable: true,
       },
     },
@@ -147,21 +146,21 @@ export const instructions: Record<string, Instruction> = {
   Jump: {
     params: {
       instruction: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   JumpIfFalse: {
     params: {
       instruction: {
-        type: "int",
+        type: "uint",
       },
     },
   },
   StartLoop: {
     params: {
       endInstruction: {
-        type: "int",
+        type: "uint",
       },
     },
   },
