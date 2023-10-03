@@ -81,6 +81,13 @@ impl ResolveTypes for AnyAstNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         match self {
             Self::ImportMapping(node) => node.compute_type(ctx),
+            Self::Function(node) => node.compute_type(ctx),
+            Self::BlockBody(node) => node.compute_type(ctx),
+            Self::ExpressionStatement(node) => node.compute_type(ctx),
+            Self::CauseExpression(node) => node.compute_type(ctx),
+            Self::CallExpression(node) => node.compute_type(ctx),
+            Self::IdentifierExpression(node) => node.compute_type(ctx),
+            Self::StringLiteralExpression(node) => node.compute_type(ctx),
             _ => None,
         }
     }
