@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
 use std::sync::Arc;
 
 use jni::objects::{JClass, JObject, JValue};
@@ -57,6 +59,9 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_logResolvedTypes<'l
         let external_files: HashMap<Arc<String>, ExternalFileDescriptor> =
             jni_external_files.jni_into(&mut env)?;
         let tags: HashMap<Breadcrumbs, Vec<NodeTag>> = jni_tags.jni_into(&mut env)?;
+
+        let ast_file = File::create("ast.json")?;
+        serde_json::to_writer_pretty(&ast_file, &ast)?;
 
         let resolved_types = resolve_types(
             ast.into(),

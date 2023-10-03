@@ -4,7 +4,7 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     {{/each}}
 ];
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AnyAstNode {
     {{#each nodes}}
     {{this.variantName}}(Arc<{{this.name}}>),
@@ -30,7 +30,7 @@ impl HasBreadcrumbs for AnyAstNode {
 }
 
 {{#each categories}}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum {{this.name}} {
     {{#each this.nodes}}
     {{this.variantName}}(Arc<{{this.nodeName}}>),
@@ -67,7 +67,7 @@ impl HasBreadcrumbs for {{this.name}} {
 {{/each}}
 
 {{#each nodes}}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct {{this.name}} {
     pub breadcrumbs: Breadcrumbs,
     {{#each this.fields}}

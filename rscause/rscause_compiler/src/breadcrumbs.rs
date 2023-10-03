@@ -2,13 +2,15 @@ use std::collections::hash_map::DefaultHasher;
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum BreadcrumbEntry {
     Index(usize),
     Name(BreadcrumbName),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct BreadcrumbName {
     pub name: &'static str,
     precomputed_hash: u64,
@@ -34,7 +36,7 @@ impl From<BreadcrumbName> for BreadcrumbEntry {
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Breadcrumbs {
     pub entries: Vec<BreadcrumbEntry>,
 }

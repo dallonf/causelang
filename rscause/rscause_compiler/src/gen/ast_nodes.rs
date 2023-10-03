@@ -23,7 +23,7 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "text",
 ];
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AnyAstNode {
     Identifier(Arc<IdentifierNode>),
     IdentifierTypeReference(Arc<IdentifierTypeReferenceNode>),
@@ -84,7 +84,7 @@ impl HasBreadcrumbs for AnyAstNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TypeReferenceNode {
     Identifier(Arc<IdentifierTypeReferenceNode>),
 }
@@ -110,7 +110,7 @@ impl HasBreadcrumbs for TypeReferenceNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DeclarationNode {
     Import(Arc<ImportNode>),
     Function(Arc<FunctionNode>),
@@ -140,7 +140,7 @@ impl HasBreadcrumbs for DeclarationNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BodyNode {
     Block(Arc<BlockBodyNode>),
 }
@@ -166,7 +166,7 @@ impl HasBreadcrumbs for BodyNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum StatementNode {
     Expression(Arc<ExpressionStatementNode>),
 }
@@ -192,7 +192,7 @@ impl HasBreadcrumbs for StatementNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ExpressionNode {
     Cause(Arc<CauseExpressionNode>),
     Call(Arc<CallExpressionNode>),
@@ -231,7 +231,7 @@ impl HasBreadcrumbs for ExpressionNode {
 }
 
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdentifierNode {
     pub breadcrumbs: Breadcrumbs,
     pub text: Arc<String>,
@@ -253,7 +253,7 @@ impl HasBreadcrumbs for IdentifierNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdentifierTypeReferenceNode {
     pub breadcrumbs: Breadcrumbs,
     pub identifier: Arc<IdentifierNode>,
@@ -279,7 +279,7 @@ impl HasBreadcrumbs for IdentifierTypeReferenceNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FunctionSignatureParameterNode {
     pub breadcrumbs: Breadcrumbs,
     pub name: Arc<String>,
@@ -306,7 +306,7 @@ impl HasBreadcrumbs for FunctionSignatureParameterNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FunctionCallParameterNode {
     pub breadcrumbs: Breadcrumbs,
     pub value: ExpressionNode,
@@ -332,7 +332,7 @@ impl HasBreadcrumbs for FunctionCallParameterNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FileNode {
     pub breadcrumbs: Breadcrumbs,
     pub declarations: Vec<DeclarationNode>,
@@ -358,7 +358,7 @@ impl HasBreadcrumbs for FileNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ImportNode {
     pub breadcrumbs: Breadcrumbs,
     pub path: Arc<ImportPathNode>,
@@ -389,7 +389,7 @@ impl HasBreadcrumbs for ImportNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ImportPathNode {
     pub breadcrumbs: Breadcrumbs,
     pub path: Arc<String>,
@@ -411,7 +411,7 @@ impl HasBreadcrumbs for ImportPathNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ImportMappingNode {
     pub breadcrumbs: Breadcrumbs,
     pub source_name: Arc<IdentifierNode>,
@@ -442,7 +442,7 @@ impl HasBreadcrumbs for ImportMappingNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FunctionNode {
     pub breadcrumbs: Breadcrumbs,
     pub name: Arc<IdentifierNode>,
@@ -483,7 +483,7 @@ impl HasBreadcrumbs for FunctionNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BlockBodyNode {
     pub breadcrumbs: Breadcrumbs,
     pub statements: Vec<StatementNode>,
@@ -509,7 +509,7 @@ impl HasBreadcrumbs for BlockBodyNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ExpressionStatementNode {
     pub breadcrumbs: Breadcrumbs,
     pub expression: ExpressionNode,
@@ -535,7 +535,7 @@ impl HasBreadcrumbs for ExpressionStatementNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CauseExpressionNode {
     pub breadcrumbs: Breadcrumbs,
     pub signal: ExpressionNode,
@@ -561,7 +561,7 @@ impl HasBreadcrumbs for CauseExpressionNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CallExpressionNode {
     pub breadcrumbs: Breadcrumbs,
     pub callee: ExpressionNode,
@@ -592,7 +592,7 @@ impl HasBreadcrumbs for CallExpressionNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdentifierExpressionNode {
     pub breadcrumbs: Breadcrumbs,
     pub identifier: Arc<IdentifierNode>,
@@ -618,7 +618,7 @@ impl HasBreadcrumbs for IdentifierExpressionNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct StringLiteralExpressionNode {
     pub breadcrumbs: Breadcrumbs,
     pub text: Arc<String>,
