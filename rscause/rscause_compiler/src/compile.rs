@@ -3,11 +3,16 @@ use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 use std::sync::Arc;
 
+use crate::ast::AnyAstNode;
+use crate::breadcrumbs::HasBreadcrumbs;
 use crate::compiled_file::CompiledConstant;
+use crate::find_tag;
 use crate::instructions::{
-    Instruction, InstructionPhase, NameValueInstruction, PopEffectsInstruction, PopInstruction,
-    PopScopeInstruction, ReturnInstruction,
+    CallFunctionInstruction, CauseInstruction, ConstructInstruction, ImportInstruction,
+    Instruction, InstructionPhase, LiteralInstruction, NameValueInstruction, PopEffectsInstruction,
+    PopInstruction, PopScopeInstruction, PushActionInstruction, ReturnInstruction,
 };
+use crate::tags::ReferencesFileNodeTag;
 use crate::{
     ast,
     breadcrumbs::Breadcrumbs,
@@ -54,6 +59,13 @@ impl CompilerContext {
         }
         current_scope.insert(breadcrumbs.clone(), index);
         Ok(index)
+    }
+
+    fn get_tags(&self, breadcrumbs: &Breadcrumbs) -> Vec<NodeTag> {
+        self.node_tags
+            .get(breadcrumbs)
+            .cloned()
+            .unwrap_or_else(|| vec![])
     }
 }
 
@@ -167,9 +179,10 @@ fn compile_function_declaration(
         &function.params,
         &function.breadcrumbs,
         ctx,
-        |&mut procedure| {
-            compile_body(function.body.clone(), procedure, ctx);
+        |procedure, ctx| {
+            compile_body(function.body.clone(), procedure, ctx)?;
             // TODO: report errors
+            Ok(())
         },
     )
 }
@@ -179,14 +192,14 @@ fn compile_function(
     params: &[Arc<ast::FunctionSignatureParameterNode>],
     breadcrumbs: &Breadcrumbs,
     ctx: &mut CompilerContext,
-    compile_body: impl FnOnce(&mut Procedure),
-) -> std::result::Result<Procedure, anyhow::Error> {
+    compile_body: impl FnOnce(&mut Procedure, &mut CompilerContext) -> Result<()>,
+) -> Result<Procedure> {
     let mut procedure = Procedure {
         identity: ProcedureIdentity::Function(FunctionProcedureIdentity { name: name.clone() }),
         constant_table: Vec::new(),
         instructions: Vec::new(),
     };
-    let mut function_scope = Rc::new(RefCell::new(CompilerScope {
+    let function_scope = Rc::new(RefCell::new(CompilerScope {
         scope_root: breadcrumbs.clone(),
         scope_type: ScopeType::Function,
         open_loop: None,
@@ -197,13 +210,14 @@ fn compile_function(
     ctx.scope_stack.clear(); // brand-new scope for every function
     ctx.scope_stack.push_back(function_scope.clone());
 
-    ctx.add_to_scope(breadcrumbs); // the function itself is on the stack
+    ctx.add_to_scope(breadcrumbs)?; // the function itself is on the stack
     for param in params {
-        ctx.add_to_scope(&param.breadcrumbs);
+        ctx.add_to_scope(&param.breadcrumbs)?;
+        let name_constant =
+            procedure.add_constant(CompiledConstant::String(param.name.text.clone()));
         procedure.write_instruction(
             Instruction::NameValue(NameValueInstruction {
-                name_constant: procedure
-                    .add_constant(CompiledConstant::String(param.name.text.clone())),
+                name_constant,
                 variable: false,
                 local_index: Some(ctx.scope_stack.back().unwrap().borrow().size() - 1),
             }),
@@ -212,7 +226,7 @@ fn compile_function(
     }
     // TODO: handle closure captures
 
-    compile_body(&mut procedure);
+    compile_body(&mut procedure, ctx)?;
     assert_eq!(
         ctx.scope_stack.back().unwrap().as_ptr(),
         function_scope.as_ptr()
@@ -226,4 +240,243 @@ fn compile_function(
     ctx.scope_stack.clear();
     ctx.scope_stack.append(&mut old_scope_stack);
     Ok(procedure)
+}
+
+fn compile_body(
+    body: ast::BodyNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    match body {
+        ast::BodyNode::Block(block) => compile_block(block.clone(), procedure, ctx),
+    }
+}
+
+fn compile_block(
+    block: Arc<ast::BlockBodyNode>,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    ctx.scope_stack
+        .push_back(Rc::new(RefCell::new(CompilerScope {
+            scope_root: block.breadcrumbs.clone(),
+            scope_type: ScopeType::Body,
+            open_loop: None,
+            effect_count: 0,
+            named_value_indices: HashMap::new(),
+        })));
+
+    if block.statements.is_empty() {
+        procedure.write_instruction(
+            Instruction::PushAction(PushActionInstruction {}),
+            &block.breadcrumbs,
+        );
+    }
+
+    for (i, statement) in block.statements.iter().enumerate() {
+        compile_statement(
+            statement.clone(),
+            procedure,
+            ctx,
+            i == block.statements.len() - 1,
+        )?;
+        // TODO: deal with NeverContinues
+    }
+
+    let scope = ctx
+        .scope_stack
+        .pop_back()
+        .ok_or(anyhow!("No scope at end of block"))?;
+    procedure.write_instruction_with_phase(
+        Instruction::PopEffects(PopEffectsInstruction {
+            number: scope.borrow().effect_count,
+        }),
+        &block.breadcrumbs,
+        InstructionPhase::Cleanup,
+    );
+    procedure.write_instruction_with_phase(
+        Instruction::PopScope(PopScopeInstruction {
+            values: scope.borrow().size(),
+        }),
+        &block.breadcrumbs,
+        InstructionPhase::Cleanup,
+    );
+    Ok(())
+}
+
+fn compile_statement(
+    statement: ast::StatementNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+    is_last_statement: bool,
+) -> Result<()> {
+    match statement {
+        ast::StatementNode::Expression(statement) => {
+            compile_expression(statement.expression.clone(), procedure, ctx)?;
+            if !is_last_statement {
+                procedure.write_instruction_with_phase(
+                    Instruction::Pop(PopInstruction { number: 1 }),
+                    &statement.breadcrumbs,
+                    InstructionPhase::Cleanup,
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn compile_expression(
+    expression: ast::ExpressionNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    match expression {
+        ast::ExpressionNode::Cause(expression) => {
+            compile_cause_expression(expression, procedure, ctx)
+        }
+        ast::ExpressionNode::Call(expression) => {
+            compile_call_expression(expression, procedure, ctx)
+        }
+        ast::ExpressionNode::Identifier(expression) => {
+            compile_identifier_expression(expression, procedure, ctx)
+        }
+        ast::ExpressionNode::StringLiteral(expression) => {
+            let constant =
+                procedure.add_constant(CompiledConstant::String(expression.text.clone()));
+            procedure.write_instruction(
+                Instruction::Literal(LiteralInstruction { constant }),
+                expression.breadcrumbs(),
+            );
+            Ok(())
+        }
+    }
+}
+
+fn compile_identifier_expression(
+    expression: Arc<ast::IdentifierExpressionNode>,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    compile_value_flow_reference((&expression.clone()).into(), procedure, ctx)
+}
+
+fn compile_cause_expression(
+    expression: Arc<ast::CauseExpressionNode>,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    compile_expression(expression.signal.clone(), procedure, ctx)?;
+    // TODO: handle errors
+    procedure.write_instruction(
+        Instruction::Cause(CauseInstruction {}),
+        &expression.breadcrumbs,
+    );
+    Ok(())
+}
+
+fn compile_call_expression(
+    expression: Arc<ast::CallExpressionNode>,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    compile_expression(expression.callee.clone(), procedure, ctx)?;
+
+    for param in &expression.parameters {
+        compile_expression(param.value.clone(), procedure, ctx)?;
+        // TODO: handle errors
+    }
+
+    // TODO: handle an error preventing the call
+
+    let callee_type = ctx
+        .types
+        .value_types
+        .get(expression.callee.breadcrumbs())
+        .cloned()
+        .ok_or_else(|| anyhow!("No type for callee at {}", expression.callee.breadcrumbs()))?
+        .to_result()
+        .map_err(|_| anyhow!("Callee type is an error"))?;
+
+    match callee_type.as_ref() {
+        LangType::TypeReference(type_reference) => {
+            // TODO: handle unique types
+            let canonical_type = type_reference
+                .clone()
+                .to_result()
+                .map_err(|_| anyhow!("Callee type is a reference to an error or unique type"))
+                .and_then(|instance_type| match instance_type.as_ref() {
+                    LangType::Instance(instance) => ctx
+                        .types
+                        .canonical_types
+                        .get(&instance.type_id)
+                        .ok_or(anyhow!("No canonical type found")),
+                    _ => Err(anyhow!("Can't construct a {instance_type:?}")),
+                })?;
+            let arity = canonical_type.fields().len() as u32;
+            procedure.write_instruction(
+                Instruction::Construct(ConstructInstruction { arity }),
+                expression.breadcrumbs(),
+            )
+        }
+        LangType::Function(_) => procedure.write_instruction(
+            Instruction::CallFunction(CallFunctionInstruction {
+                // TODO: function params
+                arity: 0,
+            }),
+            expression.breadcrumbs(),
+        ),
+        _ => return Err(anyhow!("Callee {callee_type:?} is not callable")),
+    }
+
+    Ok(())
+}
+
+fn compile_value_flow_reference(
+    node: AnyAstNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    // TODO: check for errors/badvalue
+
+    let node_tags = ctx.get_tags(node.breadcrumbs());
+    let comes_from = find_tag!(&node_tags, NodeTag::ValueComesFrom)
+        .ok_or_else(|| anyhow!("No ValueComesFrom tag on {}", node.breadcrumbs()))?;
+    let source_tags = ctx.get_tags(&comes_from.source);
+
+    if let Some(it) = find_tag!(&source_tags, NodeTag::ReferencesFile) {
+        compile_file_import_reference(node.breadcrumbs(), it, procedure, ctx)?;
+        return Ok(());
+    }
+
+    Err(anyhow!(
+        "Wasn't able to resolve identifier at {} to anything",
+        node.breadcrumbs()
+    ))
+}
+
+fn compile_file_import_reference(
+    reference_node_breadcrumbs: &Breadcrumbs,
+    tag: ReferencesFileNodeTag,
+    procedure: &mut Procedure,
+    _ctx: &mut CompilerContext,
+) -> Result<()> {
+    let file_path_constant = procedure.add_constant(CompiledConstant::String(tag.path.clone()));
+    let export_name_constant = tag
+        .export_name
+        .map(|it| procedure.add_constant(CompiledConstant::String(it)));
+
+    if let Some(export_name_constant) = export_name_constant {
+        procedure.write_instruction(
+            Instruction::Import(ImportInstruction {
+                file_path_constant,
+                export_name_constant,
+            }),
+            reference_node_breadcrumbs,
+        )
+    } else {
+        return Err(anyhow!(
+            "Haven't implemented files as first-class objects yet"
+        ));
+    }
+    Ok(())
 }

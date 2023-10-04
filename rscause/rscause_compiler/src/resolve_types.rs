@@ -19,6 +19,7 @@ pub struct ExternalFileDescriptor {
 #[derive(Debug, Clone)]
 pub struct ResolveTypesResult {
     pub value_types: HashMap<Breadcrumbs, AnyInferredLangType>,
+    pub canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
 }
 
 pub fn resolve_types(
@@ -47,6 +48,7 @@ pub fn resolve_types(
         .collect();
     ResolveTypesResult {
         value_types: result,
+        canonical_types: ctx.canonical_types,
     }
 }
 
