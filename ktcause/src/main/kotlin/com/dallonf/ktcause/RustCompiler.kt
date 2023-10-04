@@ -15,6 +15,7 @@ object RustCompiler {
     external fun logAst(ast: FileNode)
 
     external fun logResolvedTypes(
+        path: String,
         ast: FileNode,
         tags: Map<Breadcrumbs, List<NodeTag>>,
         canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,

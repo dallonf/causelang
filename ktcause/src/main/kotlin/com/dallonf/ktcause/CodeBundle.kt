@@ -116,7 +116,7 @@ class CodeBundleBuilder {
                         }
                     }
                 }
-                RustCompiler.logResolvedTypes(file.ast, filteredTags, canonicalTypes, filteredOtherFiles)
+                RustCompiler.logResolvedTypes(file.path, file.ast, filteredTags, canonicalTypes, filteredOtherFiles)
             }
 
             val (resolvedFile, resolverErrors) = Resolver.resolveForFile(

@@ -33,6 +33,7 @@ pub struct TodoCompilerError(String);
 struct CompilerContext {
     procedures: Vec<Procedure>,
     types: Arc<ResolveTypesResult>,
+    canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
     scope_stack: VecDeque<Rc<RefCell<CompilerScope>>>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
 }
@@ -125,14 +126,16 @@ impl Procedure {
 }
 
 pub fn compile(
+    path: Arc<String>,
     ast: &ast::FileNode,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
-    canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
+    canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
     types: Arc<ResolveTypesResult>,
 ) -> Result<CompiledFile> {
     let mut ctx = CompilerContext {
         procedures: Vec::new(),
-        types: types,
+        canonical_types,
+        types,
         scope_stack: VecDeque::new(),
         node_tags,
     };
@@ -146,7 +149,7 @@ pub fn compile(
                 let function_type = ctx
                     .types
                     .value_types
-                    .get(&function.name.breadcrumbs)
+                    .get(&function.breadcrumbs)
                     .ok_or_else(|| anyhow!("No type for function at {}", &function.breadcrumbs))?
                     .clone()
                     .and_then(|function_type| match function_type.as_ref() {
@@ -167,7 +170,12 @@ pub fn compile(
             }
         }
     }
-    todo!()
+
+    Ok(CompiledFile {
+        path,
+        procedures: ctx.procedures,
+        exports: exports.into_values().collect(),
+    })
 }
 
 fn compile_function_declaration(
@@ -406,7 +414,6 @@ fn compile_call_expression(
                 .map_err(|_| anyhow!("Callee type is a reference to an error or unique type"))
                 .and_then(|instance_type| match instance_type.as_ref() {
                     LangType::Instance(instance) => ctx
-                        .types
                         .canonical_types
                         .get(&instance.type_id)
                         .ok_or(anyhow!("No canonical type found")),

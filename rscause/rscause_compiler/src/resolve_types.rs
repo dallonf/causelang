@@ -19,13 +19,12 @@ pub struct ExternalFileDescriptor {
 #[derive(Debug, Clone)]
 pub struct ResolveTypesResult {
     pub value_types: HashMap<Breadcrumbs, AnyInferredLangType>,
-    pub canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
 }
 
 pub fn resolve_types(
     file: Arc<ast::FileNode>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
-    canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
+    canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 ) -> ResolveTypesResult {
     let mut ctx = ResolveTypesContext {
@@ -48,14 +47,13 @@ pub fn resolve_types(
         .collect();
     ResolveTypesResult {
         value_types: result,
-        canonical_types: ctx.canonical_types,
     }
 }
 
 struct ResolveTypesContext {
     root_node: Arc<ast::FileNode>,
     value_types: HashMap<Breadcrumbs, Option<AnyInferredLangType>>,
-    canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
+    canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 }
