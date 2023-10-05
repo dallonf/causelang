@@ -1,14 +1,18 @@
 use std::{collections::HashMap, hash::Hash, sync::Arc};
 
 use anyhow::Result;
-use jni::{objects::JObject, JNIEnv};
+use jni::{
+    objects::{JObject, JValue, JValueOwned},
+    JNIEnv,
+};
 
 use crate::util::noisy_log;
 
 pub mod ast;
 pub mod breadcrumbs;
-pub mod lang_types;
+pub mod compiled_file;
 pub mod compiler_misc;
+pub mod lang_types;
 pub mod tags;
 
 pub trait FromJni: Sized {
@@ -105,5 +109,46 @@ where
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
         noisy_log(env, "Box<T>::from_jni");
         Ok(Box::new(value.jni_into(env)?))
+    }
+}
+
+pub trait IntoJni {
+    fn into_jni<'local>(
+        &self,
+        env: &mut jni::JNIEnv<'local>,
+    ) -> Result<JValueOwned<'local>>;
+}
+
+impl IntoJni for str {
+    fn into_jni<'local>(
+        &self,
+        env: &mut jni::JNIEnv<'local>,
+    ) -> Result<JValueOwned<'local>> {
+        env.new_string(self).map(Into::into).map_err(Into::into)
+    }
+}
+
+impl<Key, Value> IntoJni for HashMap<Key, Value>
+where
+    Key: IntoJni,
+    Value: IntoJni,
+{
+    fn into_jni<'local>(
+        &self,
+        env: &mut jni::JNIEnv<'local>,
+    ) -> Result<JValueOwned<'local>> {
+        let hash_map_class = env.find_class("java/util/HashMap")?;
+        let hash_map = env.new_object(hash_map_class, "(I)V", &[JValue::Int(self.len() as i32)])?;
+        for (key, value) in self {
+            let jni_key = key.into_jni(env)?;
+            let jni_value = value.into_jni(env)?;
+            env.call_method(
+                &hash_map,
+                "put",
+                "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;",
+                &[jni_key.borrow(), jni_value.borrow()],
+            )?;
+        }
+        todo!()
     }
 }
