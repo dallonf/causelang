@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fs::File;
 use std::sync::Arc;
 
 use jni::objects::{JClass, JObject, JValue};
@@ -62,10 +61,10 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_logResolvedTypes<'l
             jni_external_files.jni_into(&mut env)?;
         let tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>> = jni_tags.jni_into(&mut env)?;
 
-        serde_lexpr::to_writer(&File::create("ast.txt")?, &ast)?;
-        serde_lexpr::to_writer(&File::create("tags.txt")?, &tags)?;
-        serde_lexpr::to_writer(&File::create("canonical_types.txt")?, &canonical_types)?;
-        serde_lexpr::to_writer(&File::create("external_files.txt")?, &external_files)?;
+        // serde_lexpr::to_writer(&File::create("ast.txt")?, &ast)?;
+        // serde_lexpr::to_writer(&File::create("tags.txt")?, &tags)?;
+        // serde_lexpr::to_writer(&File::create("canonical_types.txt")?, &canonical_types)?;
+        // serde_lexpr::to_writer(&File::create("external_files.txt")?, &external_files)?;
 
         let resolved_types: Arc<_> = resolve_types(
             ast.clone(),
@@ -90,6 +89,44 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_logResolvedTypes<'l
             &mut env,
             format!("compiled_file: {:#?}", &compiled_file).as_str(),
         )?;
+
+        Ok(JValue::Object(&JObject::null()).as_jni())
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local>(
+    mut env: JNIEnv<'local>,
+    _class: JClass<'local>,
+    jni_path: JObject<'local>,
+    jni_ast: JObject<'local>,
+    jni_tags: JObject<'local>,
+    jni_canonical_types: JObject<'local>,
+    jni_external_files: JObject<'local>,
+) -> jvalue {
+    jtry(&mut env, move |mut env| {
+        let path: Arc<String> = jni_path.jni_into(&mut env)?;
+        let ast: Arc<FileNode> = jni_ast.jni_into(&mut env)?;
+        let canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>> =
+            jni_canonical_types.jni_into(&mut env)?;
+        let external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>> =
+            jni_external_files.jni_into(&mut env)?;
+        let tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>> = jni_tags.jni_into(&mut env)?;
+
+        let resolved_types: Arc<_> = resolve_types(
+            ast.clone(),
+            tags.clone(),
+            canonical_types.clone(),
+            external_files.clone(),
+        )
+        .into();
+        let compiled_file = compile(
+            path.clone(),
+            &ast,
+            tags.into(),
+            canonical_types,
+            resolved_types.clone(),
+        );
 
         Ok(JValue::Object(&JObject::null()).as_jni())
     })
