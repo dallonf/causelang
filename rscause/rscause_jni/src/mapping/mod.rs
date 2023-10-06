@@ -1,4 +1,8 @@
-use std::{collections::HashMap, hash::Hash, sync::Arc};
+use std::{
+    collections::HashMap,
+    hash::{self, Hash},
+    sync::Arc,
+};
 
 use anyhow::Result;
 use jni::{
@@ -113,17 +117,17 @@ where
 }
 
 pub trait IntoJni {
-    fn into_jni<'local>(
-        &self,
-        env: &mut jni::JNIEnv<'local>,
-    ) -> Result<JValueOwned<'local>>;
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>>;
+}
+
+impl IntoJni for () {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        Ok(JValueOwned::Void)
+    }
 }
 
 impl IntoJni for str {
-    fn into_jni<'local>(
-        &self,
-        env: &mut jni::JNIEnv<'local>,
-    ) -> Result<JValueOwned<'local>> {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
         env.new_string(self).map(Into::into).map_err(Into::into)
     }
 }
@@ -133,10 +137,7 @@ where
     Key: IntoJni,
     Value: IntoJni,
 {
-    fn into_jni<'local>(
-        &self,
-        env: &mut jni::JNIEnv<'local>,
-    ) -> Result<JValueOwned<'local>> {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
         let hash_map_class = env.find_class("java/util/HashMap")?;
         let hash_map = env.new_object(hash_map_class, "(I)V", &[JValue::Int(self.len() as i32)])?;
         for (key, value) in self {
@@ -149,6 +150,22 @@ where
                 &[jni_key.borrow(), jni_value.borrow()],
             )?;
         }
-        todo!()
+        Ok(hash_map.into())
+    }
+}
+
+impl<T> IntoJni for Vec<T>
+where
+    T: IntoJni,
+{
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        let list_class = env.find_class("java/util/ArrayList")?;
+        let list_obj = env.new_object(list_class, "(I)V", &[JValue::Int(self.len() as i32)])?;
+        let list = env.get_list(&list_obj)?;
+        for item in self {
+            let jni_item = item.into_jni(env)?.l()?;
+            list.add(env, &jni_item)?;
+        }
+        Ok(list_obj.into())
     }
 }
