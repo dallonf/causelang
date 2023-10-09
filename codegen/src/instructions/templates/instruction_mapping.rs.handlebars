@@ -1,0 +1,38 @@
+impl IntoJni for Instruction {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        match self {
+            {{#each instructions}}
+            Instruction::{{this.name}}(instruction) => instruction.into_jni(env),
+            {{/each}}
+        }
+    }
+}
+
+{{#each instructions}}
+impl IntoJni for instructions::{{this.name}}Instruction {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        let class = env.find_class("{{this.class}}")?;
+        {{#each this.params}}
+        let jni_{{this.name}} = {
+            {{#if this.convertToOptionalInt}}
+            self.{{this.name}}.map(|it| it as i32).into_jni(env)?
+            {{else if this.convertToInt}}
+            (self.{{this.name}} as i32).into_jni(env)?
+            {{else}}
+            self.{{this.name}}.into_jni(env)?
+            {{/if}}
+        };
+        {{/each}}
+        let jni_instruction = env.new_object(
+            class,
+            "{{this.constructorSignature}}",
+            &[
+                {{#each this.params}}
+                jni_{{this.name}}.borrow(),
+                {{/each}}
+            ],
+        )?;
+        Ok(jni_instruction.into())
+    }
+}
+{{/each}}

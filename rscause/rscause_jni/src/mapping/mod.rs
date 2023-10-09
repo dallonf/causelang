@@ -16,6 +16,7 @@ pub mod ast;
 pub mod breadcrumbs;
 pub mod compiled_file;
 pub mod compiler_misc;
+pub mod instructions;
 pub mod lang_types;
 pub mod tags;
 
@@ -126,9 +127,33 @@ impl IntoJni for () {
     }
 }
 
+impl IntoJni for bool {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        Ok(JValueOwned::Bool(*self as u8))
+    }
+}
+
+impl IntoJni for i32 {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        Ok(JValueOwned::Int(*self))
+    }
+}
+
 impl IntoJni for str {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
         env.new_string(self).map(Into::into).map_err(Into::into)
+    }
+}
+
+impl<T> IntoJni for Option<T>
+where
+    T: IntoJni,
+{
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        match self {
+            Some(value) => value.into_jni(env),
+            None => Ok(JValueOwned::Object(JObject::null())),
+        }
     }
 }
 
