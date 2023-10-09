@@ -10,7 +10,7 @@ use jni::{
     JNIEnv,
 };
 use rscause_compiler::compiled_file::{
-    CompiledFile, FunctionProcedureIdentity, Procedure, ProcedureIdentity,
+    CompiledConstant, CompiledFile, FunctionProcedureIdentity, Procedure, ProcedureIdentity,
 };
 
 impl IntoJni for CompiledFile {
@@ -70,5 +70,20 @@ impl IntoJni for FunctionProcedureIdentity {
             &[name_jni.borrow(), node_info_jni.borrow()],
         )?;
         Ok(result.into())
+    }
+}
+
+impl IntoJni for CompiledConstant {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        match self {
+            CompiledConstant::String(value) => {
+                let class = env
+                    .find_class("Lcom/dallonf/ktcause/CompiledFile$CompiledConstant$StringConst")?;
+                let jni_value = value.into_jni(env)?;
+                let result =
+                    env.new_object(class, "(Ljava/lang/String;)V", &[jni_value.borrow()])?;
+                Ok(result.into())
+            }
+        }
     }
 }
