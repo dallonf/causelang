@@ -61,25 +61,44 @@ impl AstNode for AnyAstNode {
             AnyAstNode::StringLiteralExpression(node) => node.children(),
         }
     }
+    fn info(&self) -> &NodeInfo {
+        match self {
+            AnyAstNode::Identifier(node) => node.info(),
+            AnyAstNode::IdentifierTypeReference(node) => node.info(),
+            AnyAstNode::FunctionSignatureParameter(node) => node.info(),
+            AnyAstNode::FunctionCallParameter(node) => node.info(),
+            AnyAstNode::File(node) => node.info(),
+            AnyAstNode::Import(node) => node.info(),
+            AnyAstNode::ImportPath(node) => node.info(),
+            AnyAstNode::ImportMapping(node) => node.info(),
+            AnyAstNode::Function(node) => node.info(),
+            AnyAstNode::BlockBody(node) => node.info(),
+            AnyAstNode::ExpressionStatement(node) => node.info(),
+            AnyAstNode::CauseExpression(node) => node.info(),
+            AnyAstNode::CallExpression(node) => node.info(),
+            AnyAstNode::IdentifierExpression(node) => node.info(),
+            AnyAstNode::StringLiteralExpression(node) => node.info(),
+        }
+    }
 }
 impl HasBreadcrumbs for AnyAstNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
-            AnyAstNode::Identifier(node) => &node.breadcrumbs,
-            AnyAstNode::IdentifierTypeReference(node) => &node.breadcrumbs,
-            AnyAstNode::FunctionSignatureParameter(node) => &node.breadcrumbs,
-            AnyAstNode::FunctionCallParameter(node) => &node.breadcrumbs,
-            AnyAstNode::File(node) => &node.breadcrumbs,
-            AnyAstNode::Import(node) => &node.breadcrumbs,
-            AnyAstNode::ImportPath(node) => &node.breadcrumbs,
-            AnyAstNode::ImportMapping(node) => &node.breadcrumbs,
-            AnyAstNode::Function(node) => &node.breadcrumbs,
-            AnyAstNode::BlockBody(node) => &node.breadcrumbs,
-            AnyAstNode::ExpressionStatement(node) => &node.breadcrumbs,
-            AnyAstNode::CauseExpression(node) => &node.breadcrumbs,
-            AnyAstNode::CallExpression(node) => &node.breadcrumbs,
-            AnyAstNode::IdentifierExpression(node) => &node.breadcrumbs,
-            AnyAstNode::StringLiteralExpression(node) => &node.breadcrumbs,
+            AnyAstNode::Identifier(node) => node.breadcrumbs(),
+            AnyAstNode::IdentifierTypeReference(node) => node.breadcrumbs(),
+            AnyAstNode::FunctionSignatureParameter(node) => node.breadcrumbs(),
+            AnyAstNode::FunctionCallParameter(node) => node.breadcrumbs(),
+            AnyAstNode::File(node) => node.breadcrumbs(),
+            AnyAstNode::Import(node) => node.breadcrumbs(),
+            AnyAstNode::ImportPath(node) => node.breadcrumbs(),
+            AnyAstNode::ImportMapping(node) => node.breadcrumbs(),
+            AnyAstNode::Function(node) => node.breadcrumbs(),
+            AnyAstNode::BlockBody(node) => node.breadcrumbs(),
+            AnyAstNode::ExpressionStatement(node) => node.breadcrumbs(),
+            AnyAstNode::CauseExpression(node) => node.breadcrumbs(),
+            AnyAstNode::CallExpression(node) => node.breadcrumbs(),
+            AnyAstNode::IdentifierExpression(node) => node.breadcrumbs(),
+            AnyAstNode::StringLiteralExpression(node) => node.breadcrumbs(),
         }
     }
 }
@@ -94,6 +113,11 @@ impl AstNode for TypeReferenceNode {
             TypeReferenceNode::Identifier(node) => node.children(),
         }
     }
+    fn info(&self) -> &NodeInfo {
+        match self {
+            TypeReferenceNode::Identifier(node) => node.info(),
+        }
+    }
 }
 impl From<&TypeReferenceNode> for AnyAstNode {
     fn from(value: &TypeReferenceNode) -> Self {
@@ -105,7 +129,7 @@ impl From<&TypeReferenceNode> for AnyAstNode {
 impl HasBreadcrumbs for TypeReferenceNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
-            TypeReferenceNode::Identifier(node) => &node.breadcrumbs,
+            TypeReferenceNode::Identifier(node) => node.breadcrumbs(),
         }
     }
 }
@@ -122,6 +146,12 @@ impl AstNode for DeclarationNode {
             DeclarationNode::Function(node) => node.children(),
         }
     }
+    fn info(&self) -> &NodeInfo {
+        match self {
+            DeclarationNode::Import(node) => node.info(),
+            DeclarationNode::Function(node) => node.info(),
+        }
+    }
 }
 impl From<&DeclarationNode> for AnyAstNode {
     fn from(value: &DeclarationNode) -> Self {
@@ -134,8 +164,8 @@ impl From<&DeclarationNode> for AnyAstNode {
 impl HasBreadcrumbs for DeclarationNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
-            DeclarationNode::Import(node) => &node.breadcrumbs,
-            DeclarationNode::Function(node) => &node.breadcrumbs,
+            DeclarationNode::Import(node) => node.breadcrumbs(),
+            DeclarationNode::Function(node) => node.breadcrumbs(),
         }
     }
 }
@@ -150,6 +180,11 @@ impl AstNode for BodyNode {
             BodyNode::Block(node) => node.children(),
         }
     }
+    fn info(&self) -> &NodeInfo {
+        match self {
+            BodyNode::Block(node) => node.info(),
+        }
+    }
 }
 impl From<&BodyNode> for AnyAstNode {
     fn from(value: &BodyNode) -> Self {
@@ -161,7 +196,7 @@ impl From<&BodyNode> for AnyAstNode {
 impl HasBreadcrumbs for BodyNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
-            BodyNode::Block(node) => &node.breadcrumbs,
+            BodyNode::Block(node) => node.breadcrumbs(),
         }
     }
 }
@@ -176,6 +211,11 @@ impl AstNode for StatementNode {
             StatementNode::Expression(node) => node.children(),
         }
     }
+    fn info(&self) -> &NodeInfo {
+        match self {
+            StatementNode::Expression(node) => node.info(),
+        }
+    }
 }
 impl From<&StatementNode> for AnyAstNode {
     fn from(value: &StatementNode) -> Self {
@@ -187,7 +227,7 @@ impl From<&StatementNode> for AnyAstNode {
 impl HasBreadcrumbs for StatementNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
-            StatementNode::Expression(node) => &node.breadcrumbs,
+            StatementNode::Expression(node) => node.breadcrumbs(),
         }
     }
 }
@@ -208,6 +248,14 @@ impl AstNode for ExpressionNode {
             ExpressionNode::StringLiteral(node) => node.children(),
         }
     }
+    fn info(&self) -> &NodeInfo {
+        match self {
+            ExpressionNode::Cause(node) => node.info(),
+            ExpressionNode::Call(node) => node.info(),
+            ExpressionNode::Identifier(node) => node.info(),
+            ExpressionNode::StringLiteral(node) => node.info(),
+        }
+    }
 }
 impl From<&ExpressionNode> for AnyAstNode {
     fn from(value: &ExpressionNode) -> Self {
@@ -222,10 +270,10 @@ impl From<&ExpressionNode> for AnyAstNode {
 impl HasBreadcrumbs for ExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
-            ExpressionNode::Cause(node) => &node.breadcrumbs,
-            ExpressionNode::Call(node) => &node.breadcrumbs,
-            ExpressionNode::Identifier(node) => &node.breadcrumbs,
-            ExpressionNode::StringLiteral(node) => &node.breadcrumbs,
+            ExpressionNode::Cause(node) => node.breadcrumbs(),
+            ExpressionNode::Call(node) => node.breadcrumbs(),
+            ExpressionNode::Identifier(node) => node.breadcrumbs(),
+            ExpressionNode::StringLiteral(node) => node.breadcrumbs(),
         }
     }
 }
@@ -233,7 +281,7 @@ impl HasBreadcrumbs for ExpressionNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdentifierNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub text: Arc<String>,
 }
 impl From<&Arc<IdentifierNode>> for AnyAstNode {
@@ -246,16 +294,19 @@ impl AstNode for IdentifierNode {
         let mut result = HashMap::new();
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for IdentifierNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdentifierTypeReferenceNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub identifier: Arc<IdentifierNode>,
 }
 impl From<&Arc<IdentifierTypeReferenceNode>> for AnyAstNode {
@@ -272,16 +323,19 @@ impl AstNode for IdentifierTypeReferenceNode {
         );
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for IdentifierTypeReferenceNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FunctionSignatureParameterNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub name: Arc<IdentifierNode>,
     pub type_reference: Option<TypeReferenceNode>,
 }
@@ -303,16 +357,19 @@ impl AstNode for FunctionSignatureParameterNode {
         );
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for FunctionSignatureParameterNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FunctionCallParameterNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub value: ExpressionNode,
 }
 impl From<&Arc<FunctionCallParameterNode>> for AnyAstNode {
@@ -329,16 +386,19 @@ impl AstNode for FunctionCallParameterNode {
         );
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for FunctionCallParameterNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FileNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub declarations: Vec<DeclarationNode>,
 }
 impl From<&Arc<FileNode>> for AnyAstNode {
@@ -355,16 +415,19 @@ impl AstNode for FileNode {
         );
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for FileNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ImportNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub path: Arc<ImportPathNode>,
     pub mappings: Vec<Arc<ImportMappingNode>>,
 }
@@ -386,16 +449,19 @@ impl AstNode for ImportNode {
         );
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for ImportNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ImportPathNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub path: Arc<String>,
 }
 impl From<&Arc<ImportPathNode>> for AnyAstNode {
@@ -408,16 +474,19 @@ impl AstNode for ImportPathNode {
         let mut result = HashMap::new();
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for ImportPathNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ImportMappingNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub source_name: Arc<IdentifierNode>,
     pub rename: Option<Arc<IdentifierNode>>,
 }
@@ -439,16 +508,19 @@ impl AstNode for ImportMappingNode {
         );
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for ImportMappingNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FunctionNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub name: Arc<IdentifierNode>,
     pub params: Vec<Arc<FunctionSignatureParameterNode>>,
     pub body: BodyNode,
@@ -480,16 +552,19 @@ impl AstNode for FunctionNode {
         );
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for FunctionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BlockBodyNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub statements: Vec<StatementNode>,
 }
 impl From<&Arc<BlockBodyNode>> for AnyAstNode {
@@ -506,16 +581,19 @@ impl AstNode for BlockBodyNode {
         );
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for BlockBodyNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ExpressionStatementNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub expression: ExpressionNode,
 }
 impl From<&Arc<ExpressionStatementNode>> for AnyAstNode {
@@ -532,16 +610,19 @@ impl AstNode for ExpressionStatementNode {
         );
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for ExpressionStatementNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CauseExpressionNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub signal: ExpressionNode,
 }
 impl From<&Arc<CauseExpressionNode>> for AnyAstNode {
@@ -558,16 +639,19 @@ impl AstNode for CauseExpressionNode {
         );
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for CauseExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CallExpressionNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub callee: ExpressionNode,
     pub parameters: Vec<Arc<FunctionCallParameterNode>>,
 }
@@ -589,16 +673,19 @@ impl AstNode for CallExpressionNode {
         );
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for CallExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdentifierExpressionNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub identifier: Arc<IdentifierNode>,
 }
 impl From<&Arc<IdentifierExpressionNode>> for AnyAstNode {
@@ -615,16 +702,19 @@ impl AstNode for IdentifierExpressionNode {
         );
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for IdentifierExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct StringLiteralExpressionNode {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     pub text: Arc<String>,
 }
 impl From<&Arc<StringLiteralExpressionNode>> for AnyAstNode {
@@ -637,10 +727,13 @@ impl AstNode for StringLiteralExpressionNode {
         let mut result = HashMap::new();
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for StringLiteralExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 

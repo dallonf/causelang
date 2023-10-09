@@ -1,7 +1,8 @@
 use crate::util::noisy_log;
 
-use super::{ast::J_BREADCRUMB_NAMES, FromJni, JniInto};
+use super::{ast::J_BREADCRUMB_NAMES, FromJni, IntoJni, JniInto};
 use anyhow::anyhow;
+use jni::objects::JValueOwned;
 use rscause_compiler::{
     ast,
     breadcrumbs::{BreadcrumbEntry, BreadcrumbName, Breadcrumbs},
@@ -18,6 +19,19 @@ impl FromJni for Breadcrumbs {
             .l()?;
         let entries: Vec<BreadcrumbEntry> = entries.jni_into(env)?;
         Ok(Breadcrumbs { entries })
+    }
+}
+
+impl IntoJni for Breadcrumbs {
+    fn into_jni<'local>(
+        &self,
+        env: &mut jni::JNIEnv<'local>,
+    ) -> anyhow::Result<jni::objects::JValueOwned<'local>> {
+        let class = env.find_class("com/dallonf/ktcause/ast/Breadcrumbs")?;
+        let jni_entries = self.entries.into_jni(env)?;
+        let jni_breadcrumbs =
+            env.new_object(class, "(Ljava/util/List;)V", &[jni_entries.borrow()])?;
+        Ok(jni_breadcrumbs.into())
     }
 }
 
@@ -53,6 +67,31 @@ impl FromJni for BreadcrumbEntry {
                 Ok(Self::Name(breadcrumb_name))
             }
             _ => Err(anyhow!("Unknown breadcrumb entry type: {}", class_name)),
+        }
+    }
+}
+
+impl IntoJni for BreadcrumbEntry {
+    fn into_jni<'local>(
+        &self,
+        env: &mut jni::JNIEnv<'local>,
+    ) -> anyhow::Result<jni::objects::JValueOwned<'local>> {
+        match self {
+            BreadcrumbEntry::Index(index) => {
+                let class =
+                    env.find_class("com/dallonf/ktcause/ast/Breadcrumbs$BreadcrumbEntry$Index")?;
+                let jni_index = JValueOwned::Int((*index).try_into()?);
+                let jni_entry = env.new_object(class, "(I)V", &[jni_index.borrow()])?;
+                Ok(jni_entry.into())
+            }
+            BreadcrumbEntry::Name(name) => {
+                let class =
+                    env.find_class("com/dallonf/ktcause/ast/Breadcrumbs$BreadcrumbEntry$Name")?;
+                let jni_name = name.name.into_jni(env)?;
+                let jni_entry =
+                    env.new_object(class, "(Ljava/lang/String;)V", &[jni_name.borrow()])?;
+                Ok(jni_entry.into())
+            }
         }
     }
 }

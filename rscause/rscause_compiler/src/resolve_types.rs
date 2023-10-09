@@ -1,5 +1,5 @@
 use crate::ast::{self, AnyAstNode, AstNode, BreadcrumbTreeNode};
-use crate::breadcrumbs::Breadcrumbs;
+use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::find_tag;
 use crate::lang_types::{
     AnyInferredLangType, CanonicalLangType, CanonicalLangTypeId, FunctionLangType, InferredType,
@@ -111,7 +111,7 @@ impl ResolveTypes for ast::ImportMappingNode {
             .ok_or_else(|| {
                 println!(
                     "No reference file tag found for import mapping: {:?}",
-                    self.breadcrumbs
+                    self.breadcrumbs()
                 );
                 ()
             })

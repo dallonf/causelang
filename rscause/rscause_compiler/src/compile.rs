@@ -3,7 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::ast::AnyAstNode;
+use crate::ast::{AnyAstNode, NodeInfo, AstNode};
 use crate::breadcrumbs::HasBreadcrumbs;
 use crate::compiled_file::CompiledConstant;
 use crate::find_tag;
@@ -92,13 +92,13 @@ enum ScopeType {
 }
 
 impl Procedure {
-    fn write_instruction(&mut self, instruction: Instruction, breadcrumbs: &Breadcrumbs) {
-        self.write_instruction_with_phase(instruction, breadcrumbs, InstructionPhase::Execute)
+    fn write_instruction(&mut self, instruction: Instruction, node_info: &NodeInfo) {
+        self.write_instruction_with_phase(instruction, node_info, InstructionPhase::Execute)
     }
     fn write_instruction_with_phase(
         &mut self,
         instruction: Instruction,
-        breadcrumbs: &Breadcrumbs,
+        node_info: &NodeInfo,
         phase: InstructionPhase,
     ) {
         // don't write no-op instructions
@@ -149,8 +149,8 @@ pub fn compile(
                 let function_type = ctx
                     .types
                     .value_types
-                    .get(&function.breadcrumbs)
-                    .ok_or_else(|| anyhow!("No type for function at {}", &function.breadcrumbs))?
+                    .get(function.breadcrumbs())
+                    .ok_or_else(|| anyhow!("No type for function at {}", function.breadcrumbs()))?
                     .clone()
                     .and_then(|function_type| match function_type.as_ref() {
                         LangType::Function(function_type) => {
@@ -185,7 +185,7 @@ fn compile_function_declaration(
     compile_function(
         function.name.text.clone(),
         &function.params,
-        &function.breadcrumbs,
+        &function.info,
         ctx,
         |procedure, ctx| {
             compile_body(function.body.clone(), procedure, ctx)?;
@@ -198,17 +198,20 @@ fn compile_function_declaration(
 fn compile_function(
     name: Arc<String>,
     params: &[Arc<ast::FunctionSignatureParameterNode>],
-    breadcrumbs: &Breadcrumbs,
+    node_info: &NodeInfo,
     ctx: &mut CompilerContext,
     compile_body: impl FnOnce(&mut Procedure, &mut CompilerContext) -> Result<()>,
 ) -> Result<Procedure> {
     let mut procedure = Procedure {
-        identity: ProcedureIdentity::Function(FunctionProcedureIdentity { name: name.clone() }),
+        identity: ProcedureIdentity::Function(FunctionProcedureIdentity {
+            name: name.clone(),
+            declaration: node_info.clone(),
+        }),
         constant_table: Vec::new(),
         instructions: Vec::new(),
     };
     let function_scope = Rc::new(RefCell::new(CompilerScope {
-        scope_root: breadcrumbs.clone(),
+        scope_root: node_info.breadcrumbs.clone(),
         scope_type: ScopeType::Function,
         open_loop: None,
         effect_count: 0,
@@ -218,9 +221,9 @@ fn compile_function(
     ctx.scope_stack.clear(); // brand-new scope for every function
     ctx.scope_stack.push_back(function_scope.clone());
 
-    ctx.add_to_scope(breadcrumbs)?; // the function itself is on the stack
+    ctx.add_to_scope(&node_info.breadcrumbs)?; // the function itself is on the stack
     for param in params {
-        ctx.add_to_scope(&param.breadcrumbs)?;
+        ctx.add_to_scope(param.breadcrumbs())?;
         let name_constant =
             procedure.add_constant(CompiledConstant::String(param.name.text.clone()));
         procedure.write_instruction(
@@ -229,7 +232,7 @@ fn compile_function(
                 variable: false,
                 local_index: Some(ctx.scope_stack.back().unwrap().borrow().size() - 1),
             }),
-            breadcrumbs,
+            node_info,
         );
     }
     // TODO: handle closure captures
@@ -241,7 +244,7 @@ fn compile_function(
     );
     procedure.write_instruction_with_phase(
         Instruction::Return(ReturnInstruction {}),
-        breadcrumbs,
+        node_info,
         InstructionPhase::Cleanup,
     );
 
@@ -267,7 +270,7 @@ fn compile_block(
 ) -> Result<()> {
     ctx.scope_stack
         .push_back(Rc::new(RefCell::new(CompilerScope {
-            scope_root: block.breadcrumbs.clone(),
+            scope_root: block.breadcrumbs().clone(),
             scope_type: ScopeType::Body,
             open_loop: None,
             effect_count: 0,
@@ -277,7 +280,7 @@ fn compile_block(
     if block.statements.is_empty() {
         procedure.write_instruction(
             Instruction::PushAction(PushActionInstruction {}),
-            &block.breadcrumbs,
+            &block.info,
         );
     }
 
@@ -299,14 +302,14 @@ fn compile_block(
         Instruction::PopEffects(PopEffectsInstruction {
             number: scope.borrow().effect_count,
         }),
-        &block.breadcrumbs,
+        &block.info,
         InstructionPhase::Cleanup,
     );
     procedure.write_instruction_with_phase(
         Instruction::PopScope(PopScopeInstruction {
             values: scope.borrow().size(),
         }),
-        &block.breadcrumbs,
+        &block.info,
         InstructionPhase::Cleanup,
     );
     Ok(())
@@ -324,7 +327,7 @@ fn compile_statement(
             if !is_last_statement {
                 procedure.write_instruction_with_phase(
                     Instruction::Pop(PopInstruction { number: 1 }),
-                    &statement.breadcrumbs,
+                    &statement.info,
                     InstructionPhase::Cleanup,
                 );
             }
@@ -353,7 +356,7 @@ fn compile_expression(
                 procedure.add_constant(CompiledConstant::String(expression.text.clone()));
             procedure.write_instruction(
                 Instruction::Literal(LiteralInstruction { constant }),
-                expression.breadcrumbs(),
+                &expression.info,
             );
             Ok(())
         }
@@ -375,10 +378,7 @@ fn compile_cause_expression(
 ) -> Result<()> {
     compile_expression(expression.signal.clone(), procedure, ctx)?;
     // TODO: handle errors
-    procedure.write_instruction(
-        Instruction::Cause(CauseInstruction {}),
-        &expression.breadcrumbs,
-    );
+    procedure.write_instruction(Instruction::Cause(CauseInstruction {}), &expression.info);
     Ok(())
 }
 
@@ -422,7 +422,7 @@ fn compile_call_expression(
             let arity = canonical_type.fields().len() as u32;
             procedure.write_instruction(
                 Instruction::Construct(ConstructInstruction { arity }),
-                expression.breadcrumbs(),
+                &expression.info,
             )
         }
         LangType::Function(_) => procedure.write_instruction(
@@ -430,7 +430,7 @@ fn compile_call_expression(
                 // TODO: function params
                 arity: 0,
             }),
-            expression.breadcrumbs(),
+            &expression.info,
         ),
         _ => return Err(anyhow!("Callee {callee_type:?} is not callable")),
     }
@@ -451,7 +451,7 @@ fn compile_value_flow_reference(
     let source_tags = ctx.get_tags(&comes_from.source);
 
     if let Some(it) = find_tag!(&source_tags, NodeTag::ReferencesFile) {
-        compile_file_import_reference(node.breadcrumbs(), it, procedure, ctx)?;
+        compile_file_import_reference(node.info(), it, procedure, ctx)?;
         return Ok(());
     }
 
@@ -462,7 +462,7 @@ fn compile_value_flow_reference(
 }
 
 fn compile_file_import_reference(
-    reference_node_breadcrumbs: &Breadcrumbs,
+    reference_node_info: &NodeInfo,
     tag: ReferencesFileNodeTag,
     procedure: &mut Procedure,
     _ctx: &mut CompilerContext,
@@ -478,7 +478,7 @@ fn compile_file_import_reference(
                 file_path_constant,
                 export_name_constant,
             }),
-            reference_node_breadcrumbs,
+            reference_node_info,
         )
     } else {
         return Err(anyhow!(

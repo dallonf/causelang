@@ -9,7 +9,9 @@ use jni::{
     objects::{JObject, JValue, JValueOwned},
     JNIEnv,
 };
-use rscause_compiler::compiled_file::{CompiledFile, Procedure};
+use rscause_compiler::compiled_file::{
+    CompiledFile, FunctionProcedureIdentity, Procedure, ProcedureIdentity,
+};
 
 impl IntoJni for CompiledFile {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
@@ -45,5 +47,28 @@ impl IntoJni for Procedure {
             jni_source_map.borrow(),
         ])?;
         Ok(jni_procedure.into())
+    }
+}
+
+impl IntoJni for ProcedureIdentity {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        match self {
+            ProcedureIdentity::Function(function) => function.into_jni(env),
+        }
+    }
+}
+
+impl IntoJni for FunctionProcedureIdentity {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        let class = env
+            .find_class("com/dallonf/ktcause/CompiledFile$Procedure$ProcedureIdentity$Function")?;
+        let name_jni = self.name.into_jni(env)?;
+        let node_info_jni = self.declaration.into_jni(env)?;
+        let result = env.new_object(
+            class,
+            "(Ljava/lang/String;Lcom/dallonf/ktcause/ast/NodeInfo;)V",
+            &[name_jni.borrow(), node_info_jni.borrow()],
+        )?;
+        Ok(result.into())
     }
 }

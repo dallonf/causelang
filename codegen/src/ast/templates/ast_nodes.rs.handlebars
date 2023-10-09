@@ -18,12 +18,19 @@ impl AstNode for AnyAstNode {
             {{/each}}
         }
     }
+    fn info(&self) -> &NodeInfo {
+        match self {
+            {{#each nodes}}
+            AnyAstNode::{{this.variantName}}(node) => node.info(),
+            {{/each}}
+        }
+    }
 }
 impl HasBreadcrumbs for AnyAstNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
             {{#each nodes}}
-            AnyAstNode::{{this.variantName}}(node) => &node.breadcrumbs,
+            AnyAstNode::{{this.variantName}}(node) => node.breadcrumbs(),
             {{/each}}
         }
     }
@@ -44,6 +51,13 @@ impl AstNode for {{this.name}} {
             {{/each}}
         }
     }
+    fn info(&self) -> &NodeInfo {
+        match self {
+            {{#each this.nodes}}
+            {{../name}}::{{this.variantName}}(node) => node.info(),
+            {{/each}}
+        }
+    }
 }
 impl From<&{{this.name}}> for AnyAstNode {
     fn from(value: &{{this.name}}) -> Self {
@@ -58,7 +72,7 @@ impl HasBreadcrumbs for {{this.name}} {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
             {{#each this.nodes}}
-            {{../name}}::{{this.variantName}}(node) => &node.breadcrumbs,
+            {{../name}}::{{this.variantName}}(node) => node.breadcrumbs(),
             {{/each}}
         }
     }
@@ -69,7 +83,7 @@ impl HasBreadcrumbs for {{this.name}} {
 {{#each nodes}}
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct {{this.name}} {
-    pub breadcrumbs: Breadcrumbs,
+    pub info: NodeInfo,
     {{#each this.fields}}
     pub {{this.name}}: {{this.type}},
     {{/each}}
@@ -92,10 +106,13 @@ impl AstNode for {{this.name}} {
         {{/each}}
         result
     }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
 }
 impl HasBreadcrumbs for {{this.name}} {
     fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.breadcrumbs
+        &self.info.breadcrumbs
     }
 }
 

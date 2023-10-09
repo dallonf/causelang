@@ -64,6 +64,7 @@ impl BreadcrumbTreeNode {
 
 pub trait AstNode: HasBreadcrumbs {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode>;
+    fn info(&self) -> &NodeInfo;
 }
 
 impl AnyAstNode {
@@ -111,4 +112,22 @@ where
                 .collect(),
         )
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct NodeInfo {
+    pub position: DocumentRange,
+    pub breadcrumbs: Breadcrumbs,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct DocumentRange {
+    pub start: DocumentPosition,
+    pub end: DocumentPosition,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct DocumentPosition {
+    pub line: u32,
+    pub column: u32,
 }

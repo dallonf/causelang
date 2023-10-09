@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::ast::NodeInfo;
 use crate::instructions::Instruction;
 use crate::lang_types::{FunctionLangType, InferredType};
 
@@ -26,7 +27,7 @@ pub enum ProcedureIdentity {
 #[derive(Debug, Clone)]
 pub struct FunctionProcedureIdentity {
     pub name: Arc<String>,
-    // TODO: declaration
+    pub declaration: NodeInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

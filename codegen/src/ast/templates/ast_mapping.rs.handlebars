@@ -1,13 +1,3 @@
-use std::sync::Arc;
-
-use super::{JniInto, FromJni};
-use anyhow::Result;
-use jni::{
-    objects::JObject,
-    JNIEnv,
-};
-use rscause_compiler::ast;
-
 pub static J_BREADCRUMB_NAMES: &[&str] = &[
     {{#each breadcrumbNames}}
     "{{this}}",
@@ -41,9 +31,6 @@ impl FromJni for ast::{{this.name}} {
       noisy_log(env, "node {{this.name}}");
       let info = env
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
-        .l()?;
-      let breadcrumbs = env
-        .call_method(info, "getBreadcrumbs", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
         .l()?
         .jni_into(env)?;
       {{#each this.fields}}
@@ -57,7 +44,7 @@ impl FromJni for ast::{{this.name}} {
       {{/each}}
 
       Ok(ast::{{this.name}} {
-          breadcrumbs,
+          info,
           {{#each this.fields}}
           {{this.name}},
           {{/each}}
