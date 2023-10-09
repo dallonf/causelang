@@ -385,6 +385,13 @@ sealed interface ErrorLangType : ValueLangType {
         override fun friendlyMessage(ctx: Debug.DebugContext?) =
             "I don't understand what \"break\" means here, because it's not inside a loop."
     }
+
+    @Serializable
+    @SerialName("NotSupportedInRust")
+    object NotSupportedInRust : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?) =
+            "This feature is not yet supported in the Rust version of the compiler."
+    }
 }
 
 sealed interface ResolvedValueLangType : ValueLangType {

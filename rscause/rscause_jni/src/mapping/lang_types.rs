@@ -1,11 +1,12 @@
 use crate::util::{get_class_name, noisy_log};
 
-use super::{FromJni, JniInto};
+use super::{FromJni, IntoJni, JniInto};
 use anyhow::{anyhow, Result};
 use jni::{objects::JObject, JNIEnv};
 use rscause_compiler::lang_types::{
     AnyInferredLangType, CanonicalLangType, CanonicalLangTypeId, CanonicalTypeField,
-    FunctionLangType, InstanceLangType, LangType, PrimitiveLangType, SignalCanonicalLangType,
+    FunctionLangType, InferredType, InstanceLangType, LangType, PrimitiveLangType,
+    SignalCanonicalLangType,
 };
 use tap::prelude::*;
 
@@ -153,6 +154,26 @@ impl FromJni for AnyInferredLangType {
     }
 }
 
+impl<T> IntoJni for InferredType<T>
+where
+    T: IntoJni,
+{
+    fn into_jni<'local>(
+        &self,
+        env: &mut jni::JNIEnv<'local>,
+    ) -> Result<jni::objects::JValueOwned<'local>> {
+        match self {
+            InferredType::Known(known) => known.into_jni(env),
+            InferredType::Error => {
+                let error_class =
+                    env.find_class("com/dallonf/ktcause/types/ErrorLangType$NotSupportedInRust")?;
+                let error_instance = env.new_object(error_class, "()V", &[])?;
+                Ok(error_instance.into())
+            }
+        }
+    }
+}
+
 /// Java name: ResolvedValueLangType
 impl FromJni for LangType {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
@@ -234,5 +255,11 @@ impl FromJni for LangType {
                 class_name
             )),
         }
+    }
+}
+
+impl IntoJni for FunctionLangType {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<jni::objects::JValueOwned<'local>> {
+        
     }
 }

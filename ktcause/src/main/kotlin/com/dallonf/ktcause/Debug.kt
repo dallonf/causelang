@@ -52,6 +52,7 @@ object Debug {
             subclass(ErrorLangType.NotVariable::class)
             subclass(ErrorLangType.OuterVariable::class)
             subclass(ErrorLangType.CannotBreakHere::class)
+            subclass(ErrorLangType.NotSupportedInRust::class)
         }
 
         // TODO: in 17.20 you'll be able to just pop @Serializable on a sealed interface

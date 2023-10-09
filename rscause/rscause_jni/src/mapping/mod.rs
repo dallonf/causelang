@@ -145,6 +145,15 @@ impl IntoJni for str {
     }
 }
 
+impl<T> IntoJni for Arc<T>
+where
+    T: IntoJni,
+{
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        self.as_ref().into_jni(env)
+    }
+}
+
 impl<T> IntoJni for Option<T>
 where
     T: IntoJni,
