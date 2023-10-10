@@ -1,8 +1,11 @@
 use crate::util::{get_class_name, noisy_log};
 
 use super::{FromJni, IntoJni, JniInto};
-use anyhow::{anyhow, Result};
-use jni::{objects::JObject, JNIEnv};
+use anyhow::{anyhow, Error, Result};
+use jni::{
+    objects::{JObject, JValueOwned},
+    JNIEnv,
+};
 use rscause_compiler::lang_types::{
     AnyInferredLangType, CanonicalLangType, CanonicalLangTypeId, CanonicalTypeField,
     FunctionLangType, InferredType, InstanceLangType, LangType, PrimitiveLangType,
@@ -134,6 +137,20 @@ pub fn jni_constraint_reference_to_inferred_lang_type(
     }
 }
 
+pub fn inferred_value_lang_type_to_jni_constraint_reference<'local, T: IntoJni>(
+    env: &mut JNIEnv<'local>,
+    lang_type: &InferredType<T>,
+) -> Result<JValueOwned<'local>> {
+    let jni_lang_type = lang_type.into_jni(env)?.l()?;
+    let constraint_reference = env.call_method(
+        &jni_lang_type,
+        "valueToConstraintReference",
+        "()Lcom/dallonf/ktcause/types/ConstraintReference;",
+        &[],
+    )?;
+    Ok(constraint_reference)
+}
+
 /// Java name: ValueLangType
 impl FromJni for AnyInferredLangType {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
@@ -258,8 +275,58 @@ impl FromJni for LangType {
     }
 }
 
+impl IntoJni for LangType {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        match self {
+            LangType::TypeReference(value_type) => {
+                let class = env.find_class("com/dallonf/ktcause/types/ConstraintValueLangType")?;
+                let jni_value_type = value_type.into_jni(env)?;
+                let result = env.new_object(
+                    class,
+                    "(Lcom/dallonf/ktcause/types/ResolvedValueLangType;)V",
+                    &[jni_value_type.borrow()],
+                )?;
+                Ok(result.into())
+            }
+            LangType::Action => {
+                let class = env.find_class("com/dallonf/ktcause/types/ActionValueLangType")?;
+                let result = env.new_object(class, "()V", &[])?;
+                Ok(result.into())
+            }
+            LangType::Instance(instance_type) => instance_type.into_jni(env),
+            LangType::Function(function_type) => function_type.into_jni(env),
+            LangType::Primitive(primitive_type) => primitive_type.into_jni(env),
+            LangType::Anything => {
+                let class = env.find_class("com/dallonf/ktcause/types/AnythingValueLangType")?;
+                let result = env.new_object(class, "()V", &[])?;
+                Ok(result.into())
+            }
+        }
+    }
+}
+
 impl IntoJni for FunctionLangType {
-    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<jni::objects::JValueOwned<'local>> {
-        
+    fn into_jni<'local>(
+        &self,
+        env: &mut jni::JNIEnv<'local>,
+    ) -> Result<jni::objects::JValueOwned<'local>> {
+        let class = env.find_class("com/dallonf/ktcause/types/FunctionValueLangType")?;
+        let name = self.name.into_jni(env)?;
+        let return_type =
+            inferred_value_lang_type_to_jni_constraint_reference(env, &self.return_type)?;
+        let params = vec![].conv::<Vec<()>>().into_jni(env)?;
+        let result = env.new_object(
+            class,
+            "(Ljava/lang/String;Lcom/dallonf/ktcause/types/ConstraintReference;Ljava/util/List;)V",
+            &[name.borrow(), params.borrow(), return_type.borrow()],
+        )?;
+        Ok(result.into())
+    }
+}
+
+impl IntoJni for InstanceLangType {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        let class = env.find_class("com/dallonf/ktcause/types/InstanceValueLangType")?;
+        let jni_canonical_type = self.type_id.into_jni(env)?;
     }
 }
