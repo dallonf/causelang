@@ -86,7 +86,8 @@ object Compiler {
 
                     val error = objectType.getRuntimeError()
                     if (objectType is ConstraintValueLangType && objectType.valueType is InstanceValueLangType) {
-                        types[objectType.valueType.canonicalType.id] = objectType.valueType.canonicalType
+                        val canonicalType = resolved.canonicalTypes[objectType.valueType.canonicalTypeId]!!
+                        types[objectType.valueType.canonicalTypeId] = canonicalType
                         exports[declaration.name.text] =
                             CompiledFile.CompiledExport.Constraint(objectType.asConstraintReference())
                     } else if (error != null) {
@@ -101,7 +102,8 @@ object Compiler {
 
                     val error = signalType.getRuntimeError()
                     if (signalType is ConstraintValueLangType && signalType.valueType is InstanceValueLangType) {
-                        types[signalType.valueType.canonicalType.id] = signalType.valueType.canonicalType
+                        val canonicalType = resolved.canonicalTypes[signalType.valueType.canonicalTypeId]!!
+                        types[signalType.valueType.canonicalTypeId] = canonicalType
                         exports[declaration.name.text] =
                             CompiledFile.CompiledExport.Constraint(signalType.asConstraintReference())
                     } else if (error != null) {
@@ -789,7 +791,7 @@ object Compiler {
             is ConstraintValueLangType -> {
                 when (calleeType.valueType) {
                     is InstanceValueLangType -> {
-                        if (calleeType.valueType.canonicalType.isUnique()) {
+                        if (calleeType.valueType.canonicalTypeId.isUnique) {
                             // ignore this, unique objects don't need to be constructed.
                             // Kiiind of abusing PopScope here to keep the value in place while popping
                             // any erroneous params
@@ -797,14 +799,14 @@ object Compiler {
                                 Instruction.PopScope(expression.parameters.size), expression.info
                             )
                         } else {
-                            when (calleeType.valueType.canonicalType) {
-                                is CanonicalLangType.SignalCanonicalLangType -> procedure.writeInstruction(
+                            when (calleeType.valueType.canonicalTypeId.category) {
+                                CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL -> procedure.writeInstruction(
                                     Instruction.Construct(
                                         arity = expression.parameters.size
                                     ), expression.info
                                 )
 
-                                is CanonicalLangType.ObjectCanonicalLangType -> procedure.writeInstruction(
+                                CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT -> procedure.writeInstruction(
                                     Instruction.Construct(
                                         arity = expression.parameters.size
                                     ), expression.info
@@ -879,7 +881,7 @@ object Compiler {
             is ConstraintValueLangType -> {
                 when (calleeType.valueType) {
                     is InstanceValueLangType -> {
-                        if (calleeType.valueType.canonicalType.isUnique()) {
+                        if (calleeType.valueType.canonicalTypeId.isUnique) {
                             // ignore this, unique objects don't need to be constructed.
                             // Kiiind of abusing PopScope here to keep the value in place while popping
                             // any erroneous params
@@ -887,14 +889,15 @@ object Compiler {
                                 Instruction.PopScope(expression.parameters.size), expression.info
                             )
                         } else {
-                            when (calleeType.valueType.canonicalType) {
-                                is CanonicalLangType.SignalCanonicalLangType -> procedure.writeInstruction(
+                            when (calleeType.valueType.canonicalTypeId.category) {
+
+                                CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL -> procedure.writeInstruction(
                                     Instruction.Construct(
                                         arity = expression.parameters.size
                                     ), expression.info
                                 )
 
-                                is CanonicalLangType.ObjectCanonicalLangType -> procedure.writeInstruction(
+                                CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT -> procedure.writeInstruction(
                                     Instruction.Construct(
                                         arity = expression.parameters.size
                                     ), expression.info
@@ -978,9 +981,10 @@ object Compiler {
         // which already had to do all this work to determine the type
         val objType =
             ctx.resolved.getInferredType(expression.objectExpression.info.breadcrumbs) as InstanceValueLangType
-        val fields = when (val canonical = objType.canonicalType) {
-            is CanonicalLangType.ObjectCanonicalLangType -> canonical.fields
-            is CanonicalLangType.SignalCanonicalLangType -> canonical.fields
+        val canonicalType = ctx.resolved.canonicalTypes[objType.canonicalTypeId]!!
+        val fields = when (canonicalType) {
+            is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.fields
+            is CanonicalLangType.SignalCanonicalLangType -> canonicalType.fields
         }
         val fieldIndex = fields.indexOfFirst { it.name == expression.memberIdentifier.text }
 

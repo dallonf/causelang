@@ -12,6 +12,7 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.encoding.encodeStructure
+import java.lang.AssertionError
 
 @Serializable(with = CanonicalLangTypeIdSerializer::class)
 data class CanonicalLangTypeId(
@@ -19,7 +20,14 @@ data class CanonicalLangTypeId(
     val parentName: String? = null,
     val name: String?,
     val number: UInt,
+    val category: CanonicalLangTypeIdCategory,
+    val isUnique: Boolean = false,
 ) {
+    enum class CanonicalLangTypeIdCategory {
+        SIGNAL,
+        OBJECT,
+    }
+
     override fun toString(): String {
         val name = name ?: "<anonymous>"
         val numberIfApplicable = if (number == 0.toUInt()) "" else number
@@ -30,6 +38,8 @@ data class CanonicalLangTypeId(
             "${path}:${name}${numberIfApplicable}"
         }
     }
+
+    fun asConstraintReference() = ConstraintReference.ResolvedConstraint(InstanceValueLangType(this))
 }
 
 class CanonicalLangTypeIdSerializer : KSerializer<CanonicalLangTypeId> {
@@ -61,6 +71,15 @@ sealed interface CanonicalLangType {
     ) : CanonicalLangType {
         override fun isUnique() = fields.isEmpty()
 
+        init {
+            if (id.category != CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL) {
+                throw AssertionError("Tried to assign a non-signal ID to an SignalCanonicalLangType")
+            }
+            if (isUnique() != id.isUnique) {
+                throw AssertionError("Tried to assign a ${if (id.isUnique) "unique" else "non-unique"} ID to a ${if (isUnique()) "unique" else "non-unique"} type")
+            }
+        }
+
         @Transient
         private var recursivePending: Int = 0
         override fun isPending(): Boolean {
@@ -87,6 +106,14 @@ sealed interface CanonicalLangType {
     data class ObjectCanonicalLangType(
         override val id: CanonicalLangTypeId, var name: String, var fields: List<ObjectField>
     ) : CanonicalLangType {
+        init {
+            if (id.category != CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT) {
+                throw AssertionError("Tried to assign a non-object ID to an ObjectCanonicalLangType")
+            }
+            if (isUnique() != id.isUnique) {
+                throw AssertionError("Tried to assign a ${if (id.isUnique) "unique" else "non-unique"} ID to a ${if (isUnique()) "unique" else "non-unique"} type")
+            }
+        }
 
         override fun isUnique() = fields.isEmpty()
 
@@ -115,7 +142,7 @@ sealed interface CanonicalLangType {
         fun asLangParameter() = LangParameter(name, valueConstraint)
     }
 
-    fun asConstraintReference() = ConstraintReference.ResolvedConstraint(InstanceValueLangType(this))
+    fun asConstraintReference() = ConstraintReference.ResolvedConstraint(InstanceValueLangType(this.id))
 }
 
 @Serializable
@@ -402,10 +429,10 @@ sealed interface ResolvedValueLangType : ValueLangType {
 
         return when (val constraintInstanceType = constraint.valueType) {
             is InstanceValueLangType -> {
-                this is InstanceValueLangType && this.canonicalType.id == constraintInstanceType.canonicalType.id ||
+                this is InstanceValueLangType && this.canonicalTypeId == constraintInstanceType.canonicalTypeId ||
                         // handle unique types
-                        (this is ConstraintValueLangType && this.tryGetCanonicalType()
-                            ?.let { it.isUnique() && it.id == constraintInstanceType.canonicalType.id } ?: false)
+                        (this is ConstraintValueLangType && this.tryGetCanonicalTypeId()
+                            ?.let { it.isUnique && it == constraintInstanceType.canonicalTypeId } ?: false)
             }
 
             is FunctionValueLangType -> {
@@ -437,7 +464,7 @@ sealed interface ResolvedValueLangType : ValueLangType {
             StopgapDictionaryLangType -> this is StopgapDictionaryLangType
             StopgapListLangType -> this is StopgapListLangType
 
-            AnySignalValueLangType -> this is InstanceValueLangType && this.canonicalType is CanonicalLangType.SignalCanonicalLangType
+            AnySignalValueLangType -> this is InstanceValueLangType && this.canonicalTypeId.category == CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL
             AnythingValueLangType -> true
 
             ActionValueLangType -> this is ActionValueLangType
@@ -458,9 +485,9 @@ sealed interface ResolvedValueLangType : ValueLangType {
 data class ConstraintValueLangType(val valueType: ResolvedValueLangType) : ResolvedValueLangType {
     override fun isPending() = valueType.isPending()
 
-    fun tryGetCanonicalType(): CanonicalLangType? {
+    fun tryGetCanonicalTypeId(): CanonicalLangTypeId? {
         return if (valueType is InstanceValueLangType) {
-            valueType.canonicalType
+            valueType.canonicalTypeId
         } else {
             null
         }
@@ -547,11 +574,7 @@ object StopgapDictionaryLangType : ResolvedValueLangType
 object StopgapListLangType : ResolvedValueLangType
 
 @Serializable(with = InstanceValueLangType.InstanceValueLangTypeSerializer::class)
-data class InstanceValueLangType(val canonicalType: CanonicalLangType) : ResolvedValueLangType {
-
-    override fun isPending() = canonicalType.isPending()
-    override fun getError() = canonicalType.getError()
-
+data class InstanceValueLangType(val canonicalTypeId: CanonicalLangTypeId) : ResolvedValueLangType {
     object InstanceValueLangTypeSerializer : KSerializer<InstanceValueLangType> {
         override val descriptor: SerialDescriptor
             get() = buildClassSerialDescriptor("Instance") {
@@ -563,7 +586,7 @@ data class InstanceValueLangType(val canonicalType: CanonicalLangType) : Resolve
                 descriptor
             ) {
                 encodeSerializableElement(
-                    descriptor, 0, CanonicalLangTypeId.serializer(), value.canonicalType.id
+                    descriptor, 0, CanonicalLangTypeId.serializer(), value.canonicalTypeId
                 )
             }
         }

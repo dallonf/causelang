@@ -101,7 +101,7 @@ object Debug {
             BadValueLangType -> "BadValue"
             is ConstraintValueLangType -> "TypeConstraint"
             is FunctionValueLangType -> "Function"
-            is InstanceValueLangType -> this.canonicalType.id.name ?: "object"
+            is InstanceValueLangType -> this.canonicalTypeId.name ?: "object"
             NeverContinuesValueLangType -> "NeverContinues"
             is OptionValueLangType -> "Option"
             is PrimitiveValueLangType -> when (this.kind) {

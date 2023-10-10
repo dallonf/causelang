@@ -25,14 +25,26 @@ object CoreFiles {
         val types = buildMap {
             add(
                 CanonicalLangType.ObjectCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "True", number = 0u),
+                    CanonicalLangTypeId(
+                        filename,
+                        name = "True",
+                        number = 0u,
+                        category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT,
+                        isUnique = true,
+                    ),
                     name = "True",
                     fields = emptyList(),
                 )
             )
             add(
                 CanonicalLangType.ObjectCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "False", number = 0u),
+                    CanonicalLangTypeId(
+                        filename,
+                        name = "False",
+                        number = 0u,
+                        category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT,
+                        isUnique = true,
+                    ),
                     name = "False",
                     fields = emptyList(),
                 )
@@ -40,7 +52,12 @@ object CoreFiles {
 
             add(
                 CanonicalLangType.SignalCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "Debug", number = 0u), name = "Debug", fields = listOf(
+                    CanonicalLangTypeId(
+                        filename,
+                        name = "Debug",
+                        number = 0u,
+                        category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL,
+                    ), name = "Debug", fields = listOf(
                         CanonicalLangType.ObjectField(
                             "value", AnythingValueLangType.toConstraint().asConstraintReference()
                         )
@@ -49,7 +66,12 @@ object CoreFiles {
             )
             add(
                 CanonicalLangType.SignalCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "TypeError", number = 0u), name = "TypeError", fields = listOf(
+                    CanonicalLangTypeId(
+                        filename,
+                        name = "TypeError",
+                        number = 0u,
+                        category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL
+                    ), name = "TypeError", fields = listOf(
                         CanonicalLangType.ObjectField(
                             "badValue", BadValueLangType.toConstraint().asConstraintReference()
                         )
@@ -58,7 +80,12 @@ object CoreFiles {
             )
             add(
                 CanonicalLangType.SignalCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "AssumptionBroken", number = 0u),
+                    CanonicalLangTypeId(
+                        filename,
+                        name = "AssumptionBroken",
+                        number = 0u,
+                        category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL,
+                    ),
                     name = "AssumptionBroken",
                     fields = listOf(
                         CanonicalLangType.ObjectField(
@@ -70,7 +97,13 @@ object CoreFiles {
             )
             add(
                 CanonicalLangType.SignalCanonicalLangType(
-                    CanonicalLangTypeId(filename, name = "RunawayLoop", number = 0u),
+                    CanonicalLangTypeId(
+                        filename,
+                        name = "RunawayLoop",
+                        number = 0u,
+                        category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL,
+                        isUnique = true,
+                    ),
                     name = "RunawayLoop",
                     fields = listOf(),
                     result = NeverContinuesValueLangType.toConstraint().asConstraintReference()
@@ -78,8 +111,8 @@ object CoreFiles {
             )
         }
 
-        val trueType = types[CanonicalLangTypeId(filename, name = "True", number = 0u)]!!
-        val falseType = types[CanonicalLangTypeId(filename, name = "False", number = 0u)]!!
+        val trueType = types.entries.first { it.key.name == "True" }.value
+        val falseType = types.entries.first { it.key.name == "False" }.value
 
         val exports = buildMap<String, CompiledExport> {
             put(
@@ -328,10 +361,26 @@ object CoreFiles {
         val dictionaryType = ConstraintReference.ResolvedConstraint(StopgapDictionaryLangType)
         val listType = ConstraintReference.ResolvedConstraint(StopgapListLangType)
 
-        var maybeStack: OptionValueLangType
-        val emptyId = CanonicalLangTypeId(filename, name = "Empty", number = 0u)
-        val stackId = CanonicalLangTypeId(filename, name = "Stack", number = 0u)
-        val keyValuePairId = CanonicalLangTypeId(filename, name = "KeyValuePair", number = 0u)
+        val emptyId = CanonicalLangTypeId(
+            filename, name = "Empty", number = 0u,
+            category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT,
+            isUnique = true
+        )
+        val stackId = CanonicalLangTypeId(
+            filename, name = "Stack", number = 0u, category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT
+        )
+        val keyValuePairId = CanonicalLangTypeId(
+            filename,
+            name = "KeyValuePair",
+            number = 0u,
+            category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT
+        )
+        val maybeStack = OptionValueLangType(
+            listOf(
+                emptyId.asConstraintReference(),
+                stackId.asConstraintReference(),
+            )
+        )
         val types = buildMap {
             val empty = add(
                 CanonicalLangType.ObjectCanonicalLangType(
@@ -353,13 +402,6 @@ object CoreFiles {
                         CanonicalLangType.ObjectField("key", LangPrimitiveKind.TEXT.toConstraintReference()),
                         CanonicalLangType.ObjectField("value", AnythingValueLangType.valueToConstraintReference()),
                     )
-                )
-            )
-
-            maybeStack = OptionValueLangType(
-                listOf(
-                    empty.asConstraintReference(),
-                    stack.asConstraintReference(),
                 )
             )
 

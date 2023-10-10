@@ -5,6 +5,10 @@ import com.dallonf.ktcause.parse.parse
 import com.dallonf.ktcause.types.*
 
 data class CodeBundle(val files: Map<String, CompiledFile>, val compileErrors: List<Resolver.ResolverError>) {
+    val allTypes by lazy {
+        mapOf(*files.values.flatMap { file -> file.types.entries }.map { it.toPair() }.toTypedArray())
+    }
+
     fun getFileDescriptor(filePath: String): Resolver.ExternalFileDescriptor {
         return requireFile(filePath).toFileDescriptor()
     }
@@ -19,11 +23,14 @@ data class CodeBundle(val files: Map<String, CompiledFile>, val compileErrors: L
         val found = requireNotNull(descriptor.exports[name]) { "$filePath doesn't have an export called $name." }
 
         if (found is ConstraintValueLangType && found.valueType is InstanceValueLangType) {
-            return found.valueType.canonicalType
+            return getType(found.valueType.canonicalTypeId)
         } else {
             throw LangVm.VmError("$name isn't a canonical type.")
         }
     }
+
+    fun getType(canonicalTypeId: CanonicalLangTypeId): CanonicalLangType =
+        allTypes[canonicalTypeId] ?: throw LangVm.VmError("$canonicalTypeId isn't a known type")
 
     fun getTypeId(filePath: String, name: String): CanonicalLangTypeId {
         return getType(filePath, name).id

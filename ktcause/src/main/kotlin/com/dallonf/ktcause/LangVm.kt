@@ -137,7 +137,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                     val signalName = run {
                         val type = identity.matchesType as? ConstraintReference.ResolvedConstraint
                         val canonicalType = type?.let { it.valueType as? InstanceValueLangType }
-                        val signalId = canonicalType?.canonicalType?.id
+                        val signalId = canonicalType?.canonicalTypeId
                         signalId?.name
                     }
                     val patternDescription = signalName?.let { " for $it" }
@@ -485,10 +485,11 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                         when (constructorType) {
                             is InstanceValueLangType -> {
-                                if (constructorType.canonicalType.isUnique()) {
+                                if (constructorType.canonicalTypeId.isUnique) {
                                     stack.push(constructorConstraint)
                                 } else {
-                                    val obj = RuntimeValue.RuntimeObject(constructorType.canonicalType, params)
+                                    val canonicalType = codeBundle.getType(constructorType.canonicalTypeId)
+                                    val obj = RuntimeValue.RuntimeObject(canonicalType, params)
                                     stack.push(obj)
                                 }
                             }
@@ -717,7 +718,8 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                                 is RuntimeValue.RuntimeObject -> it
                                 is RuntimeValue.RuntimeTypeConstraint -> {
                                     if (it.valueType is InstanceValueLangType) {
-                                        RuntimeValue.RuntimeObject(it.valueType.canonicalType, emptyList())
+                                        val canonicalType = codeBundle.getType(it.valueType.canonicalTypeId)
+                                        RuntimeValue.RuntimeObject(canonicalType, emptyList())
                                     } else {
                                         throw InternalVmError("Can't cause $it.")
                                     }
