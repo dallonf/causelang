@@ -347,7 +347,10 @@ object Resolver {
                         is ConstraintValueLangType -> {
                             when (val valueType = calleeType.valueType) {
                                 is InstanceValueLangType -> {
-                                    val canonicalType = valueType.canonicalType
+                                    val canonicalType =
+                                        knownCanonicalTypes[valueType.canonicalTypeId] ?: return resolveWith(
+                                            ValueLangType.Pending
+                                        )
                                     val fields = when (canonicalType) {
                                         is CanonicalLangType.SignalCanonicalLangType -> canonicalType.fields
                                         is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.fields
@@ -536,10 +539,10 @@ object Resolver {
                                     return@eachPendingNode
                                 }
 
-                                is InstanceValueLangType -> signalType.canonicalType
+                                is InstanceValueLangType -> knownCanonicalTypes[signalType.canonicalTypeId]
 
-                                is ConstraintValueLangType -> signalType.tryGetCanonicalType()?.let {
-                                    if (it.isUnique()) it else null
+                                is ConstraintValueLangType -> signalType.tryGetCanonicalTypeId()?.let {
+                                    if (it.isUnique) knownCanonicalTypes[it] else null
                                 } ?: run {
                                     resolveWith(ErrorLangType.NotCausable)
                                     return@eachPendingNode
@@ -670,12 +673,13 @@ object Resolver {
                                     it.value is ResolvedValueLangType && it.value !is ActionValueLangType && it.value !is NeverContinuesValueLangType
                                 }
                                 if (nonActionReturns.isNotEmpty()) {
-                                    resolveWith(ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
-                                        types = nonActionReturns.map {
-                                            ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
-                                                it.value, it.source!!
-                                            )
-                                        })
+                                    resolveWith(
+                                        ErrorLangType.ActionIncompatibleWithValueTypes(actions = actionReturns.map { it.source!! },
+                                            types = nonActionReturns.map {
+                                                ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                                                    it.value, it.source!!
+                                                )
+                                            })
                                     )
                                     return@eachPendingNode
                                 }
@@ -757,7 +761,7 @@ object Resolver {
                                 // TODO: it's kinda weird that the resolution of
                                 // which field is being referenced isn't passed to the compiler
                                 is InstanceValueLangType -> {
-                                    val fields = when (val type = obj.canonicalType) {
+                                    val fields = when (val type = knownCanonicalTypes[obj.canonicalTypeId]!!) {
                                         is CanonicalLangType.ObjectCanonicalLangType -> type.fields
                                         is CanonicalLangType.SignalCanonicalLangType -> type.fields
                                     }
@@ -801,8 +805,8 @@ object Resolver {
                         is EffectStatementNode -> {
                             val resultType = run result@{
                                 val conditionType = getResolvedTypeOf(node.pattern).let {
-                                    if (it is InstanceValueLangType && it.canonicalType is CanonicalLangType.SignalCanonicalLangType) {
-                                        it.canonicalType
+                                    if (it is InstanceValueLangType && it.canonicalTypeId.category == CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL) {
+                                        knownCanonicalTypes[it.canonicalTypeId] as CanonicalLangType.SignalCanonicalLangType
                                     } else {
                                         when (it) {
                                             is ValueLangType.Pending, is ErrorLangType -> {
@@ -908,34 +912,43 @@ object Resolver {
 
                         is ObjectType -> {
                             val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
-                            val id = CanonicalLangTypeId(
-                                path, canonicalIdTag.parentName, node.name.text, canonicalIdTag.index
-                            )
-                            val objectType = registerObjectType(id, node.name.text)
-
-                            objectType.fields = node.fields?.map { field ->
+                            val fields = node.fields?.map { field ->
                                 val fieldType = getResolvedTypeOf(field.typeConstraint).asConstraintReference()
                                 CanonicalLangType.ObjectField(field.name.text, fieldType)
                             } ?: emptyList()
+                            val id = CanonicalLangTypeId(
+                                path,
+                                canonicalIdTag.parentName,
+                                node.name.text,
+                                canonicalIdTag.index,
+                                category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT,
+                                isUnique = fields.isEmpty()
+                            )
+                            val objectType = registerObjectType(id, node.name.text)
 
-                            resolveWith(ConstraintValueLangType(InstanceValueLangType(objectType)))
+                            objectType.fields = fields
+
+                            resolveWith(ConstraintValueLangType(InstanceValueLangType(id)))
                         }
 
                         is SignalType -> {
                             val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
-                            val id = CanonicalLangTypeId(
-                                path, canonicalIdTag.parentName, node.name.text, canonicalIdTag.index
-                            )
-                            val signalType = registerSignalType(id, node.name.text)
-
-                            signalType.fields = node.fields?.map { field ->
+                            val fields = node.fields?.map { field ->
                                 val fieldType = getResolvedTypeOf(field.typeConstraint).asConstraintReference()
                                 CanonicalLangType.ObjectField(field.name.text, fieldType)
                             } ?: emptyList()
+                            val id = CanonicalLangTypeId(
+                                path, canonicalIdTag.parentName, node.name.text, canonicalIdTag.index,
+                                category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL,
+                                isUnique = fields.isEmpty()
+                            )
+                            val signalType = registerSignalType(id, node.name.text)
+
+                            signalType.fields = fields
                             signalType.result = node.result?.let { getResolvedTypeOf(it).asConstraintReference() }
                                 ?: ActionValueLangType.valueToConstraintReference()
 
-                            resolveWith(ConstraintValueLangType(InstanceValueLangType(signalType)))
+                            resolveWith(ConstraintValueLangType(InstanceValueLangType(id)))
                         }
 
                         is OptionType -> {

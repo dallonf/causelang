@@ -61,7 +61,7 @@ class EarlyReturns {
         }
         TestUtils.expectNoCompileErrors(vm)
         val nothing = RuntimeValue.RuntimeTypeConstraint(
-            InstanceValueLangType(vm.codeBundle.getType("project/test.cau", "Nothing"))
+            InstanceValueLangType(vm.codeBundle.getType("project/test.cau", "Nothing").id)
         )
         runMainExpectingDebugValues(
             vm, "project/test.cau", listOf(

@@ -13,7 +13,13 @@ import kotlin.test.assertEquals
 class EffectsBasicTest {
     @Test
     fun interceptSignal() {
-        val interceptThisTypeId = CanonicalLangTypeId("test/test.cau", name = "InterceptThis", number = 0u)
+        val interceptThisTypeId = CanonicalLangTypeId(
+            "test/test.cau",
+            name = "InterceptThis",
+            number = 0u,
+            category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL,
+            isUnique = true
+        )
         val interceptThisType = CanonicalLangType.SignalCanonicalLangType(
             interceptThisTypeId,
             interceptThisTypeId.name!!,
@@ -62,7 +68,12 @@ class EffectsBasicTest {
 
     @Test
     fun getValuesFromCapturedSignal() {
-        val greetTypeId = CanonicalLangTypeId("test/test.cau", name = "Greet", number = 0u)
+        val greetTypeId = CanonicalLangTypeId(
+            "test/test.cau",
+            name = "Greet",
+            number = 0u,
+            category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL
+        )
         val greetType = CanonicalLangType.SignalCanonicalLangType(
             greetTypeId, greetTypeId.name!!, listOf(
                 CanonicalLangType.ObjectField(

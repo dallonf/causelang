@@ -10,7 +10,8 @@ class IoTest {
     fun ioFile(): CompiledFile {
         val print = CanonicalLangType.SignalCanonicalLangType(
             CanonicalLangTypeId(
-                "test/io.cau", name = "Print", number = 0u
+                "test/io.cau", name = "Print", number = 0u,
+                category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL
             ), "Print", fields = listOf(
                 CanonicalLangType.ObjectField(
                     "message", LangPrimitiveKind.TEXT.toConstraintLangType().asConstraintReference()
@@ -19,7 +20,9 @@ class IoTest {
         )
         val prompt = CanonicalLangType.SignalCanonicalLangType(
             CanonicalLangTypeId(
-                "test/io.cau", name = "Prompt", number = 0u
+                "test/io.cau", name = "Prompt", number = 0u,
+                category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL,
+                isUnique = true,
             ),
             "Prompt",
             fields = listOf(),

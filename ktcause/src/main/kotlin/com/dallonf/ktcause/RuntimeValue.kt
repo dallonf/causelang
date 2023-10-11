@@ -52,13 +52,13 @@ sealed class RuntimeValue {
 
     // TODO: probably want to make it harder to make an invalid RuntimeObject
     data class RuntimeObject(val typeDescriptor: CanonicalLangType, val values: List<RuntimeValue>) : RuntimeValue() {
-        override fun typeOf() = InstanceValueLangType(typeDescriptor)
+        override fun typeOf() = InstanceValueLangType(typeDescriptor.id)
     }
 
     data class RuntimeTypeConstraint(val valueType: ResolvedValueLangType) : RuntimeValue() {
-        fun tryGetCanonicalType(): CanonicalLangType? {
+        fun tryGetCanonicalTypeId(): CanonicalLangTypeId? {
             return if (valueType is InstanceValueLangType) {
-                valueType.canonicalType
+                valueType.canonicalTypeId
             } else {
                 null
             }
@@ -148,8 +148,8 @@ sealed class RuntimeValue {
 
             is BadValueLangType -> this is BadValue
 
-            is InstanceValueLangType -> (this is RuntimeObject && this.typeDescriptor.id == valueType.canonicalType.id) || (valueType.canonicalType.isUnique() && this is RuntimeTypeConstraint && (this.tryGetCanonicalType()
-                ?.let { it.id == valueType.canonicalType.id } ?: false))
+            is InstanceValueLangType -> (this is RuntimeObject && this.typeDescriptor.id == valueType.canonicalTypeId) || (valueType.canonicalTypeId.isUnique && this is RuntimeTypeConstraint && (this.tryGetCanonicalTypeId()
+                ?.let { it == valueType.canonicalTypeId } ?: false))
 
             // this could _theoretically_ be a thing in some scenarios, but none that I can think of off the top of
             // my head
@@ -274,12 +274,7 @@ sealed class RuntimeValue {
 
             is RuntimeTypeConstraint -> buildJsonObject {
                 put("#type", "RuntimeTypeConstraint")
-                val idShortcut = (this@RuntimeValue.valueType as? InstanceValueLangType)?.let {
-                    when (val canonicalType = it.canonicalType) {
-                        is CanonicalLangType.ObjectCanonicalLangType -> canonicalType.id
-                        is CanonicalLangType.SignalCanonicalLangType -> canonicalType.id
-                    }
-                }
+                val idShortcut = (this@RuntimeValue.valueType as? InstanceValueLangType)?.canonicalTypeId
 
                 if (idShortcut != null) {
                     put("id", idShortcut.toString())
