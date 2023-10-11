@@ -8,6 +8,13 @@ import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 
 object RustCompiler {
+    enum class Mode {
+        ALWAYS,
+        NEVER,
+        IF_SUPPORTED,
+    }
+    val mode = Mode.NEVER
+
     init {
         System.loadLibrary("rscause_jni")
     }
@@ -23,9 +30,15 @@ object RustCompiler {
         externalFiles: Map<String, Resolver.ExternalFileDescriptor>
     )
 
-    fun canRunRustCompiler(ast: FileNode): Boolean {
-        val incompatibleNodes = getIncompatibleNodeTypes(ast)
-        return !incompatibleNodes.any()
+    fun shouldRunRustCompiler(ast: FileNode): Boolean {
+        return when (mode) {
+            Mode.ALWAYS -> true
+            Mode.NEVER -> false
+            Mode.IF_SUPPORTED -> {
+                val incompatibleNodes = getIncompatibleNodeTypes(ast)
+                !incompatibleNodes.any()
+            }
+        }
     }
 
     fun compile(

@@ -84,7 +84,7 @@ class CodeBundleBuilder {
         ) {
             val otherFiles = referencedCompiledFiles.associate { it.path to it.toFileDescriptor() }
 
-            if (RustCompiler.canRunRustCompiler(file.ast)) {
+            if (RustCompiler.shouldRunRustCompiler(file.ast)) {
                 val canonicalTypes = run {
                     val allEntries = otherFiles.flatMap { it.value.types.entries }
                         // only supported core types for now

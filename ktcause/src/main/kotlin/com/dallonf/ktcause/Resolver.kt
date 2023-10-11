@@ -95,6 +95,11 @@ object Resolver {
 
         val resolvedTypes = mutableMapOf<ResolutionKey, ValueLangType>()
         val knownCanonicalTypes = mutableMapOf<CanonicalLangTypeId, CanonicalLangType>()
+        for (file in allOtherFiles.values) {
+            for ((id, type) in file.types) {
+                knownCanonicalTypes[id] = type
+            }
+        }
 
         fun registerObjectType(id: CanonicalLangTypeId, name: String): CanonicalLangType.ObjectCanonicalLangType {
             return knownCanonicalTypes.getOrPut(id) {

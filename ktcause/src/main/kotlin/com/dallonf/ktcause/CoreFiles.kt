@@ -390,9 +390,12 @@ object CoreFiles {
                 )
             )
 
-            val stack = add(
+            add(
                 CanonicalLangType.ObjectCanonicalLangType(
-                    stackId, name = "Stack", fields = emptyList()
+                    stackId, name = "Stack", fields = listOf(
+                        CanonicalLangType.ObjectField("top", AnythingValueLangType.valueToConstraintReference()),
+                        CanonicalLangType.ObjectField("next", maybeStack.valueToConstraintReference()),
+                    )
                 ),
             )
 
@@ -403,11 +406,6 @@ object CoreFiles {
                         CanonicalLangType.ObjectField("value", AnythingValueLangType.valueToConstraintReference()),
                     )
                 )
-            )
-
-            stack.fields = listOf(
-                CanonicalLangType.ObjectField("top", AnythingValueLangType.valueToConstraintReference()),
-                CanonicalLangType.ObjectField("next", maybeStack.valueToConstraintReference()),
             )
         }
 
