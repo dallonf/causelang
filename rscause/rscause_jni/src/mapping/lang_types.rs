@@ -7,9 +7,9 @@ use jni::{
     JNIEnv,
 };
 use rscause_compiler::lang_types::{
-    AnyInferredLangType, CanonicalLangType, CanonicalLangTypeId, CanonicalTypeField,
-    FunctionLangType, InferredType, InstanceLangType, LangType, PrimitiveLangType,
-    SignalCanonicalLangType,
+    AnyInferredLangType, CanonicalLangType, CanonicalLangTypeCategory, CanonicalLangTypeId,
+    CanonicalTypeField, FunctionLangType, InferredType, InstanceLangType, LangType,
+    PrimitiveLangType, SignalCanonicalLangType,
 };
 use tap::prelude::*;
 
@@ -42,10 +42,7 @@ impl FromJni for CanonicalLangTypeId {
             )?
             .l()?
             .jni_into(env)?;
-        let is_unique = env
-            .call_method(value, "isUnique", "()Z", &[])?
-            .z()?
-            .into();
+        let is_unique = env.call_method(value, "isUnique", "()Z", &[])?.z()?.into();
         Ok(Self {
             path,
             parent_name,
@@ -75,6 +72,42 @@ impl IntoJni for CanonicalLangTypeId {
             jni_is_unique.borrow(),
         ])?;
         Ok(result.into())
+    }
+}
+
+impl FromJni for CanonicalLangTypeCategory {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+        let value_ordinal = env.call_method(value, "ordinal", "()I", &[])?.i()?;
+        match value_ordinal {
+            0 => Ok(Self::Object),
+            1 => Ok(Self::Signal),
+        }
+    }
+}
+
+impl IntoJni for CanonicalLangTypeCategory {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        let class = env.find_class(
+            "com/dallonf/ktcause/types/CanonicalLangTypeId$CanonicalLangTypeIdCategory",
+        )?;
+        match self {
+            CanonicalLangTypeCategory::Object => {
+                let jni_result = env.get_static_field(
+                    class,
+                    "OBJECT",
+                    "Lcom/dallonf/ktcause/types/CanonicalLangTypeId$CanonicalLangTypeIdCategory;",
+                )?;
+                Ok(jni_result)
+            }
+            CanonicalLangTypeCategory::Signal => {
+                let jni_result = env.get_static_field(
+                    class,
+                    "SIGNAL",
+                    "Lcom/dallonf/ktcause/types/CanonicalLangTypeId$CanonicalLangTypeIdCategory;",
+                )?;
+                Ok(jni_result)
+            }
+        }
     }
 }
 
@@ -368,5 +401,22 @@ impl IntoJni for InstanceLangType {
             &[jni_canonical_type.borrow()],
         )?;
         Ok(result.into())
+    }
+}
+
+impl IntoJni for PrimitiveLangType {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        let class = env.find_class("com/dallonf/ktcause/types/PrimitiveValueLangType")?;
+        let kind_class = env.find_class("com/dallonf/ktcause/types/LangPrimitiveKind")?;
+        match self {
+            PrimitiveLangType::Text => {
+                let jni_text = env.get_static_field(
+                    kind_class,
+                    "TEXT",
+                    "Lcom/dallonf/ktcause/types/LangPrimitiveKind;",
+                )?;
+                Ok(jni_text)
+            }
+        }
     }
 }
