@@ -60,6 +60,9 @@ async function generateAstNodesRs() {
     return {
       name: `${node.name}Node`,
       variantName: node.name,
+      hasNodeFields: Object.entries(node.fields).some(([, type]) =>
+        isNode(type)
+      ),
       fields: Object.entries(node.fields).map(([name, type]) => {
         return {
           name: changeCase.snakeCase(name),

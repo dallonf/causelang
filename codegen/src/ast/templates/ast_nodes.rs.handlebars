@@ -95,6 +95,7 @@ impl From<&Arc<{{this.name}}>> for AnyAstNode {
 }
 impl AstNode for {{this.name}} {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
+        {{#if this.hasNodeFields}}
         let mut result = HashMap::new();
         {{#each this.fields}}
         {{#if this.isNode}}
@@ -105,6 +106,9 @@ impl AstNode for {{this.name}} {
         {{/if}}
         {{/each}}
         result
+        {{else}}
+        HashMap::new()
+        {{/if}}
     }
     fn info(&self) -> &NodeInfo {
         &self.info

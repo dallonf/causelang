@@ -291,8 +291,7 @@ impl From<&Arc<IdentifierNode>> for AnyAstNode {
 }
 impl AstNode for IdentifierNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
-        let mut result = HashMap::new();
-        result
+        HashMap::new()
     }
     fn info(&self) -> &NodeInfo {
         &self.info
@@ -471,8 +470,7 @@ impl From<&Arc<ImportPathNode>> for AnyAstNode {
 }
 impl AstNode for ImportPathNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
-        let mut result = HashMap::new();
-        result
+        HashMap::new()
     }
     fn info(&self) -> &NodeInfo {
         &self.info
@@ -724,8 +722,7 @@ impl From<&Arc<StringLiteralExpressionNode>> for AnyAstNode {
 }
 impl AstNode for StringLiteralExpressionNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
-        let mut result = HashMap::new();
-        result
+        HashMap::new()
     }
     fn info(&self) -> &NodeInfo {
         &self.info
