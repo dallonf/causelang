@@ -2,31 +2,19 @@ impl FromJni for tags::NodeTag {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
         let class_name = get_class_name(env, value)?;
         Ok(match class_name.as_str() {
-            "ReferencesFile" => {
-                tags::NodeTag::ReferencesFile(value.jni_into(env)?)
-            },
-            "BadFileReference" => {
-                tags::NodeTag::BadFileReference(value.jni_into(env)?)
-            },
-            "ValueGoesTo" => {
-                tags::NodeTag::ValueGoesTo(value.jni_into(env)?)
-            },
-            "ValueComesFrom" => {
-                tags::NodeTag::ValueComesFrom(value.jni_into(env)?)
-            },
+            "ReferencesFile" => tags::NodeTag::ReferencesFile(value.jni_into(env)?),
+            "BadFileReference" => tags::NodeTag::BadFileReference(value.jni_into(env)?),
+            "ValueGoesTo" => tags::NodeTag::ValueGoesTo(value.jni_into(env)?),
+            "ValueComesFrom" => tags::NodeTag::ValueComesFrom(value.jni_into(env)?),
             "FunctionCanReturnTypeOf" => {
                 tags::NodeTag::FunctionCanReturnTypeOf(value.jni_into(env)?)
-            },
-            "ReturnsFromFunction" => {
-                tags::NodeTag::ReturnsFromFunction(value.jni_into(env)?)
-            },
+            }
+            "ReturnsFromFunction" => tags::NodeTag::ReturnsFromFunction(value.jni_into(env)?),
             "FunctionCanReturnAction" => {
                 tags::NodeTag::FunctionCanReturnAction(value.jni_into(env)?)
-            },
-            "ActionReturn" => {
-                tags::NodeTag::ActionReturn(value.jni_into(env)?)
-            },
-            _ => panic!("Unknown class name for NodeTag: {}", class_name)
+            }
+            "ActionReturn" => tags::NodeTag::ActionReturn(value.jni_into(env)?),
+            _ => panic!("Unknown class name for NodeTag: {}", class_name),
         })
     }
 }
@@ -48,17 +36,13 @@ impl FromJni for tags::ReferencesFileNodeTag {
             let jni_node = JObject::from(jni_node);
             jni_node.jni_into(env)?
         };
-        Ok(tags::ReferencesFileNodeTag {
-            path,
-            export_name,
-        })
+        Ok(tags::ReferencesFileNodeTag { path, export_name })
     }
 }
 impl FromJni for tags::BadFileReferenceNodeTag {
-    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+    fn from_jni<'local>(env: &mut JNIEnv, _value: &JObject<'local>) -> Result<Self> {
         noisy_log(env, "tag BadFileReference");
-        Ok(tags::BadFileReferenceNodeTag {
-        })
+        Ok(tags::BadFileReferenceNodeTag {})
     }
 }
 impl FromJni for tags::ValueGoesToNodeTag {
@@ -66,14 +50,17 @@ impl FromJni for tags::ValueGoesToNodeTag {
         noisy_log(env, "tag ValueGoesTo");
         let destination: Breadcrumbs = {
             let jni_node = env
-                .call_method(value, "getDestination", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+                .call_method(
+                    value,
+                    "getDestination",
+                    "()Lcom/dallonf/ktcause/ast/Breadcrumbs;",
+                    &[],
+                )?
                 .l()?;
             let jni_node = JObject::from(jni_node);
             jni_node.jni_into(env)?
         };
-        Ok(tags::ValueGoesToNodeTag {
-            destination,
-        })
+        Ok(tags::ValueGoesToNodeTag { destination })
     }
 }
 impl FromJni for tags::ValueComesFromNodeTag {
@@ -81,14 +68,17 @@ impl FromJni for tags::ValueComesFromNodeTag {
         noisy_log(env, "tag ValueComesFrom");
         let source: Breadcrumbs = {
             let jni_node = env
-                .call_method(value, "getSource", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+                .call_method(
+                    value,
+                    "getSource",
+                    "()Lcom/dallonf/ktcause/ast/Breadcrumbs;",
+                    &[],
+                )?
                 .l()?;
             let jni_node = JObject::from(jni_node);
             jni_node.jni_into(env)?
         };
-        Ok(tags::ValueComesFromNodeTag {
-            source,
-        })
+        Ok(tags::ValueComesFromNodeTag { source })
     }
 }
 impl FromJni for tags::FunctionCanReturnTypeOfNodeTag {
@@ -96,7 +86,12 @@ impl FromJni for tags::FunctionCanReturnTypeOfNodeTag {
         noisy_log(env, "tag FunctionCanReturnTypeOf");
         let return_expression_value: Breadcrumbs = {
             let jni_node = env
-                .call_method(value, "getReturnExpressionValue", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+                .call_method(
+                    value,
+                    "getReturnExpressionValue",
+                    "()Lcom/dallonf/ktcause/ast/Breadcrumbs;",
+                    &[],
+                )?
                 .l()?;
             let jni_node = JObject::from(jni_node);
             jni_node.jni_into(env)?
@@ -111,14 +106,17 @@ impl FromJni for tags::ReturnsFromFunctionNodeTag {
         noisy_log(env, "tag ReturnsFromFunction");
         let function: Breadcrumbs = {
             let jni_node = env
-                .call_method(value, "getFunction", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+                .call_method(
+                    value,
+                    "getFunction",
+                    "()Lcom/dallonf/ktcause/ast/Breadcrumbs;",
+                    &[],
+                )?
                 .l()?;
             let jni_node = JObject::from(jni_node);
             jni_node.jni_into(env)?
         };
-        Ok(tags::ReturnsFromFunctionNodeTag {
-            function,
-        })
+        Ok(tags::ReturnsFromFunctionNodeTag { function })
     }
 }
 impl FromJni for tags::FunctionCanReturnActionNodeTag {
@@ -126,14 +124,17 @@ impl FromJni for tags::FunctionCanReturnActionNodeTag {
         noisy_log(env, "tag FunctionCanReturnAction");
         let return_expression: Breadcrumbs = {
             let jni_node = env
-                .call_method(value, "getReturnExpression", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+                .call_method(
+                    value,
+                    "getReturnExpression",
+                    "()Lcom/dallonf/ktcause/ast/Breadcrumbs;",
+                    &[],
+                )?
                 .l()?;
             let jni_node = JObject::from(jni_node);
             jni_node.jni_into(env)?
         };
-        Ok(tags::FunctionCanReturnActionNodeTag {
-            return_expression,
-        })
+        Ok(tags::FunctionCanReturnActionNodeTag { return_expression })
     }
 }
 impl FromJni for tags::ActionReturnNodeTag {
@@ -141,13 +142,16 @@ impl FromJni for tags::ActionReturnNodeTag {
         noisy_log(env, "tag ActionReturn");
         let function: Breadcrumbs = {
             let jni_node = env
-                .call_method(value, "getFunction", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+                .call_method(
+                    value,
+                    "getFunction",
+                    "()Lcom/dallonf/ktcause/ast/Breadcrumbs;",
+                    &[],
+                )?
                 .l()?;
             let jni_node = JObject::from(jni_node);
             jni_node.jni_into(env)?
         };
-        Ok(tags::ActionReturnNodeTag {
-            function,
-        })
+        Ok(tags::ActionReturnNodeTag { function })
     }
 }

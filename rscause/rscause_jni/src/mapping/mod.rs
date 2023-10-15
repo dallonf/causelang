@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    hash::{self, Hash},
-    sync::Arc,
-};
+use std::{collections::HashMap, hash::Hash, sync::Arc};
 
 use anyhow::Result;
 use jni::{
@@ -122,19 +118,19 @@ pub trait IntoJni {
 }
 
 impl IntoJni for () {
-    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+    fn into_jni<'local>(&self, _env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
         Ok(JValueOwned::Void)
     }
 }
 
 impl IntoJni for bool {
-    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+    fn into_jni<'local>(&self, _env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
         Ok(JValueOwned::Bool(*self as u8))
     }
 }
 
 impl IntoJni for i32 {
-    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+    fn into_jni<'local>(&self, _env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
         Ok(JValueOwned::Int(*self))
     }
 }

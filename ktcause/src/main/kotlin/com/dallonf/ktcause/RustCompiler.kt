@@ -19,9 +19,6 @@ object RustCompiler {
         System.loadLibrary("rscause_jni")
     }
 
-    external fun hello(): String
-    external fun logAst(ast: FileNode)
-
     external fun logResolvedTypes(
         path: String,
         ast: FileNode,

@@ -1,7 +1,7 @@
 use crate::util::{get_class_name, noisy_log};
 
 use super::{FromJni, IntoJni, JniInto};
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Result};
 use jni::{
     objects::{JObject, JValueOwned},
     JNIEnv,
@@ -387,7 +387,7 @@ impl IntoJni for FunctionLangType {
         let result = env.new_object(
             class,
             "(Ljava/lang/String;Lcom/dallonf/ktcause/types/ConstraintReference;Ljava/util/List;)V",
-            &[name.borrow(),  return_type.borrow(), params.borrow()],
+            &[name.borrow(), return_type.borrow(), params.borrow()],
         )?;
         Ok(result.into())
     }

@@ -1,14 +1,8 @@
-use std::{
-    borrow::BorrowMut,
-    collections::{hash_map, HashMap},
-};
+use std::collections::HashMap;
 
 use super::IntoJni;
 use anyhow::Result;
-use jni::{
-    objects::{JObject, JValue, JValueOwned},
-    JNIEnv,
-};
+use jni::objects::{JObject, JValueOwned};
 use rscause_compiler::compiled_file::{
     CompiledConstant, CompiledExport, CompiledFile, FunctionProcedureIdentity, Procedure,
     ProcedureIdentity,
