@@ -193,7 +193,7 @@ impl ResolveTypes for ast::CauseExpressionNode {
                     .ok_or(())
             })
             .and_then(|canonical_type| match canonical_type.as_ref() {
-                CanonicalLangType::Signal(signal_type) => Ok(signal_type.result.clone()),
+                CanonicalLangType::Signal(signal_type) => Ok(signal_type.result().clone()),
                 _ => Err(()),
             })
             .unwrap_or(InferredType::Error);

@@ -33,13 +33,48 @@ impl FromJni for CanonicalLangTypeId {
             .call_method(value, "getNumber-pVg5ArA", "()I", &[])?
             .i()?
             .pipe(|jni_number| jni_number as u32);
-
+        let category = env
+            .call_method(
+                value,
+                "getCategory",
+                "()Lcom/dallonf/ktcause/types/CanonicalLangTypeId$CanonicalLangTypeIdCategory;",
+                &[],
+            )?
+            .l()?
+            .jni_into(env)?;
+        let is_unique = env
+            .call_method(value, "isUnique", "()Z", &[])?
+            .z()?
+            .into();
         Ok(Self {
             path,
             parent_name,
             name,
             number,
+            category,
+            is_unique,
         })
+    }
+}
+
+impl IntoJni for CanonicalLangTypeId {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        let class = env.find_class("com.dallonf.ktcause.types.CanonicalLangTypeId")?;
+        let jni_path = self.path.into_jni(env)?;
+        let jni_parent_name = self.parent_name.into_jni(env)?;
+        let jni_name = self.name.clone().into_jni(env)?;
+        let jni_number = self.number.into_jni(env)?;
+        let jni_category = self.category.into_jni(env)?;
+        let jni_is_unique = self.is_unique.into_jni(env)?;
+        let result = env.new_object(class, "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILcom/dallonf/ktcause/types/CanonicalLangTypeId$CanonicalLangTypeIdCategory;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V", &[
+            jni_path.borrow(),
+            jni_parent_name.borrow(),
+            jni_name.borrow(),
+            jni_number.borrow(),
+            jni_category.borrow(),
+            jni_is_unique.borrow(),
+        ])?;
+        Ok(result.into())
     }
 }
 
@@ -76,12 +111,11 @@ impl FromJni for SignalCanonicalLangType {
             .jni_into(env)?;
         noisy_log(env, "SignalCanonicalLangType::from_jni - got fields");
 
-        Ok(Self {
+        Ok(Self::new(
             type_id,
-            fields,
-            // TODO: hardcoded
-            result: LangType::Action.into(),
-        })
+            fields, // TODO: hardcoded
+            LangType::Action.into(),
+        ))
     }
 }
 
@@ -328,5 +362,11 @@ impl IntoJni for InstanceLangType {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
         let class = env.find_class("com/dallonf/ktcause/types/InstanceValueLangType")?;
         let jni_canonical_type = self.type_id.into_jni(env)?;
+        let result = env.new_object(
+            class,
+            "(Lcom/dallonf/ktcause/types/CanonicalLangTypeId;)V",
+            &[jni_canonical_type.borrow()],
+        )?;
+        Ok(result.into())
     }
 }

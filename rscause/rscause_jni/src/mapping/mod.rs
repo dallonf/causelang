@@ -139,9 +139,21 @@ impl IntoJni for i32 {
     }
 }
 
+impl IntoJni for u32 {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        (*self as i32).into_jni(env)
+    }
+}
+
 impl IntoJni for str {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
         env.new_string(self).map(Into::into).map_err(Into::into)
+    }
+}
+
+impl IntoJni for String {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        self.as_str().into_jni(env)
     }
 }
 
