@@ -101,18 +101,26 @@ object Resolver {
             }
         }
 
-        fun registerObjectType(id: CanonicalLangTypeId, name: String): CanonicalLangType.ObjectCanonicalLangType {
+        fun registerObjectType(
+            id: CanonicalLangTypeId,
+            name: String,
+            fields: List<CanonicalLangType.ObjectField>
+        ): CanonicalLangType.ObjectCanonicalLangType {
             return knownCanonicalTypes.getOrPut(id) {
                 CanonicalLangType.ObjectCanonicalLangType(
-                    id, name, listOf()
+                    id, name, fields
                 )
             } as CanonicalLangType.ObjectCanonicalLangType
         }
 
-        fun registerSignalType(id: CanonicalLangTypeId, name: String): CanonicalLangType.SignalCanonicalLangType {
+        fun registerSignalType(
+            id: CanonicalLangTypeId,
+            name: String,
+            fields: List<CanonicalLangType.ObjectField>
+        ): CanonicalLangType.SignalCanonicalLangType {
             return knownCanonicalTypes.getOrPut(id) {
                 CanonicalLangType.SignalCanonicalLangType(
-                    id, name, listOf(), ConstraintReference.Pending
+                    id, name, fields, ConstraintReference.Pending
                 )
             } as CanonicalLangType.SignalCanonicalLangType
         }
@@ -929,9 +937,7 @@ object Resolver {
                                 category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT,
                                 isUnique = fields.isEmpty()
                             )
-                            val objectType = registerObjectType(id, node.name.text)
-
-                            objectType.fields = fields
+                            registerObjectType(id, node.name.text, fields)
 
                             resolveWith(ConstraintValueLangType(InstanceValueLangType(id)))
                         }
@@ -947,9 +953,7 @@ object Resolver {
                                 category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL,
                                 isUnique = fields.isEmpty()
                             )
-                            val signalType = registerSignalType(id, node.name.text)
-
-                            signalType.fields = fields
+                            val signalType = registerSignalType(id, node.name.text, fields)
                             signalType.result = node.result?.let { getResolvedTypeOf(it).asConstraintReference() }
                                 ?: ActionValueLangType.valueToConstraintReference()
 
