@@ -56,7 +56,7 @@ class CanonicalLangTypeIdSerializer : KSerializer<CanonicalLangTypeId> {
 sealed interface CanonicalLangType {
     val id: CanonicalLangTypeId
 
-    fun isPending(): Boolean
+    fun isPending(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>): Boolean
     fun getError(): ErrorLangType?
 
     fun isUnique(): Boolean
@@ -82,10 +82,10 @@ sealed interface CanonicalLangType {
 
         @Transient
         private var recursivePending: Int = 0
-        override fun isPending(): Boolean {
+        override fun isPending(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>): Boolean {
             if (recursivePending > 0) return false
             recursivePending += 1
-            return (result.isPending() || fields.any { it.valueConstraint.isPending() }).also {
+            return (result.isPending(canonicalTypes) || fields.any { it.valueConstraint.isPending(canonicalTypes) }).also {
                 recursivePending -= 1
             }
         }
@@ -119,10 +119,10 @@ sealed interface CanonicalLangType {
 
         @Transient
         private var recursivePending: Int = 0
-        override fun isPending(): Boolean {
+        override fun isPending(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>): Boolean {
             if (recursivePending > 0) return false
             recursivePending += 1
-            return fields.any { it.valueConstraint.isPending() }.also {
+            return fields.any { it.valueConstraint.isPending(canonicalTypes) }.also {
                 recursivePending -= 1
             }
         }
@@ -155,10 +155,10 @@ sealed interface ValueLangType {
     @Serializable
     @SerialName("Pending")
     object Pending : ValueLangType {
-        override fun isPending() = true
+        override fun isPending(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>) = true
     }
 
-    fun isPending(): Boolean
+    fun isPending(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>): Boolean
 
     fun getRuntimeError(): ErrorLangType? = when (this) {
         is ErrorLangType -> this
@@ -211,7 +211,7 @@ sealed interface ValueLangType {
 
 
 sealed interface ErrorLangType : ValueLangType {
-    override fun isPending() = false
+    override fun isPending(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>) = false
 
     override fun getError() = this
 
@@ -422,7 +422,7 @@ sealed interface ErrorLangType : ValueLangType {
 }
 
 sealed interface ResolvedValueLangType : ValueLangType {
-    override fun isPending() = false
+    override fun isPending(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>) = false
 
     fun isAssignableTo(constraint: ConstraintValueLangType): Boolean {
         if (this is NeverContinuesValueLangType) return true
@@ -483,7 +483,8 @@ sealed interface ResolvedValueLangType : ValueLangType {
 @Serializable
 @SerialName("Constraint")
 data class ConstraintValueLangType(val valueType: ResolvedValueLangType) : ResolvedValueLangType {
-    override fun isPending() = valueType.isPending()
+    override fun isPending(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>) =
+        valueType.isPending(canonicalTypes)
 
     fun tryGetCanonicalTypeId(): CanonicalLangTypeId? {
         return if (valueType is InstanceValueLangType) {
@@ -510,9 +511,9 @@ sealed class ConstraintReference {
     @SerialName("Error")
     data class Error(val errorType: ErrorLangType) : ConstraintReference()
 
-    fun isPending() = when (this) {
+    fun isPending(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>) = when (this) {
         is Pending -> true
-        is ResolvedConstraint -> this.valueType.isPending()
+        is ResolvedConstraint -> this.valueType.isPending(canonicalTypes)
         else -> false
     }
 
@@ -541,7 +542,8 @@ sealed class ConstraintReference {
 data class FunctionValueLangType(
     val name: String?, val returnConstraint: ConstraintReference, val params: List<LangParameter>
 ) : ResolvedValueLangType {
-    override fun isPending(): Boolean = returnConstraint.isPending() || params.any() { it.valueConstraint.isPending() }
+    override fun isPending(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>): Boolean =
+        returnConstraint.isPending(canonicalTypes) || params.any() { it.valueConstraint.isPending(canonicalTypes) }
 
     override fun getError(): ErrorLangType? =
         returnConstraint.getError() ?: params.firstNotNullOfOrNull { it.valueConstraint.getError() }
@@ -595,6 +597,11 @@ data class InstanceValueLangType(val canonicalTypeId: CanonicalLangTypeId) : Res
             TODO("Not yet implemented")
         }
     }
+
+    override fun isPending(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>): Boolean {
+        val foundType = canonicalTypes[canonicalTypeId] ?: return true
+        return foundType.isPending(canonicalTypes)
+    }
 }
 
 @Serializable
@@ -620,7 +627,9 @@ data class OptionValueLangType(val options: List<ConstraintReference>) : Resolve
         }
     }
 
-    override fun isPending() = options.any { it.isPending() }
+    override fun isPending(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>) =
+        options.any { it.isPending(canonicalTypes) }
+
     override fun getError() = options.firstNotNullOfOrNull { it.getError() }
 
     fun isSupersetOf(otherType: ResolvedValueLangType): Boolean {

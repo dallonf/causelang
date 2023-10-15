@@ -247,7 +247,7 @@ object Resolver {
 
             fun getResolvedTypeOf(node: AstNode) = getResolvedTypeOf(node.info.breadcrumbs)
 
-            val pendingReferences = resolvedTypes.mapNotNull { if (it.value.isPending()) it.key else null }
+            val pendingReferences = resolvedTypes.mapNotNull { if (it.value.isPending(knownCanonicalTypes)) it.key else null }
             pendingReferences.forEach eachPendingNode@{ pendingKey ->
                 fun resolveWith(langType: ValueLangType) {
                     iterationResolvedReferences.add(pendingKey to langType)
@@ -304,7 +304,7 @@ object Resolver {
                             return@returnConstraint explicitReturnType
                         }
 
-                        if (canReturn.any { it.second.isPending() }) {
+                        if (canReturn.any { it.second.isPending(knownCanonicalTypes) }) {
                             return@returnConstraint ConstraintReference.Pending
                         }
 
@@ -411,7 +411,7 @@ object Resolver {
 
                     params.forEachIndexed { i, paramBreadcrumbs ->
                         expectedParams.getOrNull(i)?.let { expected ->
-                            if (expected.valueConstraint.isPending()) {
+                            if (expected.valueConstraint.isPending(knownCanonicalTypes)) {
                                 // Make sure parameters have resolved their constraints
                                 // before checking for other errors
                                 return
@@ -452,7 +452,7 @@ object Resolver {
 
                     if (missingParams.isNotEmpty()) {
                         resolveWith(ErrorLangType.MissingParameters(missingParams.map { it.name }))
-                    } else if (foundParams.all { !it.isPending() }) {
+                    } else if (foundParams.all { !it.isPending(knownCanonicalTypes) }) {
                         resolveWith(
                             when (returnConstraint) {
                                 is ConstraintReference.Pending -> ValueLangType.Pending
@@ -591,7 +591,7 @@ object Resolver {
 
                             var withValue = OptionValueLangType.from(node.withValue?.let { getResolvedTypeOf(it) }
                                 ?: AnythingValueLangType)
-                            if (withValue.isPending()) {
+                            if (withValue.isPending(knownCanonicalTypes)) {
                                 return@eachPendingNode
                             }
 
@@ -719,7 +719,7 @@ object Resolver {
                                     }
                                 }
 
-                                if (breakTypes.any { it.second.isPending() }) {
+                                if (breakTypes.any { it.second.isPending(knownCanonicalTypes) }) {
                                     return@eachPendingNode
                                 }
 
@@ -763,7 +763,7 @@ object Resolver {
                         is MemberExpression -> {
                             val obj = getResolvedTypeOf(node.objectExpression)
 
-                            if (obj.isPending()) {
+                            if (obj.isPending(knownCanonicalTypes)) {
                                 return@eachPendingNode
                             }
 
@@ -1028,7 +1028,7 @@ object Resolver {
             val resolved = changedResolutions.size
             for ((key, newType) in changedResolutions) {
                 val oldResolvedType = resolvedTypes[key]?.let {
-                    if (it.isPending()) null else it
+                    if (it.isPending(knownCanonicalTypes)) null else it
                 }
 
                 if (oldResolvedType != null) {
