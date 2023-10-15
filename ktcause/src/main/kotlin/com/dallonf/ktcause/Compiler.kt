@@ -65,7 +65,6 @@ object Compiler {
     }
 
     fun compile(fileNode: FileNode, analyzed: AnalyzedNode, resolved: ResolvedFile): CompiledFile {
-        val types = mutableMapOf<CanonicalLangTypeId, CanonicalLangType>()
         val exports = mutableMapOf<String, CompiledFile.CompiledExport>()
         val ctx = CompilerContext(fileNode, analyzed, resolved, procedures = mutableListOf())
 
@@ -86,8 +85,6 @@ object Compiler {
 
                     val error = objectType.getRuntimeError()
                     if (objectType is ConstraintValueLangType && objectType.valueType is InstanceValueLangType) {
-                        val canonicalType = resolved.canonicalTypes[objectType.valueType.canonicalTypeId]!!
-                        types[objectType.valueType.canonicalTypeId] = canonicalType
                         exports[declaration.name.text] =
                             CompiledFile.CompiledExport.Constraint(objectType.asConstraintReference())
                     } else if (error != null) {
@@ -102,8 +99,6 @@ object Compiler {
 
                     val error = signalType.getRuntimeError()
                     if (signalType is ConstraintValueLangType && signalType.valueType is InstanceValueLangType) {
-                        val canonicalType = resolved.canonicalTypes[signalType.valueType.canonicalTypeId]!!
-                        types[signalType.valueType.canonicalTypeId] = canonicalType
                         exports[declaration.name.text] =
                             CompiledFile.CompiledExport.Constraint(signalType.asConstraintReference())
                     } else if (error != null) {
@@ -129,7 +124,7 @@ object Compiler {
             }
         }
 
-        return CompiledFile(resolved.path, types, ctx.procedures, exports, resolved.debugContext())
+        return CompiledFile(resolved.path, resolved.canonicalTypes, ctx.procedures, exports, resolved.debugContext())
     }
 
     private fun compileFunctionDeclaration(

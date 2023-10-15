@@ -66,8 +66,8 @@ sealed interface CanonicalLangType {
     data class SignalCanonicalLangType(
         override val id: CanonicalLangTypeId,
         val name: String,
-        var fields: List<ObjectField>,
-        var result: ConstraintReference,
+        val fields: List<ObjectField>,
+        val result: ConstraintReference,
     ) : CanonicalLangType {
         override fun isUnique() = fields.isEmpty()
 
@@ -104,7 +104,7 @@ sealed interface CanonicalLangType {
     @Serializable
     @SerialName("Object")
     data class ObjectCanonicalLangType(
-        override val id: CanonicalLangTypeId, var name: String, var fields: List<ObjectField>
+        override val id: CanonicalLangTypeId, val name: String, val fields: List<ObjectField>
     ) : CanonicalLangType {
         init {
             if (id.category != CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT) {

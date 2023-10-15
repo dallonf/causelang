@@ -106,23 +106,24 @@ object Resolver {
             name: String,
             fields: List<CanonicalLangType.ObjectField>
         ): CanonicalLangType.ObjectCanonicalLangType {
-            return knownCanonicalTypes.getOrPut(id) {
-                CanonicalLangType.ObjectCanonicalLangType(
-                    id, name, fields
-                )
-            } as CanonicalLangType.ObjectCanonicalLangType
+            val objType = CanonicalLangType.ObjectCanonicalLangType(
+                id, name, fields
+            )
+            knownCanonicalTypes[id] = objType
+            return objType
         }
 
         fun registerSignalType(
             id: CanonicalLangTypeId,
             name: String,
-            fields: List<CanonicalLangType.ObjectField>
+            fields: List<CanonicalLangType.ObjectField>,
+            result: ConstraintReference,
         ): CanonicalLangType.SignalCanonicalLangType {
-            return knownCanonicalTypes.getOrPut(id) {
-                CanonicalLangType.SignalCanonicalLangType(
-                    id, name, fields, ConstraintReference.Pending
-                )
-            } as CanonicalLangType.SignalCanonicalLangType
+            val signalType = CanonicalLangType.SignalCanonicalLangType(
+                id, name, fields, result
+            )
+            knownCanonicalTypes[id] = signalType
+            return signalType
         }
 
         val builtins = CoreFiles.builtin.toFileDescriptor().exports
@@ -247,7 +248,8 @@ object Resolver {
 
             fun getResolvedTypeOf(node: AstNode) = getResolvedTypeOf(node.info.breadcrumbs)
 
-            val pendingReferences = resolvedTypes.mapNotNull { if (it.value.isPending(knownCanonicalTypes)) it.key else null }
+            val pendingReferences =
+                resolvedTypes.mapNotNull { if (it.value.isPending(knownCanonicalTypes)) it.key else null }
             pendingReferences.forEach eachPendingNode@{ pendingKey ->
                 fun resolveWith(langType: ValueLangType) {
                     iterationResolvedReferences.add(pendingKey to langType)
@@ -953,9 +955,12 @@ object Resolver {
                                 category = CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL,
                                 isUnique = fields.isEmpty()
                             )
-                            val signalType = registerSignalType(id, node.name.text, fields)
-                            signalType.result = node.result?.let { getResolvedTypeOf(it).asConstraintReference() }
-                                ?: ActionValueLangType.valueToConstraintReference()
+                            registerSignalType(
+                                id,
+                                node.name.text,
+                                fields,
+                                node.result?.let { getResolvedTypeOf(it).asConstraintReference() }
+                                    ?: ActionValueLangType.valueToConstraintReference())
 
                             resolveWith(ConstraintValueLangType(InstanceValueLangType(id)))
                         }
@@ -1065,8 +1070,9 @@ object Resolver {
             }
         }
 
+        val thisFileCanonicalTypes = knownCanonicalTypes.filter { it.key.path == path }
         val file = ResolvedFile(
-            path, resolvedTypes, knownCanonicalTypes, (debugContext ?: Debug.DebugContext()).copy(
+            path, resolvedTypes, thisFileCanonicalTypes, (debugContext ?: Debug.DebugContext()).copy(
                 ast = fileNode,
                 analyzed = analyzed,
             )
