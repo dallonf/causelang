@@ -28,6 +28,7 @@ impl IntoJni for CompiledFile {
             jni_types.borrow(),
             jni_procedures.borrow(),
             jni_exports.borrow(),
+            jni_debug_context.borrow(),
         ])?;
         Ok(jni_compiled_file.into())
     }
@@ -79,7 +80,7 @@ impl IntoJni for CompiledConstant {
         match self {
             CompiledConstant::String(value) => {
                 let class = env
-                    .find_class("Lcom/dallonf/ktcause/CompiledFile$CompiledConstant$StringConst")?;
+                    .find_class("com/dallonf/ktcause/CompiledFile$CompiledConstant$StringConst")?;
                 let jni_value = value.into_jni(env)?;
                 let result =
                     env.new_object(class, "(Ljava/lang/String;)V", &[jni_value.borrow()])?;
@@ -100,6 +101,12 @@ impl IntoJni for CompiledExport {
                     env.find_class("com/dallonf/ktcause/CompiledFile$CompiledExport$Function")?;
                 let jni_procedure_index = (*procedure_index as i32).into_jni(env)?;
                 let jni_function_type = function_type.into_jni(env)?;
+                let jni_function = env.new_object(
+                    class,
+                    "(ILcom/dallonf/ktcause/types/ValueLangType;)V",
+                    &[jni_procedure_index.borrow(), jni_function_type.borrow()],
+                );
+                Ok(jni_function?.into())
             }
         }
     }

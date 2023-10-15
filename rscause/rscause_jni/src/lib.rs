@@ -4,13 +4,14 @@ use std::sync::Arc;
 use jni::objects::{JClass, JObject, JValue};
 use jni::sys::{jstring, jvalue};
 use jni::JNIEnv;
-use mapping::JniInto;
+use mapping::{IntoJni, JniInto};
 use rscause_compiler::ast::FileNode;
 use rscause_compiler::breadcrumbs::Breadcrumbs;
 use rscause_compiler::compile::compile;
 use rscause_compiler::lang_types::{CanonicalLangType, CanonicalLangTypeId};
 use rscause_compiler::resolve_types::{resolve_types, ExternalFileDescriptor};
 use rscause_compiler::tags::NodeTag;
+use tap::Pipe;
 use util::{jprintln, jtry};
 
 mod mapping;
@@ -126,8 +127,8 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local
             tags.into(),
             canonical_types,
             resolved_types.clone(),
-        );
+        )?;
 
-        Ok(JValue::Object(&JObject::null()).as_jni())
+        compiled_file.into_jni(&mut env)?.as_jni().pipe(Ok)
     })
 }

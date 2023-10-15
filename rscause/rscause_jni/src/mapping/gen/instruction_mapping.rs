@@ -36,7 +36,7 @@ impl IntoJni for Instruction {
 
 impl IntoJni for instructions::NoOpInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionNoOp")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$NoOp")?;
         let jni_instruction = env.new_object(
             class,
             "()V",
@@ -48,7 +48,7 @@ impl IntoJni for instructions::NoOpInstruction {
 }
 impl IntoJni for instructions::PopInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionPop")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$Pop")?;
         let jni_number = {
             (self.number as i32).into_jni(env)?
         };
@@ -64,7 +64,7 @@ impl IntoJni for instructions::PopInstruction {
 }
 impl IntoJni for instructions::SwapInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionSwap")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$Swap")?;
         let jni_instruction = env.new_object(
             class,
             "()V",
@@ -76,7 +76,7 @@ impl IntoJni for instructions::SwapInstruction {
 }
 impl IntoJni for instructions::PopScopeInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionPopScope")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$PopScope")?;
         let jni_values = {
             (self.values as i32).into_jni(env)?
         };
@@ -92,7 +92,7 @@ impl IntoJni for instructions::PopScopeInstruction {
 }
 impl IntoJni for instructions::RegisterEffectInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionRegisterEffect")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$RegisterEffect")?;
         let jni_procedure_index = {
             (self.procedure_index as i32).into_jni(env)?
         };
@@ -108,7 +108,7 @@ impl IntoJni for instructions::RegisterEffectInstruction {
 }
 impl IntoJni for instructions::PopEffectsInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionPopEffects")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$PopEffects")?;
         let jni_number = {
             (self.number as i32).into_jni(env)?
         };
@@ -124,7 +124,7 @@ impl IntoJni for instructions::PopEffectsInstruction {
 }
 impl IntoJni for instructions::PushActionInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionPushAction")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$PushAction")?;
         let jni_instruction = env.new_object(
             class,
             "()V",
@@ -136,7 +136,7 @@ impl IntoJni for instructions::PushActionInstruction {
 }
 impl IntoJni for instructions::LiteralInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionLiteral")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$Literal")?;
         let jni_constant = {
             (self.constant as i32).into_jni(env)?
         };
@@ -152,7 +152,7 @@ impl IntoJni for instructions::LiteralInstruction {
 }
 impl IntoJni for instructions::ImportInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionImport")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$Import")?;
         let jni_file_path_constant = {
             (self.file_path_constant as i32).into_jni(env)?
         };
@@ -172,7 +172,7 @@ impl IntoJni for instructions::ImportInstruction {
 }
 impl IntoJni for instructions::ImportSameFileInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionImportSameFile")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$ImportSameFile")?;
         let jni_export_name_constant = {
             (self.export_name_constant as i32).into_jni(env)?
         };
@@ -188,7 +188,7 @@ impl IntoJni for instructions::ImportSameFileInstruction {
 }
 impl IntoJni for instructions::DefineFunctionInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionDefineFunction")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$DefineFunction")?;
         let jni_procedure_index = {
             (self.procedure_index as i32).into_jni(env)?
         };
@@ -212,7 +212,7 @@ impl IntoJni for instructions::DefineFunctionInstruction {
 }
 impl IntoJni for instructions::ReadLocalInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionReadLocal")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$ReadLocal")?;
         let jni_index = {
             (self.index as i32).into_jni(env)?
         };
@@ -228,7 +228,7 @@ impl IntoJni for instructions::ReadLocalInstruction {
 }
 impl IntoJni for instructions::WriteLocalInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionWriteLocal")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$WriteLocal")?;
         let jni_index = {
             (self.index as i32).into_jni(env)?
         };
@@ -244,7 +244,7 @@ impl IntoJni for instructions::WriteLocalInstruction {
 }
 impl IntoJni for instructions::ReadLocalThroughEffectScopeInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionReadLocalThroughEffectScope")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$ReadLocalThroughEffectScope")?;
         let jni_effect_depth = {
             (self.effect_depth as i32).into_jni(env)?
         };
@@ -264,7 +264,7 @@ impl IntoJni for instructions::ReadLocalThroughEffectScopeInstruction {
 }
 impl IntoJni for instructions::WriteLocalThroughEffectScopeInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionWriteLocalThroughEffectScope")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$WriteLocalThroughEffectScope")?;
         let jni_effect_depth = {
             (self.effect_depth as i32).into_jni(env)?
         };
@@ -284,7 +284,7 @@ impl IntoJni for instructions::WriteLocalThroughEffectScopeInstruction {
 }
 impl IntoJni for instructions::ConstructInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionConstruct")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$Construct")?;
         let jni_arity = {
             (self.arity as i32).into_jni(env)?
         };
@@ -300,7 +300,7 @@ impl IntoJni for instructions::ConstructInstruction {
 }
 impl IntoJni for instructions::CallFunctionInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionCallFunction")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$CallFunction")?;
         let jni_arity = {
             (self.arity as i32).into_jni(env)?
         };
@@ -316,7 +316,7 @@ impl IntoJni for instructions::CallFunctionInstruction {
 }
 impl IntoJni for instructions::GetMemberInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionGetMember")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$GetMember")?;
         let jni_index = {
             (self.index as i32).into_jni(env)?
         };
@@ -332,7 +332,7 @@ impl IntoJni for instructions::GetMemberInstruction {
 }
 impl IntoJni for instructions::NameValueInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionNameValue")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$NameValue")?;
         let jni_name_constant = {
             (self.name_constant as i32).into_jni(env)?
         };
@@ -356,7 +356,7 @@ impl IntoJni for instructions::NameValueInstruction {
 }
 impl IntoJni for instructions::IsAssignableToInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionIsAssignableTo")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$IsAssignableTo")?;
         let jni_instruction = env.new_object(
             class,
             "()V",
@@ -368,7 +368,7 @@ impl IntoJni for instructions::IsAssignableToInstruction {
 }
 impl IntoJni for instructions::JumpInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionJump")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$Jump")?;
         let jni_instruction = {
             (self.instruction as i32).into_jni(env)?
         };
@@ -384,7 +384,7 @@ impl IntoJni for instructions::JumpInstruction {
 }
 impl IntoJni for instructions::JumpIfFalseInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionJumpIfFalse")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$JumpIfFalse")?;
         let jni_instruction = {
             (self.instruction as i32).into_jni(env)?
         };
@@ -400,7 +400,7 @@ impl IntoJni for instructions::JumpIfFalseInstruction {
 }
 impl IntoJni for instructions::StartLoopInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionStartLoop")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$StartLoop")?;
         let jni_end_instruction = {
             (self.end_instruction as i32).into_jni(env)?
         };
@@ -416,7 +416,7 @@ impl IntoJni for instructions::StartLoopInstruction {
 }
 impl IntoJni for instructions::ContinueLoopInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionContinueLoop")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$ContinueLoop")?;
         let jni_instruction = env.new_object(
             class,
             "()V",
@@ -428,7 +428,7 @@ impl IntoJni for instructions::ContinueLoopInstruction {
 }
 impl IntoJni for instructions::BreakLoopInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionBreakLoop")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$BreakLoop")?;
         let jni_levels = {
             self.levels.into_jni(env)?
                     };
@@ -444,7 +444,7 @@ impl IntoJni for instructions::BreakLoopInstruction {
 }
 impl IntoJni for instructions::CauseInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionCause")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$Cause")?;
         let jni_instruction = env.new_object(
             class,
             "()V",
@@ -456,7 +456,7 @@ impl IntoJni for instructions::CauseInstruction {
 }
 impl IntoJni for instructions::RejectSignalInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionRejectSignal")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$RejectSignal")?;
         let jni_instruction = env.new_object(
             class,
             "()V",
@@ -468,7 +468,7 @@ impl IntoJni for instructions::RejectSignalInstruction {
 }
 impl IntoJni for instructions::FinishEffectInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionFinishEffect")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$FinishEffect")?;
         let jni_instruction = env.new_object(
             class,
             "()V",
@@ -480,7 +480,7 @@ impl IntoJni for instructions::FinishEffectInstruction {
 }
 impl IntoJni for instructions::ReturnInstruction {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
-        let class = env.find_class("com/dallonf/ktcause/InstructionReturn")?;
+        let class = env.find_class("com/dallonf/ktcause/Instruction$Return")?;
         let jni_instruction = env.new_object(
             class,
             "()V",

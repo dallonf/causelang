@@ -13,7 +13,7 @@ object RustCompiler {
         NEVER,
         IF_SUPPORTED,
     }
-    val mode = Mode.NEVER
+    private val mode = Mode.NEVER
 
     init {
         System.loadLibrary("rscause_jni")

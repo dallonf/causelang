@@ -174,7 +174,7 @@ pub fn compile(
     Ok(CompiledFile {
         path,
         procedures: ctx.procedures,
-        exports: exports.into_values().collect(),
+        exports,
     })
 }
 

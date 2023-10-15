@@ -84,53 +84,15 @@ class CodeBundleBuilder {
         ) {
             val otherFiles = referencedCompiledFiles.associate { it.path to it.toFileDescriptor() }
 
-            if (RustCompiler.shouldRunRustCompiler(file.ast)) {
-                val canonicalTypes = run {
-                    val allEntries = otherFiles.flatMap { it.value.types.entries }
-                        // only supported core types for now
-                        .filter { it.key.name == "Debug" }
-                    val asPairs = allEntries.map { it.toPair() }
-                    mapOf(*asPairs.toTypedArray())
-                }
-                val filteredOtherFiles = otherFiles.mapValues { (key, value) ->
-                    if (key == "core/builtin.cau") {
-                        val filteredExports = value.exports.mapValues { (exportKey, exportValue) ->
-                            // only supported core exports for now
-                            // all others are just Actions
-                            if (exportKey == "Debug" || exportKey == "Action") {
-                                exportValue
-                            } else {
-                                ActionValueLangType
-                            }
-                        }
-                        Resolver.ExternalFileDescriptor(filteredExports, value.types)
-                    } else {
-                        value
-                    }
-                }
-                val filteredTags = file.analyzed.nodeTags.mapValues { (breadcrumbs, tags) ->
-                    tags.filter {
-                        when (it) {
-                            is NodeTag.ReferencesFile -> true
-                            is NodeTag.BadFileReference -> true
-                            is NodeTag.ValueGoesTo -> true
-                            is NodeTag.ValueComesFrom -> true
-                            is NodeTag.FunctionCanReturnTypeOf -> true
-                            is NodeTag.ReturnsFromFunction -> true
-                            is NodeTag.FunctionCanReturnAction -> true
-                            is NodeTag.ActionReturn -> true
-                            else -> false
-                        }
-                    }
-                }
-                RustCompiler.logResolvedTypes(file.path, file.ast, filteredTags, canonicalTypes, filteredOtherFiles)
+            val compiledFile = if (RustCompiler.shouldRunRustCompiler(file.ast)) {
+                RustCompiler.compile(file.path, file.ast, file.analyzed.nodeTags, otherFiles)
+            } else {
+                val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
+                    file.path, file.ast, file.analyzed, otherFiles, file.debugContext
+                )
+                finalCompileErrors.addAll(resolverErrors)
+                Compiler.compile(file.ast, file.analyzed, resolvedFile)
             }
-
-            val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
-                file.path, file.ast, file.analyzed, otherFiles, file.debugContext
-            )
-            finalCompileErrors.addAll(resolverErrors)
-            val compiledFile = Compiler.compile(file.ast, file.analyzed, resolvedFile)
             finalCompiledFiles[file.path] = compiledFile
         }
 

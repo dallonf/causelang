@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::ast::NodeInfo;
@@ -9,7 +10,7 @@ pub struct CompiledFile {
     pub path: Arc<String>,
     // TODO: pub types
     pub procedures: Vec<Procedure>,
-    pub exports: Vec<CompiledExport>,
+    pub exports: HashMap<Arc<String>, CompiledExport>,
 }
 
 #[derive(Debug, Clone)]

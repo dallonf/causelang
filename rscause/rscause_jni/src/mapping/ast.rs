@@ -28,7 +28,7 @@ impl FromJni for NodeInfo {
             .call_method(
                 value,
                 "getBreadcrumbs",
-                "()Lcom/dallonf/ktcause/ast/Breadcrumbs",
+                "()Lcom/dallonf/ktcause/ast/Breadcrumbs;",
                 &[],
             )?
             .l()?

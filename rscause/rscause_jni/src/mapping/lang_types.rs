@@ -79,8 +79,12 @@ impl FromJni for CanonicalLangTypeCategory {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
         let value_ordinal = env.call_method(value, "ordinal", "()I", &[])?.i()?;
         match value_ordinal {
-            0 => Ok(Self::Object),
-            1 => Ok(Self::Signal),
+            0 => Ok(Self::Signal),
+            1 => Ok(Self::Object),
+            _ => Err(anyhow!(
+                "Unexpected CanonicalLangTypeCategory ordinal: {}",
+                value_ordinal
+            )),
         }
     }
 }
@@ -137,7 +141,13 @@ impl FromJni for SignalCanonicalLangType {
             )?
             .l()?
             .jni_into(env)?;
-        noisy_log(env, "SignalCanonicalLangType::from_jni - got type_id");
+        noisy_log(
+            env,
+            &format!(
+                "SignalCanonicalLangType::from_jni - got type_id: {:?}",
+                &type_id
+            ),
+        );
         let fields = env
             .call_method(value, "getFields", "()Ljava/util/List;", &[])?
             .l()?
@@ -278,18 +288,10 @@ impl FromJni for LangType {
             }
             "ActionValueLangType" => Ok(LangType::Action),
             "InstanceValueLangType" => {
-                let canonical_type = env
-                    .call_method(
-                        value,
-                        "getCanonicalType",
-                        "()Lcom/dallonf/ktcause/types/CanonicalLangType;",
-                        &[],
-                    )?
-                    .l()?;
                 let canonical_type_id = env
                     .call_method(
-                        canonical_type,
-                        "getId",
+                        value,
+                        "getCanonicalTypeId",
                         "()Lcom/dallonf/ktcause/types/CanonicalLangTypeId;",
                         &[],
                     )?
@@ -385,7 +387,7 @@ impl IntoJni for FunctionLangType {
         let result = env.new_object(
             class,
             "(Ljava/lang/String;Lcom/dallonf/ktcause/types/ConstraintReference;Ljava/util/List;)V",
-            &[name.borrow(), params.borrow(), return_type.borrow()],
+            &[name.borrow(),  return_type.borrow(), params.borrow()],
         )?;
         Ok(result.into())
     }
@@ -408,15 +410,21 @@ impl IntoJni for PrimitiveLangType {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
         let class = env.find_class("com/dallonf/ktcause/types/PrimitiveValueLangType")?;
         let kind_class = env.find_class("com/dallonf/ktcause/types/LangPrimitiveKind")?;
-        match self {
+        let jni_kind = match self {
             PrimitiveLangType::Text => {
                 let jni_text = env.get_static_field(
                     kind_class,
                     "TEXT",
                     "Lcom/dallonf/ktcause/types/LangPrimitiveKind;",
                 )?;
-                Ok(jni_text)
+                jni_text
             }
-        }
+        };
+        let result = env.new_object(
+            class,
+            "(Lcom/dallonf/ktcause/types/LangPrimitiveKind;)V",
+            &[jni_kind.borrow()],
+        )?;
+        Ok(result.into())
     }
 }

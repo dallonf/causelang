@@ -80,7 +80,7 @@ async function generateInstructionMapping() {
         }
       });
       const constructorSignature = `(${constructorParamTypes.join("")})V`;
-      const className = `com/dallonf/ktcause/Instruction${name}`;
+      const className = `com/dallonf/ktcause/Instruction$${name}`;
       return {
         name,
         class: className,
