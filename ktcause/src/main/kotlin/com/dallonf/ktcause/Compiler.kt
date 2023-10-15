@@ -124,7 +124,8 @@ object Compiler {
             }
         }
 
-        return CompiledFile(resolved.path, resolved.canonicalTypes, ctx.procedures, exports, resolved.debugContext())
+        val thisFileCanonicalTypes = resolved.canonicalTypes.filter { it.key.path == resolved.path }
+        return CompiledFile(resolved.path, thisFileCanonicalTypes, ctx.procedures, exports, resolved.debugContext())
     }
 
     private fun compileFunctionDeclaration(

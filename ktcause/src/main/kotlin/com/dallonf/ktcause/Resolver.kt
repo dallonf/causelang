@@ -1070,9 +1070,9 @@ object Resolver {
             }
         }
 
-        val thisFileCanonicalTypes = knownCanonicalTypes.filter { it.key.path == path }
+        // TODO: knownCanonicalTypes should probably be filtered down to the ones actually used
         val file = ResolvedFile(
-            path, resolvedTypes, thisFileCanonicalTypes, (debugContext ?: Debug.DebugContext()).copy(
+            path, resolvedTypes, knownCanonicalTypes, (debugContext ?: Debug.DebugContext()).copy(
                 ast = fileNode,
                 analyzed = analyzed,
             )
