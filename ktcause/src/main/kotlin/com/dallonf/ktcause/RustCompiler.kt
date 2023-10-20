@@ -13,27 +13,33 @@ object RustCompiler {
         NEVER,
         IF_SUPPORTED,
     }
-    private val mode = Mode.NEVER
+
+    private val mode = Mode.IF_SUPPORTED
 
     init {
         System.loadLibrary("rscause_jni")
     }
 
-    external fun logResolvedTypes(
-        path: String,
-        ast: FileNode,
-        tags: Map<Breadcrumbs, List<NodeTag>>,
-        canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,
-        externalFiles: Map<String, Resolver.ExternalFileDescriptor>
-    )
-
-    fun shouldRunRustCompiler(ast: FileNode): Boolean {
+    fun shouldRunRustCompiler(
+        path: String, ast: FileNode, analyzed: AnalyzedNode,
+        otherFiles: Map<String, Resolver.ExternalFileDescriptor>
+    ): Boolean {
         return when (mode) {
             Mode.ALWAYS -> true
             Mode.NEVER -> false
             Mode.IF_SUPPORTED -> {
                 val incompatibleNodes = getIncompatibleNodeTypes(ast)
-                !incompatibleNodes.any()
+                if (incompatibleNodes.any()) return false
+
+                val ktResolverWouldFindTypeErrors = run {
+                    val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
+                        path, ast, analyzed, otherFiles
+                    )
+                    resolverErrors.isNotEmpty()
+                }
+                if (ktResolverWouldFindTypeErrors) return false
+
+                return true
             }
         }
     }
