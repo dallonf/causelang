@@ -416,7 +416,7 @@ fn compile_call_expression(
                     LangType::Instance(instance) => ctx
                         .canonical_types
                         .get(&instance.type_id)
-                        .ok_or(anyhow!("No canonical type found")),
+                        .ok_or(anyhow!("No canonical type found for {:?}", &instance.type_id)),
                     _ => Err(anyhow!("Can't construct a {instance_type:?}")),
                 })?;
             let arity = canonical_type.fields().len() as u32;

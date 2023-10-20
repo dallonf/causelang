@@ -3,6 +3,7 @@ package com.dallonf.ktcause
 import com.dallonf.ktcause.ast.Breadcrumbs
 import com.dallonf.ktcause.ast.FileNode
 import com.dallonf.ktcause.ast.IdentifierExpressionNode
+import com.dallonf.ktcause.ast.ImportNode
 import com.dallonf.ktcause.gen.rustCompilerSupportedTypes
 import com.dallonf.ktcause.types.ActionValueLangType
 import com.dallonf.ktcause.types.CanonicalLangType
@@ -43,6 +44,27 @@ object RustCompiler {
                 }
                 if (containsIdentifiersReferencingNonFiles) return false
 
+                val unsupportedImports = run {
+                    val imports = ast.allDescendants().mapNotNull { it as? ImportNode }
+                    val importedValues =
+                        imports.flatMap { importNode ->
+                            importNode.mappings.map {
+                                Pair(
+                                    importNode.path.path,
+                                    it.sourceName.text
+                                )
+                            }
+                        }
+                    importedValues.filter {
+                        if (it.first != "core/builtin.cau") {
+                            listOf("Debug", "Action").contains(it.second)
+                        } else {
+                            true
+                        }
+                    }
+                }
+                if (unsupportedImports.any()) return false
+
                 val ktResolverWouldFindTypeErrors = run {
                     val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
                         path, ast, analyzed, otherFiles
@@ -65,7 +87,7 @@ object RustCompiler {
         val filteredCanonicalTypes = run {
             val allEntries = externalFiles.flatMap { it.value.types.entries }
                 // only supported core types for now
-                .filter { it.key.name == "Debug" }
+                .filter { it.key.name == "Debug" || it.key.name == "Action" }
             val asPairs = allEntries.map { it.toPair() }
             mapOf(*asPairs.toTypedArray())
         }

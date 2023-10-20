@@ -49,6 +49,7 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local
             external_files.clone(),
         )
         .into();
+
         let compiled_file = compile(
             path.clone(),
             &ast,
