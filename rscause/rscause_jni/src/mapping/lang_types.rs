@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::util::{get_class_name, noisy_log};
 
 use super::{FromJni, IntoJni, JniInto};
@@ -275,6 +277,7 @@ impl FromJni for LangType {
         let class_name = get_class_name(env, value)?;
         match class_name.as_ref() {
             "ConstraintValueLangType" => {
+                noisy_log(env, "- ConstraintValueLangType");
                 let value_type: LangType = env
                     .call_method(
                         value,
@@ -286,9 +289,13 @@ impl FromJni for LangType {
                     .jni_into(env)?;
                 Ok(LangType::TypeReference(value_type.into()))
             }
-            "ActionValueLangType" => Ok(LangType::Action),
+            "ActionValueLangType" => {
+                noisy_log(env, "- ActionValueLangType");
+                Ok(LangType::Action)
+            }
             "InstanceValueLangType" => {
-                let canonical_type_id = env
+                noisy_log(env, "- InstanceValueLangType");
+                let canonical_type_id: Arc<CanonicalLangTypeId> = env
                     .call_method(
                         value,
                         "getCanonicalTypeId",
@@ -297,12 +304,23 @@ impl FromJni for LangType {
                     )?
                     .l()?
                     .jni_into(env)?;
+                noisy_log(
+                    env,
+                    &format!(
+                        "- ({})",
+                        canonical_type_id
+                            .name
+                            .clone()
+                            .unwrap_or("[unnamed]".to_owned().into())
+                    ),
+                );
                 Ok(LangType::Instance(InstanceLangType {
                     type_id: canonical_type_id,
                 }))
             }
             "FunctionValueLangType" => {
-                let name = env
+                noisy_log(env, "- FunctionValueLangType");
+                let name: Arc<String> = env
                     .call_method(value, "getName", "()Ljava/lang/String;", &[])?
                     .l()?
                     .jni_into(env)?;
@@ -315,12 +333,11 @@ impl FromJni for LangType {
                     )?
                     .l()?
                     .pipe(|it| jni_constraint_reference_to_inferred_lang_type(env, &it))?;
-                Ok(LangType::Function(FunctionLangType {
-                    name,
-                    return_type,
-                }))
+                noisy_log(env, &format!("- ({})", name));
+                Ok(LangType::Function(FunctionLangType { name, return_type }))
             }
             "PrimitiveValueLangType" => {
+                noisy_log(env, "- PrimitiveValueLangType");
                 let jni_kind = env
                     .call_method(
                         value,
@@ -331,11 +348,20 @@ impl FromJni for LangType {
                     .l()?;
                 let jni_kind_ordinal = env.call_method(jni_kind, "ordinal", "()I", &[])?.i()?;
                 match jni_kind_ordinal {
-                    0 => Ok(LangType::Primitive(PrimitiveLangType::Text)),
-                    _ => Err(anyhow!("don't support other primitive types yet")),
+                    0 => {
+                        noisy_log(env, " - Text");
+                        Ok(LangType::Primitive(PrimitiveLangType::Text))
+                    },
+                    _ => Err(anyhow!(
+                        "don't support other primitive types yet. This is type {}",
+                        jni_kind_ordinal
+                    )),
                 }
             }
-            "AnythingValueLangType" => Ok(LangType::Anything),
+            "AnythingValueLangType" => {
+                noisy_log(env, "- AnythingValueLangType");
+                Ok(LangType::Anything)
+            },
             _ => Err(anyhow!(
                 "Unsupported ResolvedValueLangType class: {}",
                 class_name

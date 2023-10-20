@@ -36,7 +36,7 @@ object RustCompiler {
                     val identifiers = ast.allDescendants().mapNotNull { it as? IdentifierExpressionNode }
                     identifiers.any { identifierExpression ->
                         val valueComesFrom =
-                            analyzed.nodeTags[identifierExpression.info.breadcrumbs]?.firstNotNullOf { it as? NodeTag.ValueComesFrom }
+                            analyzed.nodeTags[identifierExpression.info.breadcrumbs]?.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
                         val sourceTags = valueComesFrom?.let { analyzed.nodeTags[valueComesFrom.source] }
                         sourceTags?.none { it is NodeTag.ReferencesFile } ?: true
                     }
