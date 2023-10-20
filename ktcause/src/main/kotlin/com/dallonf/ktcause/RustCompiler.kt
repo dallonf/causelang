@@ -2,6 +2,7 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.Breadcrumbs
 import com.dallonf.ktcause.ast.FileNode
+import com.dallonf.ktcause.ast.IdentifierExpressionNode
 import com.dallonf.ktcause.gen.rustCompilerSupportedTypes
 import com.dallonf.ktcause.types.ActionValueLangType
 import com.dallonf.ktcause.types.CanonicalLangType
@@ -30,6 +31,17 @@ object RustCompiler {
             Mode.IF_SUPPORTED -> {
                 val incompatibleNodes = getIncompatibleNodeTypes(ast)
                 if (incompatibleNodes.any()) return false
+
+                val containsIdentifiersReferencingNonFiles = run {
+                    val identifiers = ast.allDescendants().mapNotNull { it as? IdentifierExpressionNode }
+                    identifiers.any { identifierExpression ->
+                        val valueComesFrom =
+                            analyzed.nodeTags[identifierExpression.info.breadcrumbs]?.firstNotNullOf { it as? NodeTag.ValueComesFrom }
+                        val sourceTags = valueComesFrom?.let { analyzed.nodeTags[valueComesFrom.source] }
+                        sourceTags?.none { it is NodeTag.ReferencesFile } ?: true
+                    }
+                }
+                if (containsIdentifiersReferencingNonFiles) return false
 
                 val ktResolverWouldFindTypeErrors = run {
                     val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
