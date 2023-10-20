@@ -1,1 +1,0 @@
-((((path . "core/builtin.cau") (parent_name) (name "Debug") (number . 0)) Signal (type_id (path . "core/builtin.cau") (parent_name) (name "Debug") (number . 0)) (fields ((name . "value") (value_type Known . Anything))) (result Known . Action)))
