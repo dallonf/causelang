@@ -271,7 +271,7 @@ where
 /// Java name: ResolvedValueLangType
 impl FromJni for LangType {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
-        noisy_log(env, "AnyInferredLangType::from_jni");
+        noisy_log(env, "LangType::from_jni");
         let class_name = get_class_name(env, value)?;
         match class_name.as_ref() {
             "ConstraintValueLangType" => {
@@ -306,7 +306,7 @@ impl FromJni for LangType {
                     .call_method(value, "getName", "()Ljava/lang/String;", &[])?
                     .l()?
                     .jni_into(env)?;
-                let return_type: LangType = env
+                let return_type = env
                     .call_method(
                         value,
                         "getReturnConstraint",
@@ -314,10 +314,10 @@ impl FromJni for LangType {
                         &[],
                     )?
                     .l()?
-                    .jni_into(env)?;
+                    .pipe(|it| jni_constraint_reference_to_inferred_lang_type(env, &it))?;
                 Ok(LangType::Function(FunctionLangType {
                     name,
-                    return_type: return_type.into(),
+                    return_type,
                 }))
             }
             "PrimitiveValueLangType" => {
