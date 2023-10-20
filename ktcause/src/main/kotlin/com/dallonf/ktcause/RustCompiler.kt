@@ -11,9 +11,38 @@ import com.dallonf.ktcause.types.CanonicalLangTypeId
 
 object RustCompiler {
     enum class Mode {
+        /**
+         * Always run the rscause compiler.
+         * The tests that pass in this mode
+         * show the true current capabilities of rscause.
+         */
         ALWAYS,
+
+        /**
+         * Never run the rscause compiler, use ktcause instead.
+         * All tests should pass in this mode and should be used
+         * when performance and stability are important.
+         * (... it's a toy language, I'm not sure when that would be)
+         */
         NEVER,
+
+        /**
+         * Only run the rscause compiler if the given file is
+         * within the current capabilities the rscause compiler.
+         * All tests should pass in this mode.
+         */
         IF_SUPPORTED,
+
+        /**
+         * Always run the rscause compiler, and throw an error
+         * if it would not run in IF_SUPPORTED.
+         * The tests that pass in this mode should match the tests
+         * that pass in ALWAYS mode.
+         *
+         * This is a sanity check to make sure that the IF_SUPPORTED
+         * detection logic is actually allowing rscause to run.
+         */
+        ASSERT_SUPPORTED,
     }
 
     private val mode = Mode.IF_SUPPORTED
@@ -30,52 +59,53 @@ object RustCompiler {
             Mode.ALWAYS -> true
             Mode.NEVER -> false
             Mode.IF_SUPPORTED -> {
-                val incompatibleNodes = getIncompatibleNodeTypes(ast)
-                if (incompatibleNodes.any()) return false
+                isSupported(ast, analyzed, path, otherFiles)
+            }
 
-                val containsIdentifiersReferencingNonFiles = run {
-                    val identifiers = ast.allDescendants().mapNotNull { it as? IdentifierExpressionNode }
-                    identifiers.any { identifierExpression ->
-                        val valueComesFrom =
-                            analyzed.nodeTags[identifierExpression.info.breadcrumbs]?.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
-                        val sourceTags = valueComesFrom?.let { analyzed.nodeTags[valueComesFrom.source] }
-                        sourceTags?.none { it is NodeTag.ReferencesFile } ?: true
-                    }
+            Mode.ASSERT_SUPPORTED -> {
+                if (!isSupported(ast, analyzed, path, otherFiles)) {
+                    throw AssertionError("$path is not supported by the Rust compiler.")
                 }
-                if (containsIdentifiersReferencingNonFiles) return false
-
-                val unsupportedImports = run {
-                    val imports = ast.allDescendants().mapNotNull { it as? ImportNode }
-                    val importedValues =
-                        imports.flatMap { importNode ->
-                            importNode.mappings.map {
-                                Pair(
-                                    importNode.path.path,
-                                    it.sourceName.text
-                                )
-                            }
-                        }
-                    importedValues.filter {
-                        if (it.first != "core/builtin.cau") {
-                            listOf("Debug", "Action").contains(it.second)
-                        } else {
-                            true
-                        }
-                    }
-                }
-                if (unsupportedImports.any()) return false
-
-                val ktResolverWouldFindTypeErrors = run {
-                    val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
-                        path, ast, analyzed, otherFiles
-                    )
-                    resolverErrors.isNotEmpty()
-                }
-                if (ktResolverWouldFindTypeErrors) return false
-
-                return true
+                true
             }
         }
+    }
+
+    private fun isSupported(
+        ast: FileNode,
+        analyzed: AnalyzedNode,
+        path: String,
+        otherFiles: Map<String, Resolver.ExternalFileDescriptor>
+    ): Boolean {
+        val incompatibleNodes = getIncompatibleNodeTypes(ast)
+        if (incompatibleNodes.any()) return false
+
+        val containsIdentifiersReferencingNonFiles = run {
+            val identifiers = ast.allDescendants().mapNotNull { it as? IdentifierExpressionNode }
+            identifiers.any { identifierExpression ->
+                val valueComesFrom =
+                    analyzed.nodeTags[identifierExpression.info.breadcrumbs]?.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
+                val sourceTags = valueComesFrom?.let { analyzed.nodeTags[valueComesFrom.source] }
+                sourceTags?.none { it is NodeTag.ReferencesFile } ?: true
+            }
+        }
+        if (containsIdentifiersReferencingNonFiles) return false
+
+        val unsupportedImports = run {
+            val imports = ast.allDescendants().mapNotNull { it as? ImportNode }
+            imports.filter { it.path.path != "core/builtin.cau" }
+        }
+        if (unsupportedImports.any()) return false
+
+        val ktResolverWouldFindTypeErrors = run {
+            val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
+                path, ast, analyzed, otherFiles
+            )
+            resolverErrors.isNotEmpty()
+        }
+        if (ktResolverWouldFindTypeErrors) return false
+
+        return true
     }
 
     fun compile(
