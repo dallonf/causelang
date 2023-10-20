@@ -68,6 +68,7 @@ impl From<FunctionLangType> for LangType {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum PrimitiveLangType {
     Text,
+    Number,
 }
 impl From<PrimitiveLangType> for LangType {
     fn from(value: PrimitiveLangType) -> Self {

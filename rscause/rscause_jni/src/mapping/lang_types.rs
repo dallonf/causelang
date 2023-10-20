@@ -352,6 +352,10 @@ impl FromJni for LangType {
                         noisy_log(env, " - Text");
                         Ok(LangType::Primitive(PrimitiveLangType::Text))
                     },
+                    1 => {
+                        noisy_log(env, " - Number");
+                        Ok(LangType::Primitive(PrimitiveLangType::Number))
+                    },
                     _ => Err(anyhow!(
                         "don't support other primitive types yet. This is type {}",
                         jni_kind_ordinal
@@ -441,6 +445,14 @@ impl IntoJni for PrimitiveLangType {
                 let jni_text = env.get_static_field(
                     kind_class,
                     "TEXT",
+                    "Lcom/dallonf/ktcause/types/LangPrimitiveKind;",
+                )?;
+                jni_text
+            }
+            PrimitiveLangType::Number => {
+                let jni_text = env.get_static_field(
+                    kind_class,
+                    "NUMBER",
                     "Lcom/dallonf/ktcause/types/LangPrimitiveKind;",
                 )?;
                 jni_text
