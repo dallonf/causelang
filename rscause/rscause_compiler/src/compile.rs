@@ -3,7 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::ast::{AnyAstNode, NodeInfo, AstNode};
+use crate::ast::{AnyAstNode, AstNode, NodeInfo};
 use crate::breadcrumbs::HasBreadcrumbs;
 use crate::compiled_file::CompiledConstant;
 use crate::find_tag;
@@ -427,8 +427,7 @@ fn compile_call_expression(
         }
         LangType::Function(_) => procedure.write_instruction(
             Instruction::CallFunction(CallFunctionInstruction {
-                // TODO: function params
-                arity: 0,
+                arity: expression.parameters.len() as u32,
             }),
             &expression.info,
         ),
