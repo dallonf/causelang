@@ -608,15 +608,15 @@ object Analyzer {
         for (branchOption in expression.branches) {
             val newCtx = ctx.clone(branchOption.info.breadcrumbs)
             when (branchOption) {
-                is BranchOptionNode.IfBranchOptionNode -> {
+                is IfBranchOptionNode -> {
                     analyzeExpression(branchOption.condition, output, newCtx)
                 }
 
-                is BranchOptionNode.IsBranchOptionNode -> {
+                is IsBranchOptionNode -> {
                     analyzePattern(branchOption.pattern, output, newCtx)
                 }
 
-                is BranchOptionNode.ElseBranchOptionNode -> {}
+                is ElseBranchOptionNode -> {}
             }
             analyzeBody(branchOption.body, output, newCtx)
         }
@@ -678,7 +678,10 @@ object Analyzer {
 
         for ((i, parameterNode) in expression.parameters.withIndex()) {
             analyzeExpression(parameterNode.value, output, ctx)
-            output.addTag(parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(expression.info.breadcrumbs, i.toUInt()))
+            output.addTag(
+                parameterNode.info.breadcrumbs,
+                NodeTag.ParameterForCall(expression.info.breadcrumbs, i.toUInt())
+            )
         }
     }
 
@@ -697,9 +700,12 @@ object Analyzer {
 
         for ((i, parameterNode) in expression.parameters.withIndex()) {
             analyzeExpression(parameterNode.value, output, ctx)
-            output.addTag(parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(expression.info.breadcrumbs,
-                (i + 1).toUInt()
-            ))
+            output.addTag(
+                parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(
+                    expression.info.breadcrumbs,
+                    (i + 1).toUInt()
+                )
+            )
         }
     }
 

@@ -546,7 +546,7 @@ object Compiler {
         val remainingBranchJumps = mutableListOf<CompiledFile.MutableProcedure.JumpPlaceholder>()
         for (branch in expression.branches) {
             when (branch) {
-                is BranchOptionNode.IfBranchOptionNode -> {
+                is IfBranchOptionNode -> {
                     compileExpression(branch.condition, procedure, ctx)
                     val skipBodyInstruction = procedure.writeJumpIfFalsePlaceholder(branch.info)
                     compileBody(branch.body, procedure, ctx)
@@ -554,7 +554,7 @@ object Compiler {
                     skipBodyInstruction.fill(procedure.instructions.size)
                 }
 
-                is BranchOptionNode.IsBranchOptionNode -> {
+                is IsBranchOptionNode -> {
                     if (withValueIndex != null) {
                         procedure.writeInstruction(Instruction.ReadLocal(withValueIndex), branch.info)
                         compileValueFlowReference(branch.pattern.typeReference, procedure, ctx)
@@ -586,10 +586,10 @@ object Compiler {
                     }
                 }
 
-                is BranchOptionNode.ElseBranchOptionNode -> compileBody(branch.body, procedure, ctx)
+                is ElseBranchOptionNode -> compileBody(branch.body, procedure, ctx)
             }
         }
-        val elseBranch = expression.branches.firstNotNullOfOrNull { it as? BranchOptionNode.ElseBranchOptionNode }
+        val elseBranch = expression.branches.firstNotNullOfOrNull { it as? ElseBranchOptionNode }
         if (elseBranch == null) {
             val returnType = ctx.resolved.getInferredType(expression.info.breadcrumbs)
             val error = returnType.getRuntimeError() ?: ErrorLangType.MissingElseBranch(

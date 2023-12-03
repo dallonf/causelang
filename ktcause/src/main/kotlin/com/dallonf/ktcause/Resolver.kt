@@ -156,7 +156,7 @@ object Resolver {
 
                         is FunctionSignatureParameterNode -> track(CONSTRAINT)
 
-                        is BranchOptionNode.IfBranchOptionNode -> {
+                        is IfBranchOptionNode -> {
                             resolvedTypes[ResolutionKey(CONSTRAINT, node.condition.info.breadcrumbs)] =
                                 builtins["TrueOrFalse"]!!
                         }
@@ -602,17 +602,17 @@ object Resolver {
                             val possibleReturnValues = mutableListOf<PossibleReturnValue>()
 
                             val branchesBeforeElse =
-                                node.branches.takeWhile { it !is BranchOptionNode.ElseBranchOptionNode }
+                                node.branches.takeWhile { it !is ElseBranchOptionNode }
                             for (branch in branchesBeforeElse) {
                                 var resolvedType = getResolvedTypeOf(branch.body)
                                 when (branch) {
-                                    is BranchOptionNode.IfBranchOptionNode -> {
+                                    is IfBranchOptionNode -> {
                                         if (withValue.isEmpty()) {
                                             resolvedType = ErrorLangType.UnreachableBranch(withValue)
                                         }
                                     }
 
-                                    is BranchOptionNode.IsBranchOptionNode -> {
+                                    is IsBranchOptionNode -> {
                                         val patternType = getResolvedTypeOf(branch.pattern)
                                         if (patternType is ResolvedValueLangType) {
                                             if (withValue.isSupersetOf(patternType)) {
@@ -623,7 +623,7 @@ object Resolver {
                                         }
                                     }
 
-                                    is BranchOptionNode.ElseBranchOptionNode -> error("else branch in branches before else")
+                                    is ElseBranchOptionNode -> error("else branch in branches before else")
                                 }
 
                                 val sourcePosition = getSourcePosition(branch)
@@ -640,7 +640,7 @@ object Resolver {
                             }
 
                             val elseBranch =
-                                node.branches.firstNotNullOfOrNull { it as? BranchOptionNode.ElseBranchOptionNode }
+                                node.branches.firstNotNullOfOrNull { it as? ElseBranchOptionNode }
                             if (elseBranch != null) {
                                 withValue = OptionValueLangType(emptyList())
                                 val resolvedType = getResolvedTypeOf(elseBranch.body)

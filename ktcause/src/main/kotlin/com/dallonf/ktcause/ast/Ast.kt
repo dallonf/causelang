@@ -488,31 +488,30 @@ data class BreakExpression(override val info: NodeInfo, val withValue: Expressio
 
 sealed interface BranchOptionNode : AstNode {
     val body: BodyNode
+}
 
-    data class IfBranchOptionNode(
-        override val info: NodeInfo, val condition: ExpressionNode, override val body: BodyNode
-    ) : BranchOptionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("condition", condition)
-            put("body", body)
-        }
+data class IfBranchOptionNode(
+    override val info: NodeInfo, val condition: ExpressionNode, override val body: BodyNode
+) : BranchOptionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("condition", condition)
+        put("body", body)
     }
+}
 
-    data class IsBranchOptionNode(
-        override val info: NodeInfo, val pattern: PatternNode, override val body: BodyNode
-    ) : BranchOptionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("pattern", pattern)
-            put("body", body)
-        }
+data class IsBranchOptionNode(
+    override val info: NodeInfo, val pattern: PatternNode, override val body: BodyNode
+) : BranchOptionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("pattern", pattern)
+        put("body", body)
     }
+}
 
-    data class ElseBranchOptionNode(override val info: NodeInfo, override val body: BodyNode) : BranchOptionNode {
-        override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
-            put("body", body)
-        }
+data class ElseBranchOptionNode(override val info: NodeInfo, override val body: BodyNode) : BranchOptionNode {
+    override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
+        put("body", body)
     }
-
 }
 
 data class PatternNode(override val info: NodeInfo, val name: IdentifierNode?, val typeReference: TypeReferenceNode) :

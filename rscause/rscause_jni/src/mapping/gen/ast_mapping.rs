@@ -3,6 +3,8 @@ pub static J_BREADCRUMB_NAMES: &[&str] = &[
     "identifier",
     "name",
     "typeReference",
+    "name",
+    "typeReference",
     "value",
     "declarations",
     "path",
@@ -15,7 +17,15 @@ pub static J_BREADCRUMB_NAMES: &[&str] = &[
     "body",
     "returnType",
     "statements",
+    "statement",
     "expression",
+    "withValue",
+    "branches",
+    "condition",
+    "body",
+    "pattern",
+    "body",
+    "body",
     "signal",
     "callee",
     "parameters",
@@ -70,6 +80,9 @@ impl FromJni for ast::BodyNode {
             "BlockBodyNode" => {
                 ast::BodyNode::Block(value.jni_into(env)?)
             },
+            "SingleStatementBodyNode" => {
+                ast::BodyNode::SingleStatement(value.jni_into(env)?)
+            },
           _ => panic!("Unknown class name for BodyNode: {}", class_name)
       })
     }
@@ -99,6 +112,9 @@ impl FromJni for ast::ExpressionNode {
           .l()?
           .jni_into(env)?;
       Ok(match class_name.as_str() {
+            "BranchExpressionNode" => {
+                ast::ExpressionNode::Branch(value.jni_into(env)?)
+            },
             "CauseExpressionNode" => {
                 ast::ExpressionNode::Cause(value.jni_into(env)?)
             },
@@ -112,6 +128,28 @@ impl FromJni for ast::ExpressionNode {
                 ast::ExpressionNode::StringLiteral(value.jni_into(env)?)
             },
           _ => panic!("Unknown class name for ExpressionNode: {}", class_name)
+      })
+    }
+}
+impl FromJni for ast::BranchOptionNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "category BranchOptionNode");
+      let class = env.get_object_class(value)?;
+      let class_name: String = env
+          .call_method(&class, "getSimpleName", "()Ljava/lang/String;", &[])?
+          .l()?
+          .jni_into(env)?;
+      Ok(match class_name.as_str() {
+            "IfBranchOptionNode" => {
+                ast::BranchOptionNode::If(value.jni_into(env)?)
+            },
+            "IsBranchOptionNode" => {
+                ast::BranchOptionNode::Is(value.jni_into(env)?)
+            },
+            "ElseBranchOptionNode" => {
+                ast::BranchOptionNode::Else(value.jni_into(env)?)
+            },
+          _ => panic!("Unknown class name for BranchOptionNode: {}", class_name)
       })
     }
 }
@@ -155,6 +193,35 @@ impl FromJni for ast::IdentifierTypeReferenceNode {
       Ok(ast::IdentifierTypeReferenceNode {
           info,
           identifier,
+      })
+    }
+}
+impl FromJni for ast::PatternNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node PatternNode");
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?
+        .jni_into(env)?;
+      let name: Option<Arc<ast::IdentifierNode>> = {
+        let jni_node = env
+          .call_method(value, "getName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+      let type_reference: ast::TypeReferenceNode = {
+        let jni_node = env
+          .call_method(value, "getTypeReference", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+
+      Ok(ast::PatternNode {
+          info,
+          name,
+          type_reference,
       })
     }
 }
@@ -374,6 +441,27 @@ impl FromJni for ast::BlockBodyNode {
       })
     }
 }
+impl FromJni for ast::SingleStatementBodyNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node SingleStatementBodyNode");
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?
+        .jni_into(env)?;
+      let statement: ast::StatementNode = {
+        let jni_node = env
+          .call_method(value, "getStatement", "()Lcom/dallonf/ktcause/ast/StatementNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+
+      Ok(ast::SingleStatementBodyNode {
+          info,
+          statement,
+      })
+    }
+}
 impl FromJni for ast::ExpressionStatementNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
       noisy_log(env, "node ExpressionStatementNode");
@@ -392,6 +480,114 @@ impl FromJni for ast::ExpressionStatementNode {
       Ok(ast::ExpressionStatementNode {
           info,
           expression,
+      })
+    }
+}
+impl FromJni for ast::BranchExpressionNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node BranchExpressionNode");
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?
+        .jni_into(env)?;
+      let with_value: Option<ast::ExpressionNode> = {
+        let jni_node = env
+          .call_method(value, "getWithValue", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+      let branches: Vec<ast::BranchOptionNode> = {
+        let jni_node = env
+          .call_method(value, "getBranches", "()Ljava/util/List;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+
+      Ok(ast::BranchExpressionNode {
+          info,
+          with_value,
+          branches,
+      })
+    }
+}
+impl FromJni for ast::IfBranchOptionNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node IfBranchOptionNode");
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?
+        .jni_into(env)?;
+      let condition: ast::ExpressionNode = {
+        let jni_node = env
+          .call_method(value, "getCondition", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+      let body: ast::BodyNode = {
+        let jni_node = env
+          .call_method(value, "getBody", "()Lcom/dallonf/ktcause/ast/BodyNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+
+      Ok(ast::IfBranchOptionNode {
+          info,
+          condition,
+          body,
+      })
+    }
+}
+impl FromJni for ast::IsBranchOptionNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node IsBranchOptionNode");
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?
+        .jni_into(env)?;
+      let pattern: Arc<ast::PatternNode> = {
+        let jni_node = env
+          .call_method(value, "getPattern", "()Lcom/dallonf/ktcause/ast/PatternNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+      let body: ast::BodyNode = {
+        let jni_node = env
+          .call_method(value, "getBody", "()Lcom/dallonf/ktcause/ast/BodyNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+
+      Ok(ast::IsBranchOptionNode {
+          info,
+          pattern,
+          body,
+      })
+    }
+}
+impl FromJni for ast::ElseBranchOptionNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node ElseBranchOptionNode");
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?
+        .jni_into(env)?;
+      let body: ast::BodyNode = {
+        let jni_node = env
+          .call_method(value, "getBody", "()Lcom/dallonf/ktcause/ast/BodyNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+
+      Ok(ast::ElseBranchOptionNode {
+          info,
+          body,
       })
     }
 }

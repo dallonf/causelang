@@ -234,7 +234,8 @@ private fun parseSignalDeclaration(
 ): SignalType {
     val name = parseIdentifier(signalDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
     val fields = signalDeclaration.objectFields()?.let { parseObjectFields(it, breadcrumbs.appendName("fields"), ctx) }
-    val result = signalDeclaration.typeReference()?.let { parseTypeReference(it, breadcrumbs.appendName("result"), ctx) }
+    val result =
+        signalDeclaration.typeReference()?.let { parseTypeReference(it, breadcrumbs.appendName("result"), ctx) }
 
     return SignalType(
         NodeInfo(signalDeclaration.getRange(), breadcrumbs), name, fields, result
@@ -456,7 +457,7 @@ private fun parseBranchOption(
     val info = NodeInfo(branchOption.getRange(), breadcrumbs)
     return when (val child = branchOption.getChild(0)) {
         is IfBranchOptionContext -> {
-            BranchOptionNode.IfBranchOptionNode(
+            IfBranchOptionNode(
                 info,
                 parseExpression(child.expression(), breadcrumbs.appendName("condition"), ctx),
                 parseBody(child.body(), breadcrumbs.appendName("body"), ctx),
@@ -464,7 +465,7 @@ private fun parseBranchOption(
         }
 
         is IsBranchOptionContext -> {
-            BranchOptionNode.IsBranchOptionNode(
+            IsBranchOptionNode(
                 info,
                 parsePattern(child.pattern(), breadcrumbs.appendName("pattern"), ctx),
                 parseBody(child.body(), breadcrumbs.appendName("body"), ctx)
@@ -472,7 +473,7 @@ private fun parseBranchOption(
         }
 
         is ElseBranchOptionContext -> {
-            BranchOptionNode.ElseBranchOptionNode(
+            ElseBranchOptionNode(
                 info, parseBody(child.body(), breadcrumbs.appendName("body"), ctx)
             )
         }

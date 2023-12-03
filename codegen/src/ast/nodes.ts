@@ -6,6 +6,7 @@ export const categories = [
   { name: "Body" },
   { name: "Statement" },
   { name: "Expression" },
+  { name: "BranchOption" },
 ];
 
 export const nodes: NodeDeclaration[] = [
@@ -21,6 +22,14 @@ export const nodes: NodeDeclaration[] = [
     category: "TypeReference",
     fields: {
       identifier: "Identifier",
+    },
+  },
+
+  {
+    name: "Pattern",
+    fields: {
+      name: optional("Identifier"),
+      typeReference: "TypeReference",
     },
   },
 
@@ -84,6 +93,13 @@ export const nodes: NodeDeclaration[] = [
       statements: listOf("Statement"),
     },
   },
+  {
+    name: "SingleStatementBody",
+    category: "Body",
+    fields: {
+      statement: "Statement",
+    },
+  },
 
   {
     name: "ExpressionStatement",
@@ -93,6 +109,37 @@ export const nodes: NodeDeclaration[] = [
     },
   },
 
+  {
+    name: "BranchExpression",
+    category: "Expression",
+    fields: {
+      withValue: optional("Expression"),
+      branches: listOf("BranchOption"),
+    },
+  },
+  {
+    name: "IfBranchOption",
+    category: "BranchOption",
+    fields: {
+      condition: "Expression",
+      body: "Body",
+    },
+  },
+  {
+    name: "IsBranchOption",
+    category: "BranchOption",
+    fields: {
+      pattern: "Pattern",
+      body: "Body",
+    },
+  },
+  {
+    name: "ElseBranchOption",
+    category: "BranchOption",
+    fields: {
+      body: "Body",
+    },
+  },
   {
     name: "CauseExpression",
     category: "Expression",

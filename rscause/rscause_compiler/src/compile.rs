@@ -260,6 +260,9 @@ fn compile_body(
 ) -> Result<()> {
     match body {
         ast::BodyNode::Block(block) => compile_block(block.clone(), procedure, ctx),
+        ast::BodyNode::SingleStatement(body) => {
+            compile_statement(&body.statement, procedure, ctx, true)
+        }
     }
 }
 
@@ -285,12 +288,7 @@ fn compile_block(
     }
 
     for (i, statement) in block.statements.iter().enumerate() {
-        compile_statement(
-            statement.clone(),
-            procedure,
-            ctx,
-            i == block.statements.len() - 1,
-        )?;
+        compile_statement(statement, procedure, ctx, i == block.statements.len() - 1)?;
         // TODO: deal with NeverContinues
     }
 
@@ -316,7 +314,7 @@ fn compile_block(
 }
 
 fn compile_statement(
-    statement: ast::StatementNode,
+    statement: &ast::StatementNode,
     procedure: &mut Procedure,
     ctx: &mut CompilerContext,
     is_last_statement: bool,
@@ -342,6 +340,9 @@ fn compile_expression(
     ctx: &mut CompilerContext,
 ) -> Result<()> {
     match expression {
+        ast::ExpressionNode::Branch(expression) => {
+            compile_branch_expression(&expression, procedure, ctx)
+        }
         ast::ExpressionNode::Cause(expression) => {
             compile_cause_expression(expression, procedure, ctx)
         }
@@ -413,10 +414,12 @@ fn compile_call_expression(
                 .to_result()
                 .map_err(|_| anyhow!("Callee type is a reference to an error or unique type"))
                 .and_then(|instance_type| match instance_type.as_ref() {
-                    LangType::Instance(instance) => ctx
-                        .canonical_types
-                        .get(&instance.type_id)
-                        .ok_or(anyhow!("No canonical type found for {:?}", &instance.type_id)),
+                    LangType::Instance(instance) => {
+                        ctx.canonical_types.get(&instance.type_id).ok_or(anyhow!(
+                            "No canonical type found for {:?}",
+                            &instance.type_id
+                        ))
+                    }
                     _ => Err(anyhow!("Can't construct a {instance_type:?}")),
                 })?;
             let arity = canonical_type.fields().len() as u32;
@@ -435,6 +438,14 @@ fn compile_call_expression(
     }
 
     Ok(())
+}
+
+fn compile_branch_expression(
+    expression: &ast::BranchExpressionNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    todo!()
 }
 
 fn compile_value_flow_reference(
