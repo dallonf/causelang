@@ -51,6 +51,7 @@ pub enum LangType {
     Function(FunctionLangType),
     Primitive(PrimitiveLangType),
     Anything,
+    OneOf(OneOfLangType),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -83,6 +84,16 @@ pub struct InstanceLangType {
 impl From<InstanceLangType> for LangType {
     fn from(value: InstanceLangType) -> Self {
         Self::Instance(value)
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct OneOfLangType {
+    pub options: Vec<AnyInferredLangType>,
+}
+impl From<OneOfLangType> for LangType {
+    fn from(value: OneOfLangType) -> Self {
+        Self::OneOf(value)
     }
 }
 

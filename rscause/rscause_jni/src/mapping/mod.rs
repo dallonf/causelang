@@ -2,7 +2,7 @@ use std::{collections::HashMap, hash::Hash, sync::Arc};
 
 use anyhow::Result;
 use jni::{
-    objects::{JObject, JValue, JValueOwned},
+    objects::{JObject, JValue, JValueGen, JValueOwned},
     JNIEnv,
 };
 
@@ -209,5 +209,16 @@ where
             list.add(env, &jni_item)?;
         }
         Ok(list_obj.into())
+    }
+}
+
+impl<'local> IntoJni for JValueOwned<'local> {
+    fn into_jni<'env_local>(
+        &self,
+        env: &mut jni::JNIEnv<'env_local>,
+    ) -> Result<JValueOwned<'env_local>> {
+        let borrowed = JValue::from(self);
+        let reference = env.new_local_ref(borrowed.l()?)?;
+        Ok(reference.into())
     }
 }

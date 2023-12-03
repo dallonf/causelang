@@ -108,6 +108,8 @@ object RustCompiler {
         return true
     }
 
+    private val supportedCoreExports = setOf("Debug", "Action", "equals")
+
     fun compile(
         path: String,
         ast: FileNode,
@@ -117,7 +119,7 @@ object RustCompiler {
         val filteredCanonicalTypes = run {
             val allEntries = externalFiles.flatMap { it.value.types.entries }
                 // only supported core types for now
-                .filter { it.key.name == "Debug" || it.key.name == "Action" }
+                .filter { supportedCoreExports.contains(it.key.name) }
             val asPairs = allEntries.map { it.toPair() }
             mapOf(*asPairs.toTypedArray())
         }
@@ -126,7 +128,7 @@ object RustCompiler {
                 val filteredExports = value.exports.mapValues { (exportKey, exportValue) ->
                     // only supported core exports for now
                     // all others are just Actions
-                    if (exportKey == "Debug" || exportKey == "Action") {
+                    if (supportedCoreExports.contains(exportKey)) {
                         exportValue
                     } else {
                         ActionValueLangType

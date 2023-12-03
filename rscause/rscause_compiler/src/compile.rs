@@ -302,7 +302,8 @@ fn compile_function(
     compile_body(&mut procedure, ctx)?;
     assert_eq!(
         ctx.scope_stack.back().unwrap().as_ptr(),
-        function_scope.as_ptr()
+        function_scope.as_ptr(),
+        "function scope stack is not what we expected"
     );
     procedure.write_instruction_with_phase(
         Instruction::Return(ReturnInstruction {}),

@@ -10,7 +10,7 @@ use jni::{
 };
 use rscause_compiler::lang_types::{
     AnyInferredLangType, CanonicalLangType, CanonicalLangTypeCategory, CanonicalLangTypeId,
-    CanonicalTypeField, FunctionLangType, InferredType, InstanceLangType, LangType,
+    CanonicalTypeField, FunctionLangType, InferredType, InstanceLangType, LangType, OneOfLangType,
     PrimitiveLangType, SignalCanonicalLangType,
 };
 use tap::prelude::*;
@@ -351,11 +351,11 @@ impl FromJni for LangType {
                     0 => {
                         noisy_log(env, " - Text");
                         Ok(LangType::Primitive(PrimitiveLangType::Text))
-                    },
+                    }
                     1 => {
                         noisy_log(env, " - Number");
                         Ok(LangType::Primitive(PrimitiveLangType::Number))
-                    },
+                    }
                     _ => Err(anyhow!(
                         "don't support other primitive types yet. This is type {}",
                         jni_kind_ordinal
@@ -365,7 +365,21 @@ impl FromJni for LangType {
             "AnythingValueLangType" => {
                 noisy_log(env, "- AnythingValueLangType");
                 Ok(LangType::Anything)
-            },
+            }
+            "OptionValueLangType" => {
+                noisy_log(env, "- OptionValueLangType");
+                let options = env
+                    .call_method(value, "getOptions", "()Ljava/util/List;", &[])?
+                    .l()?;
+                let jni_list = env.get_list(&options)?;
+                let mut options = vec![];
+                let mut iter = jni_list.iter(env)?;
+                while let Some(jni_item) = iter.next(env)? {
+                    let option = jni_constraint_reference_to_inferred_lang_type(env, &jni_item)?;
+                    options.push(option);
+                }
+                Ok(LangType::OneOf(OneOfLangType { options }))
+            }
             _ => Err(anyhow!(
                 "Unsupported ResolvedValueLangType class: {}",
                 class_name
@@ -400,6 +414,7 @@ impl IntoJni for LangType {
                 let result = env.new_object(class, "()V", &[])?;
                 Ok(result.into())
             }
+            LangType::OneOf(one_of_type) => one_of_type.into_jni(env),
         }
     }
 }
@@ -463,6 +478,20 @@ impl IntoJni for PrimitiveLangType {
             "(Lcom/dallonf/ktcause/types/LangPrimitiveKind;)V",
             &[jni_kind.borrow()],
         )?;
+        Ok(result.into())
+    }
+}
+
+impl IntoJni for OneOfLangType {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        let class = env.find_class("com/dallonf/ktcause/types/OptionValueLangType")?;
+        let options = self
+            .options
+            .iter()
+            .map(|option| inferred_value_lang_type_to_jni_constraint_reference(env, option))
+            .collect::<Result<Vec<_>>>()?
+            .into_jni(env)?;
+        let result = env.new_object(class, "()Ljava/util/List;", &[options.borrow()])?;
         Ok(result.into())
     }
 }
