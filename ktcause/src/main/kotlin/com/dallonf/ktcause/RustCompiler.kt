@@ -155,6 +155,7 @@ object RustCompiler {
             }
         }
 
+        // generateTestOutput("tmp", ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles);
         return compileInner(path, ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles)
     }
 
@@ -177,4 +178,12 @@ object RustCompiler {
         canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,
         externalFiles: Map<String, Resolver.ExternalFileDescriptor>
     ): CompiledFile
+
+    private external fun generateTestOutput(
+        testName: String,
+        ast: FileNode,
+        tags: Map<Breadcrumbs, List<NodeTag>>,
+        canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,
+        externalFiles: Map<String, Resolver.ExternalFileDescriptor>
+    )
 }
