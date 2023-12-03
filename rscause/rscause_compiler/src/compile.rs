@@ -9,8 +9,10 @@ use crate::compiled_file::CompiledConstant;
 use crate::find_tag;
 use crate::instructions::{
     CallFunctionInstruction, CauseInstruction, ConstructInstruction, ImportInstruction,
-    Instruction, InstructionPhase, LiteralInstruction, NameValueInstruction, PopEffectsInstruction,
-    PopInstruction, PopScopeInstruction, PushActionInstruction, ReturnInstruction,
+    Instruction, InstructionPhase, IsAssignableToInstruction, JumpIfFalseInstruction,
+    JumpInstruction, LiteralInstruction, NameValueInstruction, NoOpInstruction,
+    PopEffectsInstruction, PopInstruction, PopScopeInstruction, PushActionInstruction,
+    ReadLocalInstruction, ReturnInstruction,
 };
 use crate::tags::ReferencesFileNodeTag;
 use crate::{
@@ -78,6 +80,16 @@ struct CompilerScope {
     named_value_indices: HashMap<Breadcrumbs, u32>,
 }
 impl CompilerScope {
+    fn new(scope_root: Breadcrumbs, scope_type: ScopeType) -> Self {
+        Self {
+            scope_root,
+            scope_type,
+            open_loop: None,
+            effect_count: 0,
+            named_value_indices: HashMap::new(),
+        }
+    }
+
     fn size(&self) -> u32 {
         self.named_value_indices.len() as u32
     }
@@ -123,6 +135,56 @@ impl Procedure {
             index as u32
         }
     }
+
+    fn write_jump_placeholder(
+        &mut self,
+        node_info: &NodeInfo,
+        phase: InstructionPhase,
+    ) -> JumpPlaceholder {
+        self.instructions
+            .push(Instruction::NoOp(NoOpInstruction {}));
+        // TODO: sourcemap
+        let index = self.instructions.len() - 1;
+        JumpPlaceholder {
+            index,
+            make_instruction: Box::new(|instruction| {
+                Instruction::Jump(JumpInstruction { instruction })
+            }),
+        }
+    }
+
+    fn write_jump_if_false_placeholder(
+        &mut self,
+        node_info: &NodeInfo,
+        phase: InstructionPhase,
+    ) -> JumpPlaceholder {
+        self.instructions
+            .push(Instruction::NoOp(NoOpInstruction {}));
+        // TODO: sourcemap
+        let index = self.instructions.len() - 1;
+        JumpPlaceholder {
+            index,
+            make_instruction: Box::new(|instruction| {
+                Instruction::JumpIfFalse(JumpIfFalseInstruction { instruction })
+            }),
+        }
+    }
+}
+
+struct JumpPlaceholder {
+    index: usize,
+    make_instruction: Box<dyn Fn(u32) -> Instruction>,
+}
+
+impl JumpPlaceholder {
+    fn fill(self, procedure: &mut Procedure, jump_to: u32) {
+        procedure.instructions[self.index] = (self.make_instruction)(jump_to);
+    }
+
+    fn fill_latest(self, procedure: &mut Procedure) {
+        let jump_to = procedure.instructions.len() as u32;
+        self.fill(procedure, jump_to);
+    }
 }
 
 pub fn compile(
@@ -145,7 +207,7 @@ pub fn compile(
         match declaration {
             ast::DeclarationNode::Import(_) => {}
             ast::DeclarationNode::Function(function) => {
-                let procedure = compile_function_declaration(function.clone(), &mut ctx)?;
+                let procedure = compile_function_declaration(function, &mut ctx)?;
                 let function_type = ctx
                     .types
                     .value_types
@@ -179,7 +241,7 @@ pub fn compile(
 }
 
 fn compile_function_declaration(
-    function: Arc<ast::FunctionNode>,
+    function: &ast::FunctionNode,
     ctx: &mut CompilerContext,
 ) -> Result<Procedure> {
     compile_function(
@@ -188,7 +250,7 @@ fn compile_function_declaration(
         &function.info,
         ctx,
         |procedure, ctx| {
-            compile_body(function.body.clone(), procedure, ctx)?;
+            compile_body(&function.body, procedure, ctx)?;
             // TODO: report errors
             Ok(())
         },
@@ -254,12 +316,12 @@ fn compile_function(
 }
 
 fn compile_body(
-    body: ast::BodyNode,
+    body: &ast::BodyNode,
     procedure: &mut Procedure,
     ctx: &mut CompilerContext,
 ) -> Result<()> {
     match body {
-        ast::BodyNode::Block(block) => compile_block(block.clone(), procedure, ctx),
+        ast::BodyNode::Block(block) => compile_block(block, procedure, ctx),
         ast::BodyNode::SingleStatement(body) => {
             compile_statement(&body.statement, procedure, ctx, true)
         }
@@ -267,7 +329,7 @@ fn compile_body(
 }
 
 fn compile_block(
-    block: Arc<ast::BlockBodyNode>,
+    block: &ast::BlockBodyNode,
     procedure: &mut Procedure,
     ctx: &mut CompilerContext,
 ) -> Result<()> {
@@ -321,7 +383,7 @@ fn compile_statement(
 ) -> Result<()> {
     match statement {
         ast::StatementNode::Expression(statement) => {
-            compile_expression(statement.expression.clone(), procedure, ctx)?;
+            compile_expression(&statement.expression, procedure, ctx)?;
             if !is_last_statement {
                 procedure.write_instruction_with_phase(
                     Instruction::Pop(PopInstruction { number: 1 }),
@@ -335,7 +397,7 @@ fn compile_statement(
 }
 
 fn compile_expression(
-    expression: ast::ExpressionNode,
+    expression: &ast::ExpressionNode,
     procedure: &mut Procedure,
     ctx: &mut CompilerContext,
 ) -> Result<()> {
@@ -350,7 +412,7 @@ fn compile_expression(
             compile_call_expression(expression, procedure, ctx)
         }
         ast::ExpressionNode::Identifier(expression) => {
-            compile_identifier_expression(expression, procedure, ctx)
+            compile_identifier_expression(expression.clone(), procedure, ctx)
         }
         ast::ExpressionNode::StringLiteral(expression) => {
             let constant =
@@ -373,25 +435,25 @@ fn compile_identifier_expression(
 }
 
 fn compile_cause_expression(
-    expression: Arc<ast::CauseExpressionNode>,
+    expression: &ast::CauseExpressionNode,
     procedure: &mut Procedure,
     ctx: &mut CompilerContext,
 ) -> Result<()> {
-    compile_expression(expression.signal.clone(), procedure, ctx)?;
+    compile_expression(&expression.signal, procedure, ctx)?;
     // TODO: handle errors
     procedure.write_instruction(Instruction::Cause(CauseInstruction {}), &expression.info);
     Ok(())
 }
 
 fn compile_call_expression(
-    expression: Arc<ast::CallExpressionNode>,
+    expression: &ast::CallExpressionNode,
     procedure: &mut Procedure,
     ctx: &mut CompilerContext,
 ) -> Result<()> {
-    compile_expression(expression.callee.clone(), procedure, ctx)?;
+    compile_expression(&expression.callee, procedure, ctx)?;
 
     for param in &expression.parameters {
-        compile_expression(param.value.clone(), procedure, ctx)?;
+        compile_expression(&param.value, procedure, ctx)?;
         // TODO: handle errors
     }
 
@@ -445,7 +507,146 @@ fn compile_branch_expression(
     procedure: &mut Procedure,
     ctx: &mut CompilerContext,
 ) -> Result<()> {
-    todo!()
+    ctx.scope_stack
+        .push_back(Rc::new(RefCell::new(CompilerScope {
+            scope_root: expression.breadcrumbs().clone(),
+            scope_type: ScopeType::Body,
+            open_loop: None,
+            effect_count: 0,
+            named_value_indices: HashMap::new(),
+        })));
+    let with_value_index = expression
+        .with_value
+        .as_ref()
+        .map(|with_value| {
+            compile_expression(&with_value, procedure, ctx)?;
+            ctx.add_to_scope(with_value.breadcrumbs())
+        })
+        .transpose()?;
+
+    let mut remaining_branch_jumps: Vec<JumpPlaceholder> = vec![];
+    for branch in &expression.branches {
+        match branch {
+            ast::BranchOptionNode::If(branch) => {
+                compile_expression(&branch.condition, procedure, ctx)?;
+                let skip_body_instruction = procedure
+                    .write_jump_if_false_placeholder(&branch.info, InstructionPhase::Execute);
+                compile_body(&branch.body, procedure, ctx)?;
+                remaining_branch_jumps.push(
+                    procedure.write_jump_placeholder(branch.info(), InstructionPhase::Cleanup),
+                );
+                skip_body_instruction.fill_latest(procedure);
+            }
+
+            ast::BranchOptionNode::Is(branch) => {
+                if let Some(with_value_index) = with_value_index {
+                    procedure.write_instruction(
+                        Instruction::ReadLocal(ReadLocalInstruction {
+                            index: with_value_index,
+                        }),
+                        branch.info(),
+                    );
+                    compile_value_flow_reference(
+                        (&branch.pattern.type_reference).into(),
+                        procedure,
+                        ctx,
+                    )?;
+                    procedure.write_instruction(
+                        Instruction::IsAssignableTo(IsAssignableToInstruction {}),
+                        branch.info(),
+                    );
+                    let skip_body_instruction = procedure
+                        .write_jump_if_false_placeholder(&branch.info, InstructionPhase::Execute);
+
+                    ctx.scope_stack
+                        .push_back(Rc::new(RefCell::new(CompilerScope::new(
+                            branch.pattern.breadcrumbs().clone(),
+                            ScopeType::Body,
+                        ))));
+                    procedure.write_instruction(
+                        Instruction::ReadLocal(ReadLocalInstruction {
+                            index: with_value_index,
+                        }),
+                        branch.info(),
+                    );
+                    ctx.add_to_scope(&branch.pattern.info.breadcrumbs)?;
+                    if let Some(name) = &branch.pattern.name {
+                        let name_constant =
+                            procedure.add_constant(CompiledConstant::String(name.text.clone()));
+                        procedure.write_instruction(
+                            Instruction::NameValue(NameValueInstruction {
+                                name_constant,
+                                variable: false,
+                                local_index: None,
+                            }),
+                            &branch.info,
+                        );
+                    }
+
+                    compile_body(&branch.body, procedure, ctx)?;
+
+                    procedure.write_instruction_with_phase(
+                        Instruction::PopScope(PopScopeInstruction {
+                            values: ctx
+                                .scope_stack
+                                .back()
+                                .ok_or(anyhow!("no scope"))?
+                                .borrow()
+                                .size(),
+                        }),
+                        branch.info(),
+                        InstructionPhase::Cleanup,
+                    );
+                    ctx.scope_stack.pop_back();
+                    remaining_branch_jumps.push(
+                        procedure.write_jump_placeholder(branch.info(), InstructionPhase::Cleanup),
+                    );
+
+                    skip_body_instruction.fill_latest(procedure);
+                }
+            }
+
+            ast::BranchOptionNode::Else(branch) => {
+                compile_body(&branch.body, procedure, ctx)?;
+                remaining_branch_jumps.push(
+                    procedure.write_jump_placeholder(branch.info(), InstructionPhase::Cleanup),
+                );
+            }
+        }
+    }
+    let else_branch = expression.branches.iter().find_map(|it| match it {
+        ast::BranchOptionNode::Else(branch) => Some(branch),
+        _ => None,
+    });
+    if else_branch.is_none() {
+        let return_type = ctx
+            .types
+            .value_types
+            .get(expression.breadcrumbs())
+            .cloned()
+            .ok_or(anyhow!("no type found for branch expression"))?;
+        todo!("error reporting in branch expression with no else");
+    }
+
+    for jump in remaining_branch_jumps {
+        jump.fill_latest(procedure);
+    }
+
+    procedure.write_instruction_with_phase(
+        Instruction::PopScope(PopScopeInstruction {
+            values: ctx
+                .scope_stack
+                .back()
+                .ok_or(anyhow!("no scope"))?
+                .borrow()
+                .size(),
+        }),
+        expression.info(),
+        InstructionPhase::Cleanup,
+    );
+
+    // TODO: error handling
+    Ok(())
 }
 
 fn compile_value_flow_reference(
