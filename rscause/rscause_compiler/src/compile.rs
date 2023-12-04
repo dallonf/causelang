@@ -645,6 +645,7 @@ fn compile_branch_expression(
         expression.info(),
         InstructionPhase::Cleanup,
     );
+    ctx.scope_stack.pop_back();
 
     // TODO: error handling
     Ok(())
