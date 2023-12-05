@@ -1,9 +1,19 @@
 import { fs, path } from "./deps.ts";
 import { generateAst } from "./src/ast/gen.ts";
+import { generateErrors } from "./src/errors/gen.ts";
 import { generateInstructions } from "./src/instructions/gen.ts";
 import { generateTags } from "./src/tags/gen.ts";
 
-await Promise.all([generateAst(), generateInstructions(), generateTags()]);
+async function generate() {
+  await Promise.all([
+    generateAst(),
+    generateInstructions(),
+    generateTags(),
+    generateErrors(),
+  ]);
+}
+
+await generate();
 
 const WATCH_DEBOUNCE = 300;
 
@@ -20,5 +30,5 @@ for await (const event of watcher) {
   if (currentChange - lastChange < WATCH_DEBOUNCE) continue;
   console.log(`${event.paths[0]} changed, regenerating...`);
   lastChange = currentChange;
-  await Promise.all([generateAst(), generateInstructions(), generateTags()]);
+  await generate();
 }

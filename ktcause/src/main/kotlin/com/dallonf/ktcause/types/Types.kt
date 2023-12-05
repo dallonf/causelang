@@ -315,7 +315,6 @@ sealed interface ErrorLangType : ValueLangType {
 
     @Serializable
     @SerialName("MissingParameters")
-
     data class MissingParameters(val names: List<String>) : ErrorLangType {
         override fun friendlyMessage(ctx: Debug.DebugContext?) =
             "I was expecting more parameters; I'm missing: ${names.joinToString(", ")}."
