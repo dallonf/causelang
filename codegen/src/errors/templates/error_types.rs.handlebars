@@ -1,0 +1,9 @@
+pub enum LangError {
+    {{#each errorTypes}}
+    {{name}}({{name}}Error),
+    {{/each}}
+}
+
+{{#each errorTypes}}
+pub struct {{name}}Error {}
+{{/each}}

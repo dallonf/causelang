@@ -1,6 +1,6 @@
-import { ErrorDeclaration, diverged, listOf, optional } from "./types.ts";
+import { ErrorTypeDeclaration, diverged, listOf, optional } from "./types.ts";
 
-export const errors: ErrorDeclaration[] = [
+export const errorTypes: ErrorTypeDeclaration[] = [
   {
     name: "NeverResolved",
   },
@@ -98,7 +98,7 @@ export const errors: ErrorDeclaration[] = [
     },
   },
   {
-    name: "ConstraintUsedAsValue",
+    name: "ValueUsedAsConstraint",
     fields: {
       type: diverged({
         rust: "AnyInferredLangType",

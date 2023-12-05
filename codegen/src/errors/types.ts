@@ -1,4 +1,4 @@
-export interface ErrorDeclaration {
+export interface ErrorTypeDeclaration {
   name: string;
   fields?: Record<string, FieldType>;
 }
