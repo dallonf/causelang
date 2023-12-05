@@ -1,9 +1,15 @@
 pub enum LangError {
     {{#each errorTypes}}
-    {{name}}({{name}}Error),
+    {{name}}{{#if hasFields}}({{name}}Error){{/if}},
     {{/each}}
 }
 
 {{#each errorTypes}}
-pub struct {{name}}Error {}
+{{#if hasFields}}
+pub struct {{name}}Error {
+    {{#each fields}}
+    pub {{name}}: {{type}},
+    {{/each}}
+}
+{{/if}}
 {{/each}}

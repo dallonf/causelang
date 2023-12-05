@@ -30,5 +30,9 @@ for await (const event of watcher) {
   if (currentChange - lastChange < WATCH_DEBOUNCE) continue;
   console.log(`${event.paths[0]} changed, regenerating...`);
   lastChange = currentChange;
-  await generate();
+  try {
+    await generate();
+  } catch (e) {
+    console.error(e);
+  }
 }
