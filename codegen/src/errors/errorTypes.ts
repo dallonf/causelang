@@ -124,4 +124,10 @@ export const errorTypes: ErrorTypeDeclaration[] = [
   {
     name: "NotSupportedInRust",
   },
+  {
+    name: "CompilerBug",
+    fields: {
+      description: "string",
+    },
+  },
 ];

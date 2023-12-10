@@ -1,5 +1,6 @@
 use crate::ast::{self, AnyAstNode, AstNode, BreadcrumbTreeNode};
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
+use crate::error_types::{compiler_error, CompilerBugError, LangError, ValueUsedAsConstraintError};
 use crate::find_tag;
 use crate::lang_types::{
     AnyInferredLangType, CanonicalLangType, CanonicalLangTypeId, FunctionLangType, InferredType,
@@ -109,31 +110,28 @@ impl ResolveTypes for ast::ImportMappingNode {
         let reference_file_tag = find_tag!(&tags, NodeTag::ReferencesFile);
         let export = reference_file_tag
             .ok_or_else(|| {
-                println!(
-                    "No reference file tag found for import mapping: {:?}",
-                    self.breadcrumbs()
-                );
-                ()
+                LangError::CompilerBug(CompilerBugError {
+                    description: format!(
+                        "No reference file tag found for import mapping: {:?}",
+                        self.breadcrumbs()
+                    ),
+                })
             })
             .and_then(|tag| {
                 ctx.external_files
                     .get(&tag.path)
-                    .ok_or_else(|| {
-                        println!("File not found: {}", &tag.path);
-                        ()
-                    })
+                    .ok_or_else(|| LangError::FileNotFound)
                     .map(|file| (tag, file))
             })
             .and_then(|(tag, file)| {
-                file.exports.get(&self.source_name.text).ok_or_else(|| {
-                    println!("Export not found: {}::{}", self.source_name.text, tag.path);
-                    ()
-                })
+                file.exports
+                    .get(&self.source_name.text)
+                    .ok_or_else(|| LangError::ExportNotFound)
             });
         Some(
             export
                 .map(|export| InferredType::Known(export.clone()))
-                .unwrap_or_else(|_| InferredType::Error),
+                .unwrap_or_else(|err| InferredType::Error(err.into())),
         )
     }
 }
@@ -146,7 +144,12 @@ impl ResolveTypes for ast::FunctionNode {
             type_reference.map(|type_reference| {
                 type_reference.and_then(|type_reference| match type_reference.as_ref() {
                     LangType::TypeReference(referenced_type) => referenced_type.clone(),
-                    _ => InferredType::Error,
+                    _ => InferredType::Error(
+                        LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
+                            r#type: AnyInferredLangType::Known(type_reference.clone()),
+                        })
+                        .into(),
+                    ),
                 })
             })
         });
@@ -154,7 +157,15 @@ impl ResolveTypes for ast::FunctionNode {
         let return_type = explicit_return_type.or_else(get_inferred_return_type);
         let function_type = FunctionLangType {
             name,
-            return_type: return_type.unwrap_or(InferredType::Error),
+            return_type: return_type.unwrap_or(InferredType::Error(
+                LangError::CompilerBug(CompilerBugError {
+                    description: format!(
+                        "No return type found for function: {:?}",
+                        &self.info.breadcrumbs
+                    ),
+                })
+                .into(),
+            )),
         };
         Some(function_type.into())
     }
@@ -180,23 +191,27 @@ impl ResolveTypes for ast::CauseExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let maybe_signal = self.signal.get_resolved_type(ctx);
         let signal_result_type = maybe_signal
-            .ok_or(())
+            .ok_or(LangError::CompilerBug(CompilerBugError {
+                description: "No signal found".into(),
+            }))
             .and_then(|maybe_signal| maybe_signal.to_result())
             .and_then(|maybe_signal| match maybe_signal.as_ref() {
                 LangType::Instance(instance) => Ok(instance.type_id.clone()),
-                _ => Err(()),
+                _ => Err(LangError::NotCausable),
             })
             .and_then(|signal_id| {
                 ctx.canonical_types
                     .get(signal_id.as_ref())
                     .cloned()
-                    .ok_or(())
+                    .ok_or(LangError::CompilerBug(CompilerBugError {
+                        description: format!("Couldn't find a canonical symbol: {:?}", signal_id),
+                    }))
             })
             .and_then(|canonical_type| match canonical_type.as_ref() {
                 CanonicalLangType::Signal(signal_type) => Ok(signal_type.result().clone()),
-                _ => Err(()),
+                _ => Err(LangError::NotCausable),
             })
-            .unwrap_or(InferredType::Error);
+            .unwrap_or_else(|err| InferredType::Error(err.into()));
         Some(signal_result_type)
     }
 }
@@ -205,7 +220,12 @@ impl ResolveTypes for ast::CallExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let callee_type = self.callee.get_resolved_type(ctx);
         let result_type = callee_type
-            .unwrap_or(InferredType::Error)
+            .unwrap_or(InferredType::Error(
+                LangError::CompilerBug(CompilerBugError {
+                    description: "No callee type found".into(),
+                })
+                .into(),
+            ))
             .to_result()
             .and_then(|callee_type| match callee_type.as_ref() {
                 LangType::Function(function_type) => Ok(function_type.return_type.clone()),
@@ -215,13 +235,13 @@ impl ResolveTypes for ast::CallExpressionNode {
                     .and_then(|referenced_type| {
                         let instance_type = match referenced_type.as_ref() {
                             LangType::Instance(instance) => Ok(instance),
-                            _ => Err(()),
+                            _ => Err(LangError::NotCallable),
                         }?;
                         Ok(instance_type.clone().into())
                     }),
-                _ => Err(()),
+                _ => Err(LangError::NotCallable),
             });
-        Some(result_type.unwrap_or(InferredType::Error))
+        Some(result_type.unwrap_or_else(|err| InferredType::Error(err.into())))
     }
 }
 
@@ -229,13 +249,24 @@ impl ResolveTypes for ast::IdentifierExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let tags = self.get_tags(ctx);
         let reference_tag = find_tag!(&tags, NodeTag::ValueComesFrom);
-        let referenced_type = reference_tag.ok_or(()).and_then(|reference_tag| {
-            AnyAstNode::from(&ctx.root_node)
-                .node_at_path(&reference_tag.source)
-                .map_err(|_| ())
-                .and_then(|node| node.get_resolved_type(ctx).ok_or(()))
-        });
-        Some(referenced_type.unwrap_or(InferredType::Error))
+        let referenced_type = reference_tag
+            .ok_or(compiler_error("No reference tag found for identifier"))
+            .and_then(|reference_tag| {
+                AnyAstNode::from(&ctx.root_node)
+                    .node_at_path(&reference_tag.source)
+                    .map_err(|err| {
+                        LangError::CompilerBug(CompilerBugError {
+                            description: err.to_string(),
+                        })
+                    })
+                    .and_then(|node| {
+                        node.get_resolved_type(ctx).ok_or(compiler_error(format!(
+                            "no type found for reference: {}",
+                            reference_tag.source
+                        )))
+                    })
+            });
+        Some(referenced_type.unwrap_or_else(|err| InferredType::Error(err.into())))
     }
 }
 

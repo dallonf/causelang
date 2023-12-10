@@ -8,10 +8,13 @@ use jni::{
     objects::{JObject, JValueOwned},
     JNIEnv,
 };
-use rscause_compiler::lang_types::{
-    AnyInferredLangType, CanonicalLangType, CanonicalLangTypeCategory, CanonicalLangTypeId,
-    CanonicalTypeField, FunctionLangType, InferredType, InstanceLangType, LangType, OneOfLangType,
-    PrimitiveLangType, SignalCanonicalLangType,
+use rscause_compiler::{
+    error_types::LangError,
+    lang_types::{
+        AnyInferredLangType, CanonicalLangType, CanonicalLangTypeCategory, CanonicalLangTypeId,
+        CanonicalTypeField, FunctionLangType, InferredType, InstanceLangType, LangType,
+        OneOfLangType, PrimitiveLangType, SignalCanonicalLangType,
+    },
 };
 use tap::prelude::*;
 
@@ -207,8 +210,8 @@ pub fn jni_constraint_reference_to_inferred_lang_type(
                 .jni_into(env)?;
             Ok(AnyInferredLangType::Known(value_type))
         }
-        "Pending" => Ok(AnyInferredLangType::Error),
-        "Error" => Ok(AnyInferredLangType::Error),
+        "Pending" => Ok(AnyInferredLangType::Error(LangError::NotSupportedInRust.into())),
+        "Error" => Ok(AnyInferredLangType::Error(LangError::NotSupportedInRust.into())),
         _ => Err(anyhow!(
             "Unexpected ConstraintReference class: {}",
             class_name
@@ -239,9 +242,13 @@ impl FromJni for AnyInferredLangType {
         let class_name = get_class_name(env, value)?;
 
         if class_name == "Pending" {
-            Ok(AnyInferredLangType::Error)
+            Ok(AnyInferredLangType::Error(
+                LangError::NotSupportedInRust.into(),
+            ))
         } else if env.is_instance_of(value, error_class)? {
-            Ok(AnyInferredLangType::Error)
+            Ok(AnyInferredLangType::Error(
+                LangError::NotSupportedInRust.into(),
+            ))
         } else if env.is_instance_of(value, resolved_class)? {
             Ok(AnyInferredLangType::Known(value.jni_into(env)?))
         } else {

@@ -24,8 +24,7 @@ data class CanonicalLangTypeId(
     val isUnique: Boolean = false,
 ) {
     enum class CanonicalLangTypeIdCategory {
-        SIGNAL,
-        OBJECT,
+        SIGNAL, OBJECT,
     }
 
     override fun toString(): String {
@@ -417,6 +416,13 @@ sealed interface ErrorLangType : ValueLangType {
     object NotSupportedInRust : ErrorLangType {
         override fun friendlyMessage(ctx: Debug.DebugContext?) =
             "This feature is not yet supported in the Rust version of the compiler."
+    }
+
+    @Serializable
+    @SerialName("CompilerBug")
+    data class CompilerBug(val description: String) : ErrorLangType {
+        override fun friendlyMessage(ctx: Debug.DebugContext?): String =
+            "There is an issue in the compiler - this is not your fault! $description"
     }
 }
 

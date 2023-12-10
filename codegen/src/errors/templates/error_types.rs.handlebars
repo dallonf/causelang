@@ -1,3 +1,4 @@
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LangError {
     {{#each errorTypes}}
     {{name}}{{#if hasFields}}({{name}}Error){{/if}},
@@ -6,6 +7,7 @@ pub enum LangError {
 
 {{#each errorTypes}}
 {{#if hasFields}}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct {{name}}Error {
     {{#each fields}}
     pub {{name}}: {{type}},

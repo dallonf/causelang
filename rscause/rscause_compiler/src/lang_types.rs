@@ -2,10 +2,12 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
+use crate::error_types::LangError;
+
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum InferredType<T> {
     Known(T),
-    Error,
+    Error(Box<LangError>),
 }
 impl<T> InferredType<T> {
     #[inline]
@@ -16,14 +18,14 @@ impl<T> InferredType<T> {
     pub fn and_then<U, F: FnOnce(T) -> InferredType<U>>(self, op: F) -> InferredType<U> {
         match self {
             InferredType::Known(t) => op(t),
-            InferredType::Error => InferredType::Error,
+            InferredType::Error(err) => InferredType::Error(err),
         }
     }
     #[inline]
-    pub fn to_result(self) -> Result<T, ()> {
+    pub fn to_result(self) -> Result<T, LangError> {
         match self {
             InferredType::Known(t) => Ok(t),
-            InferredType::Error => Err(()),
+            InferredType::Error(err) => Err(*err),
         }
     }
 }

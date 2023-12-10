@@ -6,6 +6,7 @@ use std::sync::Arc;
 use crate::ast::{AnyAstNode, AstNode, NodeInfo};
 use crate::breadcrumbs::HasBreadcrumbs;
 use crate::compiled_file::CompiledConstant;
+use crate::error_types::{CompilerBugError, LangError};
 use crate::find_tag;
 use crate::instructions::{
     CallFunctionInstruction, CauseInstruction, ConstructInstruction, ImportInstruction,
@@ -26,6 +27,7 @@ use crate::{
     tags::NodeTag,
 };
 use anyhow::{anyhow, Result};
+use tap::Pipe;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -218,7 +220,15 @@ pub fn compile(
                         LangType::Function(function_type) => {
                             InferredType::Known(function_type.clone().into())
                         }
-                        _ => InferredType::Error,
+                        _ => InferredType::Error(
+                            LangError::CompilerBug(CompilerBugError {
+                                description: format!(
+                                    "Function at {} has a non-function type",
+                                    function.breadcrumbs()
+                                ),
+                            })
+                            .pipe(Box::new),
+                        ),
                     });
 
                 ctx.procedures.push(procedure);
