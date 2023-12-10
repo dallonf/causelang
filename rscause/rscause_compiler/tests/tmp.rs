@@ -12,6 +12,7 @@ use tap::Pipe;
 
 #[test]
 fn test_tmp() {
+    let path = Arc::new("project/test.cau".to_owned());
     let ast: Arc<FileNode> =
         serde_lexpr::from_str(include_str!("fixtures/tmp/ast.txt")).unwrap();
     let node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>> =
@@ -21,6 +22,7 @@ fn test_tmp() {
     let external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>> =
         serde_lexpr::from_str(include_str!("fixtures/tmp/external_files.txt")).unwrap();
     let resolve_types_result = resolve_types(
+        path,
         ast.clone(),
         node_tags.clone(),
         canonical_types.clone(),

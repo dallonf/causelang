@@ -114,7 +114,7 @@ impl IntoJni for ResolverError {
         let error = self.error.into_jni(env)?;
         let result = env.new_object(
           class,
-          "(Lcom.dallonf.ktcause.ast/SourcePosition$Source;Lcom/dallonf/ktcause/types/ErrorLangType;)V",
+          "(Lcom/dallonf/ktcause/ast/SourcePosition$Source;Lcom/dallonf/ktcause/types/ErrorLangType;)V",
           &[position.borrow(), error.borrow()],
         )?;
         Ok(result.into())

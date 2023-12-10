@@ -224,7 +224,7 @@ internal class ErrorHandlingBasicTest {
         }
 
         assertEquals(
-            vm.codeBundle.compileErrors.debug(), """
+            """
             [
                 {
                     "position": {
@@ -237,7 +237,8 @@ internal class ErrorHandlingBasicTest {
                     }
                 }
             ]
-            """.trimIndent()
+            """.trimIndent(),
+            vm.codeBundle.compileErrors.debug(),
         )
 
         val result = vm.executeFunction("project/hello.cau", "main", listOf())

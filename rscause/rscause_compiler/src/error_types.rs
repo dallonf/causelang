@@ -18,7 +18,7 @@ pub enum ErrorPosition {
     Source(SourcePosition),
 }
 
-pub fn compiler_error(description: impl Into<String>) -> LangError {
+pub fn compiler_bug_error(description: impl Into<String>) -> LangError {
     LangError::CompilerBug(CompilerBugError {
         description: description.into(),
     })

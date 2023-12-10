@@ -1,7 +1,8 @@
 use crate::ast::{self, AnyAstNode, AstNode, BreadcrumbTreeNode};
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
-    compiler_error, CompilerBugError, LangError, SourcePosition, ValueUsedAsConstraintError,
+    compiler_bug_error, CompilerBugError, LangError, ProxyErrorError, SourcePosition,
+    ValueUsedAsConstraintError,
 };
 use crate::find_tag;
 use crate::lang_types::{
@@ -13,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tap::Conv;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExternalFileDescriptor {
@@ -32,6 +34,7 @@ pub struct ResolverError {
 }
 
 pub fn resolve_types(
+    path: Arc<String>,
     file: Arc<ast::FileNode>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
@@ -50,14 +53,70 @@ pub fn resolve_types(
     }
     let result = ctx
         .value_types
-        .into_iter()
+        .iter()
         .filter_map(|(breadcrumbs, value_type)| {
-            value_type.map(|value_type| (breadcrumbs, value_type))
+            value_type
+                .as_ref()
+                .map(|value_type| (breadcrumbs.clone(), value_type.clone()))
+        })
+        .collect();
+
+    let errors = ctx
+        .value_types
+        .iter()
+        .filter_map(|(breadcrumbs, resolved_type)| {
+            resolved_type
+                .as_ref()
+                .and_then(|resolved_type| match resolved_type {
+                    // TODO: Need to handle errors in nested types
+                    InferredType::Known(_) => None,
+                    InferredType::Error(err) => {
+                        let position = BreadcrumbTreeNode::from(&file)
+                            .at_path(breadcrumbs)
+                            .map_err(|err| {
+                                compiler_bug_error(format!(
+                                    "Couldn't report an error at path {:?}: {}",
+                                    breadcrumbs, err
+                                ))
+                            })
+                            .and_then(|node| match node {
+                                BreadcrumbTreeNode::Node(Some(node)) => {
+                                    Ok(node.info().position.clone())
+                                }
+                                BreadcrumbTreeNode::Node(None) => Err(compiler_bug_error(format!(
+                                    "Empty node at path {:?}; couldn't report an error",
+                                    breadcrumbs
+                                ))),
+                                BreadcrumbTreeNode::List(_) => Err(compiler_bug_error(format!(
+                                    "List node at path {:?}; couldn't report an error",
+                                    breadcrumbs
+                                ))),
+                            });
+                        match position {
+                            Ok(position) => Some(ResolverError {
+                                position: SourcePosition {
+                                    path: path.clone(),
+                                    breadcrumbs: breadcrumbs.clone(),
+                                    position,
+                                },
+                                error: err.as_ref().to_owned(),
+                            }),
+                            Err(err) => Some(ResolverError {
+                                position: SourcePosition {
+                                    path: path.clone(),
+                                    breadcrumbs: file.breadcrumbs().clone(),
+                                    position: file.info().position.clone(),
+                                },
+                                error: err,
+                            }),
+                        }
+                    }
+                })
         })
         .collect();
     ResolveTypesResult {
         value_types: result,
-        errors: vec![]
+        errors,
     }
 }
 
@@ -260,7 +319,7 @@ impl ResolveTypes for ast::IdentifierExpressionNode {
         let tags = self.get_tags(ctx);
         let reference_tag = find_tag!(&tags, NodeTag::ValueComesFrom);
         let referenced_type = reference_tag
-            .ok_or(compiler_error("No reference tag found for identifier"))
+            .ok_or(compiler_bug_error("No reference tag found for identifier"))
             .and_then(|reference_tag| {
                 AnyAstNode::from(&ctx.root_node)
                     .node_at_path(&reference_tag.source)
@@ -270,10 +329,11 @@ impl ResolveTypes for ast::IdentifierExpressionNode {
                         })
                     })
                     .and_then(|node| {
-                        node.get_resolved_type(ctx).ok_or(compiler_error(format!(
-                            "no type found for reference: {}",
-                            reference_tag.source
-                        )))
+                        node.get_resolved_type(ctx)
+                            .ok_or(compiler_bug_error(format!(
+                                "no type found for reference: {}",
+                                reference_tag.source
+                            )))
                     })
             });
         Some(referenced_type.unwrap_or_else(|err| InferredType::Error(err.into())))

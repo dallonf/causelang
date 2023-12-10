@@ -72,6 +72,7 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local
         let tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>> = jni_tags.jni_into(&mut env)?;
 
         let resolved_types: Arc<_> = resolve_types(
+            path.clone(),
             ast.clone(),
             tags.clone(),
             canonical_types.clone(),
