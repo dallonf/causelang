@@ -29,7 +29,7 @@ pub enum LangError {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProxyErrorError {
-    pub actual_error: LangType,
+    pub actual_error: lang_types::LangType,
     pub proxy_chain: Vec<ErrorPosition>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,8 +38,8 @@ pub struct ImplementationTodoError {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MismatchedTypeError {
-    pub expected: AnyInferredLangType,
-    pub actual: LangType,
+    pub expected: lang_types::AnyInferredLangType,
+    pub actual: lang_types::LangType,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MissingParametersError {
@@ -51,20 +51,20 @@ pub struct ExcessParametersError {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnreachableBranchError {
-    pub options: Option<OneOfLangType>,
+    pub options: Option<lang_types::OneOfLangType>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ActionIncompatibleWithValueTypesError {
     pub actions: Vec<SourcePosition>,
-    pub types: Vec<LangType>,
+    pub types: Vec<lang_types::LangType>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConstraintUsedAsValueError {
-    pub r#type: LangType,
+    pub r#type: lang_types::LangType,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValueUsedAsConstraintError {
-    pub r#type: AnyInferredLangType,
+    pub r#type: lang_types::AnyInferredLangType,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompilerBugError {

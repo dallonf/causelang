@@ -7,7 +7,7 @@ const dirname = path.dirname(path.fromFileUrl(import.meta.url));
 const projectRoot = path.resolve(dirname, "../../../");
 
 export async function generateErrors() {
-  await Promise.all([generateRustErrorTypes()]);
+  await Promise.all([generateRustErrorTypes(), generateMappings()]);
 }
 
 async function generateRustErrorTypes() {
@@ -36,6 +36,43 @@ async function generateRustErrorTypes() {
 
   await Deno.writeTextFile(
     path.join(projectRoot, "rscause/rscause_compiler/src/gen/error_types.rs"),
+    output
+  );
+}
+
+async function generateMappings() {
+  const template = await compileTemplate(
+    "error_types_mapping.rs.handlebars",
+    import.meta.url
+  );
+
+  const errorTypesForTemplate = errorTypes.map((error) => {
+    return {
+      name: error.name,
+      hasFields:
+        error.fields !== undefined && Object.keys(error.fields).length > 0,
+      fields: Object.entries(error.fields ?? {}).map(([name, type]) => {
+        return {
+          name: rustFieldName(name),
+          rustType: rustFieldType(type),
+          getterName: changeCase.camelCase("get_" + name),
+          isInt: rustFieldType(type) === "u32",
+          javaType: "",
+        };
+      }),
+      constructorParams: "",
+    };
+  });
+
+  const output = template({
+    errorTypes: errorTypesForTemplate,
+  });
+
+  await Deno.writeTextFile(
+    path.join(
+      projectRoot,
+      "rscause/rscause_jni/src/mapping/gen/error_types.rs"
+    ),
     output
   );
 }

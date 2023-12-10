@@ -20,7 +20,7 @@ export const errorTypes: ErrorTypeDeclaration[] = [
     name: "ProxyError",
     fields: {
       actualError: diverged({
-        rust: "LangType",
+        rust: "lang_types::LangType",
         kotlin: "ErrorLangType",
       }),
       proxyChain: listOf(
@@ -44,11 +44,11 @@ export const errorTypes: ErrorTypeDeclaration[] = [
     name: "MismatchedType",
     fields: {
       expected: diverged({
-        rust: "AnyInferredLangType",
+        rust: "lang_types::AnyInferredLangType",
         kotlin: "ConstraintValueLangType",
       }),
       actual: diverged({
-        rust: "LangType",
+        rust: "lang_types::LangType",
         kotlin: "ResolvedValueLangType",
       }),
     },
@@ -75,7 +75,10 @@ export const errorTypes: ErrorTypeDeclaration[] = [
     name: "UnreachableBranch",
     fields: {
       options: optional(
-        diverged({ rust: "OneOfLangType", kotlin: "OptioNValueLangType" })
+        diverged({
+          rust: "lang_types::OneOfLangType",
+          kotlin: "OptionValueLangType",
+        })
       ),
     },
   },
@@ -85,14 +88,16 @@ export const errorTypes: ErrorTypeDeclaration[] = [
       actions: listOf(
         diverged({ rust: "SourcePosition", kotlin: "SourcePosition.Source" })
       ),
-      types: listOf(diverged({ rust: "LangType", kotlin: "ValueType" })),
+      types: listOf(
+        diverged({ rust: "lang_types::LangType", kotlin: "ValueType" })
+      ),
     },
   },
   {
     name: "ConstraintUsedAsValue",
     fields: {
       type: diverged({
-        rust: "LangType",
+        rust: "lang_types::LangType",
         kotlin: "ConstraintValueLangType",
       }),
     },
@@ -101,7 +106,7 @@ export const errorTypes: ErrorTypeDeclaration[] = [
     name: "ValueUsedAsConstraint",
     fields: {
       type: diverged({
-        rust: "AnyInferredLangType",
+        rust: "lang_types::AnyInferredLangType",
         kotlin: "ValueLangType",
       }),
     },

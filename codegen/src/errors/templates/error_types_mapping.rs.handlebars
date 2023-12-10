@@ -1,0 +1,57 @@
+impl FromJni for LangError {
+  fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+    let class_name = get_class_name(env, value)?;
+    match class_name.as_ref() {
+      {{#each errorTypes}}
+      "{{name}}" => {
+        {{#if hasFields}}
+        {{#each fields}}
+        let {{name}}: {{rustType}} = {
+          let jni_node = env
+            .call_method(value, "{{getterName}}", "(){{javaType}}", &[])?
+            {{#if isInt}}
+            .i()?
+            .try_conv::<{{rustType}}>()?;
+          jni_node
+            {{else}}
+            .l()?;
+          let jni_node = JObject::from(jni_node);
+          jni_node.jni_into(env)?
+            {{/if}}
+        };
+        {{/each}}
+        Ok(LangError::{{name}}(error_types::{{name}}Error {
+          {{#each fields}}
+          {{name}},
+          {{/each}}
+        }).into())
+        {{else}}
+        Ok(LangError::{{name}})
+        {{/if}}
+      },
+      {{/each}}
+      _ => panic!("Unknown class name for LangError: {}", class_name)
+    }
+  }
+}
+
+impl IntoJni for LangError {
+  fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+    match self {
+      {{#each errorTypes}}
+      LangError::{{name}}{{#if hasFields}}(err){{/if}} => {
+        let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType${{name}}")?;
+        {{#each fields}}
+        let {{name}} = err.{{name}}.into_jni(env)?;
+        {{/each}}
+        let result = env.new_object(class, "({{constructorParams}})V", &[
+          {{#each fields}}
+          {{name}}.borrow(),
+          {{/each}}
+        ])?;
+        Ok(result.into())
+      },
+      {{/each}}
+    }
+  }
+}

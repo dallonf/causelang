@@ -210,8 +210,12 @@ pub fn jni_constraint_reference_to_inferred_lang_type(
                 .jni_into(env)?;
             Ok(AnyInferredLangType::Known(value_type))
         }
-        "Pending" => Ok(AnyInferredLangType::Error(LangError::NotSupportedInRust.into())),
-        "Error" => Ok(AnyInferredLangType::Error(LangError::NotSupportedInRust.into())),
+        "Pending" => Ok(AnyInferredLangType::Error(
+            LangError::NotSupportedInRust.into(),
+        )),
+        "Error" => Ok(AnyInferredLangType::Error(
+            LangError::NotSupportedInRust.into(),
+        )),
         _ => Err(anyhow!(
             "Unexpected ConstraintReference class: {}",
             class_name
@@ -267,12 +271,7 @@ where
     ) -> Result<jni::objects::JValueOwned<'local>> {
         match self {
             InferredType::Known(known) => known.into_jni(env),
-            InferredType::Error => {
-                let error_class =
-                    env.find_class("com/dallonf/ktcause/types/ErrorLangType$NotSupportedInRust")?;
-                let error_instance = env.new_object(error_class, "()V", &[])?;
-                Ok(error_instance.into())
-            }
+            InferredType::Error(err) => err.into_jni(env),
         }
     }
 }
@@ -375,17 +374,8 @@ impl FromJni for LangType {
             }
             "OptionValueLangType" => {
                 noisy_log(env, "- OptionValueLangType");
-                let options = env
-                    .call_method(value, "getOptions", "()Ljava/util/List;", &[])?
-                    .l()?;
-                let jni_list = env.get_list(&options)?;
-                let mut options = vec![];
-                let mut iter = jni_list.iter(env)?;
-                while let Some(jni_item) = iter.next(env)? {
-                    let option = jni_constraint_reference_to_inferred_lang_type(env, &jni_item)?;
-                    options.push(option);
-                }
-                Ok(LangType::OneOf(OneOfLangType { options }))
+                let inner = OneOfLangType::from_jni(env, value)?;
+                Ok(LangType::OneOf(inner))
             }
             _ => Err(anyhow!(
                 "Unsupported ResolvedValueLangType class: {}",
@@ -500,5 +490,22 @@ impl IntoJni for OneOfLangType {
             .into_jni(env)?;
         let result = env.new_object(class, "()Ljava/util/List;", &[options.borrow()])?;
         Ok(result.into())
+    }
+}
+
+// Java name: OptionValueLangType
+impl FromJni for OneOfLangType {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+        let options = env
+            .call_method(value, "getOptions", "()Ljava/util/List;", &[])?
+            .l()?;
+        let jni_list = env.get_list(&options)?;
+        let mut options = vec![];
+        let mut iter = jni_list.iter(env)?;
+        while let Some(jni_item) = iter.next(env)? {
+            let option = jni_constraint_reference_to_inferred_lang_type(env, &jni_item)?;
+            options.push(option);
+        }
+        Ok(OneOfLangType { options })
     }
 }

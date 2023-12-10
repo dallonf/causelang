@@ -12,6 +12,7 @@ pub mod ast;
 pub mod breadcrumbs;
 pub mod compiled_file;
 pub mod compiler_misc;
+pub mod error_types;
 pub mod instructions;
 pub mod lang_types;
 pub mod tags;
@@ -171,6 +172,15 @@ where
             Some(value) => value.into_jni(env),
             None => Ok(JValueOwned::Object(JObject::null())),
         }
+    }
+}
+
+impl<T> IntoJni for Box<T>
+where
+    T: IntoJni,
+{
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        self.as_ref().into_jni(env)
     }
 }
 
