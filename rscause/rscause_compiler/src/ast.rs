@@ -120,13 +120,13 @@ pub struct NodeInfo {
     pub breadcrumbs: Breadcrumbs,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct DocumentRange {
     pub start: DocumentPosition,
     pub end: DocumentPosition,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct DocumentPosition {
     pub line: u32,
     pub column: u32,

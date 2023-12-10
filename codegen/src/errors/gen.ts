@@ -96,6 +96,8 @@ function rustFieldType(type: FieldType): string {
       return `Option<${rustFieldType(type.type)}>`;
     case "diverged":
       return type.rust;
+    case "box":
+      return `Box<${rustFieldType(type.type)}>`;
     default: {
       return type satisfies never;
     }
@@ -104,6 +106,12 @@ function rustFieldType(type: FieldType): string {
 
 const jniTypeMap: Record<string, string> = {
   u32: "I",
+  ErrorLangType: "Lcom/dallonf/ktcause/types/ErrorLangType;",
+  ConstraintValueLangType:
+    "Lcom/dallonf/ktcause/types/ConstraintValueLangType;",
+  ResolvedValueLangType: "Lcom/dallonf/ktcause/types/ResolvedValueLangType;",
+  OptionValueLangType: "Lcom/dallonf/ktcause/types/OptionValueLangType;",
+  ValueLangType: "Lcom/dallonf/ktcause/types/ValueLangType;",
 };
 
 function jniFieldType(type: FieldType): string {
@@ -118,7 +126,9 @@ function jniFieldType(type: FieldType): string {
     case "optional":
       return jniFieldType(type.type);
     case "diverged":
-      return type.kotlin;
+      return jniFieldType(type.kotlin);
+    case "box":
+      return jniFieldType(type.type);
     default: {
       return type satisfies never;
     }

@@ -1,8 +1,8 @@
 use crate::ast::{self, AnyAstNode, AstNode, BreadcrumbTreeNode};
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
-    compiler_bug_error, CompilerBugError, LangError, ProxyErrorError, SourcePosition,
-    ValueUsedAsConstraintError,
+    compiler_bug_error, CompilerBugError, ErrorPosition, LangError, ProxyErrorError,
+    SourcePosition, ValueUsedAsConstraintError,
 };
 use crate::find_tag;
 use crate::lang_types::{
@@ -41,6 +41,7 @@ pub fn resolve_types(
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 ) -> ResolveTypesResult {
     let mut ctx = ResolveTypesContext {
+        file_path: path.clone(),
         root_node: file.clone(),
         value_types: HashMap::new(),
         node_tags,
@@ -71,6 +72,9 @@ pub fn resolve_types(
                     // TODO: Need to handle errors in nested types
                     InferredType::Known(_) => None,
                     InferredType::Error(err) => {
+                        if let LangError::ProxyError(_) = err.as_ref() {
+                            return None;
+                        }
                         let position = BreadcrumbTreeNode::from(&file)
                             .at_path(breadcrumbs)
                             .map_err(|err| {
@@ -121,6 +125,7 @@ pub fn resolve_types(
 }
 
 struct ResolveTypesContext {
+    file_path: Arc<String>,
     root_node: Arc<ast::FileNode>,
     value_types: HashMap<Breadcrumbs, Option<AnyInferredLangType>>,
     canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
@@ -138,6 +143,36 @@ trait ResolveTypes: ast::AstNode {
         ctx.value_types
             .insert(self.breadcrumbs().clone(), resolved.clone());
         resolved
+    }
+    fn get_resolved_type_proxying_errors(
+        &self,
+        ctx: &mut ResolveTypesContext,
+    ) -> Option<AnyInferredLangType> {
+        self.get_resolved_type(ctx)
+            .map(|found_type| match found_type {
+                InferredType::Known(found_type) => InferredType::Known(found_type),
+                InferredType::Error(err) => {
+                    let source_position = ErrorPosition::Source(SourcePosition {
+                        path: ctx.file_path.clone(),
+                        breadcrumbs: self.breadcrumbs().clone(),
+                        position: self.info().position,
+                    });
+                    InferredType::Error(
+                        match err.as_ref() {
+                            LangError::ProxyError(proxy_err) => {
+                                let mut proxy_err = proxy_err.clone();
+                                proxy_err.proxy_chain.push(source_position);
+                                LangError::ProxyError(proxy_err)
+                            }
+                            err => LangError::ProxyError(ProxyErrorError {
+                                actual_error: err.to_owned().into(),
+                                proxy_chain: vec![source_position],
+                            }),
+                        }
+                        .into(),
+                    )
+                }
+            })
     }
     fn get_tags<'a, 'b>(&'a self, ctx: &'b ResolveTypesContext) -> Cow<'b, Vec<NodeTag>> {
         ctx.node_tags
@@ -209,7 +244,7 @@ impl ResolveTypes for ast::FunctionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let name = self.name.text.clone();
         let explicit_return_type = self.return_type.as_ref().and_then(|it| {
-            let type_reference = it.get_resolved_type(ctx);
+            let type_reference = it.get_resolved_type_proxying_errors(ctx);
             type_reference.map(|type_reference| {
                 type_reference.and_then(|type_reference| match type_reference.as_ref() {
                     LangType::TypeReference(referenced_type) => referenced_type.clone(),
@@ -222,7 +257,7 @@ impl ResolveTypes for ast::FunctionNode {
                 })
             })
         });
-        let get_inferred_return_type = || self.body.get_resolved_type(ctx);
+        let get_inferred_return_type = || self.body.get_resolved_type_proxying_errors(ctx);
         let return_type = explicit_return_type.or_else(get_inferred_return_type);
         let function_type = FunctionLangType {
             name,
@@ -244,7 +279,7 @@ impl ResolveTypes for ast::BlockBodyNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let last_statement = self.statements.last();
         let last_statement_type = last_statement
-            .and_then(|it| it.get_resolved_type(ctx))
+            .and_then(|it| it.get_resolved_type_proxying_errors(ctx))
             .unwrap_or(LangType::Action.into());
         Some(last_statement_type)
     }
@@ -252,13 +287,13 @@ impl ResolveTypes for ast::BlockBodyNode {
 
 impl ResolveTypes for ast::ExpressionStatementNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        self.expression.get_resolved_type(ctx)
+        self.expression.get_resolved_type_proxying_errors(ctx)
     }
 }
 
 impl ResolveTypes for ast::CauseExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        let maybe_signal = self.signal.get_resolved_type(ctx);
+        let maybe_signal = self.signal.get_resolved_type_proxying_errors(ctx);
         let signal_result_type = maybe_signal
             .ok_or(LangError::CompilerBug(CompilerBugError {
                 description: "No signal found".into(),
@@ -287,7 +322,7 @@ impl ResolveTypes for ast::CauseExpressionNode {
 
 impl ResolveTypes for ast::CallExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        let callee_type = self.callee.get_resolved_type(ctx);
+        let callee_type = self.callee.get_resolved_type_proxying_errors(ctx);
         let result_type = callee_type
             .unwrap_or(InferredType::Error(
                 LangError::CompilerBug(CompilerBugError {
@@ -329,7 +364,7 @@ impl ResolveTypes for ast::IdentifierExpressionNode {
                         })
                     })
                     .and_then(|node| {
-                        node.get_resolved_type(ctx)
+                        node.get_resolved_type_proxying_errors(ctx)
                             .ok_or(compiler_bug_error(format!(
                                 "no type found for reference: {}",
                                 reference_tag.source

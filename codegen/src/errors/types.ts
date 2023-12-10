@@ -17,6 +17,10 @@ export type FieldType =
       kind: "diverged";
       kotlin: string;
       rust: string;
+    }
+  | {
+      kind: "box";
+      type: FieldType;
     };
 
 export function listOf(input: FieldType): FieldType {
@@ -38,5 +42,12 @@ export function diverged(input: { kotlin: string; rust: string }): FieldType {
     kind: "diverged",
     kotlin: input.kotlin,
     rust: input.rust,
+  };
+}
+
+export function box(input: FieldType): FieldType {
+  return {
+    kind: "box",
+    type: input,
   };
 }

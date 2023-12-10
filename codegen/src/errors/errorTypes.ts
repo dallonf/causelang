@@ -1,4 +1,10 @@
-import { ErrorTypeDeclaration, diverged, listOf, optional } from "./types.ts";
+import {
+  ErrorTypeDeclaration,
+  box,
+  diverged,
+  listOf,
+  optional,
+} from "./types.ts";
 
 export const errorTypes: ErrorTypeDeclaration[] = [
   {
@@ -19,10 +25,12 @@ export const errorTypes: ErrorTypeDeclaration[] = [
   {
     name: "ProxyError",
     fields: {
-      actualError: diverged({
-        rust: "lang_types::LangType",
-        kotlin: "ErrorLangType",
-      }),
+      actualError: box(
+        diverged({
+          rust: "LangError",
+          kotlin: "ErrorLangType",
+        })
+      ),
       proxyChain: listOf(
         diverged({ rust: "ErrorPosition", kotlin: "SourcePosition" })
       ),
