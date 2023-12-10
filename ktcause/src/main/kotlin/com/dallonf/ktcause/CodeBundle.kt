@@ -85,7 +85,9 @@ class CodeBundleBuilder {
             val otherFiles = referencedCompiledFiles.associate { it.path to it.toFileDescriptor() }
 
             val compiledFile = if (RustCompiler.shouldRunRustCompiler(file.path, file.ast, file.analyzed, otherFiles)) {
-                RustCompiler.compile(file.path, file.ast, file.analyzed.nodeTags, otherFiles)
+                val (result, errors) = RustCompiler.compile(file.path, file.ast, file.analyzed.nodeTags, otherFiles)
+                finalCompileErrors.addAll(errors)
+                result
             } else {
                 val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
                     file.path, file.ast, file.analyzed, otherFiles, file.debugContext

@@ -9,11 +9,12 @@ use mapping::{IntoJni, JniInto};
 use rscause_compiler::ast::FileNode;
 use rscause_compiler::breadcrumbs::Breadcrumbs;
 use rscause_compiler::compile::compile;
+use rscause_compiler::compiled_file::CompiledFile;
 use rscause_compiler::lang_types::{CanonicalLangType, CanonicalLangTypeId};
-use rscause_compiler::resolve_types::{resolve_types, ExternalFileDescriptor};
+use rscause_compiler::resolve_types::{resolve_types, ExternalFileDescriptor, ResolverError};
 use rscause_compiler::tags::NodeTag;
 use tap::Pipe;
-use util::jtry;
+use util::{jtry, noisy_log};
 
 mod mapping;
 mod util;
@@ -70,11 +71,6 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local
             jni_external_files.jni_into(&mut env)?;
         let tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>> = jni_tags.jni_into(&mut env)?;
 
-        // serde_lexpr::to_writer(File::create("ast.txt")?, &ast)?;
-        // serde_lexpr::to_writer(File::create("tags.txt")?, &tags)?;
-        // serde_lexpr::to_writer(File::create("canonical_types.txt")?, &canonical_types)?;
-        // serde_lexpr::to_writer(File::create("external_files.txt")?, &external_files)?;
-
         let resolved_types: Arc<_> = resolve_types(
             ast.clone(),
             tags.clone(),
@@ -91,6 +87,36 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local
             resolved_types.clone(),
         )?;
 
-        compiled_file.into_jni(&mut env)?.as_jni().pipe(Ok)
+        let result = RustCompilerResult {
+            compiled_file,
+            errors: resolved_types.errors.clone(),
+        };
+
+        result.into_jni(&mut env)?.as_jni().pipe(Ok)
     })
+}
+
+#[derive(Debug, Clone)]
+struct RustCompilerResult {
+    pub compiled_file: CompiledFile,
+    pub errors: Vec<ResolverError>,
+}
+
+impl IntoJni for RustCompilerResult {
+    fn into_jni<'local>(
+        &self,
+        env: &mut jni::JNIEnv<'local>,
+    ) -> anyhow::Result<JValueOwned<'local>> {
+        noisy_log(env, "RustCompilerResult.into_jni");
+        let compiled_file = self.compiled_file.into_jni(env)?;
+        let errors = self.errors.into_jni(env)?;
+        let result = env
+            .new_object(
+                "com/dallonf/ktcause/RustCompiler$RustCompilerResult",
+                "(Lcom/dallonf/ktcause/CompiledFile;Ljava/util/List;)V",
+                &[compiled_file.borrow(), errors.borrow()],
+            )?
+            .into();
+        Ok(result)
+    }
 }

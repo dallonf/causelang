@@ -115,7 +115,7 @@ object RustCompiler {
         ast: FileNode,
         tags: Map<Breadcrumbs, List<NodeTag>>,
         externalFiles: Map<String, Resolver.ExternalFileDescriptor>
-    ): CompiledFile {
+    ): RustCompilerResult {
         val filteredCanonicalTypes = run {
             val allEntries = externalFiles.flatMap { it.value.types.entries }
                 // only supported core types for now
@@ -177,7 +177,7 @@ object RustCompiler {
         tags: Map<Breadcrumbs, List<NodeTag>>,
         canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,
         externalFiles: Map<String, Resolver.ExternalFileDescriptor>
-    ): CompiledFile
+    ): RustCompilerResult
 
     private external fun generateTestOutput(
         testName: String,
@@ -185,5 +185,10 @@ object RustCompiler {
         tags: Map<Breadcrumbs, List<NodeTag>>,
         canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,
         externalFiles: Map<String, Resolver.ExternalFileDescriptor>
+    )
+
+    data class RustCompilerResult(
+        val compiledFile: CompiledFile,
+        val errors: List<Resolver.ResolverError>
     )
 }

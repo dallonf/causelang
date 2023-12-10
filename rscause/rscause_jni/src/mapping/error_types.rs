@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::mapping::{FromJni, IntoJni, JniInto};
-use crate::util::get_class_name;
+use crate::util::{get_class_name, noisy_log};
 use anyhow::Result;
 use jni::objects::{JObject, JValueOwned};
 use jni::JNIEnv;
@@ -10,6 +10,7 @@ use rscause_compiler::breadcrumbs::Breadcrumbs;
 use rscause_compiler::error_types::{self, SourcePosition};
 use rscause_compiler::error_types::{ErrorPosition, LangError};
 use rscause_compiler::lang_types;
+use rscause_compiler::resolve_types::ResolverError;
 use tap::TryConv;
 
 include!("./gen/error_types.rs");
@@ -102,5 +103,20 @@ impl IntoJni for ErrorPosition {
         match self {
             ErrorPosition::Source(source_position) => source_position.into_jni(env),
         }
+    }
+}
+
+impl IntoJni for ResolverError {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        noisy_log(env, "ResolverError.into_jni");
+        let class = env.find_class("com/dallonf/ktcause/Resolver$ResolverError")?;
+        let position = self.position.into_jni(env)?;
+        let error = self.error.into_jni(env)?;
+        let result = env.new_object(
+          class,
+          "(Lcom.dallonf.ktcause.ast/SourcePosition$Source;Lcom/dallonf/ktcause/types/ErrorLangType;)V",
+          &[position.borrow(), error.borrow()],
+        )?;
+        Ok(result.into())
     }
 }

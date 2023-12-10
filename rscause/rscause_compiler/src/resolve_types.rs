@@ -1,6 +1,8 @@
 use crate::ast::{self, AnyAstNode, AstNode, BreadcrumbTreeNode};
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
-use crate::error_types::{compiler_error, CompilerBugError, LangError, ValueUsedAsConstraintError};
+use crate::error_types::{
+    compiler_error, CompilerBugError, LangError, SourcePosition, ValueUsedAsConstraintError,
+};
 use crate::find_tag;
 use crate::lang_types::{
     AnyInferredLangType, CanonicalLangType, CanonicalLangTypeId, FunctionLangType, InferredType,
@@ -20,6 +22,13 @@ pub struct ExternalFileDescriptor {
 #[derive(Debug, Clone)]
 pub struct ResolveTypesResult {
     pub value_types: HashMap<Breadcrumbs, AnyInferredLangType>,
+    pub errors: Vec<ResolverError>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ResolverError {
+    pub position: SourcePosition,
+    pub error: LangError,
 }
 
 pub fn resolve_types(
@@ -48,6 +57,7 @@ pub fn resolve_types(
         .collect();
     ResolveTypesResult {
         value_types: result,
+        errors: vec![]
     }
 }
 
