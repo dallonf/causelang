@@ -20,14 +20,14 @@ impl FromJni for LangError {
       "ProxyError" => {
         let actual_error: lang_types::LangType = {
           let jni_node = env
-            .call_method(value, "getActualError", "()", &[])?
+            .call_method(value, "getActualError", "()ErrorLangType", &[])?
             .l()?;
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
         };
         let proxy_chain: Vec<ErrorPosition> = {
           let jni_node = env
-            .call_method(value, "getProxyChain", "()", &[])?
+            .call_method(value, "getProxyChain", "()Ljava/util/List;", &[])?
             .l()?;
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
@@ -46,7 +46,7 @@ impl FromJni for LangError {
       "ImplementationTodo" => {
         let description: String = {
           let jni_node = env
-            .call_method(value, "getDescription", "()", &[])?
+            .call_method(value, "getDescription", "()Ljava/lang/String;", &[])?
             .l()?;
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
@@ -58,14 +58,14 @@ impl FromJni for LangError {
       "MismatchedType" => {
         let expected: lang_types::AnyInferredLangType = {
           let jni_node = env
-            .call_method(value, "getExpected", "()", &[])?
+            .call_method(value, "getExpected", "()ConstraintValueLangType", &[])?
             .l()?;
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
         };
         let actual: lang_types::LangType = {
           let jni_node = env
-            .call_method(value, "getActual", "()", &[])?
+            .call_method(value, "getActual", "()ResolvedValueLangType", &[])?
             .l()?;
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
@@ -78,7 +78,7 @@ impl FromJni for LangError {
       "MissingParameters" => {
         let names: Vec<String> = {
           let jni_node = env
-            .call_method(value, "getNames", "()", &[])?
+            .call_method(value, "getNames", "()Ljava/util/List;", &[])?
             .l()?;
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
@@ -90,7 +90,7 @@ impl FromJni for LangError {
       "ExcessParameters" => {
         let expected: u32 = {
           let jni_node = env
-            .call_method(value, "getExpected", "()", &[])?
+            .call_method(value, "getExpected", "()I", &[])?
             .i()?
             .try_conv::<u32>()?;
           jni_node
@@ -108,7 +108,7 @@ impl FromJni for LangError {
       "UnreachableBranch" => {
         let options: Option<lang_types::OneOfLangType> = {
           let jni_node = env
-            .call_method(value, "getOptions", "()", &[])?
+            .call_method(value, "getOptions", "()OptionValueLangType", &[])?
             .l()?;
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
@@ -120,14 +120,14 @@ impl FromJni for LangError {
       "ActionIncompatibleWithValueTypes" => {
         let actions: Vec<SourcePosition> = {
           let jni_node = env
-            .call_method(value, "getActions", "()", &[])?
+            .call_method(value, "getActions", "()Ljava/util/List;", &[])?
             .l()?;
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
         };
         let types: Vec<lang_types::LangType> = {
           let jni_node = env
-            .call_method(value, "getTypes", "()", &[])?
+            .call_method(value, "getTypes", "()Ljava/util/List;", &[])?
             .l()?;
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
@@ -140,7 +140,7 @@ impl FromJni for LangError {
       "ConstraintUsedAsValue" => {
         let r#type: lang_types::LangType = {
           let jni_node = env
-            .call_method(value, "getType", "()", &[])?
+            .call_method(value, "getType", "()ConstraintValueLangType", &[])?
             .l()?;
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
@@ -152,7 +152,7 @@ impl FromJni for LangError {
       "ValueUsedAsConstraint" => {
         let r#type: lang_types::AnyInferredLangType = {
           let jni_node = env
-            .call_method(value, "getType", "()", &[])?
+            .call_method(value, "getType", "()ValueLangType", &[])?
             .l()?;
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
@@ -182,7 +182,7 @@ impl FromJni for LangError {
       "CompilerBug" => {
         let description: String = {
           let jni_node = env
-            .call_method(value, "getDescription", "()", &[])?
+            .call_method(value, "getDescription", "()Ljava/lang/String;", &[])?
             .l()?;
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
@@ -233,7 +233,7 @@ impl IntoJni for LangError {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$ProxyError")?;
         let actual_error = err.actual_error.into_jni(env)?;
         let proxy_chain = err.proxy_chain.into_jni(env)?;
-        let result = env.new_object(class, "()V", &[
+        let result = env.new_object(class, "(ErrorLangTypeLjava/util/List;)V", &[
           actual_error.borrow(),
           proxy_chain.borrow(),
         ])?;
@@ -254,7 +254,7 @@ impl IntoJni for LangError {
       LangError::ImplementationTodo(err) => {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$ImplementationTodo")?;
         let description = err.description.into_jni(env)?;
-        let result = env.new_object(class, "()V", &[
+        let result = env.new_object(class, "(Ljava/lang/String;)V", &[
           description.borrow(),
         ])?;
         Ok(result.into())
@@ -263,7 +263,7 @@ impl IntoJni for LangError {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$MismatchedType")?;
         let expected = err.expected.into_jni(env)?;
         let actual = err.actual.into_jni(env)?;
-        let result = env.new_object(class, "()V", &[
+        let result = env.new_object(class, "(ConstraintValueLangTypeResolvedValueLangType)V", &[
           expected.borrow(),
           actual.borrow(),
         ])?;
@@ -272,7 +272,7 @@ impl IntoJni for LangError {
       LangError::MissingParameters(err) => {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$MissingParameters")?;
         let names = err.names.into_jni(env)?;
-        let result = env.new_object(class, "()V", &[
+        let result = env.new_object(class, "(Ljava/util/List;)V", &[
           names.borrow(),
         ])?;
         Ok(result.into())
@@ -280,7 +280,7 @@ impl IntoJni for LangError {
       LangError::ExcessParameters(err) => {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$ExcessParameters")?;
         let expected = err.expected.into_jni(env)?;
-        let result = env.new_object(class, "()V", &[
+        let result = env.new_object(class, "(I)V", &[
           expected.borrow(),
         ])?;
         Ok(result.into())
@@ -300,7 +300,7 @@ impl IntoJni for LangError {
       LangError::UnreachableBranch(err) => {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$UnreachableBranch")?;
         let options = err.options.into_jni(env)?;
-        let result = env.new_object(class, "()V", &[
+        let result = env.new_object(class, "(OptionValueLangType)V", &[
           options.borrow(),
         ])?;
         Ok(result.into())
@@ -309,7 +309,7 @@ impl IntoJni for LangError {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$ActionIncompatibleWithValueTypes")?;
         let actions = err.actions.into_jni(env)?;
         let types = err.types.into_jni(env)?;
-        let result = env.new_object(class, "()V", &[
+        let result = env.new_object(class, "(Ljava/util/List;Ljava/util/List;)V", &[
           actions.borrow(),
           types.borrow(),
         ])?;
@@ -318,7 +318,7 @@ impl IntoJni for LangError {
       LangError::ConstraintUsedAsValue(err) => {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$ConstraintUsedAsValue")?;
         let r#type = err.r#type.into_jni(env)?;
-        let result = env.new_object(class, "()V", &[
+        let result = env.new_object(class, "(ConstraintValueLangType)V", &[
           r#type.borrow(),
         ])?;
         Ok(result.into())
@@ -326,7 +326,7 @@ impl IntoJni for LangError {
       LangError::ValueUsedAsConstraint(err) => {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$ValueUsedAsConstraint")?;
         let r#type = err.r#type.into_jni(env)?;
-        let result = env.new_object(class, "()V", &[
+        let result = env.new_object(class, "(ValueLangType)V", &[
           r#type.borrow(),
         ])?;
         Ok(result.into())
@@ -370,7 +370,7 @@ impl IntoJni for LangError {
       LangError::CompilerBug(err) => {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$CompilerBug")?;
         let description = err.description.into_jni(env)?;
-        let result = env.new_object(class, "()V", &[
+        let result = env.new_object(class, "(Ljava/lang/String;)V", &[
           description.borrow(),
         ])?;
         Ok(result.into())

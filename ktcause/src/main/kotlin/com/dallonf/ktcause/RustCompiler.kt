@@ -45,7 +45,7 @@ object RustCompiler {
         ASSERT_SUPPORTED,
     }
 
-    private val mode = Mode.IF_SUPPORTED
+    private val mode = Mode.ALWAYS
 
     init {
         System.loadLibrary("rscause_jni")

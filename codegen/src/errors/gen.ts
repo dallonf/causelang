@@ -57,10 +57,12 @@ async function generateMappings() {
           rustType: rustFieldType(type),
           getterName: changeCase.camelCase("get_" + name),
           isInt: rustFieldType(type) === "u32",
-          javaType: "",
+          jniType: jniFieldType(type),
         };
       }),
-      constructorParams: "",
+      constructorParams: Object.entries(error.fields ?? {})
+        .map(([, type]) => jniFieldType(type))
+        .join(""),
     };
   });
 
@@ -94,6 +96,29 @@ function rustFieldType(type: FieldType): string {
       return `Option<${rustFieldType(type.type)}>`;
     case "diverged":
       return type.rust;
+    default: {
+      return type satisfies never;
+    }
+  }
+}
+
+const jniTypeMap: Record<string, string> = {
+  u32: "I",
+};
+
+function jniFieldType(type: FieldType): string {
+  if (typeof type === "string") {
+    if (type === "string") return "Ljava/lang/String;";
+    if (type in jniTypeMap) return jniTypeMap[type];
+    throw new Error(`Unknown JNI type ${type}`);
+  }
+  switch (type.kind) {
+    case "list":
+      return "Ljava/util/List;";
+    case "optional":
+      return jniFieldType(type.type);
+    case "diverged":
+      return type.kotlin;
     default: {
       return type satisfies never;
     }

@@ -8,7 +8,7 @@ impl FromJni for LangError {
         {{#each fields}}
         let {{name}}: {{rustType}} = {
           let jni_node = env
-            .call_method(value, "{{getterName}}", "(){{javaType}}", &[])?
+            .call_method(value, "{{getterName}}", "(){{jniType}}", &[])?
             {{#if isInt}}
             .i()?
             .try_conv::<{{rustType}}>()?;
