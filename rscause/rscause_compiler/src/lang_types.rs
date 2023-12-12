@@ -7,7 +7,7 @@ use crate::error_types::LangError;
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum InferredType<T> {
     Known(T),
-    Error(Box<LangError>),
+    Error(Arc<LangError>),
 }
 impl<T> InferredType<T> {
     #[inline]
@@ -22,10 +22,10 @@ impl<T> InferredType<T> {
         }
     }
     #[inline]
-    pub fn to_result(self) -> Result<T, LangError> {
+    pub fn to_result(self) -> Result<T, Arc<LangError>> {
         match self {
             InferredType::Known(t) => Ok(t),
-            InferredType::Error(err) => Err(*err),
+            InferredType::Error(err) => Err(err),
         }
     }
 }

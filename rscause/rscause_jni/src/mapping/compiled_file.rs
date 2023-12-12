@@ -80,6 +80,18 @@ impl IntoJni for CompiledConstant {
                     env.new_object(class, "(Ljava/lang/String;)V", &[jni_value.borrow()])?;
                 Ok(result.into())
             }
+            CompiledConstant::Error(err_const) => {
+                let class =
+                    env.find_class("com/dallonf/ktcause/CompiledFile$CompiledConstant$ErrorConst")?;
+                let jni_source_position = err_const.source_position.into_jni(env)?;
+                let jni_error = err_const.error.into_jni(env)?;
+                let result = env.new_object(
+                    class,
+                    "(Lcom/dallonf/ktcause/ast/SourcePosition;Lcom/dallonf/ktcause/types/ErrorLangType;)V",
+                    &[jni_source_position.borrow(), jni_error.borrow()],
+                )?;
+                Ok(result.into())
+            }
         }
     }
 }

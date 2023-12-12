@@ -295,25 +295,28 @@ impl ResolveTypes for ast::CauseExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let maybe_signal = self.signal.get_resolved_type_proxying_errors(ctx);
         let signal_result_type = maybe_signal
-            .ok_or(LangError::CompilerBug(CompilerBugError {
-                description: "No signal found".into(),
-            }))
+            .ok_or(
+                LangError::CompilerBug(CompilerBugError {
+                    description: "No signal found".into(),
+                })
+                .into(),
+            )
             .and_then(|maybe_signal| maybe_signal.to_result())
             .and_then(|maybe_signal| match maybe_signal.as_ref() {
                 LangType::Instance(instance) => Ok(instance.type_id.clone()),
-                _ => Err(LangError::NotCausable),
+                _ => Err(LangError::NotCausable.into()),
             })
             .and_then(|signal_id| {
-                ctx.canonical_types
-                    .get(signal_id.as_ref())
-                    .cloned()
-                    .ok_or(LangError::CompilerBug(CompilerBugError {
+                ctx.canonical_types.get(signal_id.as_ref()).cloned().ok_or(
+                    LangError::CompilerBug(CompilerBugError {
                         description: format!("Couldn't find a canonical symbol: {:?}", signal_id),
-                    }))
+                    })
+                    .into(),
+                )
             })
             .and_then(|canonical_type| match canonical_type.as_ref() {
                 CanonicalLangType::Signal(signal_type) => Ok(signal_type.result().clone()),
-                _ => Err(LangError::NotCausable),
+                _ => Err(LangError::NotCausable.into()),
             })
             .unwrap_or_else(|err| InferredType::Error(err.into()));
         Some(signal_result_type)
@@ -343,7 +346,7 @@ impl ResolveTypes for ast::CallExpressionNode {
                         }?;
                         Ok(instance_type.clone().into())
                     }),
-                _ => Err(LangError::NotCallable),
+                _ => Err(LangError::NotCallable.into()),
             });
         Some(result_type.unwrap_or_else(|err| InferredType::Error(err.into())))
     }

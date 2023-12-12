@@ -98,6 +98,8 @@ function rustFieldType(type: FieldType): string {
       return type.rust;
     case "box":
       return `Box<${rustFieldType(type.type)}>`;
+    case "arc":
+      return `Arc<${rustFieldType(type.type)}>`;
     default: {
       return type satisfies never;
     }
@@ -123,11 +125,11 @@ function jniFieldType(type: FieldType): string {
   switch (type.kind) {
     case "list":
       return "Ljava/util/List;";
-    case "optional":
-      return jniFieldType(type.type);
     case "diverged":
       return jniFieldType(type.kotlin);
+    case "optional":
     case "box":
+    case "arc":
       return jniFieldType(type.type);
     default: {
       return type satisfies never;

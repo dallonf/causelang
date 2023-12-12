@@ -18,7 +18,7 @@ impl FromJni for LangError {
         Ok(LangError::ExportNotFound)
       },
       "ProxyError" => {
-        let actual_error: Box<LangError> = {
+        let actual_error: Arc<LangError> = {
           let jni_node = env
             .call_method(value, "getActualError", "()Lcom/dallonf/ktcause/types/ErrorLangType;", &[])?
             .l()?;

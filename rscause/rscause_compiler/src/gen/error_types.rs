@@ -29,7 +29,7 @@ pub enum LangError {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProxyErrorError {
-    pub actual_error: Box<LangError>,
+    pub actual_error: Arc<LangError>,
     pub proxy_chain: Vec<ErrorPosition>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

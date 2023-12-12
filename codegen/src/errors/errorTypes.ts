@@ -1,5 +1,6 @@
 import {
   ErrorTypeDeclaration,
+  arc,
   box,
   diverged,
   listOf,
@@ -25,7 +26,7 @@ export const errorTypes: ErrorTypeDeclaration[] = [
   {
     name: "ProxyError",
     fields: {
-      actualError: box(
+      actualError: arc(
         diverged({
           rust: "LangError",
           kotlin: "ErrorLangType",

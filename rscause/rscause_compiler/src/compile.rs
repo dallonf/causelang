@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use crate::ast::{AnyAstNode, AstNode, NodeInfo};
 use crate::breadcrumbs::HasBreadcrumbs;
-use crate::compiled_file::CompiledConstant;
-use crate::error_types::{CompilerBugError, LangError};
+use crate::compiled_file::{CompiledConstant, ErrorConst};
+use crate::error_types::{CompilerBugError, ErrorPosition, LangError, SourcePosition};
 use crate::find_tag;
 use crate::instructions::{
     CallFunctionInstruction, CauseInstruction, ConstructInstruction, ImportInstruction,
@@ -35,6 +35,7 @@ use thiserror::Error;
 pub struct TodoCompilerError(String);
 
 struct CompilerContext {
+    path: Arc<String>,
     procedures: Vec<Procedure>,
     types: Arc<ResolveTypesResult>,
     canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
@@ -72,6 +73,20 @@ impl CompilerContext {
             .cloned()
             .unwrap_or_else(|| vec![])
     }
+
+    fn check_for_runtime_error(&self, breadcrumbs: &Breadcrumbs) -> Result<Option<Arc<LangError>>> {
+        let found_type = self
+            .types
+            .value_types
+            .get(breadcrumbs)
+            .ok_or(anyhow!("No type for {}", breadcrumbs))?;
+
+        match found_type {
+            InferredType::Known(_) => None,
+            InferredType::Error(err) => Some(err.clone()),
+        }
+        .pipe(Ok)
+    }
 }
 
 struct CompilerScope {
@@ -106,13 +121,13 @@ enum ScopeType {
 }
 
 impl Procedure {
-    fn write_instruction(&mut self, instruction: Instruction, node_info: &NodeInfo) {
+    fn write_instruction(&mut self, instruction: Instruction, node_info: Option<&NodeInfo>) {
         self.write_instruction_with_phase(instruction, node_info, InstructionPhase::Execute)
     }
     fn write_instruction_with_phase(
         &mut self,
         instruction: Instruction,
-        node_info: &NodeInfo,
+        node_info: Option<&NodeInfo>,
         phase: InstructionPhase,
     ) {
         // don't write no-op instructions
@@ -121,7 +136,7 @@ impl Procedure {
             Instruction::Pop(PopInstruction { number: 0 }) => return,
             Instruction::PopEffects(PopEffectsInstruction { number: 0 }) => return,
             Instruction::PopScope(PopScopeInstruction { values: 0 }) => return,
-            _ => {}
+            _ => { /* continue */ }
         }
         self.instructions.push(instruction);
         // TODO: sourcemap
@@ -197,6 +212,7 @@ pub fn compile(
     types: Arc<ResolveTypesResult>,
 ) -> Result<CompiledFile> {
     let mut ctx = CompilerContext {
+        path: path.clone(),
         procedures: Vec::new(),
         canonical_types,
         types,
@@ -227,7 +243,7 @@ pub fn compile(
                                     function.breadcrumbs()
                                 ),
                             })
-                            .pipe(Box::new),
+                            .into(),
                         ),
                     });
 
@@ -304,7 +320,7 @@ fn compile_function(
                 variable: false,
                 local_index: Some(ctx.scope_stack.back().unwrap().borrow().size() - 1),
             }),
-            node_info,
+            Some(node_info),
         );
     }
     // TODO: handle closure captures
@@ -317,7 +333,7 @@ fn compile_function(
     );
     procedure.write_instruction_with_phase(
         Instruction::Return(ReturnInstruction {}),
-        node_info,
+        Some(node_info),
         InstructionPhase::Cleanup,
     );
 
@@ -356,7 +372,7 @@ fn compile_block(
     if block.statements.is_empty() {
         procedure.write_instruction(
             Instruction::PushAction(PushActionInstruction {}),
-            &block.info,
+            Some(&block.info),
         );
     }
 
@@ -373,14 +389,14 @@ fn compile_block(
         Instruction::PopEffects(PopEffectsInstruction {
             number: scope.borrow().effect_count,
         }),
-        &block.info,
+        Some(&block.info),
         InstructionPhase::Cleanup,
     );
     procedure.write_instruction_with_phase(
         Instruction::PopScope(PopScopeInstruction {
             values: scope.borrow().size(),
         }),
-        &block.info,
+        Some(&block.info),
         InstructionPhase::Cleanup,
     );
     Ok(())
@@ -398,7 +414,7 @@ fn compile_statement(
             if !is_last_statement {
                 procedure.write_instruction_with_phase(
                     Instruction::Pop(PopInstruction { number: 1 }),
-                    &statement.info,
+                    Some(&statement.info),
                     InstructionPhase::Cleanup,
                 );
             }
@@ -417,7 +433,7 @@ fn compile_expression(
             compile_branch_expression(&expression, procedure, ctx)
         }
         ast::ExpressionNode::Cause(expression) => {
-            compile_cause_expression(expression, procedure, ctx)
+            compile_cause_expression(expression.clone(), procedure, ctx)
         }
         ast::ExpressionNode::Call(expression) => {
             compile_call_expression(expression, procedure, ctx)
@@ -430,7 +446,7 @@ fn compile_expression(
                 procedure.add_constant(CompiledConstant::String(expression.text.clone()));
             procedure.write_instruction(
                 Instruction::Literal(LiteralInstruction { constant }),
-                &expression.info,
+                Some(&expression.info),
             );
             Ok(())
         }
@@ -446,13 +462,22 @@ fn compile_identifier_expression(
 }
 
 fn compile_cause_expression(
-    expression: &ast::CauseExpressionNode,
+    expression: Arc<ast::CauseExpressionNode>,
     procedure: &mut Procedure,
     ctx: &mut CompilerContext,
 ) -> Result<()> {
     compile_expression(&expression.signal, procedure, ctx)?;
-    // TODO: handle errors
-    procedure.write_instruction(Instruction::Cause(CauseInstruction {}), &expression.info);
+
+    if let Some(error) = ctx.check_for_runtime_error(&expression.breadcrumbs())? {
+        let error_const = add_error_constant(error, &AnyAstNode::from(&expression), procedure, ctx);
+        compile_type_error(error_const, procedure);
+        return Ok(());
+    }
+
+    procedure.write_instruction(
+        Instruction::Cause(CauseInstruction {}),
+        Some(&expression.info),
+    );
     Ok(())
 }
 
@@ -498,14 +523,14 @@ fn compile_call_expression(
             let arity = canonical_type.fields().len() as u32;
             procedure.write_instruction(
                 Instruction::Construct(ConstructInstruction { arity }),
-                &expression.info,
+                Some(&expression.info),
             )
         }
         LangType::Function(_) => procedure.write_instruction(
             Instruction::CallFunction(CallFunctionInstruction {
                 arity: expression.parameters.len() as u32,
             }),
-            &expression.info,
+            Some(&expression.info),
         ),
         _ => return Err(anyhow!("Callee {callee_type:?} is not callable")),
     }
@@ -555,7 +580,7 @@ fn compile_branch_expression(
                         Instruction::ReadLocal(ReadLocalInstruction {
                             index: with_value_index,
                         }),
-                        branch.info(),
+                        Some(branch.info()),
                     );
                     compile_value_flow_reference(
                         (&branch.pattern.type_reference).into(),
@@ -564,7 +589,7 @@ fn compile_branch_expression(
                     )?;
                     procedure.write_instruction(
                         Instruction::IsAssignableTo(IsAssignableToInstruction {}),
-                        branch.info(),
+                        Some(branch.info()),
                     );
                     let skip_body_instruction = procedure
                         .write_jump_if_false_placeholder(&branch.info, InstructionPhase::Execute);
@@ -578,7 +603,7 @@ fn compile_branch_expression(
                         Instruction::ReadLocal(ReadLocalInstruction {
                             index: with_value_index,
                         }),
-                        branch.info(),
+                        Some(branch.info()),
                     );
                     ctx.add_to_scope(&branch.pattern.info.breadcrumbs)?;
                     if let Some(name) = &branch.pattern.name {
@@ -590,7 +615,7 @@ fn compile_branch_expression(
                                 variable: false,
                                 local_index: None,
                             }),
-                            &branch.info,
+                            Some(&branch.info),
                         );
                     }
 
@@ -605,7 +630,7 @@ fn compile_branch_expression(
                                 .borrow()
                                 .size(),
                         }),
-                        branch.info(),
+                        Some(branch.info()),
                         InstructionPhase::Cleanup,
                     );
                     ctx.scope_stack.pop_back();
@@ -652,7 +677,7 @@ fn compile_branch_expression(
                 .borrow()
                 .size(),
         }),
-        expression.info(),
+        Some(expression.info()),
         InstructionPhase::Cleanup,
     );
     ctx.scope_stack.pop_back();
@@ -701,7 +726,7 @@ fn compile_file_import_reference(
                 file_path_constant,
                 export_name_constant,
             }),
-            reference_node_info,
+            Some(reference_node_info),
         )
     } else {
         return Err(anyhow!(
@@ -709,4 +734,46 @@ fn compile_file_import_reference(
         ));
     }
     Ok(())
+}
+
+fn add_error_constant(
+    error: Arc<LangError>,
+    node: &AnyAstNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> u32 {
+    procedure.add_constant(CompiledConstant::Error(ErrorConst {
+        source_position: ErrorPosition::Source(SourcePosition {
+            path: ctx.path.clone(),
+            breadcrumbs: node.breadcrumbs().clone(),
+            position: node.info().position,
+        }),
+        error,
+    }))
+}
+
+fn compile_type_error(error_const: u32, procedure: &mut Procedure) {
+    let file_path_constant = procedure.add_constant(CompiledConstant::String(
+        "core/builtin.cau".to_owned().into(),
+    ));
+    let export_name_constant =
+        procedure.add_constant(CompiledConstant::String("TypeError".to_owned().into()));
+    procedure.write_instruction(
+        Instruction::Import(ImportInstruction {
+            file_path_constant,
+            export_name_constant,
+        }),
+        None,
+    );
+    procedure.write_instruction(
+        Instruction::Literal(LiteralInstruction {
+            constant: error_const,
+        }),
+        None,
+    );
+    procedure.write_instruction(
+        Instruction::Construct(ConstructInstruction { arity: 1 }),
+        None,
+    );
+    procedure.write_instruction(Instruction::Cause(CauseInstruction {}), None);
 }

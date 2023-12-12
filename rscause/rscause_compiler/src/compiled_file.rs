@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::ast::NodeInfo;
+use crate::error_types::{ErrorPosition, LangError};
 use crate::instructions::Instruction;
 use crate::lang_types::{FunctionLangType, InferredType};
 
@@ -34,6 +35,13 @@ pub struct FunctionProcedureIdentity {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompiledConstant {
     String(Arc<String>),
+    Error(ErrorConst),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ErrorConst {
+    pub source_position: ErrorPosition,
+    pub error: Arc<LangError>,
 }
 
 #[derive(Debug, Clone)]
