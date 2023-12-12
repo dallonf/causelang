@@ -1,9 +1,6 @@
 package com.dallonf.ktcause
 
-import com.dallonf.ktcause.ast.Breadcrumbs
-import com.dallonf.ktcause.ast.FileNode
-import com.dallonf.ktcause.ast.IdentifierExpressionNode
-import com.dallonf.ktcause.ast.ImportNode
+import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.gen.rustCompilerSupportedTypes
 import com.dallonf.ktcause.types.ActionValueLangType
 import com.dallonf.ktcause.types.CanonicalLangType
@@ -45,7 +42,7 @@ object RustCompiler {
         ASSERT_SUPPORTED,
     }
 
-    private val mode = Mode.ALWAYS
+    private val mode = Mode.IF_SUPPORTED
 
     init {
         System.loadLibrary("rscause_jni")
@@ -97,13 +94,22 @@ object RustCompiler {
         }
         if (unsupportedImports.any()) return false
 
-        val ktResolverWouldFindTypeErrors = run {
-            val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
-                path, ast, analyzed, otherFiles
-            )
-            resolverErrors.isNotEmpty()
+        val containsTypeAnnotations = ast.allDescendants().any {
+            when (it) {
+                is FunctionNode -> it.returnType != null
+                is NamedValue -> it.typeAnnotation != null
+                else -> true
+            }
         }
-        if (ktResolverWouldFindTypeErrors) return false
+        if (containsTypeAnnotations) return false
+
+//        val ktResolverWouldFindTypeErrors = run {
+//            val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
+//                path, ast, analyzed, otherFiles
+//            )
+//            resolverErrors.isNotEmpty()
+//        }
+//        if (ktResolverWouldFindTypeErrors) return false
 
         return true
     }
