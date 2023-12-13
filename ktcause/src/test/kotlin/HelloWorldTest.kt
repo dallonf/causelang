@@ -1,3 +1,4 @@
+import TestUtils.runMainExpectingDebugs
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.RuntimeValue
@@ -37,5 +38,21 @@ internal class HelloWorldTest {
             """.trimIndent(),
             result2.debug(),
         )
+    }
+
+    @Test
+    fun helloWorldWithNamedValue() {
+        val vm = LangVm {
+            addFile(
+                "project/hello.cau", """
+                    function main() {
+                        let greeting = "Hello, world!"
+                        cause Debug(greeting)
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+        runMainExpectingDebugs(vm, "project/hello.cau", listOf("Hello, world!"))
     }
 }
