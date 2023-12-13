@@ -56,52 +56,63 @@ object RustCompiler {
             Mode.ALWAYS -> true
             Mode.NEVER -> false
             Mode.IF_SUPPORTED -> {
-                isSupported(ast, analyzed, path, otherFiles)
+                getReasonsNotSupported(ast, analyzed, path, otherFiles).none()
             }
 
             Mode.ASSERT_SUPPORTED -> {
-                if (!isSupported(ast, analyzed, path, otherFiles)) {
-                    throw AssertionError("$path is not supported by the Rust compiler.")
+                val reasonsNotSupported = getReasonsNotSupported(ast, analyzed, path, otherFiles).toList();
+                if (reasonsNotSupported.isNotEmpty()) {
+                    throw AssertionError(
+                        "$path is not supported by the Rust compiler:\n" + reasonsNotSupported.joinToString(
+                            "\n"
+                        )
+                    )
                 }
                 true
             }
         }
     }
 
-    private fun isSupported(
+    private fun getReasonsNotSupported(
         ast: FileNode,
         analyzed: AnalyzedNode,
         path: String,
         otherFiles: Map<String, Resolver.ExternalFileDescriptor>
-    ): Boolean {
+    ): Sequence<String> = sequence {
         val incompatibleNodes = getIncompatibleNodeTypes(ast)
-        if (incompatibleNodes.any()) return false
+        yieldAll(incompatibleNodes.map { "Incompatible node type: $it" })
 
-        val containsIdentifiersReferencingNonFiles = run {
+        val identifiersReferencingNonFiles = run {
             val identifiers = ast.allDescendants().mapNotNull { it as? IdentifierExpressionNode }
-            identifiers.any { identifierExpression ->
+            identifiers.mapNotNull { identifierExpression ->
                 val valueComesFrom =
                     analyzed.nodeTags[identifierExpression.info.breadcrumbs]?.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
-                val sourceTags = valueComesFrom?.let { analyzed.nodeTags[valueComesFrom.source] }
-                sourceTags?.none { it is NodeTag.ReferencesFile } ?: true
+                val sourceTags = valueComesFrom?.let { analyzed.nodeTags[valueComesFrom.source] } ?: emptyList()
+                if (sourceTags.none { it is NodeTag.ReferencesFile }) {
+                    null
+                } else {
+                    "Node at ${identifierExpression.info.breadcrumbs} references something other than a file: ${
+                        sourceTags.toList()
+                    }"
+                }
             }
         }
-        if (containsIdentifiersReferencingNonFiles) return false
+        yieldAll(identifiersReferencingNonFiles)
 
         val unsupportedImports = run {
             val imports = ast.allDescendants().mapNotNull { it as? ImportNode }
             imports.filter { it.path.path != "core/builtin.cau" }
         }
-        if (unsupportedImports.any()) return false
+        yieldAll(unsupportedImports.map { "Unsupported import: ${it.path.path}" })
 
-        val containsTypeAnnotations = ast.allDescendants().any {
+        val unsupportedTypeAnnotations = ast.allDescendants().filter {
             when (it) {
                 is FunctionNode -> it.returnType != null
                 is NamedValue -> it.typeAnnotation != null
                 else -> true
             }
         }
-        if (containsTypeAnnotations) return false
+        yieldAll(unsupportedTypeAnnotations.map { "Unsupported type annotation at ${it.info.breadcrumbs}" })
 
 //        val ktResolverWouldFindTypeErrors = run {
 //            val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
@@ -110,8 +121,6 @@ object RustCompiler {
 //            resolverErrors.isNotEmpty()
 //        }
 //        if (ktResolverWouldFindTypeErrors) return false
-
-        return true
     }
 
     private val supportedCoreExports = setOf("Debug", "Action", "equals")
