@@ -1,4 +1,4 @@
-import { NodeDeclaration, listOf, optional, stringPrimitive } from "./types.ts";
+import { NodeDeclaration, booleanPrimitive, listOf, optional, stringPrimitive } from "./types.ts";
 
 export const categories = [
   { name: "TypeReference" },
@@ -85,6 +85,16 @@ export const nodes: NodeDeclaration[] = [
       returnType: optional("TypeReference"),
     },
   },
+  {
+    name: "NamedValue",
+    category: "Declaration",
+    fields: {
+      name: "Identifier",
+      typeReference: optional("TypeReference"),
+      value: "Expression",
+      isVariable: booleanPrimitive,
+    }
+  },
 
   {
     name: "BlockBody",
@@ -106,6 +116,13 @@ export const nodes: NodeDeclaration[] = [
     category: "Statement",
     fields: {
       expression: "Expression",
+    },
+  },
+  {
+    name: "DeclarationStatement",
+    category: "Statement",
+    fields: {
+      declaration: "Declaration",
     },
   },
 

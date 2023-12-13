@@ -20,7 +20,7 @@ export type NodeFieldType =
     }
   | {
       kind: "primitive";
-      type: "string";
+      type: "string" | "boolean";
     };
 
 export function listOf(type: NodeFieldType): NodeFieldType {
@@ -40,4 +40,9 @@ export function optional(type: NodeFieldType): NodeFieldType {
 export const stringPrimitive: NodeFieldType = {
   kind: "primitive",
   type: "string",
+};
+
+export const booleanPrimitive: NodeFieldType = {
+  kind: "primitive",
+  type: "boolean",
 };

@@ -16,9 +16,14 @@ pub static J_BREADCRUMB_NAMES: &[&str] = &[
     "params",
     "body",
     "returnType",
+    "name",
+    "typeReference",
+    "value",
+    "isVariable",
     "statements",
     "statement",
     "expression",
+    "declaration",
     "withValue",
     "branches",
     "condition",
@@ -64,6 +69,9 @@ impl FromJni for ast::DeclarationNode {
             "FunctionNode" => {
                 ast::DeclarationNode::Function(value.jni_into(env)?)
             },
+            "NamedValueNode" => {
+                ast::DeclarationNode::NamedValue(value.jni_into(env)?)
+            },
           _ => panic!("Unknown class name for DeclarationNode: {}", class_name)
       })
     }
@@ -98,6 +106,9 @@ impl FromJni for ast::StatementNode {
       Ok(match class_name.as_str() {
             "ExpressionStatementNode" => {
                 ast::StatementNode::Expression(value.jni_into(env)?)
+            },
+            "DeclarationStatementNode" => {
+                ast::StatementNode::Declaration(value.jni_into(env)?)
             },
           _ => panic!("Unknown class name for StatementNode: {}", class_name)
       })
@@ -420,6 +431,51 @@ impl FromJni for ast::FunctionNode {
       })
     }
 }
+impl FromJni for ast::NamedValueNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node NamedValueNode");
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?
+        .jni_into(env)?;
+      let name: Arc<ast::IdentifierNode> = {
+        let jni_node = env
+          .call_method(value, "getName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+      let type_reference: Option<ast::TypeReferenceNode> = {
+        let jni_node = env
+          .call_method(value, "getTypeReference", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+      let value: ast::ExpressionNode = {
+        let jni_node = env
+          .call_method(value, "getValue", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+      let is_variable: bool = {
+        let jni_node = env
+          .call_method(value, "getIsVariable", "()Z", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+
+      Ok(ast::NamedValueNode {
+          info,
+          name,
+          type_reference,
+          value,
+          is_variable,
+      })
+    }
+}
 impl FromJni for ast::BlockBodyNode {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
       noisy_log(env, "node BlockBodyNode");
@@ -480,6 +536,27 @@ impl FromJni for ast::ExpressionStatementNode {
       Ok(ast::ExpressionStatementNode {
           info,
           expression,
+      })
+    }
+}
+impl FromJni for ast::DeclarationStatementNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node DeclarationStatementNode");
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?
+        .jni_into(env)?;
+      let declaration: ast::DeclarationNode = {
+        let jni_node = env
+          .call_method(value, "getDeclaration", "()Lcom/dallonf/ktcause/ast/DeclarationNode;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+
+      Ok(ast::DeclarationStatementNode {
+          info,
+          declaration,
       })
     }
 }

@@ -168,6 +168,8 @@ function rsFieldType(
       switch (type.type) {
         case "string":
           return "Arc<String>";
+        case "boolean":
+          return "bool";
         default:
           return type satisfies never;
       }
@@ -203,6 +205,8 @@ function javaFieldType(type: NodeFieldType): string {
       switch (type.type) {
         case "string":
           return "Ljava/lang/String;";
+        case "boolean":
+          return "Z";
         default:
           return type satisfies never;
       }
