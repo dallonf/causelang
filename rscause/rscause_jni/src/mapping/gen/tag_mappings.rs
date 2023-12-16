@@ -26,6 +26,12 @@ impl FromJni for tags::NodeTag {
             "ActionReturn" => {
                 tags::NodeTag::ActionReturn(value.jni_into(env)?)
             },
+            "DeclarationForScope" => {
+                tags::NodeTag::DeclarationForScope(value.jni_into(env)?)
+            },
+            "ScopeContainsDeclaration" => {
+                tags::NodeTag::ScopeContainsDeclaration(value.jni_into(env)?)
+            },
             _ => panic!("Unknown class name for NodeTag: {}", class_name)
         })
     }
@@ -148,6 +154,36 @@ impl FromJni for tags::ActionReturnNodeTag {
         };
         Ok(tags::ActionReturnNodeTag {
             function,
+        })
+    }
+}
+impl FromJni for tags::DeclarationForScopeNodeTag {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+        noisy_log(env, "tag DeclarationForScope");
+        let scope: Breadcrumbs = {
+            let jni_node = env
+                .call_method(value, "getScope", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            jni_node.jni_into(env)?
+        };
+        Ok(tags::DeclarationForScopeNodeTag {
+            scope,
+        })
+    }
+}
+impl FromJni for tags::ScopeContainsDeclarationNodeTag {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+        noisy_log(env, "tag ScopeContainsDeclaration");
+        let declaration: Breadcrumbs = {
+            let jni_node = env
+                .call_method(value, "getDeclaration", "()Lcom/dallonf/ktcause/ast/Breadcrumbs;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            jni_node.jni_into(env)?
+        };
+        Ok(tags::ScopeContainsDeclarationNodeTag {
+            declaration,
         })
     }
 }

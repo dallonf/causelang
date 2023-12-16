@@ -13,7 +13,8 @@ use crate::instructions::{
     ImportInstruction, Instruction, InstructionPhase, IsAssignableToInstruction,
     JumpIfFalseInstruction, JumpInstruction, LiteralInstruction, NameValueInstruction,
     NoOpInstruction, PopEffectsInstruction, PopInstruction, PopScopeInstruction,
-    PushActionInstruction, ReadLocalInstruction, ReturnInstruction,
+    PushActionInstruction, ReadLocalInstruction, ReadLocalThroughEffectScopeInstruction,
+    ReturnInstruction,
 };
 use crate::tags::ReferencesFileNodeTag;
 use crate::{
@@ -43,15 +44,15 @@ struct CompilerContext {
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
 }
 impl CompilerContext {
-    fn next_scope_index(&mut self) -> u32 {
+    fn next_scope_index(&mut self) -> usize {
         let mut index = 0;
         for scope in self.scope_stack.iter().rev() {
-            index += scope.borrow().named_value_indices.len() as u32;
+            index += scope.borrow().named_value_indices.len();
         }
         index
     }
 
-    fn add_to_scope(&mut self, breadcrumbs: &Breadcrumbs) -> Result<u32> {
+    fn add_to_scope(&mut self, breadcrumbs: &Breadcrumbs) -> Result<usize> {
         let index = self.next_scope_index();
         let current_scope = &mut self
             .scope_stack
@@ -94,7 +95,7 @@ struct CompilerScope {
     scope_type: ScopeType,
     open_loop: Option<OpenLoop>,
     effect_count: u32,
-    named_value_indices: HashMap<Breadcrumbs, u32>,
+    named_value_indices: HashMap<Breadcrumbs, usize>,
 }
 impl CompilerScope {
     fn new(scope_root: Breadcrumbs, scope_type: ScopeType) -> Self {
@@ -107,13 +108,14 @@ impl CompilerScope {
         }
     }
 
-    fn size(&self) -> u32 {
-        self.named_value_indices.len() as u32
+    fn size(&self) -> usize {
+        self.named_value_indices.len()
     }
 }
 
 struct OpenLoop(Breadcrumbs);
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum ScopeType {
     Body,
     Function,
@@ -319,7 +321,9 @@ fn compile_function(
             Instruction::NameValue(NameValueInstruction {
                 name_constant,
                 variable: false,
-                local_index: Some(ctx.scope_stack.back().unwrap().borrow().size() - 1),
+                local_index: Some(
+                    (ctx.scope_stack.back().unwrap().borrow().size() - 1).try_into()?,
+                ),
             }),
             Some(node_info),
         );
@@ -395,7 +399,7 @@ fn compile_block(
     );
     procedure.write_instruction_with_phase(
         Instruction::PopScope(PopScopeInstruction {
-            values: scope.borrow().size(),
+            values: scope.borrow().size().try_into()?,
         }),
         Some(&block.info),
         InstructionPhase::Cleanup,
@@ -500,7 +504,7 @@ fn compile_local_declaration(
             );
         }
     }
-    todo!()
+    Ok(())
 }
 
 fn compile_expression(
@@ -658,7 +662,7 @@ fn compile_branch_expression(
                 if let Some(with_value_index) = with_value_index {
                     procedure.write_instruction(
                         Instruction::ReadLocal(ReadLocalInstruction {
-                            index: with_value_index,
+                            index: with_value_index as u32,
                         }),
                         Some(branch.info()),
                     );
@@ -681,7 +685,7 @@ fn compile_branch_expression(
                         ))));
                     procedure.write_instruction(
                         Instruction::ReadLocal(ReadLocalInstruction {
-                            index: with_value_index,
+                            index: with_value_index.try_into()?,
                         }),
                         Some(branch.info()),
                     );
@@ -708,7 +712,8 @@ fn compile_branch_expression(
                                 .back()
                                 .ok_or(anyhow!("no scope"))?
                                 .borrow()
-                                .size(),
+                                .size()
+                                .try_into()?,
                         }),
                         Some(branch.info()),
                         InstructionPhase::Cleanup,
@@ -755,7 +760,8 @@ fn compile_branch_expression(
                 .back()
                 .ok_or(anyhow!("no scope"))?
                 .borrow()
-                .size(),
+                .size()
+                .try_into()?,
         }),
         Some(expression.info()),
         InstructionPhase::Cleanup,
@@ -782,6 +788,15 @@ fn compile_value_flow_reference(
         compile_file_import_reference(node.info(), it, procedure, ctx)?;
         return Ok(());
     }
+
+    // TODO: top-level declarations
+
+    if let Some(_) = find_tag!(&source_tags, NodeTag::DeclarationForScope) {
+        compile_value_reference(node.info(), &comes_from.source, procedure, ctx)?;
+        return Ok(());
+    }
+
+    dbg!(&ctx.node_tags);
 
     Err(anyhow!(
         "Wasn't able to resolve identifier at {} to anything",
@@ -814,6 +829,53 @@ fn compile_file_import_reference(
         ));
     }
     Ok(())
+}
+
+fn compile_value_reference(
+    reference_node_info: &NodeInfo,
+    source: &Breadcrumbs,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    let value_reference = find_value_reference(source, ctx)?;
+    procedure.write_instruction(
+        if value_reference.effect_depth > 0 {
+            Instruction::ReadLocalThroughEffectScope(ReadLocalThroughEffectScopeInstruction {
+                index: value_reference.found_index.try_into()?,
+                effect_depth: value_reference.effect_depth.try_into()?,
+            })
+        } else {
+            Instruction::ReadLocal(ReadLocalInstruction {
+                index: value_reference.found_index.try_into()?,
+            })
+        },
+        Some(reference_node_info),
+    );
+    Ok(())
+}
+
+struct ValueReferenceResult {
+    found_index: usize,
+    effect_depth: usize,
+}
+
+fn find_value_reference(
+    source: &Breadcrumbs,
+    ctx: &CompilerContext,
+) -> Result<ValueReferenceResult> {
+    let mut effect_depth = 0;
+    for scope in ctx.scope_stack.iter().rev() {
+        if let Some(index) = scope.borrow().named_value_indices.get(source) {
+            return Ok(ValueReferenceResult {
+                found_index: *index as usize,
+                effect_depth,
+            });
+        }
+        if scope.borrow().scope_type == ScopeType::Effect {
+            effect_depth += 1;
+        }
+    }
+    Err(anyhow!("Couldn't find named value for {} in scope", source))
 }
 
 fn compile_bad_value(

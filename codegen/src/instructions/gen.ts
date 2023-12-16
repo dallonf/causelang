@@ -70,9 +70,12 @@ async function generateInstructionMapping() {
       ).map(([, param]) => {
         switch (param.type) {
           case "int":
-            return "I";
           case "uint":
-            return "I";
+            if (param.nullable) {
+              return "Ljava/lang/Integer;";
+            } else {
+              return "I";
+            }
           case "boolean":
             return "Z";
           default:

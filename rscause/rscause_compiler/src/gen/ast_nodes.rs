@@ -17,7 +17,7 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "body",
     "return_type",
     "name",
-    "type_reference",
+    "type_annotation",
     "value",
     "is_variable",
     "statements",
@@ -706,7 +706,7 @@ impl HasBreadcrumbs for FunctionNode {
 pub struct NamedValueNode {
     pub info: NodeInfo,
     pub name: Arc<IdentifierNode>,
-    pub type_reference: Option<TypeReferenceNode>,
+    pub type_annotation: Option<TypeReferenceNode>,
     pub value: ExpressionNode,
     pub is_variable: bool,
 }
@@ -723,8 +723,8 @@ impl AstNode for NamedValueNode {
             (&self.name).into(),
         );
         result.insert(
-            BreadcrumbName::new("type_reference"),
-            (&self.type_reference).into(),
+            BreadcrumbName::new("type_annotation"),
+            (&self.type_annotation).into(),
         );
         result.insert(
             BreadcrumbName::new("value"),

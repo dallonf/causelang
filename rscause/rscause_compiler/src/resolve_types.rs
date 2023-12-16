@@ -187,6 +187,7 @@ impl ResolveTypes for AnyAstNode {
         match self {
             Self::ImportMapping(node) => node.compute_type(ctx),
             Self::Function(node) => node.compute_type(ctx),
+            Self::NamedValue(node) => node.value.compute_type(ctx),
             Self::BlockBody(node) => node.compute_type(ctx),
             Self::ExpressionStatement(node) => node.compute_type(ctx),
             Self::CauseExpression(node) => node.compute_type(ctx),

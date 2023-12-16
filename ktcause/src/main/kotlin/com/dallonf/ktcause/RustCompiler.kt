@@ -42,7 +42,7 @@ object RustCompiler {
         ASSERT_SUPPORTED,
     }
 
-    private val mode = Mode.ASSERT_SUPPORTED
+    private val mode = Mode.ALWAYS
 
     init {
         System.loadLibrary("rscause_jni")
@@ -82,22 +82,23 @@ object RustCompiler {
         val incompatibleNodes = getIncompatibleNodeTypes(ast)
         yieldAll(incompatibleNodes.map { "Incompatible node type: $it" })
 
-        val identifiersReferencingNonFiles = run {
+        val identifiersReferencingTopLevelDeclarations = run {
             val identifiers = ast.allDescendants().mapNotNull { it as? IdentifierExpressionNode }
             identifiers.mapNotNull { identifierExpression ->
                 val valueComesFrom =
                     analyzed.nodeTags[identifierExpression.info.breadcrumbs]?.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
                 val sourceTags = valueComesFrom?.let { analyzed.nodeTags[valueComesFrom.source] } ?: emptyList()
-                if (sourceTags.any { it is NodeTag.ReferencesFile }) {
-                    null
-                } else {
-                    "Node at ${identifierExpression.info.breadcrumbs} references something other than a file: ${
-                        sourceTags.toList()
-                    }"
+
+                sourceTags.firstNotNullOfOrNull { it as? NodeTag.TopLevelDeclaration }?.let {
+                    if (sourceTags.none { sourceTag -> sourceTag is NodeTag.ReferencesFile }) {
+                        "Node at ${identifierExpression.info.breadcrumbs} references a (non-import) top-level declaration: $it"
+                    } else {
+                        null
+                    }
                 }
             }
         }
-        yieldAll(identifiersReferencingNonFiles)
+        yieldAll(identifiersReferencingTopLevelDeclarations)
 
         val unsupportedImports = run {
             val imports = ast.allDescendants().mapNotNull { it as? ImportNode }
@@ -165,12 +166,14 @@ object RustCompiler {
                     is NodeTag.ReturnsFromFunction -> true
                     is NodeTag.FunctionCanReturnAction -> true
                     is NodeTag.ActionReturn -> true
+                    is NodeTag.DeclarationForScope -> true
+                    is NodeTag.ScopeContainsDeclaration -> true
                     else -> false
                 }
             }
         }
 
-        // generateTestOutput("tmp", ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles);
+//        generateTestOutput("tmp", ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles);
         return compileInner(path, ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles)
     }
 

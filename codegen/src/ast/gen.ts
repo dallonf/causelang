@@ -112,11 +112,16 @@ async function generateAstMappingRs() {
       fields: Object.entries(node.fields).flatMap(
         ([fieldName, type]): Record<string, unknown>[] => {
           const rsName = changeCase.snakeCase(fieldName);
-          const getterName = `get${changeCase.pascalCase(fieldName)}`;
           const rsType = rsFieldType(type, {
             astNamespace: "ast",
           });
           const javaType = javaFieldType(type);
+          let getterName;
+          if (javaType === "Z" && fieldName.startsWith("is")) {
+            getterName = `${changeCase.camelCase(fieldName)}`;
+          } else {
+            getterName = `get${changeCase.pascalCase(fieldName)}`;
+          }
           return [
             {
               isNode: true,
@@ -124,7 +129,7 @@ async function generateAstMappingRs() {
               getterName,
               rsType,
               javaType,
-              isBoolean: rsType === "bool",
+              isBoolean: javaType === "Z",
             },
           ];
         }

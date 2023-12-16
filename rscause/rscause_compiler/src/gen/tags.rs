@@ -8,6 +8,8 @@ pub enum NodeTag {
     ReturnsFromFunction(ReturnsFromFunctionNodeTag),
     FunctionCanReturnAction(FunctionCanReturnActionNodeTag),
     ActionReturn(ActionReturnNodeTag),
+    DeclarationForScope(DeclarationForScopeNodeTag),
+    ScopeContainsDeclaration(ScopeContainsDeclarationNodeTag),
 }
 impl NodeTag {
   pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> Option<NodeTag> {
@@ -20,6 +22,8 @@ impl NodeTag {
         NodeTag::ReturnsFromFunction(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::FunctionCanReturnAction(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::ActionReturn(tag) => Some(tag.inverse(breadcrumbs).into()),
+        NodeTag::DeclarationForScope(tag) => Some(tag.inverse(breadcrumbs).into()),
+        NodeTag::ScopeContainsDeclaration(tag) => Some(tag.inverse(breadcrumbs).into()),
     }
   }
 }
@@ -126,5 +130,37 @@ impl ActionReturnNodeTag {
 impl From<ActionReturnNodeTag> for NodeTag {
   fn from(tag: ActionReturnNodeTag) -> Self {
     NodeTag::ActionReturn(tag)
+  }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeclarationForScopeNodeTag {
+    pub scope: Breadcrumbs,
+}
+impl DeclarationForScopeNodeTag {
+  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> ScopeContainsDeclarationNodeTag {
+    ScopeContainsDeclarationNodeTag {
+      declaration: breadcrumbs.clone(),
+    }
+  }
+}
+impl From<DeclarationForScopeNodeTag> for NodeTag {
+  fn from(tag: DeclarationForScopeNodeTag) -> Self {
+    NodeTag::DeclarationForScope(tag)
+  }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScopeContainsDeclarationNodeTag {
+    pub declaration: Breadcrumbs,
+}
+impl ScopeContainsDeclarationNodeTag {
+  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> DeclarationForScopeNodeTag {
+    DeclarationForScopeNodeTag {
+      scope: breadcrumbs.clone(),
+    }
+  }
+}
+impl From<ScopeContainsDeclarationNodeTag> for NodeTag {
+  fn from(tag: ScopeContainsDeclarationNodeTag) -> Self {
+    NodeTag::ScopeContainsDeclaration(tag)
   }
 }

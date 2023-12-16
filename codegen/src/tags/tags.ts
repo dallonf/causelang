@@ -18,4 +18,7 @@ export const tags: NodeTag[] = [
   twoWayNodeTag(["function", "FunctionCanReturnAction", "returnExpression"], {
     inverseName: "ActionReturn",
   }),
+  twoWayNodeTag(["declaration", "DeclarationForScope", "scope"], {
+    inverseName: "ScopeContainsDeclaration",
+  }),
 ];

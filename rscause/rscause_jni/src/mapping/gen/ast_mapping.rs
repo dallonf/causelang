@@ -17,7 +17,7 @@ pub static J_BREADCRUMB_NAMES: &[&str] = &[
     "body",
     "returnType",
     "name",
-    "typeReference",
+    "typeAnnotation",
     "value",
     "isVariable",
     "statements",
@@ -445,9 +445,9 @@ impl FromJni for ast::NamedValueNode {
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let type_reference_value: Option<ast::TypeReferenceNode> = {
+      let type_annotation_value: Option<ast::TypeReferenceNode> = {
         let jni_node = env
-          .call_method(value, "getTypeReference", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
+          .call_method(value, "getTypeAnnotation", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
@@ -461,7 +461,7 @@ impl FromJni for ast::NamedValueNode {
       };
       let is_variable_value: bool = {
         let jni_node = env
-          .call_method(value, "getIsVariable", "()Z", &[])?
+          .call_method(value, "isVariable", "()Z", &[])?
           .z()?;
         jni_node
       };
@@ -469,7 +469,7 @@ impl FromJni for ast::NamedValueNode {
       Ok(ast::NamedValueNode {
           info,
           name: name_value,
-          type_reference: type_reference_value,
+          type_annotation: type_annotation_value,
           value: value_value,
           is_variable: is_variable_value,
       })

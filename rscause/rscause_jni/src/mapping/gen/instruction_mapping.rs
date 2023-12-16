@@ -344,7 +344,7 @@ impl IntoJni for instructions::NameValueInstruction {
         };
         let jni_instruction = env.new_object(
             class,
-            "(IZI)V",
+            "(IZLjava/lang/Integer;)V",
             &[
                 jni_name_constant.borrow(),
                 jni_variable.borrow(),

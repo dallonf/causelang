@@ -90,7 +90,7 @@ export const nodes: NodeDeclaration[] = [
     category: "Declaration",
     fields: {
       name: "Identifier",
-      typeReference: optional("TypeReference"),
+      typeAnnotation: optional("TypeReference"),
       value: "Expression",
       isVariable: booleanPrimitive,
     }
