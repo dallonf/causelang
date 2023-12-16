@@ -5,6 +5,7 @@ import com.dallonf.ktcause.gen.rustCompilerSupportedTypes
 import com.dallonf.ktcause.types.ActionValueLangType
 import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.CanonicalLangTypeId
+import com.dallonf.ktcause.types.ErrorLangType
 
 object RustCompiler {
     enum class Mode {
@@ -42,7 +43,7 @@ object RustCompiler {
         ASSERT_SUPPORTED,
     }
 
-    private val mode = Mode.ALWAYS
+    private val mode = Mode.IF_SUPPORTED
 
     init {
         System.loadLibrary("rscause_jni")
@@ -100,6 +101,12 @@ object RustCompiler {
         }
         yieldAll(identifiersReferencingTopLevelDeclarations)
 
+        val functionDeclarationsWithParameters = run {
+            val functions = ast.allDescendants().mapNotNull { it as? FunctionNode }
+            functions.filter { it.params.isNotEmpty() }
+        }
+        yieldAll(functionDeclarationsWithParameters.map { "Declared function by the name of ${it.name.text} has parameters" })
+
         val unsupportedImports = run {
             val imports = ast.allDescendants().mapNotNull { it as? ImportNode }
             imports.filter { it.path.path != "core/builtin.cau" }
@@ -115,13 +122,18 @@ object RustCompiler {
         }
         yieldAll(unsupportedTypeAnnotations.map { "Unsupported type annotation at ${it.info.breadcrumbs}" })
 
-//        val ktResolverWouldFindTypeErrors = run {
-//            val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
-//                path, ast, analyzed, otherFiles
-//            )
-//            resolverErrors.isNotEmpty()
-//        }
-//        if (ktResolverWouldFindTypeErrors) return false
+        val typeErrorsOnlyKtResolverWouldFind = run {
+            val (resolvedFile, resolverErrors) = Resolver.resolveForFile(
+                path, ast, analyzed, otherFiles
+            )
+            resolverErrors.mapNotNull {
+                when (it.error) {
+                    ErrorLangType.NotCausable -> null
+                    else -> it
+                }
+            }
+        }
+        yieldAll(typeErrorsOnlyKtResolverWouldFind.map { "Found type error that the Rust resolver can't output yet: $it" })
     }
 
     private val supportedCoreExports = setOf("Debug", "Action", "equals")

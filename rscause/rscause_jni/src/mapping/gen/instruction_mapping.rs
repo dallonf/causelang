@@ -340,7 +340,7 @@ impl IntoJni for instructions::NameValueInstruction {
             self.variable.into_jni(env)?
                     };
         let jni_local_index = {
-            self.local_index.map(|it| it as i32).into_jni(env)?
+            into_jni_optional_int(self.local_index.map(|it| it as i32), env)?
         };
         let jni_instruction = env.new_object(
             class,

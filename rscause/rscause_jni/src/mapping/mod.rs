@@ -175,6 +175,21 @@ where
     }
 }
 
+fn into_jni_optional_int<'local>(
+    value: Option<i32>,
+    env: &mut jni::JNIEnv<'local>,
+) -> Result<JValueOwned<'local>> {
+    match value {
+        Some(value) => {
+            let value = env
+                .new_object("java/lang/Integer", "(I)V", &[JValue::Int(value)])
+                .unwrap();
+            Ok(JValueOwned::Object(value))
+        }
+        None => Ok(JValueOwned::Object(JObject::null())),
+    }
+}
+
 impl<T> IntoJni for Box<T>
 where
     T: IntoJni,

@@ -15,7 +15,7 @@ impl IntoJni for instructions::{{this.name}}Instruction {
         {{#each this.params}}
         let jni_{{this.name}} = {
             {{#if this.convertToOptionalInt}}
-            self.{{this.name}}.map(|it| it as i32).into_jni(env)?
+            into_jni_optional_int(self.{{this.name}}.map(|it| it as i32), env)?
             {{else if this.convertToInt}}
             (self.{{this.name}} as i32).into_jni(env)?
             {{else}}
