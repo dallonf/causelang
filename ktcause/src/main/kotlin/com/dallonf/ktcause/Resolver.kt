@@ -143,7 +143,7 @@ object Resolver {
                     }
 
                     when (node) {
-                        is NamedValue -> {
+                        is NamedValueNode -> {
                             track(INFERRED)
                             if (node.typeAnnotation != null) {
                                 track(CONSTRAINT)
@@ -515,7 +515,7 @@ object Resolver {
                                 pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.UsesCapturedValue }
                             if (usesCapturedValue != null) {
                                 val sourceNode = fileNode.findNode(comesFromTag.source)
-                                if (sourceNode is NamedValue && sourceNode.isVariable) {
+                                if (sourceNode is NamedValueNode && sourceNode.isVariable) {
                                     resolveWith(ErrorLangType.OuterVariable)
                                     return@eachPendingNode
                                 }
@@ -807,7 +807,7 @@ object Resolver {
                         }
 
                         is DeclarationStatementNode -> {
-                            if (node.declaration is NamedValue) {
+                            if (node.declaration is NamedValueNode) {
                                 if (getResolvedTypeOf(node.declaration.value.info.breadcrumbs) == NeverContinuesValueLangType) {
                                     resolveWith(NeverContinuesValueLangType)
                                     return@eachPendingNode
@@ -869,7 +869,7 @@ object Resolver {
                             val variableBreadcrumbs = tag.variable
 
                             val variable = fileNode.findNode(variableBreadcrumbs)
-                            if (variable !is NamedValue || !variable.isVariable) {
+                            if (variable !is NamedValueNode || !variable.isVariable) {
                                 resolveWith(ErrorLangType.NotVariable)
                                 return@eachPendingNode
                             }
@@ -923,7 +923,7 @@ object Resolver {
 
                         is SingleStatementBodyNode -> resolveWith(getResolvedTypeOf(node.statement))
 
-                        is NamedValue -> resolveWith(getResolvedTypeOf(node.value))
+                        is NamedValueNode -> resolveWith(getResolvedTypeOf(node.value))
 
                         is ObjectType -> {
                             val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
@@ -1007,7 +1007,7 @@ object Resolver {
                     }
 
                     CONSTRAINT -> when (node) {
-                        is NamedValue -> {
+                        is NamedValueNode -> {
                             val annotation = requireNotNull(node.typeAnnotation)
                             val annotationType = getResolvedTypeOf(annotation)
 

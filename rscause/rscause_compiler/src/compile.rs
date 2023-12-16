@@ -9,11 +9,11 @@ use crate::compiled_file::{CompiledConstant, ErrorConst};
 use crate::error_types::{CompilerBugError, ErrorPosition, LangError, SourcePosition};
 use crate::find_tag;
 use crate::instructions::{
-    CallFunctionInstruction, CauseInstruction, ConstructInstruction, ImportInstruction,
-    Instruction, InstructionPhase, IsAssignableToInstruction, JumpIfFalseInstruction,
-    JumpInstruction, LiteralInstruction, NameValueInstruction, NoOpInstruction,
-    PopEffectsInstruction, PopInstruction, PopScopeInstruction, PushActionInstruction,
-    ReadLocalInstruction, ReturnInstruction,
+    CallFunctionInstruction, CauseInstruction, ConstructInstruction, DefineFunctionInstruction,
+    ImportInstruction, Instruction, InstructionPhase, IsAssignableToInstruction,
+    JumpIfFalseInstruction, JumpInstruction, LiteralInstruction, NameValueInstruction,
+    NoOpInstruction, PopEffectsInstruction, PopInstruction, PopScopeInstruction,
+    PushActionInstruction, ReadLocalInstruction, ReturnInstruction,
 };
 use crate::tags::ReferencesFileNodeTag;
 use crate::{
@@ -256,6 +256,7 @@ pub fn compile(
                     },
                 );
             }
+            ast::DeclarationNode::NamedValue(_) => { /* TODO */ }
         }
     }
 
@@ -419,8 +420,87 @@ fn compile_statement(
                 );
             }
         }
+        ast::StatementNode::Declaration(statement) => {
+            compile_local_declaration(statement, procedure, ctx)?;
+            if is_last_statement {
+                procedure.write_instruction_with_phase(
+                    Instruction::PushAction(PushActionInstruction {}),
+                    Some(&statement.info),
+                    InstructionPhase::Cleanup,
+                );
+            }
+        }
     }
     Ok(())
+}
+
+fn compile_local_declaration(
+    statement: &ast::DeclarationStatementNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    match &statement.declaration {
+        ast::DeclarationNode::Import(_) => todo!(),
+        ast::DeclarationNode::Function(function) => {
+            // TODO: captured values
+            let new_procedure = compile_function_declaration(&function, ctx)?;
+
+            if let Some(error) = ctx.check_for_runtime_error(function.breadcrumbs())? {
+                compile_bad_value(function.into(), error, procedure, ctx)?;
+            } else {
+                ctx.procedures.push(new_procedure);
+                let type_constant = procedure.add_constant(CompiledConstant::Type(
+                    ctx.types
+                        .value_types
+                        .get(function.breadcrumbs())
+                        .cloned()
+                        .ok_or(anyhow!("missing type for {}", function.breadcrumbs()))?
+                        .to_result()
+                        .expect("cannot be an error due to check above"),
+                ));
+                procedure.write_instruction(
+                    Instruction::DefineFunction(DefineFunctionInstruction {
+                        type_constant,
+                        procedure_index: ctx.procedures.len() as u32 - 1,
+                        captured_values: 0,
+                    }),
+                    Some(function.info()),
+                )
+            }
+            let name_constant =
+                procedure.add_constant(CompiledConstant::String(function.name.text.clone()));
+            procedure.write_instruction(
+                Instruction::NameValue(NameValueInstruction {
+                    name_constant,
+                    variable: false,
+                    local_index: None,
+                }),
+                Some(function.info()),
+            );
+        }
+        ast::DeclarationNode::NamedValue(named_value) => {
+            compile_expression(&named_value.value, procedure, ctx)?;
+            if let Some(error) = ctx.check_for_runtime_error(named_value.breadcrumbs())? {
+                procedure.write_instruction(
+                    Instruction::Pop(PopInstruction { number: 1 }),
+                    Some(named_value.info()),
+                );
+                compile_bad_value(named_value.into(), error, procedure, ctx)?;
+            }
+            ctx.add_to_scope(named_value.breadcrumbs())?;
+            let name_constant =
+                procedure.add_constant(CompiledConstant::String(named_value.name.text.clone()));
+            procedure.write_instruction(
+                Instruction::NameValue(NameValueInstruction {
+                    name_constant,
+                    variable: named_value.is_variable,
+                    local_index: None,
+                }),
+                Some(named_value.info()),
+            );
+        }
+    }
+    todo!()
 }
 
 fn compile_expression(
@@ -733,6 +813,22 @@ fn compile_file_import_reference(
             "Haven't implemented files as first-class objects yet"
         ));
     }
+    Ok(())
+}
+
+fn compile_bad_value(
+    node: AnyAstNode,
+    error: Arc<LangError>,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    let error_const = add_error_constant(error, &node, procedure, ctx);
+    procedure.write_instruction(
+        Instruction::Literal(LiteralInstruction {
+            constant: error_const,
+        }),
+        Some(node.info()),
+    );
     Ok(())
 }
 

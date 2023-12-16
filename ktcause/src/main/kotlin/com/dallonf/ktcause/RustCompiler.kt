@@ -42,7 +42,7 @@ object RustCompiler {
         ASSERT_SUPPORTED,
     }
 
-    private val mode = Mode.IF_SUPPORTED
+    private val mode = Mode.ASSERT_SUPPORTED
 
     init {
         System.loadLibrary("rscause_jni")
@@ -88,7 +88,7 @@ object RustCompiler {
                 val valueComesFrom =
                     analyzed.nodeTags[identifierExpression.info.breadcrumbs]?.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
                 val sourceTags = valueComesFrom?.let { analyzed.nodeTags[valueComesFrom.source] } ?: emptyList()
-                if (sourceTags.none { it is NodeTag.ReferencesFile }) {
+                if (sourceTags.any { it is NodeTag.ReferencesFile }) {
                     null
                 } else {
                     "Node at ${identifierExpression.info.breadcrumbs} references something other than a file: ${
@@ -108,8 +108,8 @@ object RustCompiler {
         val unsupportedTypeAnnotations = ast.allDescendants().filter {
             when (it) {
                 is FunctionNode -> it.returnType != null
-                is NamedValue -> it.typeAnnotation != null
-                else -> true
+                is NamedValueNode -> it.typeAnnotation != null
+                else -> false
             }
         }
         yieldAll(unsupportedTypeAnnotations.map { "Unsupported type annotation at ${it.info.breadcrumbs}" })

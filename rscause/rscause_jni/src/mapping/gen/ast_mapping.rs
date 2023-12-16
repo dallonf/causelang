@@ -172,7 +172,7 @@ impl FromJni for ast::IdentifierNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let text: Arc<String> = {
+      let text_value: Arc<String> = {
         let jni_node = env
           .call_method(value, "getText", "()Ljava/lang/String;", &[])?
           .l()?;
@@ -182,7 +182,7 @@ impl FromJni for ast::IdentifierNode {
 
       Ok(ast::IdentifierNode {
           info,
-          text,
+          text: text_value,
       })
     }
 }
@@ -193,7 +193,7 @@ impl FromJni for ast::IdentifierTypeReferenceNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let identifier: Arc<ast::IdentifierNode> = {
+      let identifier_value: Arc<ast::IdentifierNode> = {
         let jni_node = env
           .call_method(value, "getIdentifier", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
           .l()?;
@@ -203,7 +203,7 @@ impl FromJni for ast::IdentifierTypeReferenceNode {
 
       Ok(ast::IdentifierTypeReferenceNode {
           info,
-          identifier,
+          identifier: identifier_value,
       })
     }
 }
@@ -214,14 +214,14 @@ impl FromJni for ast::PatternNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let name: Option<Arc<ast::IdentifierNode>> = {
+      let name_value: Option<Arc<ast::IdentifierNode>> = {
         let jni_node = env
           .call_method(value, "getName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let type_reference: ast::TypeReferenceNode = {
+      let type_reference_value: ast::TypeReferenceNode = {
         let jni_node = env
           .call_method(value, "getTypeReference", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
           .l()?;
@@ -231,8 +231,8 @@ impl FromJni for ast::PatternNode {
 
       Ok(ast::PatternNode {
           info,
-          name,
-          type_reference,
+          name: name_value,
+          type_reference: type_reference_value,
       })
     }
 }
@@ -243,14 +243,14 @@ impl FromJni for ast::FunctionSignatureParameterNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let name: Arc<ast::IdentifierNode> = {
+      let name_value: Arc<ast::IdentifierNode> = {
         let jni_node = env
           .call_method(value, "getName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let type_reference: Option<ast::TypeReferenceNode> = {
+      let type_reference_value: Option<ast::TypeReferenceNode> = {
         let jni_node = env
           .call_method(value, "getTypeReference", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
           .l()?;
@@ -260,8 +260,8 @@ impl FromJni for ast::FunctionSignatureParameterNode {
 
       Ok(ast::FunctionSignatureParameterNode {
           info,
-          name,
-          type_reference,
+          name: name_value,
+          type_reference: type_reference_value,
       })
     }
 }
@@ -272,7 +272,7 @@ impl FromJni for ast::FunctionCallParameterNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let value: ast::ExpressionNode = {
+      let value_value: ast::ExpressionNode = {
         let jni_node = env
           .call_method(value, "getValue", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
           .l()?;
@@ -282,7 +282,7 @@ impl FromJni for ast::FunctionCallParameterNode {
 
       Ok(ast::FunctionCallParameterNode {
           info,
-          value,
+          value: value_value,
       })
     }
 }
@@ -293,7 +293,7 @@ impl FromJni for ast::FileNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let declarations: Vec<ast::DeclarationNode> = {
+      let declarations_value: Vec<ast::DeclarationNode> = {
         let jni_node = env
           .call_method(value, "getDeclarations", "()Ljava/util/List;", &[])?
           .l()?;
@@ -303,7 +303,7 @@ impl FromJni for ast::FileNode {
 
       Ok(ast::FileNode {
           info,
-          declarations,
+          declarations: declarations_value,
       })
     }
 }
@@ -314,14 +314,14 @@ impl FromJni for ast::ImportNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let path: Arc<ast::ImportPathNode> = {
+      let path_value: Arc<ast::ImportPathNode> = {
         let jni_node = env
           .call_method(value, "getPath", "()Lcom/dallonf/ktcause/ast/ImportPathNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let mappings: Vec<Arc<ast::ImportMappingNode>> = {
+      let mappings_value: Vec<Arc<ast::ImportMappingNode>> = {
         let jni_node = env
           .call_method(value, "getMappings", "()Ljava/util/List;", &[])?
           .l()?;
@@ -331,8 +331,8 @@ impl FromJni for ast::ImportNode {
 
       Ok(ast::ImportNode {
           info,
-          path,
-          mappings,
+          path: path_value,
+          mappings: mappings_value,
       })
     }
 }
@@ -343,7 +343,7 @@ impl FromJni for ast::ImportPathNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let path: Arc<String> = {
+      let path_value: Arc<String> = {
         let jni_node = env
           .call_method(value, "getPath", "()Ljava/lang/String;", &[])?
           .l()?;
@@ -353,7 +353,7 @@ impl FromJni for ast::ImportPathNode {
 
       Ok(ast::ImportPathNode {
           info,
-          path,
+          path: path_value,
       })
     }
 }
@@ -364,14 +364,14 @@ impl FromJni for ast::ImportMappingNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let source_name: Arc<ast::IdentifierNode> = {
+      let source_name_value: Arc<ast::IdentifierNode> = {
         let jni_node = env
           .call_method(value, "getSourceName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let rename: Option<Arc<ast::IdentifierNode>> = {
+      let rename_value: Option<Arc<ast::IdentifierNode>> = {
         let jni_node = env
           .call_method(value, "getRename", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
           .l()?;
@@ -381,8 +381,8 @@ impl FromJni for ast::ImportMappingNode {
 
       Ok(ast::ImportMappingNode {
           info,
-          source_name,
-          rename,
+          source_name: source_name_value,
+          rename: rename_value,
       })
     }
 }
@@ -393,28 +393,28 @@ impl FromJni for ast::FunctionNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let name: Arc<ast::IdentifierNode> = {
+      let name_value: Arc<ast::IdentifierNode> = {
         let jni_node = env
           .call_method(value, "getName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let params: Vec<Arc<ast::FunctionSignatureParameterNode>> = {
+      let params_value: Vec<Arc<ast::FunctionSignatureParameterNode>> = {
         let jni_node = env
           .call_method(value, "getParams", "()Ljava/util/List;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let body: ast::BodyNode = {
+      let body_value: ast::BodyNode = {
         let jni_node = env
           .call_method(value, "getBody", "()Lcom/dallonf/ktcause/ast/BodyNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let return_type: Option<ast::TypeReferenceNode> = {
+      let return_type_value: Option<ast::TypeReferenceNode> = {
         let jni_node = env
           .call_method(value, "getReturnType", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
           .l()?;
@@ -424,10 +424,10 @@ impl FromJni for ast::FunctionNode {
 
       Ok(ast::FunctionNode {
           info,
-          name,
-          params,
-          body,
-          return_type,
+          name: name_value,
+          params: params_value,
+          body: body_value,
+          return_type: return_type_value,
       })
     }
 }
@@ -438,41 +438,40 @@ impl FromJni for ast::NamedValueNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let name: Arc<ast::IdentifierNode> = {
+      let name_value: Arc<ast::IdentifierNode> = {
         let jni_node = env
           .call_method(value, "getName", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let type_reference: Option<ast::TypeReferenceNode> = {
+      let type_reference_value: Option<ast::TypeReferenceNode> = {
         let jni_node = env
           .call_method(value, "getTypeReference", "()Lcom/dallonf/ktcause/ast/TypeReferenceNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let value: ast::ExpressionNode = {
+      let value_value: ast::ExpressionNode = {
         let jni_node = env
           .call_method(value, "getValue", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let is_variable: bool = {
+      let is_variable_value: bool = {
         let jni_node = env
           .call_method(value, "getIsVariable", "()Z", &[])?
-          .l()?;
-        let jni_node = JObject::from(jni_node);
-        jni_node.jni_into(env)?
+          .z()?;
+        jni_node
       };
 
       Ok(ast::NamedValueNode {
           info,
-          name,
-          type_reference,
-          value,
-          is_variable,
+          name: name_value,
+          type_reference: type_reference_value,
+          value: value_value,
+          is_variable: is_variable_value,
       })
     }
 }
@@ -483,7 +482,7 @@ impl FromJni for ast::BlockBodyNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let statements: Vec<ast::StatementNode> = {
+      let statements_value: Vec<ast::StatementNode> = {
         let jni_node = env
           .call_method(value, "getStatements", "()Ljava/util/List;", &[])?
           .l()?;
@@ -493,7 +492,7 @@ impl FromJni for ast::BlockBodyNode {
 
       Ok(ast::BlockBodyNode {
           info,
-          statements,
+          statements: statements_value,
       })
     }
 }
@@ -504,7 +503,7 @@ impl FromJni for ast::SingleStatementBodyNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let statement: ast::StatementNode = {
+      let statement_value: ast::StatementNode = {
         let jni_node = env
           .call_method(value, "getStatement", "()Lcom/dallonf/ktcause/ast/StatementNode;", &[])?
           .l()?;
@@ -514,7 +513,7 @@ impl FromJni for ast::SingleStatementBodyNode {
 
       Ok(ast::SingleStatementBodyNode {
           info,
-          statement,
+          statement: statement_value,
       })
     }
 }
@@ -525,7 +524,7 @@ impl FromJni for ast::ExpressionStatementNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let expression: ast::ExpressionNode = {
+      let expression_value: ast::ExpressionNode = {
         let jni_node = env
           .call_method(value, "getExpression", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
           .l()?;
@@ -535,7 +534,7 @@ impl FromJni for ast::ExpressionStatementNode {
 
       Ok(ast::ExpressionStatementNode {
           info,
-          expression,
+          expression: expression_value,
       })
     }
 }
@@ -546,7 +545,7 @@ impl FromJni for ast::DeclarationStatementNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let declaration: ast::DeclarationNode = {
+      let declaration_value: ast::DeclarationNode = {
         let jni_node = env
           .call_method(value, "getDeclaration", "()Lcom/dallonf/ktcause/ast/DeclarationNode;", &[])?
           .l()?;
@@ -556,7 +555,7 @@ impl FromJni for ast::DeclarationStatementNode {
 
       Ok(ast::DeclarationStatementNode {
           info,
-          declaration,
+          declaration: declaration_value,
       })
     }
 }
@@ -567,14 +566,14 @@ impl FromJni for ast::BranchExpressionNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let with_value: Option<ast::ExpressionNode> = {
+      let with_value_value: Option<ast::ExpressionNode> = {
         let jni_node = env
           .call_method(value, "getWithValue", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let branches: Vec<ast::BranchOptionNode> = {
+      let branches_value: Vec<ast::BranchOptionNode> = {
         let jni_node = env
           .call_method(value, "getBranches", "()Ljava/util/List;", &[])?
           .l()?;
@@ -584,8 +583,8 @@ impl FromJni for ast::BranchExpressionNode {
 
       Ok(ast::BranchExpressionNode {
           info,
-          with_value,
-          branches,
+          with_value: with_value_value,
+          branches: branches_value,
       })
     }
 }
@@ -596,14 +595,14 @@ impl FromJni for ast::IfBranchOptionNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let condition: ast::ExpressionNode = {
+      let condition_value: ast::ExpressionNode = {
         let jni_node = env
           .call_method(value, "getCondition", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let body: ast::BodyNode = {
+      let body_value: ast::BodyNode = {
         let jni_node = env
           .call_method(value, "getBody", "()Lcom/dallonf/ktcause/ast/BodyNode;", &[])?
           .l()?;
@@ -613,8 +612,8 @@ impl FromJni for ast::IfBranchOptionNode {
 
       Ok(ast::IfBranchOptionNode {
           info,
-          condition,
-          body,
+          condition: condition_value,
+          body: body_value,
       })
     }
 }
@@ -625,14 +624,14 @@ impl FromJni for ast::IsBranchOptionNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let pattern: Arc<ast::PatternNode> = {
+      let pattern_value: Arc<ast::PatternNode> = {
         let jni_node = env
           .call_method(value, "getPattern", "()Lcom/dallonf/ktcause/ast/PatternNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let body: ast::BodyNode = {
+      let body_value: ast::BodyNode = {
         let jni_node = env
           .call_method(value, "getBody", "()Lcom/dallonf/ktcause/ast/BodyNode;", &[])?
           .l()?;
@@ -642,8 +641,8 @@ impl FromJni for ast::IsBranchOptionNode {
 
       Ok(ast::IsBranchOptionNode {
           info,
-          pattern,
-          body,
+          pattern: pattern_value,
+          body: body_value,
       })
     }
 }
@@ -654,7 +653,7 @@ impl FromJni for ast::ElseBranchOptionNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let body: ast::BodyNode = {
+      let body_value: ast::BodyNode = {
         let jni_node = env
           .call_method(value, "getBody", "()Lcom/dallonf/ktcause/ast/BodyNode;", &[])?
           .l()?;
@@ -664,7 +663,7 @@ impl FromJni for ast::ElseBranchOptionNode {
 
       Ok(ast::ElseBranchOptionNode {
           info,
-          body,
+          body: body_value,
       })
     }
 }
@@ -675,7 +674,7 @@ impl FromJni for ast::CauseExpressionNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let signal: ast::ExpressionNode = {
+      let signal_value: ast::ExpressionNode = {
         let jni_node = env
           .call_method(value, "getSignal", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
           .l()?;
@@ -685,7 +684,7 @@ impl FromJni for ast::CauseExpressionNode {
 
       Ok(ast::CauseExpressionNode {
           info,
-          signal,
+          signal: signal_value,
       })
     }
 }
@@ -696,14 +695,14 @@ impl FromJni for ast::CallExpressionNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let callee: ast::ExpressionNode = {
+      let callee_value: ast::ExpressionNode = {
         let jni_node = env
           .call_method(value, "getCallee", "()Lcom/dallonf/ktcause/ast/ExpressionNode;", &[])?
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
       };
-      let parameters: Vec<Arc<ast::FunctionCallParameterNode>> = {
+      let parameters_value: Vec<Arc<ast::FunctionCallParameterNode>> = {
         let jni_node = env
           .call_method(value, "getParameters", "()Ljava/util/List;", &[])?
           .l()?;
@@ -713,8 +712,8 @@ impl FromJni for ast::CallExpressionNode {
 
       Ok(ast::CallExpressionNode {
           info,
-          callee,
-          parameters,
+          callee: callee_value,
+          parameters: parameters_value,
       })
     }
 }
@@ -725,7 +724,7 @@ impl FromJni for ast::IdentifierExpressionNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let identifier: Arc<ast::IdentifierNode> = {
+      let identifier_value: Arc<ast::IdentifierNode> = {
         let jni_node = env
           .call_method(value, "getIdentifier", "()Lcom/dallonf/ktcause/ast/IdentifierNode;", &[])?
           .l()?;
@@ -735,7 +734,7 @@ impl FromJni for ast::IdentifierExpressionNode {
 
       Ok(ast::IdentifierExpressionNode {
           info,
-          identifier,
+          identifier: identifier_value,
       })
     }
 }
@@ -746,7 +745,7 @@ impl FromJni for ast::StringLiteralExpressionNode {
         .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
         .l()?
         .jni_into(env)?;
-      let text: Arc<String> = {
+      let text_value: Arc<String> = {
         let jni_node = env
           .call_method(value, "getText", "()Ljava/lang/String;", &[])?
           .l()?;
@@ -756,7 +755,7 @@ impl FromJni for ast::StringLiteralExpressionNode {
 
       Ok(ast::StringLiteralExpressionNode {
           info,
-          text,
+          text: text_value,
       })
     }
 }

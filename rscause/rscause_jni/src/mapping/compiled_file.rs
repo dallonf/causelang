@@ -92,6 +92,17 @@ impl IntoJni for CompiledConstant {
                 )?;
                 Ok(result.into())
             }
+            CompiledConstant::Type(lang_type) => {
+                let class =
+                    env.find_class("com/dallonf/ktcause/CompiledFile$CompiledConstant$TypeConst")?;
+                let jni_type = lang_type.into_jni(env)?;
+                let result = env.new_object(
+                    class,
+                    "(Lcom/dallonf/ktcause/types/ResolvedValueLangType;)V",
+                    &[jni_type.borrow()],
+                )?;
+                Ok(result.into())
+            }
         }
     }
 }

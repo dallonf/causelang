@@ -182,7 +182,7 @@ private fun parseNamedValueDeclaration(
     namedValue: NamedValueDeclarationContext,
     breadcrumbs: Breadcrumbs,
     ctx: ParserContext,
-): NamedValue {
+): NamedValueNode {
     val iterator = namedValue.children.ruleIterator()
     iterator.skip { (it is TerminalNode && (it.symbol.type == LET || it.symbol.type == NEWLINE)) }
 
@@ -213,7 +213,7 @@ private fun parseNamedValueDeclaration(
 
     val value = parseExpression(valueRule as ExpressionContext, breadcrumbs.appendName("value"), ctx)
 
-    return NamedValue(
+    return NamedValueNode(
         NodeInfo(namedValue.getRange(), breadcrumbs), name, typeAnnotation, value, isVariable
     )
 }

@@ -34,19 +34,24 @@ impl FromJni for ast::{{this.name}} {
         .l()?
         .jni_into(env)?;
       {{#each this.fields}}
-      let {{this.name}}: {{this.rsType}} = {
+      let {{this.name}}_value: {{this.rsType}} = {
         let jni_node = env
           .call_method(value, "{{this.getterName}}", "(){{this.javaType}}", &[])?
+        {{#if this.isBoolean}}
+          .z()?;
+        jni_node
+        {{else}}
           .l()?;
         let jni_node = JObject::from(jni_node);
         jni_node.jni_into(env)?
+        {{/if}}
       };
       {{/each}}
 
       Ok(ast::{{this.name}} {
           info,
           {{#each this.fields}}
-          {{this.name}},
+          {{this.name}}: {{this.name}}_value,
           {{/each}}
       })
     }

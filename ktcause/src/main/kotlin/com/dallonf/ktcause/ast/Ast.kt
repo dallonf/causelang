@@ -270,7 +270,7 @@ data class FunctionNode(
     }
 }
 
-data class NamedValue(
+data class NamedValueNode(
     override val info: NodeInfo,
     val name: IdentifierNode,
     val typeAnnotation: TypeReferenceNode?,

@@ -124,6 +124,7 @@ async function generateAstMappingRs() {
               getterName,
               rsType,
               javaType,
+              isBoolean: rsType === "bool",
             },
           ];
         }

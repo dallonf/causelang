@@ -120,7 +120,7 @@ object Compiler {
                     }
                 }
 
-                is NamedValue -> TODO()
+                is NamedValueNode -> TODO()
             }
         }
 
@@ -341,7 +341,7 @@ object Compiler {
                 )
             }
 
-            is NamedValue -> {
+            is NamedValueNode -> {
                 compileExpression(declaration.value, procedure, ctx)
                 ctx.resolved.checkForRuntimeErrors(declaration.info.breadcrumbs)?.let { error ->
                     procedure.writeInstruction(Instruction.Pop(), declaration.info)

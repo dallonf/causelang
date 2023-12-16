@@ -211,7 +211,7 @@ object Analyzer {
                 return list.ifEmpty { null }
             }
 
-            is NamedValue -> {
+            is NamedValueNode -> {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
@@ -302,7 +302,7 @@ object Analyzer {
         when (declaration) {
             is ImportNode -> analyzeImportDeclaration(declaration, output, ctx)
             is FunctionNode -> analyzeFunctionDeclaration(declaration, output, ctx)
-            is NamedValue -> analyzeNamedValueDeclaration(declaration, output, ctx)
+            is NamedValueNode -> analyzeNamedValueDeclaration(declaration, output, ctx)
             is ObjectType -> analyzeObjectTypeDeclaration(declaration, output, ctx)
             is SignalType -> analyzeSignalTypeDeclaration(declaration, output, ctx)
             is OptionType -> analyzeOptionTypeDeclaration(declaration, output, ctx)
@@ -436,7 +436,7 @@ object Analyzer {
     }
 
     private fun analyzeNamedValueDeclaration(
-        declaration: NamedValue, output: AnalyzedNode, ctx: AnalyzerContext
+        declaration: NamedValueNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         output.addValueFlowTag(declaration.value.info.breadcrumbs, declaration.info.breadcrumbs)
 
