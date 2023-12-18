@@ -190,11 +190,13 @@ object RustCompiler {
         return compileInner(path, ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles)
     }
 
+    private val otherUnsupportedNodeTypes = listOf(BranchExpressionNode::class).mapNotNull { it.simpleName }
+
     private fun getIncompatibleNodeTypes(ast: FileNode): Sequence<String> {
         val allNodes = ast.allDescendants()
         return allNodes.mapNotNull {
             val name = it::class.simpleName
-            if (rustCompilerSupportedTypes.contains(name)) {
+            if (rustCompilerSupportedTypes.contains(name) && !otherUnsupportedNodeTypes.contains(name)) {
                 null
             } else {
                 name
