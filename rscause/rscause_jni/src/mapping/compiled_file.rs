@@ -80,6 +80,17 @@ impl IntoJni for CompiledConstant {
                     env.new_object(class, "(Ljava/lang/String;)V", &[jni_value.borrow()])?;
                 Ok(result.into())
             }
+            CompiledConstant::Number(value) => {
+                let class = env
+                    .find_class("com/dallonf/ktcause/CompiledFile$CompiledConstant$NumberConst")?;
+                let jni_value = value.into_jni(env)?;
+                let result = env.new_object(
+                    class,
+                    "(Lorg/apache/commons/numbers/fraction/BigFraction;)V",
+                    &[jni_value.borrow()],
+                )?;
+                Ok(result.into())
+            }
             CompiledConstant::Error(err_const) => {
                 let class =
                     env.find_class("com/dallonf/ktcause/CompiledFile$CompiledConstant$ErrorConst")?;

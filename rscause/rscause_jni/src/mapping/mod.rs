@@ -5,6 +5,8 @@ use jni::{
     objects::{JObject, JValue, JValueGen, JValueOwned},
     JNIEnv,
 };
+use num::{BigInt, BigRational};
+use rust_decimal::Decimal;
 
 use crate::util::noisy_log;
 
@@ -41,6 +43,18 @@ impl FromJni for String {
         let jni_string = value.into();
         let jni_string = env.get_string(&jni_string)?;
         Ok(jni_string.to_str()?.to_owned())
+    }
+}
+
+impl FromJni for Decimal {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+        noisy_log(env, "Decimal::from_jni");
+        let string_value: String = env
+            .call_method(value, "toPlainString", "()Ljava/lang/String;", &[])?
+            .l()?
+            .jni_into(env)?;
+        let decimal = Decimal::from_str_exact(&string_value)?;
+        Ok(decimal)
     }
 }
 
@@ -151,6 +165,29 @@ impl IntoJni for str {
 impl IntoJni for String {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
         self.as_str().into_jni(env)
+    }
+}
+
+impl IntoJni for BigInt {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        let class = env.find_class("java/math/BigInteger")?;
+        let jni_string = self.to_string().into_jni(env)?;
+        let result = env.new_object(class, "(Ljava/lang/String;)V", &[jni_string.borrow()])?;
+        Ok(result.into())
+    }
+}
+
+impl IntoJni for BigRational {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        let class = env.find_class("org/apache/commons/numbers/fraction/BigFraction")?;
+        let jni_numer = self.numer().into_jni(env)?;
+        let jni_denom = self.denom().into_jni(env)?;
+        let result = env.new_object(
+            class,
+            "(Ljava.math.BigInteger;Ljava.math.BigInteger;)V",
+            &[jni_numer.borrow(), jni_denom.borrow()],
+        )?;
+        Ok(result.into())
     }
 }
 

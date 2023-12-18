@@ -519,11 +519,11 @@ private fun parseStringLiteralExpression(
 
 private fun parseNumberLiteralExpression(
     expression: NumberLiteralExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): NumberLiteralExpression {
+): NumberLiteralExpressionNode {
     val text = expression.NUMBER_LITERAL().text
     val number = text.replace("_", "").toBigDecimal()
 
-    return NumberLiteralExpression(
+    return NumberLiteralExpressionNode(
         NodeInfo(expression.getRange(), breadcrumbs), number
     )
 }

@@ -494,7 +494,7 @@ object Resolver {
                         }
 
                         is StringLiteralExpressionNode -> resolveWith(LangPrimitiveKind.TEXT.toValueLangType())
-                        is NumberLiteralExpression -> resolveWith(LangPrimitiveKind.NUMBER.toValueLangType())
+                        is NumberLiteralExpressionNode -> resolveWith(LangPrimitiveKind.NUMBER.toValueLangType())
 
                         is GroupExpressionNode -> resolveWith(getResolvedTypeOf(node.expression))
 

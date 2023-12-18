@@ -36,6 +36,7 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "parameters",
     "identifier",
     "text",
+    "value",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -63,6 +64,7 @@ pub enum AnyAstNode {
     CallExpression(Arc<CallExpressionNode>),
     IdentifierExpression(Arc<IdentifierExpressionNode>),
     StringLiteralExpression(Arc<StringLiteralExpressionNode>),
+    NumberLiteralExpression(Arc<NumberLiteralExpressionNode>),
 }
 impl AstNode for AnyAstNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
@@ -90,6 +92,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::CallExpression(node) => node.children(),
             AnyAstNode::IdentifierExpression(node) => node.children(),
             AnyAstNode::StringLiteralExpression(node) => node.children(),
+            AnyAstNode::NumberLiteralExpression(node) => node.children(),
         }
     }
     fn info(&self) -> &NodeInfo {
@@ -117,6 +120,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::CallExpression(node) => node.info(),
             AnyAstNode::IdentifierExpression(node) => node.info(),
             AnyAstNode::StringLiteralExpression(node) => node.info(),
+            AnyAstNode::NumberLiteralExpression(node) => node.info(),
         }
     }
 }
@@ -146,6 +150,7 @@ impl HasBreadcrumbs for AnyAstNode {
             AnyAstNode::CallExpression(node) => node.breadcrumbs(),
             AnyAstNode::IdentifierExpression(node) => node.breadcrumbs(),
             AnyAstNode::StringLiteralExpression(node) => node.breadcrumbs(),
+            AnyAstNode::NumberLiteralExpression(node) => node.breadcrumbs(),
         }
     }
 }
@@ -301,6 +306,7 @@ pub enum ExpressionNode {
     Call(Arc<CallExpressionNode>),
     Identifier(Arc<IdentifierExpressionNode>),
     StringLiteral(Arc<StringLiteralExpressionNode>),
+    NumberLiteral(Arc<NumberLiteralExpressionNode>),
 }
 impl AstNode for ExpressionNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
@@ -310,6 +316,7 @@ impl AstNode for ExpressionNode {
             ExpressionNode::Call(node) => node.children(),
             ExpressionNode::Identifier(node) => node.children(),
             ExpressionNode::StringLiteral(node) => node.children(),
+            ExpressionNode::NumberLiteral(node) => node.children(),
         }
     }
     fn info(&self) -> &NodeInfo {
@@ -319,6 +326,7 @@ impl AstNode for ExpressionNode {
             ExpressionNode::Call(node) => node.info(),
             ExpressionNode::Identifier(node) => node.info(),
             ExpressionNode::StringLiteral(node) => node.info(),
+            ExpressionNode::NumberLiteral(node) => node.info(),
         }
     }
 }
@@ -330,6 +338,7 @@ impl From<&ExpressionNode> for AnyAstNode {
             ExpressionNode::Call(node) => AnyAstNode::CallExpression(node.clone()),
             ExpressionNode::Identifier(node) => AnyAstNode::IdentifierExpression(node.clone()),
             ExpressionNode::StringLiteral(node) => AnyAstNode::StringLiteralExpression(node.clone()),
+            ExpressionNode::NumberLiteral(node) => AnyAstNode::NumberLiteralExpression(node.clone()),
         }
     }
 }
@@ -341,6 +350,7 @@ impl HasBreadcrumbs for ExpressionNode {
             ExpressionNode::Call(node) => node.breadcrumbs(),
             ExpressionNode::Identifier(node) => node.breadcrumbs(),
             ExpressionNode::StringLiteral(node) => node.breadcrumbs(),
+            ExpressionNode::NumberLiteral(node) => node.breadcrumbs(),
         }
     }
 }
@@ -1100,6 +1110,30 @@ impl AstNode for StringLiteralExpressionNode {
     }
 }
 impl HasBreadcrumbs for StringLiteralExpressionNode {
+    fn breadcrumbs(&self) -> &Breadcrumbs {
+        &self.info.breadcrumbs
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NumberLiteralExpressionNode {
+    pub info: NodeInfo,
+    pub value: rust_decimal::Decimal,
+}
+impl From<&Arc<NumberLiteralExpressionNode>> for AnyAstNode {
+    fn from(value: &Arc<NumberLiteralExpressionNode>) -> Self {
+        AnyAstNode::NumberLiteralExpression(value.clone())
+    }
+}
+impl AstNode for NumberLiteralExpressionNode {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
+        HashMap::new()
+    }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
+}
+impl HasBreadcrumbs for NumberLiteralExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.info.breadcrumbs
     }

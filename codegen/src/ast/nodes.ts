@@ -1,4 +1,11 @@
-import { NodeDeclaration, booleanPrimitive, listOf, optional, stringPrimitive } from "./types.ts";
+import {
+  NodeDeclaration,
+  booleanPrimitive,
+  listOf,
+  optional,
+  primitive,
+  stringPrimitive,
+} from "./types.ts";
 
 export const categories = [
   { name: "TypeReference" },
@@ -93,7 +100,7 @@ export const nodes: NodeDeclaration[] = [
       typeAnnotation: optional("TypeReference"),
       value: "Expression",
       isVariable: booleanPrimitive,
-    }
+    },
   },
 
   {
@@ -184,6 +191,13 @@ export const nodes: NodeDeclaration[] = [
     category: "Expression",
     fields: {
       text: stringPrimitive,
+    },
+  },
+  {
+    name: "NumberLiteralExpression",
+    category: "Expression",
+    fields: {
+      value: primitive("bigdecimal"),
     },
   },
 ];

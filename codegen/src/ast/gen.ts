@@ -176,6 +176,10 @@ function rsFieldType(
           return "Arc<String>";
         case "boolean":
           return "bool";
+        case "int":
+          return "i64";
+        case "bigdecimal":
+          return "rust_decimal::Decimal";
         default:
           return type satisfies never;
       }
@@ -213,6 +217,10 @@ function javaFieldType(type: NodeFieldType): string {
           return "Ljava/lang/String;";
         case "boolean":
           return "Z";
+        case "int":
+          return "I";
+        case "bigdecimal":
+          return "Ljava/math/BigDecimal;";
         default:
           return type satisfies never;
       }

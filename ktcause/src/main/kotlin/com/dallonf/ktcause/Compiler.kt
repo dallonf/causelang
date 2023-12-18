@@ -462,7 +462,7 @@ object Compiler {
                 ), expression.info
             )
 
-            is NumberLiteralExpression -> {
+            is NumberLiteralExpressionNode -> {
                 val numerator = expression.value.unscaledValue()
                 val denominator = 10.toBigInteger().pow(expression.value.scale())
                 val fraction = BigFraction.of(numerator, denominator)

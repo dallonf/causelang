@@ -10,18 +10,24 @@ export interface NodeDeclaration {
 
 export type NodeFieldType =
   | string
-  | {
-      kind: "optional";
-      type: NodeFieldType;
-    }
-  | {
-      kind: "list";
-      type: NodeFieldType;
-    }
-  | {
-      kind: "primitive";
-      type: "string" | "boolean";
-    };
+  | OptionalFieldType
+  | ListFieldType
+  | PrimitiveFieldType;
+
+export interface OptionalFieldType {
+  kind: "optional";
+  type: NodeFieldType;
+}
+
+export interface ListFieldType {
+  kind: "list";
+  type: NodeFieldType;
+}
+
+export interface PrimitiveFieldType {
+  kind: "primitive";
+  type: "string" | "boolean" | "int" | "bigdecimal";
+}
 
 export function listOf(type: NodeFieldType): NodeFieldType {
   return {
@@ -46,3 +52,10 @@ export const booleanPrimitive: NodeFieldType = {
   kind: "primitive",
   type: "boolean",
 };
+
+export function primitive(type: PrimitiveFieldType["type"]): NodeFieldType {
+  return {
+    kind: "primitive",
+    type,
+  };
+}

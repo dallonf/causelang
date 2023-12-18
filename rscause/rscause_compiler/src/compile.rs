@@ -28,6 +28,7 @@ use crate::{
     tags::NodeTag,
 };
 use anyhow::{anyhow, Result};
+use num::{BigInt, BigRational};
 use tap::Pipe;
 use thiserror::Error;
 
@@ -528,6 +529,17 @@ fn compile_expression(
         ast::ExpressionNode::StringLiteral(expression) => {
             let constant =
                 procedure.add_constant(CompiledConstant::String(expression.text.clone()));
+            procedure.write_instruction(
+                Instruction::Literal(LiteralInstruction { constant }),
+                Some(&expression.info),
+            );
+            Ok(())
+        }
+        ast::ExpressionNode::NumberLiteral(expression) => {
+            let numerator = expression.value.mantissa().into();
+            let denominator = BigInt::from(10).pow(expression.value.scale() as u32);
+            let rational = BigRational::new(numerator, denominator);
+            let constant = procedure.add_constant(CompiledConstant::Number(rational));
             procedure.write_instruction(
                 Instruction::Literal(LiteralInstruction { constant }),
                 Some(&expression.info),

@@ -470,7 +470,7 @@ data class StringLiteralExpressionNode(override val info: NodeInfo, val text: St
 }
 
 
-data class NumberLiteralExpression(override val info: NodeInfo, val value: BigDecimal) : ExpressionNode {
+data class NumberLiteralExpressionNode(override val info: NodeInfo, val value: BigDecimal) : ExpressionNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = mapOf()
 }
 

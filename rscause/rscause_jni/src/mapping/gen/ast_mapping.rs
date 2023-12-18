@@ -36,6 +36,7 @@ pub static J_BREADCRUMB_NAMES: &[&str] = &[
     "parameters",
     "identifier",
     "text",
+    "value",
 ];
 
 impl FromJni for ast::TypeReferenceNode {
@@ -137,6 +138,9 @@ impl FromJni for ast::ExpressionNode {
             },
             "StringLiteralExpressionNode" => {
                 ast::ExpressionNode::StringLiteral(value.jni_into(env)?)
+            },
+            "NumberLiteralExpressionNode" => {
+                ast::ExpressionNode::NumberLiteral(value.jni_into(env)?)
             },
           _ => panic!("Unknown class name for ExpressionNode: {}", class_name)
       })
@@ -756,6 +760,27 @@ impl FromJni for ast::StringLiteralExpressionNode {
       Ok(ast::StringLiteralExpressionNode {
           info,
           text: text_value,
+      })
+    }
+}
+impl FromJni for ast::NumberLiteralExpressionNode {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+      noisy_log(env, "node NumberLiteralExpressionNode");
+      let info = env
+        .call_method(value, "getInfo", "()Lcom/dallonf/ktcause/ast/NodeInfo;", &[])?
+        .l()?
+        .jni_into(env)?;
+      let value_value: rust_decimal::Decimal = {
+        let jni_node = env
+          .call_method(value, "getValue", "()Ljava/math/BigDecimal;", &[])?
+          .l()?;
+        let jni_node = JObject::from(jni_node);
+        jni_node.jni_into(env)?
+      };
+
+      Ok(ast::NumberLiteralExpressionNode {
+          info,
+          value: value_value,
       })
     }
 }

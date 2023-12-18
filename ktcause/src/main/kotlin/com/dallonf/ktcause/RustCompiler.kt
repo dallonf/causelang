@@ -43,7 +43,7 @@ object RustCompiler {
         ASSERT_SUPPORTED,
     }
 
-    private val mode = Mode.IF_SUPPORTED
+    private val mode = Mode.ASSERT_SUPPORTED
 
     init {
         System.loadLibrary("rscause_jni")
@@ -128,7 +128,8 @@ object RustCompiler {
             )
             resolverErrors.mapNotNull {
                 when (it.error) {
-                    ErrorLangType.NotCausable -> null
+                    is ErrorLangType.NotCausable -> null
+                    is ErrorLangType.MismatchedType -> null
                     else -> it
                 }
             }

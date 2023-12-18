@@ -592,7 +592,7 @@ object Analyzer {
 
             is IdentifierExpressionNode -> analyzeIdentifierExpression(expression, output, ctx)
             is StringLiteralExpressionNode -> {}
-            is NumberLiteralExpression -> {}
+            is NumberLiteralExpressionNode -> {}
 
             is CallExpressionNode -> analyzeCallExpression(expression, output, ctx)
             is MemberExpression -> analyzeMemberExpression(expression, output, ctx)
