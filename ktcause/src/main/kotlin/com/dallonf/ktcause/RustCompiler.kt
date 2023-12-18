@@ -116,7 +116,7 @@ object RustCompiler {
         val unsupportedTypeAnnotations = ast.allDescendants().filter {
             when (it) {
                 is FunctionNode -> it.returnType != null
-                is NamedValueNode -> it.typeAnnotation != null
+//                is NamedValueNode -> it.typeAnnotation != null
                 else -> false
             }
         }

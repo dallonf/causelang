@@ -63,7 +63,7 @@ impl FromJni for LangError {
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
         };
-        let actual: lang_types::LangType = {
+        let actual: Arc<lang_types::LangType> = {
           let jni_node = env
             .call_method(value, "getActual", "()Lcom/dallonf/ktcause/types/ResolvedValueLangType;", &[])?
             .l()?;

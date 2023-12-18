@@ -43,6 +43,15 @@ impl From<Arc<LangType>> for AnyInferredLangType {
     }
 }
 
+impl From<Result<Arc<LangType>, Arc<LangError>>> for AnyInferredLangType {
+    fn from(value: Result<Arc<LangType>, Arc<LangError>>) -> Self {
+        match value {
+            Ok(value) => Self::Known(value),
+            Err(err) => Self::Error(err),
+        }
+    }
+}
+
 pub type AnyInferredLangType = InferredType<Arc<LangType>>;
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]

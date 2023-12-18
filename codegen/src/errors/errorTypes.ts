@@ -56,10 +56,12 @@ export const errorTypes: ErrorTypeDeclaration[] = [
         rust: "lang_types::AnyInferredLangType",
         kotlin: "ConstraintValueLangType",
       }),
-      actual: diverged({
-        rust: "lang_types::LangType",
-        kotlin: "ResolvedValueLangType",
-      }),
+      actual: arc(
+        diverged({
+          rust: "lang_types::LangType",
+          kotlin: "ResolvedValueLangType",
+        })
+      ),
     },
   },
   {

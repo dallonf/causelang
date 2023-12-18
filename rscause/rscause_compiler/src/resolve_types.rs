@@ -1,8 +1,8 @@
 use crate::ast::{self, AnyAstNode, AstNode, BreadcrumbTreeNode};
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
-    compiler_bug_error, CompilerBugError, ErrorPosition, LangError, ProxyErrorError,
-    SourcePosition, ValueUsedAsConstraintError,
+    compiler_bug_error, CompilerBugError, ErrorPosition, LangError, SourcePosition,
+    ValueUsedAsConstraintError,
 };
 use crate::find_tag;
 use crate::lang_types::{
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tap::Conv;
+use tap::Pipe;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExternalFileDescriptor {
@@ -44,6 +44,7 @@ pub fn resolve_types(
         file_path: path.clone(),
         root_node: file.clone(),
         value_types: HashMap::new(),
+        contraints: vec![],
         node_tags,
         canonical_types,
         external_files,
@@ -124,10 +125,17 @@ pub fn resolve_types(
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+enum TypeConstaint {
+    AssignableTo(AnyInferredLangType),
+    EqualTo(AnyInferredLangType),
+}
+
 struct ResolveTypesContext {
     file_path: Arc<String>,
     root_node: Arc<ast::FileNode>,
     value_types: HashMap<Breadcrumbs, Option<AnyInferredLangType>>,
+    contraints: Vec<(Breadcrumbs, TypeConstaint)>,
     canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
@@ -157,20 +165,7 @@ trait ResolveTypes: ast::AstNode {
                         breadcrumbs: self.breadcrumbs().clone(),
                         position: self.info().position,
                     });
-                    InferredType::Error(
-                        match err.as_ref() {
-                            LangError::ProxyError(proxy_err) => {
-                                let mut proxy_err = proxy_err.clone();
-                                proxy_err.proxy_chain.push(source_position);
-                                LangError::ProxyError(proxy_err)
-                            }
-                            err => LangError::ProxyError(ProxyErrorError {
-                                actual_error: err.to_owned().into(),
-                                proxy_chain: vec![source_position],
-                            }),
-                        }
-                        .into(),
-                    )
+                    InferredType::Error(LangError::proxy_error(err, source_position).into())
                 }
             })
     }
@@ -185,18 +180,39 @@ trait ResolveTypes: ast::AstNode {
 impl ResolveTypes for AnyAstNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         match self {
+            Self::File(_) => None,
+            Self::Identifier(_) => None,
+            Self::Import(_) => None,
+            Self::ImportPath(_) => None,
             Self::ImportMapping(node) => node.compute_type(ctx),
             Self::Function(node) => node.compute_type(ctx),
             Self::NamedValue(node) => node.value.compute_type(ctx),
             Self::BlockBody(node) => node.compute_type(ctx),
+            Self::DeclarationStatement(node) => node.compute_type(ctx),
             Self::ExpressionStatement(node) => node.compute_type(ctx),
             Self::CauseExpression(node) => node.compute_type(ctx),
             Self::CallExpression(node) => node.compute_type(ctx),
             Self::IdentifierExpression(node) => node.compute_type(ctx),
             Self::StringLiteralExpression(node) => node.compute_type(ctx),
-            _ => None,
+            Self::NumberLiteralExpression(node) => node.compute_type(ctx),
+            Self::IdentifierTypeReference(node) => resolve_identifier_type_reference(node, ctx),
+            Self::Pattern(_) => todo!("Pattern"),
+            Self::FunctionSignatureParameter(_) => todo!("FunctionSignatureParameter"),
+            Self::FunctionCallParameter(_) => None, /* TODO? typechecking */
+            Self::SingleStatementBody(_) => todo!("SingleStatementBody"),
+            Self::BranchExpression(_) => todo!("BranchExpression"),
+            Self::IfBranchOption(_) => todo!("IfBranchOption"),
+            Self::IsBranchOption(_) => todo!("IsBranchOption"),
+            Self::ElseBranchOption(_) => todo!("ElseBranchOption"),
         }
     }
+}
+
+fn resolve_identifier_type_reference(
+    node: &ast::IdentifierTypeReferenceNode,
+    ctx: &mut ResolveTypesContext,
+) -> Option<InferredType<Arc<LangType>>> {
+    todo!()
 }
 
 impl<T> ResolveTypes for T
@@ -228,7 +244,7 @@ impl ResolveTypes for ast::ImportMappingNode {
                     .ok_or_else(|| LangError::FileNotFound)
                     .map(|file| (tag, file))
             })
-            .and_then(|(tag, file)| {
+            .and_then(|(_tag, file)| {
                 file.exports
                     .get(&self.source_name.text)
                     .ok_or_else(|| LangError::ExportNotFound)
@@ -382,5 +398,68 @@ impl ResolveTypes for ast::IdentifierExpressionNode {
 impl ResolveTypes for ast::StringLiteralExpressionNode {
     fn compute_type(&self, _ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         Some(LangType::Primitive(PrimitiveLangType::Text).into())
+    }
+}
+
+impl ResolveTypes for ast::NumberLiteralExpressionNode {
+    fn compute_type(&self, _ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        Some(LangType::Primitive(PrimitiveLangType::Number).into())
+    }
+}
+
+impl ResolveTypes for ast::DeclarationStatementNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        self.declaration.get_resolved_type_proxying_errors(ctx)
+    }
+}
+
+impl ResolveTypes for ast::NamedValueNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        let annotated_type = self
+            .type_annotation
+            .as_ref()
+            .and_then(|it| it.get_resolved_type_proxying_errors(ctx))
+            .map(|annotated_type| {
+                let annotated_type = annotated_type.to_result()?;
+                match annotated_type.as_ref() {
+                    LangType::TypeReference(InferredType::Known(value_type)) => {
+                        Ok(value_type.clone())
+                    }
+                    LangType::TypeReference(InferredType::Error(err)) => {
+                        Err(LangError::proxy_error(
+                            err.clone(),
+                            ErrorPosition::Source(SourcePosition {
+                                breadcrumbs: self.breadcrumbs().clone(),
+                                path: ctx.file_path.clone(),
+                                position: self.info().position.clone(),
+                            }),
+                        )
+                        .into())
+                    }
+                    _ => Err(
+                        LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
+                            r#type: AnyInferredLangType::Known(annotated_type.clone()),
+                        })
+                        .pipe(Arc::new),
+                    ),
+                }
+            });
+
+        let inferred_type = self.value.get_resolved_type_proxying_errors(ctx).unwrap_or(
+            LangError::compiler_bug(format!("No type found for {}", self.value.breadcrumbs()))
+                .pipe(|it| InferredType::Error(it.into())),
+        );
+
+        if let Some(Ok(annotated_type)) = &annotated_type {
+            ctx.contraints.push((
+                self.value.breadcrumbs().clone(),
+                TypeConstaint::AssignableTo(annotated_type.clone().into()),
+            ));
+        }
+
+        let result = annotated_type
+            .map(|annotated_type| annotated_type.into())
+            .unwrap_or(inferred_type);
+        Some(result)
     }
 }
