@@ -170,6 +170,7 @@ impl IntoJni for String {
 
 impl IntoJni for BigInt {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        noisy_log(env, "BigInt into_jni");
         let class = env.find_class("java/math/BigInteger")?;
         let jni_string = self.to_string().into_jni(env)?;
         let result = env.new_object(class, "(Ljava/lang/String;)V", &[jni_string.borrow()])?;
@@ -179,12 +180,13 @@ impl IntoJni for BigInt {
 
 impl IntoJni for BigRational {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        noisy_log(env, "BigRational into_jni");
         let class = env.find_class("org/apache/commons/numbers/fraction/BigFraction")?;
         let jni_numer = self.numer().into_jni(env)?;
         let jni_denom = self.denom().into_jni(env)?;
         let result = env.new_object(
             class,
-            "(Ljava.math.BigInteger;Ljava.math.BigInteger;)V",
+            "(Ljava/math/BigInteger;Ljava/math/BigInteger;)V",
             &[jni_numer.borrow(), jni_denom.borrow()],
         )?;
         Ok(result.into())
