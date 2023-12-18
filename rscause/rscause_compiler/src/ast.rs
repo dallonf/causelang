@@ -79,6 +79,12 @@ impl AnyAstNode {
     }
 }
 
+impl From<&AnyAstNode> for AnyAstNode {
+    fn from(value: &AnyAstNode) -> Self {
+        value.clone()
+    }
+}
+
 impl<T> From<T> for BreadcrumbTreeNode
 where
     T: Into<AnyAstNode>,

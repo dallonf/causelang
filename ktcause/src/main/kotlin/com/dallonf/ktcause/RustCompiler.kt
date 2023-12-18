@@ -137,7 +137,7 @@ object RustCompiler {
         yieldAll(typeErrorsOnlyKtResolverWouldFind.map { "Found type error that the Rust resolver can't output yet: $it" })
     }
 
-    private val supportedCoreExports = setOf("Debug", "Action", "equals")
+    private val supportedCoreExports = setOf("Debug", "Action", "Text", "Number", "equals")
 
     fun compile(
         path: String,
