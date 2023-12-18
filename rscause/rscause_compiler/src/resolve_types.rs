@@ -141,6 +141,52 @@ struct ResolveTypesContext {
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 }
 
+impl ResolveTypesContext {
+    fn get_resolved_type<'a, T>(&mut self, node: &'a T) -> Option<AnyInferredLangType>
+    where
+        &'a T: Into<AnyAstNode>,
+        T: AstNode,
+    {
+        let node: AnyAstNode = node.into();
+        if let Some(already_resolved) = self.value_types.get(node.breadcrumbs()) {
+            return already_resolved.clone();
+        }
+        let resolved = node.compute_type(self);
+        self.value_types
+            .insert(node.breadcrumbs().clone(), resolved.clone());
+        resolved
+    }
+
+    fn get_resolved_type_proxying_errors<'a, T>(
+        &mut self,
+        node: &'a T,
+    ) -> Option<AnyInferredLangType>
+    where
+        &'a T: Into<AnyAstNode>,
+        T: AstNode,
+    {
+        self.get_resolved_type(node)
+            .map(|found_type| match found_type {
+                InferredType::Known(found_type) => InferredType::Known(found_type),
+                InferredType::Error(err) => {
+                    let source_position = ErrorPosition::Source(SourcePosition {
+                        path: self.file_path.clone(),
+                        breadcrumbs: node.breadcrumbs().clone(),
+                        position: node.info().position,
+                    });
+                    InferredType::Error(LangError::proxy_error(err, source_position).into())
+                }
+            })
+    }
+
+    fn get_tags<'a, 'b>(&'a self, node: &impl AstNode) -> Cow<'a, Vec<NodeTag>> {
+        self.node_tags
+            .get(node.breadcrumbs())
+            .map(|it| Cow::Borrowed(it))
+            .unwrap_or(Cow::Owned(vec![]))
+    }
+}
+
 trait ResolveTypes: ast::AstNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType>;
     fn get_resolved_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
