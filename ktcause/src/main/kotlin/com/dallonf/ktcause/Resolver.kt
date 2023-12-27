@@ -145,9 +145,6 @@ object Resolver {
                     when (node) {
                         is NamedValueNode -> {
                             track(INFERRED)
-                            if (node.typeAnnotation != null) {
-                                track(CONSTRAINT)
-                            }
                         }
 
                         is PatternNode -> track(CONSTRAINT)
@@ -923,7 +920,19 @@ object Resolver {
 
                         is SingleStatementBodyNode -> resolveWith(getResolvedTypeOf(node.statement))
 
-                        is NamedValueNode -> resolveWith(getResolvedTypeOf(node.value))
+                        is NamedValueNode -> {
+                            if (node.typeAnnotation != null) {
+                                val typeConstraint = getResolvedTypeOf(node.typeAnnotation)
+                                if (typeConstraint.isPending(knownCanonicalTypes)) {
+                                    return@eachPendingNode
+                                }
+                                iterationResolvedReferences.add(
+                                    ResolutionKey(CONSTRAINT, node.value.info.breadcrumbs) to
+                                            typeConstraint.expectConstraint()
+                                )
+                            }
+                            resolveWith(getResolvedTypeOf(node.value))
+                        }
 
                         is ObjectType -> {
                             val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
@@ -1007,13 +1016,6 @@ object Resolver {
                     }
 
                     CONSTRAINT -> when (node) {
-                        is NamedValueNode -> {
-                            val annotation = requireNotNull(node.typeAnnotation)
-                            val annotationType = getResolvedTypeOf(annotation)
-
-                            resolveWith(annotationType.expectConstraint())
-                        }
-
                         is FunctionSignatureParameterNode -> {
                             node.typeReference?.let { resolveWith(getResolvedTypeOf(it).expectConstraint()) }
                         }

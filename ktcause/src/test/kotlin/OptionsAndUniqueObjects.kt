@@ -113,8 +113,8 @@ class OptionsAndUniqueObjects {
                 {
                     "position": {
                         "path": "project/test.cau",
-                        "breadcrumbs": "declarations.3.body.statements.1.declaration",
-                        "position": "6:4-6:28"
+                        "breadcrumbs": "declarations.3.body.statements.1.declaration.value",
+                        "position": "6:23-6:28"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -206,8 +206,8 @@ class OptionsAndUniqueObjects {
                 {
                     "position": {
                         "path": "project/test.cau",
-                        "breadcrumbs": "declarations.4.body.statements.0.declaration",
-                        "position": "10:4-10:27"
+                        "breadcrumbs": "declarations.4.body.statements.0.declaration.value",
+                        "position": "10:26-10:27"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -248,8 +248,8 @@ class OptionsAndUniqueObjects {
                 "position": {
                     "#type": "SourcePosition",
                     "path": "project/test.cau",
-                    "breadcrumbs": "declarations.4.body.statements.0.declaration",
-                    "position": "10:4-10:27"
+                    "breadcrumbs": "declarations.4.body.statements.0.declaration.value",
+                    "position": "10:26-10:27"
                 },
                 "error": {
                     "#type": "MismatchedType",

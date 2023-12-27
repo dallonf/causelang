@@ -337,8 +337,8 @@ internal class ErrorHandlingBasicTest {
                 {
                     "position": {
                         "path": "project/hello.cau",
-                        "breadcrumbs": "declarations.1.body.statements.0.declaration",
-                        "position": "2:4-2:22"
+                        "breadcrumbs": "declarations.1.body.statements.0.declaration.value",
+                        "position": "2:21-2:22"
                     },
                     "error": {
                         "#type": "MismatchedType",
