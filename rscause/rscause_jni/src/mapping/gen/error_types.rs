@@ -56,7 +56,7 @@ impl FromJni for LangError {
         }).into())
       },
       "MismatchedType" => {
-        let expected: lang_types::AnyInferredLangType = {
+        let expected: lang_types::LangType = {
           let jni_node = env
             .call_method(value, "getExpected", "()Lcom/dallonf/ktcause/types/ConstraintValueLangType;", &[])?
             .l()?;
@@ -261,7 +261,7 @@ impl IntoJni for LangError {
       },
       LangError::MismatchedType(err) => {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$MismatchedType")?;
-        let expected = err.expected.into_jni(env)?;
+        let expected = lang_type_to_jni_constraint_value_lang_type(env, &err.expected)?;
         let actual = err.actual.into_jni(env)?;
         let result = env.new_object(class, "(Lcom/dallonf/ktcause/types/ConstraintValueLangType;Lcom/dallonf/ktcause/types/ResolvedValueLangType;)V", &[
           expected.borrow(),
@@ -317,7 +317,7 @@ impl IntoJni for LangError {
       },
       LangError::ConstraintUsedAsValue(err) => {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$ConstraintUsedAsValue")?;
-        let r#type = err.r#type.into_jni(env)?;
+        let r#type = lang_type_to_jni_constraint_value_lang_type(env, &err.r#type)?;
         let result = env.new_object(class, "(Lcom/dallonf/ktcause/types/ConstraintValueLangType;)V", &[
           r#type.borrow(),
         ])?;

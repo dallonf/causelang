@@ -38,7 +38,7 @@ pub struct ImplementationTodoError {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MismatchedTypeError {
-    pub expected: lang_types::AnyInferredLangType,
+    pub expected: lang_types::LangType,
     pub actual: Arc<lang_types::LangType>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -42,7 +42,11 @@ impl IntoJni for LangError {
       LangError::{{name}}{{#if hasFields}}(err){{/if}} => {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType${{name}}")?;
         {{#each fields}}
+        {{#if isValueConstraintConversion}}
+        let {{name}} = lang_type_to_jni_constraint_value_lang_type(env, &err.{{name}})?;
+        {{else}}
         let {{name}} = err.{{name}}.into_jni(env)?;
+        {{/if}}
         {{/each}}
         let result = env.new_object(class, "({{constructorParams}})V", &[
           {{#each fields}}

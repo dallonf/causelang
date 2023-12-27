@@ -57,6 +57,10 @@ async function generateMappings() {
           rustType: rustFieldType(type),
           getterName: changeCase.camelCase("get_" + name),
           isInt: rustFieldType(type) === "u32",
+          isValueConstraintConversion:
+            rustFieldType(type) === "lang_types::LangType" &&
+            jniFieldType(type) ==
+              "Lcom/dallonf/ktcause/types/ConstraintValueLangType;",
           jniType: jniFieldType(type),
         };
       }),

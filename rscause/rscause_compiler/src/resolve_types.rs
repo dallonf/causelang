@@ -1,8 +1,8 @@
 use crate::ast::{self, AnyAstNode, AstNode, BreadcrumbTreeNode};
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
-    compiler_bug_error, CompilerBugError, ErrorPosition, LangError, SourcePosition,
-    ValueUsedAsConstraintError,
+    compiler_bug_error, CompilerBugError, ErrorPosition, LangError, MismatchedTypeError,
+    SourcePosition, ValueUsedAsConstraintError,
 };
 use crate::find_tag;
 use crate::lang_types::{
@@ -31,6 +31,14 @@ pub struct ResolveTypesResult {
 pub struct ResolverError {
     pub position: SourcePosition,
     pub error: LangError,
+}
+impl ResolverError {
+    fn new(source_position: SourcePosition, format: LangError) -> Self {
+        Self {
+            position: source_position,
+            error: format,
+        }
+    }
 }
 
 pub fn resolve_types(
@@ -62,6 +70,74 @@ pub fn resolve_types(
                 .map(|value_type| (breadcrumbs.clone(), value_type.clone()))
         })
         .collect();
+
+    let constraint_errors = ctx
+        .contraints
+        .iter()
+        .filter_map(|(breadcrumbs, constraint)| {
+            let actual_type = ctx
+                .value_types
+                .get(breadcrumbs)
+                .map(|it| it.as_ref())
+                .flatten();
+            let source_position = SourcePosition {
+                path: path.clone(),
+                breadcrumbs: breadcrumbs.clone(),
+                position: ctx
+                    .node_at_path(breadcrumbs)
+                    .expect("constraints must be placed on a node actually in the tree")
+                    .info()
+                    .position,
+            };
+            let actual_type = match actual_type {
+                Some(InferredType::Known(it)) => it,
+                // we won't check constraints if this type is already an error
+                Some(InferredType::Error(_)) => return None,
+                None => {
+                    return Some(ResolverError::new(
+                        source_position,
+                        LangError::compiler_bug(format!(
+                            "No type found when computing constraint for {}",
+                            breadcrumbs
+                        )),
+                    ))
+                }
+            }
+            .clone();
+            match constraint {
+                TypeConstaint::AssignableTo(_) => todo!(),
+                TypeConstaint::EqualTo(expected_type) => {
+                    if let InferredType::Known(expected_type) = expected_type {
+                        if &actual_type != expected_type {
+                            Some(ResolverError::new(
+                                source_position,
+                                LangError::MismatchedType(MismatchedTypeError {
+                                    expected: expected_type.as_ref().clone(),
+                                    actual: actual_type,
+                                }),
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                TypeConstaint::MustBeTypeReference => {
+                    if let LangType::TypeReference(_) = actual_type.as_ref() {
+                        None
+                    } else {
+                        Some(ResolverError::new(
+                            source_position,
+                            LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
+                                r#type: AnyInferredLangType::Known(actual_type.clone()),
+                            }),
+                        ))
+                    }
+                }
+            }
+        })
+        .collect::<Vec<_>>();
 
     let errors = ctx
         .value_types
@@ -118,7 +194,9 @@ pub fn resolve_types(
                     }
                 })
         })
+        .chain(constraint_errors.into_iter())
         .collect();
+
     ResolveTypesResult {
         value_types: result,
         errors,
@@ -540,7 +618,8 @@ impl ResolveTypes for ast::NamedValueNode {
         if let Some(Ok(annotated_type)) = &annotated_type {
             ctx.contraints.push((
                 self.value.breadcrumbs().clone(),
-                TypeConstaint::AssignableTo(annotated_type.clone().into()),
+                // TODO: should be TypeConstaint::AssignableTo
+                TypeConstaint::EqualTo(annotated_type.clone().into()),
             ));
         }
 

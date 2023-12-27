@@ -1,7 +1,6 @@
 import {
   ErrorTypeDeclaration,
   arc,
-  box,
   diverged,
   listOf,
   optional,
@@ -53,7 +52,7 @@ export const errorTypes: ErrorTypeDeclaration[] = [
     name: "MismatchedType",
     fields: {
       expected: diverged({
-        rust: "lang_types::AnyInferredLangType",
+        rust: "lang_types::LangType",
         kotlin: "ConstraintValueLangType",
       }),
       actual: arc(

@@ -237,6 +237,20 @@ pub fn inferred_value_lang_type_to_jni_constraint_reference<'local, T: IntoJni>(
     Ok(constraint_reference)
 }
 
+pub fn lang_type_to_jni_constraint_value_lang_type<'local>(
+    env: &mut JNIEnv<'local>,
+    lang_type: &LangType,
+) -> Result<JValueOwned<'local>> {
+    let resolved_value_lang_type = lang_type.into_jni(env)?;
+    let class = env.find_class("com/dallonf/ktcause/types/ConstraintValueLangType")?;
+    let jni_constraint_value_lang_type = env.new_object(
+        class,
+        "(Lcom/dallonf/ktcause/types/ResolvedValueLangType;)V",
+        &[resolved_value_lang_type.borrow()],
+    )?;
+    Ok(jni_constraint_value_lang_type.into())
+}
+
 /// Java name: ValueLangType
 impl FromJni for AnyInferredLangType {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
