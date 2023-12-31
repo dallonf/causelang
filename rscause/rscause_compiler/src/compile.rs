@@ -84,8 +84,9 @@ impl CompilerContext {
             .ok_or(anyhow!("No type for {}", breadcrumbs))?;
 
         match found_type {
-            InferredType::Known(_) => None,
             InferredType::Error(err) => Some(err.clone()),
+            InferredType::InferenceVariable(_) => Some(LangError::NeverResolved.into()),
+            InferredType::Known(_) => None,
         }
         .pipe(Ok)
     }

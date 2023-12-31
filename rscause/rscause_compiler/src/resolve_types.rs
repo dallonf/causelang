@@ -85,6 +85,9 @@ pub fn resolve_types(
             };
             let actual_type = match actual_type {
                 Some(InferredType::Known(it)) => it,
+                Some(InferredType::InferenceVariable(var)) => todo!(
+                    "Todo: figure out how to resolve a constraint on an inference variable ({var})"
+                ),
                 // we won't check constraints if this type is already an error
                 Some(InferredType::Error(_)) => return None,
                 None => {
@@ -149,56 +152,57 @@ pub fn resolve_types(
         .value_types
         .iter()
         .filter_map(|(breadcrumbs, resolved_type)| {
-            resolved_type
-                .as_ref()
-                .and_then(|resolved_type| match resolved_type {
+            resolved_type.as_ref().and_then(|resolved_type| {
+                let position = BreadcrumbTreeNode::from(&file)
+                    .at_path(breadcrumbs)
+                    .map_err(|err| {
+                        compiler_bug_error(format!(
+                            "Couldn't report an error at path {:?}: {}",
+                            breadcrumbs, err
+                        ))
+                    })
+                    .and_then(|node| match node {
+                        BreadcrumbTreeNode::Node(Some(node)) => Ok(node.info().position.clone()),
+                        BreadcrumbTreeNode::Node(None) => Err(compiler_bug_error(format!(
+                            "Empty node at path {:?}; couldn't report an error",
+                            breadcrumbs
+                        ))),
+                        BreadcrumbTreeNode::List(_) => Err(compiler_bug_error(format!(
+                            "List node at path {:?}; couldn't report an error",
+                            breadcrumbs
+                        ))),
+                    });
+                let found_error = match resolved_type {
                     // TODO: Need to handle errors in nested types
                     InferredType::Known(_) => None,
+                    InferredType::InferenceVariable(_) => Some(LangError::NeverResolved),
                     InferredType::Error(err) => {
                         if let LangError::ProxyError(_) = err.as_ref() {
                             return None;
                         }
-                        let position = BreadcrumbTreeNode::from(&file)
-                            .at_path(breadcrumbs)
-                            .map_err(|err| {
-                                compiler_bug_error(format!(
-                                    "Couldn't report an error at path {:?}: {}",
-                                    breadcrumbs, err
-                                ))
-                            })
-                            .and_then(|node| match node {
-                                BreadcrumbTreeNode::Node(Some(node)) => {
-                                    Ok(node.info().position.clone())
-                                }
-                                BreadcrumbTreeNode::Node(None) => Err(compiler_bug_error(format!(
-                                    "Empty node at path {:?}; couldn't report an error",
-                                    breadcrumbs
-                                ))),
-                                BreadcrumbTreeNode::List(_) => Err(compiler_bug_error(format!(
-                                    "List node at path {:?}; couldn't report an error",
-                                    breadcrumbs
-                                ))),
-                            });
-                        match position {
-                            Ok(position) => Some(ResolverError {
-                                position: SourcePosition {
-                                    path: path.clone(),
-                                    breadcrumbs: breadcrumbs.clone(),
-                                    position,
-                                },
-                                error: err.as_ref().to_owned(),
-                            }),
-                            Err(err) => Some(ResolverError {
-                                position: SourcePosition {
-                                    path: path.clone(),
-                                    breadcrumbs: file.breadcrumbs().clone(),
-                                    position: file.info().position.clone(),
-                                },
-                                error: err,
-                            }),
-                        }
+
+                        Some(err.as_ref().to_owned())
                     }
+                };
+                found_error.map(|err| match position {
+                    Ok(position) => ResolverError {
+                        position: SourcePosition {
+                            path: path.clone(),
+                            breadcrumbs: breadcrumbs.clone(),
+                            position,
+                        },
+                        error: err,
+                    },
+                    Err(err) => ResolverError {
+                        position: SourcePosition {
+                            path: path.clone(),
+                            breadcrumbs: file.breadcrumbs().clone(),
+                            position: file.info().position.clone(),
+                        },
+                        error: err,
+                    },
                 })
+            })
         })
         .chain(constraint_errors.into_iter())
         .collect();
@@ -275,6 +279,7 @@ impl ResolveTypesContext {
         self.get_resolved_type(node)
             .map(|found_type| match found_type {
                 InferredType::Known(found_type) => InferredType::Known(found_type),
+                InferredType::InferenceVariable(var) => InferredType::InferenceVariable(var),
                 InferredType::Error(err) => {
                     let source_position = ErrorPosition::Source(SourcePosition {
                         path: self.file_path.clone(),
@@ -312,6 +317,7 @@ trait ResolveTypes: ast::AstNode {
         self.get_resolved_type(ctx)
             .map(|found_type| match found_type {
                 InferredType::Known(found_type) => InferredType::Known(found_type),
+                InferredType::InferenceVariable(var) => InferredType::InferenceVariable(var),
                 InferredType::Error(err) => {
                     let source_position = ErrorPosition::Source(SourcePosition {
                         path: ctx.file_path.clone(),

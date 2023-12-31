@@ -8,6 +8,7 @@ use crate::error_types::LangError;
 pub enum InferredType<T> {
     Known(T),
     Error(Arc<LangError>),
+    InferenceVariable(usize),
 }
 impl<T> InferredType<T> {
     #[inline]
@@ -19,6 +20,7 @@ impl<T> InferredType<T> {
         match self {
             InferredType::Known(t) => op(t),
             InferredType::Error(err) => InferredType::Error(err),
+            InferredType::InferenceVariable(var) => InferredType::InferenceVariable(var),
         }
     }
     #[inline]
@@ -26,6 +28,7 @@ impl<T> InferredType<T> {
         match self {
             InferredType::Known(t) => Ok(t),
             InferredType::Error(err) => Err(err),
+            InferredType::InferenceVariable(_) => Err(LangError::NeverResolved.into()),
         }
     }
 }

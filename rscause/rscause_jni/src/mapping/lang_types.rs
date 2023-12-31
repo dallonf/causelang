@@ -285,6 +285,11 @@ where
     ) -> Result<jni::objects::JValueOwned<'local>> {
         match self {
             InferredType::Known(known) => known.into_jni(env),
+            InferredType::InferenceVariable(_) => {
+                let class = env.find_class("com/dallonf/ktcause/types/Pending")?;
+                let result = env.new_object(class, "()V", &[])?;
+                Ok(result.into())
+            }
             InferredType::Error(err) => err.into_jni(env),
         }
     }
