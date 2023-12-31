@@ -10,13 +10,13 @@ use crate::error_types::{CompilerBugError, ErrorPosition, LangError, SourcePosit
 use crate::find_tag;
 use crate::instructions::{
     CallFunctionInstruction, CauseInstruction, ConstructInstruction, DefineFunctionInstruction,
-    ImportInstruction, Instruction, InstructionPhase, IsAssignableToInstruction,
-    JumpIfFalseInstruction, JumpInstruction, LiteralInstruction, NameValueInstruction,
-    NoOpInstruction, PopEffectsInstruction, PopInstruction, PopScopeInstruction,
-    PushActionInstruction, ReadLocalInstruction, ReadLocalThroughEffectScopeInstruction,
-    ReturnInstruction,
+    ImportInstruction, ImportSameFileInstruction, Instruction, InstructionPhase,
+    IsAssignableToInstruction, JumpIfFalseInstruction, JumpInstruction, LiteralInstruction,
+    NameValueInstruction, NoOpInstruction, PopEffectsInstruction, PopInstruction,
+    PopScopeInstruction, PushActionInstruction, ReadLocalInstruction,
+    ReadLocalThroughEffectScopeInstruction, ReturnInstruction,
 };
-use crate::tags::ReferencesFileNodeTag;
+use crate::tags::{ReferencesFileNodeTag, TopLevelDeclarationNodeTag};
 use crate::{
     ast,
     breadcrumbs::Breadcrumbs,
@@ -802,7 +802,10 @@ fn compile_value_flow_reference(
         return Ok(());
     }
 
-    // TODO: top-level declarations
+    if let Some(it) = find_tag!(&source_tags, NodeTag::TopLevelDeclaration) {
+        compile_top_level_reference(node.info(), it, procedure, ctx)?;
+        return Ok(());
+    }
 
     if let Some(_) = find_tag!(&source_tags, NodeTag::DeclarationForScope) {
         compile_value_reference(node.info(), &comes_from.source, procedure, ctx)?;
@@ -815,6 +818,22 @@ fn compile_value_flow_reference(
         "Wasn't able to resolve identifier at {} to anything",
         node.breadcrumbs()
     ))
+}
+
+fn compile_top_level_reference(
+    reference_node_info: &NodeInfo,
+    tag: TopLevelDeclarationNodeTag,
+    procedure: &mut Procedure,
+    _ctx: &mut CompilerContext,
+) -> Result<()> {
+    let export_name_constant = procedure.add_constant(CompiledConstant::String(tag.name));
+    procedure.write_instruction(
+        Instruction::ImportSameFile(ImportSameFileInstruction {
+            export_name_constant,
+        }),
+        Some(reference_node_info),
+    );
+    Ok(())
 }
 
 fn compile_file_import_reference(

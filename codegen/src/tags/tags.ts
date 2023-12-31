@@ -6,6 +6,9 @@ export const tags: NodeTag[] = [
     exportName: { type: "string", nullable: true },
   }),
   singleNodeTag("BadFileReference", {}),
+  singleNodeTag("TopLevelDeclaration", {
+    name: { type: "string" },
+  }),
   twoWayNodeTag(["source", "ValueGoesTo", "destination"], {
     inverseName: "ValueComesFrom",
   }),

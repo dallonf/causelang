@@ -8,6 +8,9 @@ impl FromJni for tags::NodeTag {
             "BadFileReference" => {
                 tags::NodeTag::BadFileReference(value.jni_into(env)?)
             },
+            "TopLevelDeclaration" => {
+                tags::NodeTag::TopLevelDeclaration(value.jni_into(env)?)
+            },
             "ValueGoesTo" => {
                 tags::NodeTag::ValueGoesTo(value.jni_into(env)?)
             },
@@ -64,6 +67,21 @@ impl FromJni for tags::BadFileReferenceNodeTag {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
         noisy_log(env, "tag BadFileReference");
         Ok(tags::BadFileReferenceNodeTag {
+        })
+    }
+}
+impl FromJni for tags::TopLevelDeclarationNodeTag {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+        noisy_log(env, "tag TopLevelDeclaration");
+        let name: Arc<String> = {
+            let jni_node = env
+                .call_method(value, "getName", "()Ljava/lang/String;", &[])?
+                .l()?;
+            let jni_node = JObject::from(jni_node);
+            jni_node.jni_into(env)?
+        };
+        Ok(tags::TopLevelDeclarationNodeTag {
+            name,
         })
     }
 }

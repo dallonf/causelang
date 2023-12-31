@@ -2,6 +2,7 @@
 pub enum NodeTag {
     ReferencesFile(ReferencesFileNodeTag),
     BadFileReference(BadFileReferenceNodeTag),
+    TopLevelDeclaration(TopLevelDeclarationNodeTag),
     ValueGoesTo(ValueGoesToNodeTag),
     ValueComesFrom(ValueComesFromNodeTag),
     FunctionCanReturnTypeOf(FunctionCanReturnTypeOfNodeTag),
@@ -16,6 +17,7 @@ impl NodeTag {
     match self {
         NodeTag::ReferencesFile(_) => None,
         NodeTag::BadFileReference(_) => None,
+        NodeTag::TopLevelDeclaration(_) => None,
         NodeTag::ValueGoesTo(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::ValueComesFrom(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::FunctionCanReturnTypeOf(tag) => Some(tag.inverse(breadcrumbs).into()),
@@ -35,6 +37,10 @@ pub struct ReferencesFileNodeTag {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BadFileReferenceNodeTag {
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TopLevelDeclarationNodeTag {
+    pub name: Arc<String>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValueGoesToNodeTag {

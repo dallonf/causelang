@@ -83,24 +83,6 @@ object RustCompiler {
         val incompatibleNodes = getIncompatibleNodeTypes(ast)
         yieldAll(incompatibleNodes.map { "Incompatible node type: $it" })
 
-        val identifiersReferencingTopLevelDeclarations = run {
-            val identifiers = ast.allDescendants().mapNotNull { it as? IdentifierExpressionNode }
-            identifiers.mapNotNull { identifierExpression ->
-                val valueComesFrom =
-                    analyzed.nodeTags[identifierExpression.info.breadcrumbs]?.firstNotNullOfOrNull { it as? NodeTag.ValueComesFrom }
-                val sourceTags = valueComesFrom?.let { analyzed.nodeTags[valueComesFrom.source] } ?: emptyList()
-
-                sourceTags.firstNotNullOfOrNull { it as? NodeTag.TopLevelDeclaration }?.let {
-                    if (sourceTags.none { sourceTag -> sourceTag is NodeTag.ReferencesFile }) {
-                        "Node at ${identifierExpression.info.breadcrumbs} references a (non-import) top-level declaration: $it"
-                    } else {
-                        null
-                    }
-                }
-            }
-        }
-        yieldAll(identifiersReferencingTopLevelDeclarations)
-
         val functionDeclarationsWithParameters = run {
             val functions = ast.allDescendants().mapNotNull { it as? FunctionNode }
             functions.filter { it.params.isNotEmpty() }
@@ -181,6 +163,7 @@ object RustCompiler {
                     is NodeTag.ActionReturn -> true
                     is NodeTag.DeclarationForScope -> true
                     is NodeTag.ScopeContainsDeclaration -> true
+                    is NodeTag.TopLevelDeclaration -> true
                     else -> false
                 }
             }
