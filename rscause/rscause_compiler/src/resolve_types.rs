@@ -57,20 +57,14 @@ pub fn resolve_types(
         canonical_types,
         external_files,
     };
+
+    // infer types of all nodes
     let descendants = BreadcrumbTreeNode::from(&file.clone()).descendants();
     for descendant in &descendants {
         descendant.get_resolved_type(&mut ctx);
     }
-    let result = ctx
-        .value_types
-        .iter()
-        .filter_map(|(breadcrumbs, value_type)| {
-            value_type
-                .as_ref()
-                .map(|value_type| (breadcrumbs.clone(), value_type.clone()))
-        })
-        .collect();
 
+    // Check all constraints
     let constraint_errors = ctx
         .contraints
         .iter()
@@ -139,6 +133,18 @@ pub fn resolve_types(
         })
         .collect::<Vec<_>>();
 
+    // collect known types for breadcrumbs
+    let result = ctx
+        .value_types
+        .iter()
+        .filter_map(|(breadcrumbs, value_type)| {
+            value_type
+                .as_ref()
+                .map(|value_type| (breadcrumbs.clone(), value_type.clone()))
+        })
+        .collect();
+
+    // collect and report known errors
     let errors = ctx
         .value_types
         .iter()
