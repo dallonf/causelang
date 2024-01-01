@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::ast::{AnyAstNode, AstNode, NodeInfo};
 use crate::breadcrumbs::HasBreadcrumbs;
-use crate::compiled_file::{CompiledConstant, ErrorConst};
+use crate::compiled_file::{CompiledConstant, ErrorConst, ProcedureInstructionMapping};
 use crate::error_types::{CompilerBugError, ErrorPosition, LangError, SourcePosition};
 use crate::find_tag;
 use crate::instructions::{
@@ -143,7 +143,12 @@ impl Procedure {
             _ => { /* continue */ }
         }
         self.instructions.push(instruction);
-        // TODO: sourcemap
+        if let Some(source_map) = &mut self.source_map {
+            source_map.push(node_info.map(|node_info| ProcedureInstructionMapping {
+                node_info: node_info.clone(),
+                phase,
+            }))
+        }
     }
 
     fn add_constant(&mut self, constant: CompiledConstant) -> u32 {
@@ -164,7 +169,12 @@ impl Procedure {
     ) -> JumpPlaceholder {
         self.instructions
             .push(Instruction::NoOp(NoOpInstruction {}));
-        // TODO: sourcemap
+        if let Some(source_map) = &mut self.source_map {
+            source_map.push(Some(ProcedureInstructionMapping {
+                node_info: node_info.clone(),
+                phase,
+            }))
+        }
         let index = self.instructions.len() - 1;
         JumpPlaceholder {
             index,
@@ -181,7 +191,12 @@ impl Procedure {
     ) -> JumpPlaceholder {
         self.instructions
             .push(Instruction::NoOp(NoOpInstruction {}));
-        // TODO: sourcemap
+        if let Some(source_map) = &mut self.source_map {
+            source_map.push(Some(ProcedureInstructionMapping {
+                node_info: node_info.clone(),
+                phase,
+            }))
+        }
         let index = self.instructions.len() - 1;
         JumpPlaceholder {
             index,
@@ -302,6 +317,7 @@ fn compile_function(
         }),
         constant_table: Vec::new(),
         instructions: Vec::new(),
+        source_map: Some(Vec::new()),
     };
     let function_scope = Rc::new(RefCell::new(CompilerScope {
         scope_root: node_info.breadcrumbs.clone(),

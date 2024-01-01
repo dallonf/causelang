@@ -5,8 +5,8 @@ use num::BigRational;
 
 use crate::ast::NodeInfo;
 use crate::error_types::{ErrorPosition, LangError};
-use crate::instructions::Instruction;
-use crate::lang_types::{FunctionLangType, InferredType, AnyInferredLangType, LangType};
+use crate::instructions::{Instruction, InstructionPhase};
+use crate::lang_types::{FunctionLangType, InferredType, LangType};
 
 #[derive(Debug, Clone)]
 pub struct CompiledFile {
@@ -21,6 +21,7 @@ pub struct Procedure {
     pub identity: ProcedureIdentity,
     pub constant_table: Vec<CompiledConstant>,
     pub instructions: Vec<Instruction>,
+    pub source_map: Option<Vec<Option<ProcedureInstructionMapping>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -32,6 +33,12 @@ pub enum ProcedureIdentity {
 pub struct FunctionProcedureIdentity {
     pub name: Arc<String>,
     pub declaration: NodeInfo,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProcedureInstructionMapping {
+    pub node_info: NodeInfo,
+    pub phase: InstructionPhase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
