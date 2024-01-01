@@ -46,12 +46,12 @@ impl IntoJni for NodeInfo {
         env: &mut jni::JNIEnv<'local>,
     ) -> Result<jni::objects::JValueOwned<'local>> {
         let info_class = env.find_class("com/dallonf/ktcause/ast/NodeInfo")?;
-        let jni_breadcrumbs = self.breadcrumbs.into_jni(env)?;
         let jni_position = self.position.into_jni(env)?;
+        let jni_breadcrumbs = self.breadcrumbs.into_jni(env)?;
         let jni_info = env.new_object(
             info_class,
             "(Lcom/dallonf/ktcause/ast/DocumentRange;Lcom/dallonf/ktcause/ast/Breadcrumbs;)V",
-            &[jni_breadcrumbs.borrow(), jni_position.borrow()],
+            &[jni_position.borrow(), jni_breadcrumbs.borrow()],
         )?;
         Ok(jni_info.into())
     }

@@ -5,7 +5,7 @@ use anyhow::Result;
 use jni::objects::{JObject, JValueOwned};
 use rscause_compiler::compiled_file::{
     CompiledConstant, CompiledExport, CompiledFile, FunctionProcedureIdentity, Procedure,
-    ProcedureIdentity,
+    ProcedureIdentity, ProcedureInstructionMapping,
 };
 
 impl IntoJni for CompiledFile {
@@ -34,7 +34,7 @@ impl IntoJni for Procedure {
         let jni_identity = self.identity.into_jni(env)?;
         let jni_constant_table = self.constant_table.into_jni(env)?;
         let jni_instructions = self.instructions.into_jni(env)?;
-        let jni_source_map = JValueOwned::Object(JObject::null());
+        let jni_source_map = self.source_map.into_jni(env)?;
 
         let jni_procedure = env.new_object(procedure_class, "(Lcom/dallonf/ktcause/CompiledFile$Procedure$ProcedureIdentity;Ljava/util/List;Ljava/util/List;Ljava/util/List;)V", &[
             jni_identity.borrow(),
@@ -43,6 +43,21 @@ impl IntoJni for Procedure {
             jni_source_map.borrow(),
         ])?;
         Ok(jni_procedure.into())
+    }
+}
+
+impl IntoJni for ProcedureInstructionMapping {
+    fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        let class =
+            env.find_class("com/dallonf/ktcause/CompiledFile$Procedure$InstructionMapping")?;
+        let jni_node_info = self.node_info.into_jni(env)?;
+        let jni_phase = self.phase.into_jni(env)?;
+        let result = env.new_object(
+            class,
+            "(Lcom/dallonf/ktcause/ast/NodeInfo;Lcom/dallonf/ktcause/CompiledFile$Procedure$InstructionPhase;)V",
+            &[jni_node_info.borrow(), jni_phase.borrow()],
+        )?;
+        Ok(result.into())
     }
 }
 
