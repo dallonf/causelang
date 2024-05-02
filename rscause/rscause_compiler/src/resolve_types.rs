@@ -1,5 +1,6 @@
 use crate::ast::{
     self, AnyAstNode, AstNode, BreadcrumbTreeNode, ElseBranchOptionNode, PatternNode,
+    SingleStatementBodyNode,
 };
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
@@ -373,11 +374,11 @@ impl ResolveTypes for AnyAstNode {
             Self::Pattern(_) => todo!("Pattern"),
             Self::FunctionSignatureParameter(_) => todo!("FunctionSignatureParameter"),
             Self::FunctionCallParameter(_) => None, /* TODO? typechecking */
-            Self::SingleStatementBody(_) => todo!("SingleStatementBody"),
+            Self::SingleStatementBody(node) => node.compute_type(ctx),
             Self::BranchExpression(node) => node.compute_type(ctx),
-            Self::IfBranchOption(_) => todo!("IfBranchOption"),
-            Self::IsBranchOption(_) => todo!("IsBranchOption"),
-            Self::ElseBranchOption(_) => todo!("ElseBranchOption"),
+            Self::IfBranchOption(_) => None,
+            Self::IsBranchOption(_) => None,
+            Self::ElseBranchOption(_) => None,
         }
     }
 }
@@ -769,5 +770,13 @@ impl ResolveTypes for ast::BranchExpressionNode {
         )
         .simplify_to_value()
         .pipe(Some);
+    }
+}
+
+impl ResolveTypes for SingleStatementBodyNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        return ctx
+            .get_resolved_type_proxying_errors(&self.statement)
+            .pipe(Some);
     }
 }

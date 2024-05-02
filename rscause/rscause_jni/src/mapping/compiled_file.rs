@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::util::noisy_log;
+
 use super::IntoJni;
 use anyhow::Result;
 use jni::objects::{JObject, JValueOwned};
@@ -10,6 +12,7 @@ use rscause_compiler::compiled_file::{
 
 impl IntoJni for CompiledFile {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        noisy_log(env, "CompiledFile::into_jni");
         let compiled_file_class = env.find_class("com/dallonf/ktcause/CompiledFile")?;
         let jni_path = self.path.into_jni(env)?;
         let jni_types = HashMap::<(), ()>::new().into_jni(env)?;
@@ -30,6 +33,7 @@ impl IntoJni for CompiledFile {
 
 impl IntoJni for Procedure {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        noisy_log(env, "Procedure::into_jni");
         let procedure_class = env.find_class("com/dallonf/ktcause/CompiledFile$Procedure")?;
         let jni_identity = self.identity.into_jni(env)?;
         let jni_constant_table = self.constant_table.into_jni(env)?;
@@ -48,6 +52,7 @@ impl IntoJni for Procedure {
 
 impl IntoJni for ProcedureInstructionMapping {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        noisy_log(env, "ProcedureInstructionMapping::into_jni");
         let class =
             env.find_class("com/dallonf/ktcause/CompiledFile$Procedure$InstructionMapping")?;
         let jni_node_info = self.node_info.into_jni(env)?;
@@ -63,6 +68,7 @@ impl IntoJni for ProcedureInstructionMapping {
 
 impl IntoJni for ProcedureIdentity {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        noisy_log(env, "ProcedureIdentity::into_jni");
         match self {
             ProcedureIdentity::Function(function) => function.into_jni(env),
         }
@@ -71,6 +77,7 @@ impl IntoJni for ProcedureIdentity {
 
 impl IntoJni for FunctionProcedureIdentity {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        noisy_log(env, "FunctionProcedureIdentity::into_jni");
         let class = env
             .find_class("com/dallonf/ktcause/CompiledFile$Procedure$ProcedureIdentity$Function")?;
         let name_jni = self.name.into_jni(env)?;
@@ -86,6 +93,7 @@ impl IntoJni for FunctionProcedureIdentity {
 
 impl IntoJni for CompiledConstant {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        noisy_log(env, "CompiledConstant::into_jni");
         match self {
             CompiledConstant::String(value) => {
                 let class = env
@@ -135,6 +143,7 @@ impl IntoJni for CompiledConstant {
 
 impl IntoJni for CompiledExport {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        noisy_log(env, "CompiledExport::into_jni");
         match self {
             CompiledExport::Function {
                 procedure_index,

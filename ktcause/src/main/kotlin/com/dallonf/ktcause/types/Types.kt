@@ -350,7 +350,7 @@ sealed interface ErrorLangType : ValueLangType {
     @Serializable
     @SerialName("ActionIncompatibleWithValueTypes")
     data class ActionIncompatibleWithValueTypes(
-        val actions: List<SourcePosition.Source>, val types: List<ValueType>
+        val actions: List<SourcePosition.Source>, val types: List<ValueType>?
     ) : ErrorLangType {
         @Serializable
         data class ValueType(val type: ValueLangType, val position: SourcePosition.Source)
@@ -358,9 +358,9 @@ sealed interface ErrorLangType : ValueLangType {
         override fun friendlyMessage(ctx: Debug.DebugContext?): String {
             return "Some code paths return as an Action: ${
                 actions.joinToString(", ") { "line ${it.position.start}" }
-            }\n" + "but others return a value:\n" + types.joinToString("\n") {
+            }\n" + "but others return a value:\n" + (types?.joinToString("\n") {
                 "  ${it.type.debugMini()} at line ${it.position.position.start}"
-            }
+            } ?: "[no types known]")
         }
     }
 

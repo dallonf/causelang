@@ -440,6 +440,7 @@ impl IntoJni for FunctionLangType {
         &self,
         env: &mut jni::JNIEnv<'local>,
     ) -> Result<jni::objects::JValueOwned<'local>> {
+        noisy_log(env, "FunctionLangType::into_jni");
         let class = env.find_class("com/dallonf/ktcause/types/FunctionValueLangType")?;
         let name = self.name.into_jni(env)?;
         let return_type =
@@ -456,6 +457,7 @@ impl IntoJni for FunctionLangType {
 
 impl IntoJni for InstanceLangType {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        noisy_log(env, "InstanceLangType::into_jni");
         let class = env.find_class("com/dallonf/ktcause/types/InstanceValueLangType")?;
         let jni_canonical_type = self.type_id.into_jni(env)?;
         let result = env.new_object(
@@ -469,6 +471,7 @@ impl IntoJni for InstanceLangType {
 
 impl IntoJni for PrimitiveLangType {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        noisy_log(env, "PrimitiveLangType::into_jni");
         let class = env.find_class("com/dallonf/ktcause/types/PrimitiveValueLangType")?;
         let kind_class = env.find_class("com/dallonf/ktcause/types/LangPrimitiveKind")?;
         let jni_kind = match self {
@@ -500,6 +503,7 @@ impl IntoJni for PrimitiveLangType {
 
 impl IntoJni for OneOfLangType {
     fn into_jni<'local>(&self, env: &mut jni::JNIEnv<'local>) -> Result<JValueOwned<'local>> {
+        noisy_log(env, "OneOfLangType::into_jni");
         let class = env.find_class("com/dallonf/ktcause/types/OptionValueLangType")?;
         let options = self
             .options
@@ -507,7 +511,7 @@ impl IntoJni for OneOfLangType {
             .map(|option| inferred_value_lang_type_to_jni_constraint_reference(env, option))
             .collect::<Result<Vec<_>>>()?
             .into_jni(env)?;
-        let result = env.new_object(class, "()Ljava/util/List;", &[options.borrow()])?;
+        let result = env.new_object(class, "(Ljava/util/List;)V", &[options.borrow()])?;
         Ok(result.into())
     }
 }
@@ -515,6 +519,7 @@ impl IntoJni for OneOfLangType {
 // Java name: OptionValueLangType
 impl FromJni for OneOfLangType {
     fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+        noisy_log(env, "OneOfLangType::from_jni");
         let options = env
             .call_method(value, "getOptions", "()Ljava/util/List;", &[])?
             .l()?;

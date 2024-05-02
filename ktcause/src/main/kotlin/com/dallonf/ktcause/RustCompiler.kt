@@ -44,7 +44,7 @@ object RustCompiler {
         ASSERT_SUPPORTED,
     }
 
-    private val mode = Mode.ASSERT_SUPPORTED
+    private val mode = Mode.IF_SUPPORTED
 
     init {
         System.loadLibrary("rscause_jni")
@@ -99,7 +99,6 @@ object RustCompiler {
         val unsupportedTypeAnnotations = ast.allDescendants().filter {
             when (it) {
                 is FunctionNode -> it.returnType != null
-//                is NamedValueNode -> it.typeAnnotation != null
                 else -> false
             }
         }
@@ -175,7 +174,7 @@ object RustCompiler {
     }
 
     private val otherUnsupportedNodeTypes: List<String> =
-        listOf<KClass<out Any>>().mapNotNull { it.simpleName }
+        listOf<KClass<out Any>>(IsBranchOptionNode::class).mapNotNull { it.simpleName }
 
     private fun getIncompatibleNodeTypes(ast: FileNode): Sequence<String> {
         val allNodes = ast.allDescendants()
