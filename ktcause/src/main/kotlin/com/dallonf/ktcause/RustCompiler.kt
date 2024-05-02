@@ -6,6 +6,7 @@ import com.dallonf.ktcause.types.ActionValueLangType
 import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 import com.dallonf.ktcause.types.ErrorLangType
+import kotlin.reflect.KClass
 
 object RustCompiler {
     enum class Mode {
@@ -43,7 +44,7 @@ object RustCompiler {
         ASSERT_SUPPORTED,
     }
 
-    private val mode = Mode.IF_SUPPORTED
+    private val mode = Mode.ASSERT_SUPPORTED
 
     init {
         System.loadLibrary("rscause_jni")
@@ -173,7 +174,8 @@ object RustCompiler {
         return compileInner(path, ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles)
     }
 
-    private val otherUnsupportedNodeTypes = listOf(BranchExpressionNode::class).mapNotNull { it.simpleName }
+    private val otherUnsupportedNodeTypes: List<String> =
+        listOf<KClass<out Any>>().mapNotNull { it.simpleName }
 
     private fun getIncompatibleNodeTypes(ast: FileNode): Sequence<String> {
         val allNodes = ast.allDescendants()

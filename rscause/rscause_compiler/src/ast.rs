@@ -1,7 +1,7 @@
 use crate::breadcrumbs::{BreadcrumbEntry, BreadcrumbName, Breadcrumbs, HasBreadcrumbs};
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
+use std::{borrow::Borrow, collections::HashMap, sync::Arc};
 
 include!("gen/ast_nodes.rs");
 
@@ -136,4 +136,14 @@ pub struct DocumentRange {
 pub struct DocumentPosition {
     pub line: u32,
     pub column: u32,
+}
+
+impl BranchOptionNode {
+    pub fn body(&self) -> &BodyNode {
+        match self {
+            BranchOptionNode::If(node) => &node.body,
+            BranchOptionNode::Is(node) => &node.body,
+            BranchOptionNode::Else(node) => &node.body,
+        }
+    }
 }

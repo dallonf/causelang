@@ -98,9 +98,7 @@ export const errorTypes: ErrorTypeDeclaration[] = [
       actions: listOf(
         diverged({ rust: "SourcePosition", kotlin: "SourcePosition.Source" })
       ),
-      types: listOf(
-        diverged({ rust: "lang_types::LangType", kotlin: "ValueType" })
-      ),
+      // NOTE: removing `types` for now because it's hard to translate
     },
   },
   {

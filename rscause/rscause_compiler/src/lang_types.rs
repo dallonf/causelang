@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
@@ -30,6 +30,20 @@ impl<T> InferredType<T> {
             InferredType::Error(err) => Err(err),
             InferredType::InferenceVariable(_) => Err(LangError::NeverResolved.into()),
         }
+    }
+
+    #[inline]
+    pub fn map_err<F: FnOnce(Arc<LangError>) -> Arc<LangError>>(self, op: F) -> InferredType<T> {
+        match self {
+            InferredType::Known(t) => InferredType::Known(t),
+            InferredType::Error(err) => InferredType::Error(op(err)),
+            InferredType::InferenceVariable(var) => InferredType::InferenceVariable(var),
+        }
+    }
+}
+impl<T> From<LangError> for InferredType<T> {
+    fn from(value: LangError) -> Self {
+        Self::Error(Arc::new(value))
     }
 }
 impl<T> From<T> for AnyInferredLangType
@@ -104,6 +118,34 @@ impl From<InstanceLangType> for LangType {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OneOfLangType {
     pub options: Vec<AnyInferredLangType>,
+}
+impl OneOfLangType {
+    pub fn new(options: Vec<AnyInferredLangType>) -> Self {
+        Self { options }
+    }
+
+    pub fn new_with_one(option: AnyInferredLangType) -> Self {
+        Self {
+            options: vec![option],
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.options.is_empty()
+    }
+
+    pub fn is_superset_of(&self, pattern_type: &LangType) -> bool {
+        // TODO: Implement this
+        true
+    }
+
+    pub fn narrow(&self, pattern_type: &LangType) -> OneOfLangType {
+        self.clone()
+    }
+
+    pub fn simplify_to_value(&self) -> AnyInferredLangType {
+        self.clone().into()
+    }
 }
 impl From<OneOfLangType> for LangType {
     fn from(value: OneOfLangType) -> Self {

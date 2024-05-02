@@ -1,17 +1,20 @@
-use crate::ast::{self, AnyAstNode, AstNode, BreadcrumbTreeNode};
+use crate::ast::{
+    self, AnyAstNode, AstNode, BreadcrumbTreeNode, ElseBranchOptionNode, PatternNode,
+};
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
-    compiler_bug_error, CompilerBugError, ErrorPosition, LangError, MismatchedTypeError,
-    SourcePosition, ValueUsedAsConstraintError,
+    compiler_bug_error, ActionIncompatibleWithValueTypesError, CompilerBugError, ErrorPosition,
+    LangError, MismatchedTypeError, SourcePosition, UnreachableBranchError,
+    ValueUsedAsConstraintError,
 };
 use crate::find_tag;
 use crate::lang_types::{
     AnyInferredLangType, CanonicalLangType, CanonicalLangTypeId, FunctionLangType, InferredType,
-    LangType, PrimitiveLangType,
+    LangType, OneOfLangType, PrimitiveLangType,
 };
 use crate::tags::NodeTag;
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tap::Pipe;
@@ -256,7 +259,6 @@ impl ResolveTypesContext {
     fn get_resolved_type<'a, T>(&mut self, node: &'a T) -> Option<AnyInferredLangType>
     where
         &'a T: Into<AnyAstNode>,
-        T: AstNode,
     {
         let node: AnyAstNode = node.into();
         if let Some(already_resolved) = self.value_types.get(node.breadcrumbs()) {
@@ -268,13 +270,9 @@ impl ResolveTypesContext {
         resolved
     }
 
-    fn get_resolved_type_proxying_errors<'a, T>(
-        &mut self,
-        node: &'a T,
-    ) -> Option<AnyInferredLangType>
+    fn get_resolved_type_proxying_errors<'a, T>(&mut self, node: &'a T) -> AnyInferredLangType
     where
         &'a T: Into<AnyAstNode>,
-        T: AstNode,
     {
         self.get_resolved_type(node)
             .map(|found_type| match found_type {
@@ -283,11 +281,20 @@ impl ResolveTypesContext {
                 InferredType::Error(err) => {
                     let source_position = ErrorPosition::Source(SourcePosition {
                         path: self.file_path.clone(),
-                        breadcrumbs: node.breadcrumbs().clone(),
-                        position: node.info().position,
+                        breadcrumbs: node.into().breadcrumbs().clone(),
+                        position: node.into().info().position,
                     });
                     InferredType::Error(LangError::proxy_error(err, source_position).into())
                 }
+            })
+            .unwrap_or_else(|| {
+                InferredType::Error(
+                    LangError::compiler_bug(format!(
+                        "no type found for node at {:?}",
+                        node.into().breadcrumbs()
+                    ))
+                    .into(),
+                )
             })
     }
 
@@ -296,6 +303,14 @@ impl ResolveTypesContext {
             .get(node.breadcrumbs())
             .map(|it| Cow::Borrowed(it))
             .unwrap_or(Cow::Owned(vec![]))
+    }
+
+    fn get_source_position(&self, node: &impl AstNode) -> SourcePosition {
+        SourcePosition {
+            path: self.file_path.clone(),
+            breadcrumbs: node.breadcrumbs().clone(),
+            position: node.info().position.clone(),
+        }
     }
 }
 
@@ -359,7 +374,7 @@ impl ResolveTypes for AnyAstNode {
             Self::FunctionSignatureParameter(_) => todo!("FunctionSignatureParameter"),
             Self::FunctionCallParameter(_) => None, /* TODO? typechecking */
             Self::SingleStatementBody(_) => todo!("SingleStatementBody"),
-            Self::BranchExpression(_) => todo!("BranchExpression"),
+            Self::BranchExpression(node) => node.compute_type(ctx),
             Self::IfBranchOption(_) => todo!("IfBranchOption"),
             Self::IsBranchOption(_) => todo!("IsBranchOption"),
             Self::ElseBranchOption(_) => todo!("ElseBranchOption"),
@@ -381,18 +396,7 @@ fn resolve_identifier_type_reference(
         Ok(it) => it,
         Err(err) => return Some(InferredType::Error(err.into())),
     };
-    let source_node_type = match ctx.get_resolved_type_proxying_errors(&source_node) {
-        Some(it) => it,
-        None => {
-            return Some(InferredType::Error(
-                LangError::compiler_bug(format!(
-                    "no type found for source node at {}",
-                    reference_tag.source
-                ))
-                .into(),
-            ))
-        }
-    };
+    let source_node_type = ctx.get_resolved_type_proxying_errors(&source_node);
     ctx.contraints.push((
         node.breadcrumbs().clone(),
         TypeConstaint::MustBeTypeReference,
@@ -435,34 +439,21 @@ impl ResolveTypes for ast::ImportMappingNode {
 impl ResolveTypes for ast::FunctionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let name = self.name.text.clone();
-        let explicit_return_type = self.return_type.as_ref().and_then(|it| {
+        let explicit_return_type = self.return_type.as_ref().map(|it| {
             let type_reference = ctx.get_resolved_type_proxying_errors(it);
-            type_reference.map(|type_reference| {
-                type_reference.and_then(|type_reference| match type_reference.as_ref() {
-                    LangType::TypeReference(referenced_type) => referenced_type.clone(),
-                    _ => InferredType::Error(
-                        LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
-                            r#type: AnyInferredLangType::Known(type_reference.clone()),
-                        })
-                        .into(),
-                    ),
-                })
+            type_reference.and_then(|type_reference| match type_reference.as_ref() {
+                LangType::TypeReference(referenced_type) => referenced_type.clone(),
+                _ => InferredType::Error(
+                    LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
+                        r#type: AnyInferredLangType::Known(type_reference.clone()),
+                    })
+                    .into(),
+                ),
             })
         });
         let get_inferred_return_type = || ctx.get_resolved_type_proxying_errors(&self.body);
-        let return_type = explicit_return_type.or_else(get_inferred_return_type);
-        let function_type = FunctionLangType {
-            name,
-            return_type: return_type.unwrap_or(InferredType::Error(
-                LangError::CompilerBug(CompilerBugError {
-                    description: format!(
-                        "No return type found for function: {:?}",
-                        &self.info.breadcrumbs
-                    ),
-                })
-                .into(),
-            )),
-        };
+        let return_type = explicit_return_type.unwrap_or_else(get_inferred_return_type);
+        let function_type = FunctionLangType { name, return_type };
         Some(function_type.into())
     }
 }
@@ -471,7 +462,7 @@ impl ResolveTypes for ast::BlockBodyNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let last_statement = self.statements.last();
         let last_statement_type = last_statement
-            .and_then(|it| ctx.get_resolved_type_proxying_errors(it))
+            .map(|it| ctx.get_resolved_type_proxying_errors(it))
             .unwrap_or(LangType::Action.into());
         Some(last_statement_type)
     }
@@ -480,6 +471,7 @@ impl ResolveTypes for ast::BlockBodyNode {
 impl ResolveTypes for ast::ExpressionStatementNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         ctx.get_resolved_type_proxying_errors(&self.expression)
+            .pipe(Some)
     }
 }
 
@@ -487,13 +479,7 @@ impl ResolveTypes for ast::CauseExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let maybe_signal = ctx.get_resolved_type_proxying_errors(&self.signal);
         let signal_result_type = maybe_signal
-            .ok_or(
-                LangError::CompilerBug(CompilerBugError {
-                    description: "No signal found".into(),
-                })
-                .into(),
-            )
-            .and_then(|maybe_signal| maybe_signal.to_result())
+            .to_result()
             .and_then(|maybe_signal| match maybe_signal.as_ref() {
                 LangType::Instance(instance) => Ok(instance.type_id.clone()),
                 _ => Err(LangError::NotCausable.into()),
@@ -518,28 +504,23 @@ impl ResolveTypes for ast::CauseExpressionNode {
 impl ResolveTypes for ast::CallExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let callee_type = ctx.get_resolved_type_proxying_errors(&self.callee);
-        let result_type = callee_type
-            .unwrap_or(InferredType::Error(
-                LangError::CompilerBug(CompilerBugError {
-                    description: "No callee type found".into(),
-                })
-                .into(),
-            ))
-            .to_result()
-            .and_then(|callee_type| match callee_type.as_ref() {
-                LangType::Function(function_type) => Ok(function_type.return_type.clone()),
-                LangType::TypeReference(referenced_type) => referenced_type
-                    .clone()
-                    .to_result()
-                    .and_then(|referenced_type| {
-                        let instance_type = match referenced_type.as_ref() {
-                            LangType::Instance(instance) => Ok(instance),
-                            _ => Err(LangError::NotCallable),
-                        }?;
-                        Ok(instance_type.clone().into())
-                    }),
-                _ => Err(LangError::NotCallable.into()),
-            });
+        let result_type =
+            callee_type
+                .to_result()
+                .and_then(|callee_type| match callee_type.as_ref() {
+                    LangType::Function(function_type) => Ok(function_type.return_type.clone()),
+                    LangType::TypeReference(referenced_type) => referenced_type
+                        .clone()
+                        .to_result()
+                        .and_then(|referenced_type| {
+                            let instance_type = match referenced_type.as_ref() {
+                                LangType::Instance(instance) => Ok(instance),
+                                _ => Err(LangError::NotCallable),
+                            }?;
+                            Ok(instance_type.clone().into())
+                        }),
+                    _ => Err(LangError::NotCallable.into()),
+                });
         Some(result_type.unwrap_or_else(|err| InferredType::Error(err.into())))
     }
 }
@@ -585,6 +566,7 @@ impl ResolveTypes for ast::NumberLiteralExpressionNode {
 impl ResolveTypes for ast::DeclarationStatementNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         ctx.get_resolved_type_proxying_errors(&self.declaration)
+            .pipe(Some)
     }
 }
 
@@ -593,7 +575,7 @@ impl ResolveTypes for ast::NamedValueNode {
         let annotated_type = self
             .type_annotation
             .as_ref()
-            .and_then(|it| ctx.get_resolved_type_proxying_errors(it))
+            .map(|it| ctx.get_resolved_type_proxying_errors(it))
             .map(|annotated_type| {
                 let annotated_type = annotated_type.to_result()?;
                 match annotated_type.as_ref() {
@@ -620,12 +602,7 @@ impl ResolveTypes for ast::NamedValueNode {
                 }
             });
 
-        let inferred_type = ctx
-            .get_resolved_type_proxying_errors(&self.value)
-            .unwrap_or(
-                LangError::compiler_bug(format!("No type found for {}", self.value.breadcrumbs()))
-                    .pipe(|it| InferredType::Error(it.into())),
-            );
+        let inferred_type = ctx.get_resolved_type_proxying_errors(&self.value);
 
         if let Some(Ok(annotated_type)) = &annotated_type {
             ctx.contraints.push((
@@ -639,5 +616,158 @@ impl ResolveTypes for ast::NamedValueNode {
             .map(|annotated_type| annotated_type.into())
             .unwrap_or(inferred_type);
         Some(result)
+    }
+}
+
+impl ResolveTypes for ast::BranchExpressionNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        if self.branches.is_empty() {
+            return Some(LangType::Action.into());
+        }
+
+        let mut with_value = self
+            .with_value
+            .as_ref()
+            .and_then(|it| ctx.get_resolved_type(it))
+            .unwrap_or(LangType::Anything.into())
+            .pipe(|it| OneOfLangType::new_with_one(it.into()));
+
+        struct PossibleReturnValue {
+            value: AnyInferredLangType,
+            source: Option<SourcePosition>,
+        }
+        let mut possible_return_values = Vec::<PossibleReturnValue>::new();
+
+        let branches_before_else = self
+            .branches
+            .iter()
+            .take_while(|branch| {
+                if let ast::BranchOptionNode::Else(_) = branch {
+                    false
+                } else {
+                    true
+                }
+            })
+            .collect::<Vec<_>>();
+        for branch in branches_before_else.iter().copied() {
+            let mut resolved_type = ctx.get_resolved_type_proxying_errors(branch.body());
+            match branch {
+                ast::BranchOptionNode::If(_) => {
+                    if with_value.is_empty() {
+                        resolved_type = LangError::UnreachableBranch(UnreachableBranchError {
+                            options: Some(with_value.clone()),
+                        })
+                        .into();
+                    }
+                }
+                ast::BranchOptionNode::Is(branch) => {
+                    let pattern_type = ctx.get_resolved_type_proxying_errors(&branch.pattern);
+                    if let InferredType::Known(pattern_type) = pattern_type {
+                        if with_value.is_superset_of(&pattern_type) {
+                            with_value = with_value.narrow(&pattern_type);
+                        } else {
+                            resolved_type = LangError::UnreachableBranch(UnreachableBranchError {
+                                options: Some(with_value.clone()),
+                            })
+                            .into();
+                        }
+                    }
+                }
+                ast::BranchOptionNode::Else(_) => unreachable!("there should be no else branches"),
+            }
+
+            let source_position = ctx.get_source_position(branch);
+            possible_return_values.push(PossibleReturnValue {
+                value: resolved_type,
+                source: source_position.clone().into(),
+            })
+        }
+
+        let else_branch = self.branches.iter().find_map(|it| match it {
+            ast::BranchOptionNode::Else(branch) => Some(branch),
+            _ => None,
+        });
+        if let Some(else_branch) = else_branch {
+            with_value = OneOfLangType::new(vec![]);
+            let resolved_type = ctx.get_resolved_type_proxying_errors(&else_branch.body);
+            possible_return_values.push(PossibleReturnValue {
+                value: resolved_type,
+                source: ctx.get_source_position(else_branch.as_ref()).into(),
+            });
+        }
+
+        let branches_after_else = self
+            .branches
+            .iter()
+            .skip(branches_before_else.len() + 1)
+            .collect::<Vec<_>>();
+        for branch in branches_after_else.iter().copied() {
+            let unreachable_error =
+                LangError::UnreachableBranch(UnreachableBranchError { options: None });
+            let source_position = ctx.get_source_position(branch);
+            possible_return_values.push(PossibleReturnValue {
+                value: unreachable_error.into(),
+                source: source_position.clone().into(),
+            });
+        }
+
+        if !with_value.options.is_empty() {
+            possible_return_values.push(PossibleReturnValue {
+                value: LangError::MissingElseBranch.into(),
+                source: None,
+            })
+        }
+
+        let action_returns = possible_return_values
+            .iter()
+            .filter_map(|it| match &it.value {
+                InferredType::Known(value) => match value.as_ref() {
+                    LangType::Action => Some(it),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        if !action_returns.is_empty() {
+            let non_action_returns = possible_return_values
+                .iter()
+                .filter_map(|it| {
+                    if let InferredType::Known(value) = &it.value {
+                        match value.as_ref() {
+                            LangType::Action => None,
+                            _ => Some(it),
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            if !non_action_returns.is_empty() {
+                return Some(
+                    LangError::ActionIncompatibleWithValueTypes(
+                        ActionIncompatibleWithValueTypesError {
+                            actions: action_returns
+                                .iter()
+                                .map(|it| {
+                                    it.source
+                                        .clone()
+                                        .expect("Action return branches should have a source")
+                                })
+                                .collect(),
+                        },
+                    )
+                    .into(),
+                );
+            }
+        }
+
+        return OneOfLangType::new(
+            possible_return_values
+                .into_iter()
+                .map(|it| it.value)
+                .collect(),
+        )
+        .simplify_to_value()
+        .pipe(Some);
     }
 }
