@@ -1,12 +1,12 @@
 use crate::ast::{
-    self, AnyAstNode, AstNode, BreadcrumbTreeNode, ElseBranchOptionNode, PatternNode,
+    self, AnyAstNode, AstNode, BreadcrumbTreeNode, FunctionSignatureParameterNode,
     SingleStatementBodyNode,
 };
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
     compiler_bug_error, ActionIncompatibleWithValueTypesError, CompilerBugError, ErrorPosition,
-    LangError, MismatchedTypeError, SourcePosition, UnreachableBranchError,
-    ValueUsedAsConstraintError,
+    ImplementationTodoError, LangError, MismatchedTypeError, SourcePosition,
+    UnreachableBranchError, ValueUsedAsConstraintError,
 };
 use crate::find_tag;
 use crate::lang_types::{
@@ -15,7 +15,7 @@ use crate::lang_types::{
 };
 use crate::tags::NodeTag;
 use serde::{Deserialize, Serialize};
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tap::Pipe;
@@ -372,7 +372,7 @@ impl ResolveTypes for AnyAstNode {
             Self::NumberLiteralExpression(node) => node.compute_type(ctx),
             Self::IdentifierTypeReference(node) => resolve_identifier_type_reference(node, ctx),
             Self::Pattern(_) => todo!("Pattern"),
-            Self::FunctionSignatureParameter(_) => todo!("FunctionSignatureParameter"),
+            Self::FunctionSignatureParameter(node) => node.compute_type(ctx),
             Self::FunctionCallParameter(_) => None, /* TODO? typechecking */
             Self::SingleStatementBody(node) => node.compute_type(ctx),
             Self::BranchExpression(node) => node.compute_type(ctx),
@@ -778,5 +778,21 @@ impl ResolveTypes for SingleStatementBodyNode {
         return ctx
             .get_resolved_type_proxying_errors(&self.statement)
             .pipe(Some);
+    }
+}
+
+impl ResolveTypes for FunctionSignatureParameterNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        if let Some(type_reference) = &self.type_reference {
+            let referenced_type = ctx.get_resolved_type_proxying_errors(type_reference);
+            return Some(referenced_type);
+        } else {
+            return Some(
+                LangError::ImplementationTodo(ImplementationTodoError {
+                    description: "Function parameters must have an explicit type".to_string(),
+                })
+                .into(),
+            );
+        }
     }
 }
