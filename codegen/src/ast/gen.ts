@@ -65,7 +65,10 @@ async function generateAstRustSerializationKt() {
           "it"
         )} })`;
       case "optional":
-        return `${name}?.let { ${getSerializeExpression(type.type, "it")}}`;
+        return `${name}?.let { ${getSerializeExpression(
+          type.type,
+          "it"
+        )}} ?: JsonNull`;
       default:
         return type satisfies never;
     }
@@ -79,19 +82,10 @@ async function generateAstRustSerializationKt() {
     nodes: nodes.map((node) => ({
       ...node,
       fields: Object.entries(node.fields).map(([name, type]) => {
-        let finalType = type;
-        let isOptional = false;
-        if (typeof type === "object" && type.kind === "optional") {
-          isOptional = true;
-          finalType = type.type;
-        }
         return {
           name,
-          isOptional,
-          serializeExpression: getSerializeExpression(
-            finalType,
-            `node.${name}`
-          ),
+          jsonName: changeCase.snakeCase(name),
+          serializeExpression: getSerializeExpression(type, `node.${name}`),
         };
       }),
     })),

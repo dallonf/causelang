@@ -40,11 +40,16 @@ object RustSerialization {
                     }
 
                     is Breadcrumbs.BreadcrumbEntry.Name -> buildJsonObject {
-                        put("Name", it.name)
+                        put("Name", toSnakeCase(it.name))
                     }
                 }
             }))
         }
+    }
+
+    fun toSnakeCase(name: String): String {
+        val pattern = "(?<=.)[A-Z]".toRegex()
+        return name.replace(pattern, "_$0").lowercase()
     }
 }
 

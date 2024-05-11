@@ -76,10 +76,8 @@ object AstRustSerialization {
     fun serializePattern(node: PatternNode): JsonElement {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
-            if (node.name != null) {
-            put("name", serializeIdentifier(node.name))
-            }
-            put("typeReference", serializeTypeReference(node.typeReference))
+            put("name", node.name?.let { serializeIdentifier(it)} ?: JsonNull)
+            put("type_reference", serializeTypeReference(node.typeReference))
         }
     }
 
@@ -87,9 +85,7 @@ object AstRustSerialization {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
             put("name", serializeIdentifier(node.name))
-            if (node.typeReference != null) {
-            put("typeReference", serializeTypeReference(node.typeReference))
-            }
+            put("type_reference", node.typeReference?.let { serializeTypeReference(it)} ?: JsonNull)
         }
     }
 
@@ -125,10 +121,8 @@ object AstRustSerialization {
     fun serializeImportMapping(node: ImportMappingNode): JsonElement {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
-            put("sourceName", serializeIdentifier(node.sourceName))
-            if (node.rename != null) {
-            put("rename", serializeIdentifier(node.rename))
-            }
+            put("source_name", serializeIdentifier(node.sourceName))
+            put("rename", node.rename?.let { serializeIdentifier(it)} ?: JsonNull)
         }
     }
 
@@ -138,9 +132,7 @@ object AstRustSerialization {
             put("name", serializeIdentifier(node.name))
             put("params", JsonArray(node.params.map { serializeFunctionSignatureParameter(it) }))
             put("body", serializeBody(node.body))
-            if (node.returnType != null) {
-            put("returnType", serializeTypeReference(node.returnType))
-            }
+            put("return_type", node.returnType?.let { serializeTypeReference(it)} ?: JsonNull)
         }
     }
 
@@ -148,11 +140,9 @@ object AstRustSerialization {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
             put("name", serializeIdentifier(node.name))
-            if (node.typeAnnotation != null) {
-            put("typeAnnotation", serializeTypeReference(node.typeAnnotation))
-            }
+            put("type_annotation", node.typeAnnotation?.let { serializeTypeReference(it)} ?: JsonNull)
             put("value", serializeExpression(node.value))
-            put("isVariable", node.isVariable)
+            put("is_variable", node.isVariable)
         }
     }
 
@@ -187,9 +177,7 @@ object AstRustSerialization {
     fun serializeBranchExpression(node: BranchExpressionNode): JsonElement {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
-            if (node.withValue != null) {
-            put("withValue", serializeExpression(node.withValue))
-            }
+            put("with_value", node.withValue?.let { serializeExpression(it)} ?: JsonNull)
             put("branches", JsonArray(node.branches.map { serializeBranchOption(it) }))
         }
     }

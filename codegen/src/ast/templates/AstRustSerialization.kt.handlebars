@@ -22,13 +22,7 @@ object AstRustSerialization {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
             {{#each this.fields}}
-            {{#if this.isOptional}}
-            if (node.{{this.name}} != null) {
-            {{/if}}
-            put("{{this.name}}", {{this.serializeExpression}})
-            {{#if this.isOptional}}
-            }
-            {{/if}}
+            put("{{this.jsonName}}", {{this.serializeExpression}})
             {{/each}}
         }
     }
