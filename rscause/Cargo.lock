@@ -563,6 +563,7 @@ dependencies = [
  "num",
  "rscause_compiler",
  "rust_decimal",
+ "serde",
  "serde-lexpr",
  "serde_json",
  "tap",

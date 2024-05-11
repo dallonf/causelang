@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::sync::Arc;
 
 use jni::objects::{JClass, JObject, JValue, JValueOwned};
@@ -7,12 +8,13 @@ use jni::sys::jvalue;
 use jni::JNIEnv;
 use mapping::{IntoJni, JniInto};
 use rscause_compiler::ast::FileNode;
-use rscause_compiler::breadcrumbs::Breadcrumbs;
+use rscause_compiler::breadcrumbs::{serde_breadcrumb_map, Breadcrumbs};
 use rscause_compiler::compile::compile;
 use rscause_compiler::compiled_file::CompiledFile;
 use rscause_compiler::lang_types::{CanonicalLangType, CanonicalLangTypeId};
 use rscause_compiler::resolve_types::{resolve_types, ExternalFileDescriptor, ResolverError};
 use rscause_compiler::tags::NodeTag;
+use serde::{Deserialize, Serialize};
 use tap::Pipe;
 use util::{jtry, noisy_log};
 
@@ -74,7 +76,13 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_rsSerializeTagsInne
 ) -> jvalue {
     jtry(&mut env, move |mut env| {
         let tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>> = jni_tags.jni_into(&mut env)?;
-        let serialized = serde_json::to_string_pretty(&tags)?;
+
+        #[derive(Serialize)]
+        struct MapWrapper<'a>(
+            #[serde(with = "serde_breadcrumb_map")] &'a HashMap<Breadcrumbs, Vec<NodeTag>>,
+        );
+
+        let serialized = serde_json::to_string_pretty(&MapWrapper(&tags))?;
         let result = env.new_string(serialized)?;
         return Ok(JValueOwned::Object(result.into()).as_jni());
     })

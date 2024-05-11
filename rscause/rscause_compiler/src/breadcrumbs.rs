@@ -1,4 +1,5 @@
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 
@@ -115,6 +116,30 @@ impl Debug for Breadcrumbs {
         f.debug_tuple("Breadcrumbs")
             .field(&self.to_string())
             .finish()
+    }
+}
+
+pub mod serde_breadcrumb_map {
+    use serde::{Deserializer, Serializer};
+
+    use super::*;
+
+    pub fn serialize<S, T>(map: &HashMap<Breadcrumbs, T>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+        T: Serialize,
+    {
+        serializer.collect_seq(map.iter())
+    }
+
+    pub fn deserialize<'de, D, T>(
+        map: &HashMap<Breadcrumbs, T>,
+        deserializer: D,
+    ) -> Result<T, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        todo!("Implement deserialization of Breadcrumbs")
     }
 }
 
