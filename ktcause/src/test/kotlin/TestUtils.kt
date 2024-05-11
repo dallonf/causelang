@@ -2,6 +2,7 @@ import com.dallonf.ktcause.*
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.types.CanonicalLangTypeId
+import kotlinx.serialization.encodeToString
 import kotlin.test.assertEquals
 
 object TestUtils {
@@ -11,9 +12,12 @@ object TestUtils {
             val ast = file.ast
             if (ast != null) {
                 val rsAstJson = RustCompiler.rsSerializeAst(ast)
+                val normalizedRsAstJson = RustSerialization.serializer.parseToJsonElement(rsAstJson).let {
+                    RustSerialization.serializer.encodeToString(it)
+                }
                 val ktAstJson = RustSerialization.serializeAst(ast)
                 assertEquals(
-                    rsAstJson,
+                    normalizedRsAstJson,
                     ktAstJson,
                     "Kotlin-generated AST JSON for $path does not match Rust-generated"
                 )
