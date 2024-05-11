@@ -150,7 +150,14 @@ object RustCompiler {
                 value
             }
         }
-        val filteredTags = tags.mapValues { (breadcrumbs, tags) ->
+        val filteredTags = getFilteredTags(tags)
+
+//        generateTestOutput("tmp", ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles);
+        return compileInner(path, ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles)
+    }
+
+    private fun getFilteredTags(tags: Map<Breadcrumbs, List<NodeTag>>) =
+        tags.mapValues { (breadcrumbs, tags) ->
             tags.filter {
                 when (it) {
                     is NodeTag.ReferencesFile -> true
@@ -168,10 +175,6 @@ object RustCompiler {
                 }
             }
         }
-
-//        generateTestOutput("tmp", ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles);
-        return compileInner(path, ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles)
-    }
 
     private val otherUnsupportedNodeTypes: List<String> =
         listOf<KClass<out Any>>(IsBranchOptionNode::class).mapNotNull { it.simpleName }
@@ -205,6 +208,10 @@ object RustCompiler {
     )
 
     external fun rsSerializeAst(ast: FileNode): String
+    private external fun rsSerializeTagsInner(tags: Map<Breadcrumbs, List<NodeTag>>): String
+    fun rsSerializeTags(tags: Map<Breadcrumbs, List<NodeTag>>): String {
+        return rsSerializeTagsInner(getFilteredTags(tags))
+    }
 
     data class RustCompilerResult(
         val compiledFile: CompiledFile,

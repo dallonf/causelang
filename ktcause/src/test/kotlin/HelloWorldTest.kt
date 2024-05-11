@@ -17,7 +17,7 @@ internal class HelloWorldTest {
                 """.trimIndent()
             )
         }
-        TestUtils.assertAstsEqual(vm)
+        TestUtils.assertSerializationEqual(vm)
         TestUtils.expectNoCompileErrors(vm)
 
         val result1 = vm.executeFunction("project/hello.cau", "main", listOf()).expectCausedSignal()

@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 
 object TestUtils {
 
-    fun assertAstsEqual(vm: LangVm) {
+    fun assertSerializationEqual(vm: LangVm) {
         vm.codeBundle.inputFilesDebugContext?.forEach { (path, file) ->
             val ast = file.ast
             if (ast != null) {
@@ -23,6 +23,12 @@ object TestUtils {
                     ktAstJson,
                     "Kotlin-generated AST JSON for $path does not match Rust-generated"
                 )
+            }
+
+            val tags = file.analyzed?.nodeTags
+            if (tags != null) {
+                val rsTagsJson = RustCompiler.rsSerializeTags(tags)
+                println(rsTagsJson)
             }
         }
     }
