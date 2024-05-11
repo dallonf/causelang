@@ -32,19 +32,12 @@ object RustSerialization {
     }
 
     fun serializeBreadcrumbs(breadcrumbs: Breadcrumbs): JsonElement {
-        return buildJsonObject {
-            put("entries", JsonArray(breadcrumbs.entries.map {
-                when (it) {
-                    is Breadcrumbs.BreadcrumbEntry.Index -> buildJsonObject {
-                        put("Index", it.index)
-                    }
-
-                    is Breadcrumbs.BreadcrumbEntry.Name -> buildJsonObject {
-                        put("Name", toSnakeCase(it.name))
-                    }
-                }
-            }))
-        }
+        return JsonPrimitive(breadcrumbs.entries.map {
+            when (it) {
+                is Breadcrumbs.BreadcrumbEntry.Name -> toSnakeCase(it.name)
+                is Breadcrumbs.BreadcrumbEntry.Index -> it.index.toString()
+            }
+        }.joinToString("."))
     }
 
     fun toSnakeCase(name: String): String {

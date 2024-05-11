@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ast::BREADCRUMB_NAMES;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum BreadcrumbEntry {
     Index(usize),
     Name(BreadcrumbName),
@@ -39,61 +39,75 @@ impl From<BreadcrumbName> for BreadcrumbEntry {
         Self::Name(name)
     }
 }
-impl Serialize for BreadcrumbName {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_newtype_struct("BreadcrumbName", self.name)
-    }
-}
-impl<'de> Deserialize<'de> for BreadcrumbName {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct BreadcrumbNameVisitor;
-        impl<'de> Visitor<'de> for BreadcrumbNameVisitor {
-            type Value = &'static str;
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a string matching one of the known breadcrumb names")
-            }
-
-            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                deserializer.deserialize_str(BreadcrumbNameVisitor)
-            }
-
-            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                let index = BREADCRUMB_NAMES
-                    .iter()
-                    .position(|it| it == &v)
-                    .ok_or(de::Error::custom(format!("Unknown breadcrumb name {}", v)))?;
-                Ok(BREADCRUMB_NAMES[index])
-            }
-        }
-        let name =
-            deserializer.deserialize_newtype_struct("BreadcrumbName", BreadcrumbNameVisitor)?;
-        Ok(BreadcrumbName::new(name))
-    }
-}
-
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, Default)]
 pub struct Breadcrumbs {
     pub entries: Vec<BreadcrumbEntry>,
 }
 impl Breadcrumbs {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn pop_start(&self) -> Breadcrumbs {
         let new_entries = self.entries[1..].to_vec();
         Self {
             entries: new_entries,
         }
+    }
+
+    pub fn push(&self, entry: BreadcrumbEntry) -> Breadcrumbs {
+        let mut new_entries = self.entries.clone();
+        new_entries.push(entry);
+        Self {
+            entries: new_entries,
+        }
+    }
+}
+
+impl Serialize for Breadcrumbs {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let breadcrumb_string = self
+            .entries
+            .iter()
+            .map(|entry| match entry {
+                BreadcrumbEntry::Index(index) => index.to_string(),
+                BreadcrumbEntry::Name(name) => name.name.to_string(),
+            })
+            .collect::<Vec<_>>()
+            .join(".");
+        serializer.serialize_str(&breadcrumb_string)
+    }
+}
+
+impl<'de> Deserialize<'de> for Breadcrumbs {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let breadcrumb_string = String::deserialize(deserializer)?;
+        let entries: Vec<BreadcrumbEntry> = breadcrumb_string
+            .split('.')
+            .map(|segment| match segment.parse::<usize>() {
+                Ok(index) => Ok(BreadcrumbEntry::Index(index)),
+                Err(_) => {
+                    let index = BREADCRUMB_NAMES
+                        .iter()
+                        .position(|it| it == &segment)
+                        .ok_or(de::Error::custom(format!(
+                            "Unknown breadcrumb name {}",
+                            segment
+                        )))?;
+                    Ok(BreadcrumbEntry::Name(BreadcrumbName::new(
+                        BREADCRUMB_NAMES[index],
+                    )))
+                }
+            })
+            .collect::<Result<Vec<_>, D::Error>>()?;
+        Ok(Self { entries })
     }
 }
 
@@ -119,43 +133,19 @@ impl Debug for Breadcrumbs {
     }
 }
 
-pub mod serde_breadcrumb_map {
-    use serde::{Deserializer, Serializer};
-
-    use super::*;
-
-    pub fn serialize<S, T>(map: &HashMap<Breadcrumbs, T>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-        T: Serialize,
-    {
-        serializer.collect_seq(map.iter())
-    }
-
-    pub fn deserialize<'de, D, T>(
-        map: &HashMap<Breadcrumbs, T>,
-        deserializer: D,
-    ) -> Result<T, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        todo!("Implement deserialization of Breadcrumbs")
-    }
-}
-
 pub trait HasBreadcrumbs {
     fn breadcrumbs(&self) -> &Breadcrumbs;
 }
 
 #[cfg(test)]
 mod test {
-    use super::BreadcrumbName;
+    use super::*;
 
     #[test]
-    fn serialize_breadcrumb_name() {
-        let name = BreadcrumbName::new("value");
-        let serialized = serde_lexpr::to_string(&name).unwrap();
-        let deserialized: BreadcrumbName = serde_lexpr::from_str(&serialized).unwrap();
-        assert_eq!(deserialized, name);
+    fn serialize_breadcrumbs() {
+        let breadcrumbs = Breadcrumbs::new().push(BreadcrumbName::new("value").into());
+        let serialized = serde_json::to_string(&breadcrumbs).unwrap();
+        let deserialized: Breadcrumbs = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized, breadcrumbs);
     }
 }
