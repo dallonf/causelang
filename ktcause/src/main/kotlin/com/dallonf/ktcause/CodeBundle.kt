@@ -4,7 +4,11 @@ import com.dallonf.ktcause.ast.FileNode
 import com.dallonf.ktcause.parse.parse
 import com.dallonf.ktcause.types.*
 
-data class CodeBundle(val files: Map<String, CompiledFile>, val compileErrors: List<Resolver.ResolverError>) {
+data class CodeBundle(
+    val files: Map<String, CompiledFile>,
+    val compileErrors: List<Resolver.ResolverError>,
+    val inputFilesDebugContext: Map<String, Debug.DebugContext>? = null
+) {
     val allTypes by lazy {
         mapOf(*files.values.flatMap { file -> file.types.entries }.map { it.toPair() }.toTypedArray())
     }
@@ -41,6 +45,7 @@ data class CodeBundle(val files: Map<String, CompiledFile>, val compileErrors: L
 
 class CodeBundleBuilder {
     private val compiledFiles = mutableMapOf<String, CompiledFile>()
+    private val inputFiles = mutableMapOf<String, Debug.DebugContext>()
 
     data class PendingFile(
         val path: String, val ast: FileNode, val analyzed: AnalyzedNode, val debugContext: Debug.DebugContext
@@ -65,6 +70,7 @@ class CodeBundleBuilder {
                 filePath, astNode, analyzedFile, analyzedDebugCtx
             )
         )
+        inputFiles[filePath] = analyzedDebugCtx
         return analyzedDebugCtx
     }
 
@@ -124,6 +130,6 @@ class CodeBundleBuilder {
             compilePending(file, file.analyzed.filesReferenced.mapNotNull { path -> finalCompiledFiles[path] })
         }
 
-        return CodeBundle(finalCompiledFiles, finalCompileErrors)
+        return CodeBundle(finalCompiledFiles, finalCompileErrors, inputFiles)
     }
 }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::sync::Arc;
 
-use jni::objects::{JClass, JObject, JValueOwned};
+use jni::objects::{JClass, JObject, JValue, JValueOwned};
 use jni::sys::jvalue;
 use jni::JNIEnv;
 use mapping::{IntoJni, JniInto};
@@ -49,6 +49,20 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_generateTestOutput<
             &external_files,
         )?;
         Ok(JValueOwned::Void.as_jni())
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_rsSerializeAst<'local>(
+    mut env: JNIEnv<'local>,
+    _class: JClass<'local>,
+    jni_ast: JObject<'local>,
+) -> jvalue {
+    jtry(&mut env, move |mut env| {
+        let ast: Arc<FileNode> = jni_ast.jni_into(&mut env)?;
+        let serialized = serde_json::to_string_pretty(&ast)?;
+        let result = env.new_string(serialized)?;
+        return Ok(JValueOwned::Object(result.into()).as_jni());
     })
 }
 

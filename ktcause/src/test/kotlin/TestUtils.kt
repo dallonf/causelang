@@ -1,13 +1,25 @@
-import com.dallonf.ktcause.Debug
+import com.dallonf.ktcause.*
 import com.dallonf.ktcause.Debug.debug
-import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
-import com.dallonf.ktcause.RunResult
-import com.dallonf.ktcause.RuntimeValue
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 import kotlin.test.assertEquals
 
 object TestUtils {
+
+    fun assertAstsEqual(vm: LangVm) {
+        vm.codeBundle.inputFilesDebugContext?.forEach { (path, file) ->
+            val ast = file.ast
+            if (ast != null) {
+                val rsAstJson = RustCompiler.rsSerializeAst(ast)
+                val ktAstJson = RustSerialization.serializeAst(ast)
+                assertEquals(
+                    rsAstJson,
+                    ktAstJson,
+                    "Kotlin-generated AST JSON for $path does not match Rust-generated"
+                )
+            }
+        }
+    }
 
     fun expectNoCompileErrors(vm: LangVm) {
         val (_, compileErrors) = vm.codeBundle

@@ -204,6 +204,8 @@ object RustCompiler {
         externalFiles: Map<String, Resolver.ExternalFileDescriptor>
     )
 
+    external fun rsSerializeAst(ast: FileNode): String
+
     data class RustCompilerResult(
         val compiledFile: CompiledFile,
         val errors: List<Resolver.ResolverError>
