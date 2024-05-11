@@ -1,0 +1,37 @@
+package com.dallonf.ktcause.gen
+
+import kotlinx.serialization.json.*
+import com.dallonf.ktcause.ast.*
+import com.dallonf.ktcause.RustSerialization
+
+object AstRustSerialization {
+    {{#each categories}}
+    fun serialize{{this.name}}(node: {{this.name}}Node): JsonElement {
+        return when (node) {
+            {{#each this.nodes}}
+            is {{this.name}}Node -> buildJsonObject { put("{{this.name}}", serialize{{this.name}}(node)) }
+            {{/each}}
+            else -> TODO("Unknown node type: ${node::class.simpleName}")
+        }
+    }
+
+    {{/each}}
+
+    {{#each nodes}}
+    fun serialize{{this.name}}(node: {{this.name}}Node): JsonElement {
+        return buildJsonObject {
+            put("info", RustSerialization.serializeNodeInfo(node.info))
+            {{#each this.fields}}
+            {{#if this.isOptional}}
+            if (node.{{this.name}} != null) {
+            {{/if}}
+            put("{{this.name}}", {{this.serializeExpression}})
+            {{#if this.isOptional}}
+            }
+            {{/if}}
+            {{/each}}
+        }
+    }
+
+    {{/each}}
+}

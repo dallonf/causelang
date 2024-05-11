@@ -1,6 +1,7 @@
 import com.dallonf.ktcause.*
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.Resolver.debug
+import com.dallonf.ktcause.gen.AstRustSerialization
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 import kotlinx.serialization.encodeToString
 import kotlin.test.assertEquals
@@ -12,10 +13,11 @@ object TestUtils {
             val ast = file.ast
             if (ast != null) {
                 val rsAstJson = RustCompiler.rsSerializeAst(ast)
-                val normalizedRsAstJson = RustSerialization.serializer.parseToJsonElement(rsAstJson).let {
-                    RustSerialization.serializer.encodeToString(it)
+                val normalizedRsAstJson = RustSerialization.encoder.parseToJsonElement(rsAstJson).let {
+                    RustSerialization.encoder.encodeToString(it)
                 }
-                val ktAstJson = RustSerialization.serializeAst(ast)
+                val ktAstJson =
+                    AstRustSerialization.serializeFile(ast).let { RustSerialization.encoder.encodeToString(it) }
                 assertEquals(
                     normalizedRsAstJson,
                     ktAstJson,

@@ -12,6 +12,7 @@ export async function generateAst() {
 
   await Promise.all([
     generateRustCompilerMetaKt(),
+    generateAstRustSerializationKt(),
     generateAstNodesRs(),
     generateAstMappingRs(),
   ]);
@@ -31,6 +32,75 @@ async function generateRustCompilerMetaKt() {
     path.join(
       projectRoot,
       "ktcause/src/main/kotlin/com/dallonf/ktcause/gen/RustCompilerMeta.kt"
+    ),
+    output
+  );
+}
+
+async function generateAstRustSerializationKt() {
+  const template = await compileTemplate(
+    "AstRustSerialization.kt.handlebars",
+    import.meta.url
+  );
+
+  function getSerializeExpression(type: NodeFieldType, name: string): string {
+    if (typeof type === "string") {
+      return `serialize${type}(${name})`;
+    }
+    switch (type.kind) {
+      case "primitive":
+        switch (type.type) {
+          case "string":
+          case "boolean":
+          case "int":
+          case "bigdecimal":
+            return name;
+          default:
+            return type satisfies never;
+        }
+        break;
+      case "list":
+        return `JsonArray(${name}.map { ${getSerializeExpression(
+          type.type,
+          "it"
+        )} })`;
+      case "optional":
+        return `${name}?.let { ${getSerializeExpression(type.type, "it")}}`;
+      default:
+        return type satisfies never;
+    }
+  }
+
+  const output = template({
+    categories: categories.map((category) => ({
+      ...category,
+      nodes: nodes.filter((node) => node.category === category.name),
+    })),
+    nodes: nodes.map((node) => ({
+      ...node,
+      fields: Object.entries(node.fields).map(([name, type]) => {
+        let finalType = type;
+        let isOptional = false;
+        if (typeof type === "object" && type.kind === "optional") {
+          isOptional = true;
+          finalType = type.type;
+        }
+        return {
+          name,
+          isOptional,
+          serializeExpression: getSerializeExpression(
+            finalType,
+            `node.${name}`
+          ),
+        };
+      }),
+    })),
+  });
+
+  await Deno.writeTextFile(
+    path.join(
+      projectRoot,
+      "ktcause/src/main/kotlin/com/dallonf/ktcause/gen/AstRustSerialization.kt"
     ),
     output
   );

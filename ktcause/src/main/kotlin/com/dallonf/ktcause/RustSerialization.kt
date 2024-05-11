@@ -1,28 +1,17 @@
 package com.dallonf.ktcause
 
-import com.dallonf.ktcause.ast.Breadcrumbs
-import com.dallonf.ktcause.ast.DocumentPosition
-import com.dallonf.ktcause.ast.FileNode
-import com.dallonf.ktcause.ast.NodeInfo
+import com.dallonf.ktcause.ast.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 
 object RustSerialization {
     @OptIn(ExperimentalSerializationApi::class)
-    val serializer by lazy {
+    val encoder by lazy {
         Json {
             prettyPrint = true
             prettyPrintIndent = "  "
         }
-    }
-
-    fun serializeAst(ast: FileNode): String {
-        val astJson = buildJsonObject {
-            put("info", serializeNodeInfo(ast.info))
-        }
-
-        return serializer.encodeToString(astJson)
     }
 
     fun serializeNodeInfo(info: NodeInfo): JsonElement {
