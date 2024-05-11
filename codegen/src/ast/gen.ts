@@ -75,10 +75,18 @@ async function generateAstRustSerializationKt() {
   }
 
   const output = template({
-    categories: categories.map((category) => ({
-      ...category,
-      nodes: nodes.filter((node) => node.category === category.name),
-    })),
+    categories: categories.map((category) => {
+      const suffixRegex = new RegExp(`${category.name}$`);
+      return {
+        ...category,
+        nodes: nodes
+          .filter((node) => node.category === category.name)
+          .map((node) => ({
+            ...node,
+            variantName: node.name.replace(suffixRegex, ""),
+          })),
+      };
+    }),
     nodes: nodes.map((node) => ({
       ...node,
       fields: Object.entries(node.fields).map(([name, type]) => {

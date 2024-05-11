@@ -7,7 +7,7 @@ import com.dallonf.ktcause.RustSerialization
 object AstRustSerialization {
     fun serializeTypeReference(node: TypeReferenceNode): JsonElement {
         return when (node) {
-            is IdentifierTypeReferenceNode -> buildJsonObject { put("IdentifierTypeReference", serializeIdentifierTypeReference(node)) }
+            is IdentifierTypeReferenceNode -> buildJsonObject { put("Identifier", serializeIdentifierTypeReference(node)) }
             else -> TODO("Unknown node type: ${node::class.simpleName}")
         }
     }
@@ -23,37 +23,37 @@ object AstRustSerialization {
 
     fun serializeBody(node: BodyNode): JsonElement {
         return when (node) {
-            is BlockBodyNode -> buildJsonObject { put("BlockBody", serializeBlockBody(node)) }
-            is SingleStatementBodyNode -> buildJsonObject { put("SingleStatementBody", serializeSingleStatementBody(node)) }
+            is BlockBodyNode -> buildJsonObject { put("Block", serializeBlockBody(node)) }
+            is SingleStatementBodyNode -> buildJsonObject { put("SingleStatement", serializeSingleStatementBody(node)) }
             else -> TODO("Unknown node type: ${node::class.simpleName}")
         }
     }
 
     fun serializeStatement(node: StatementNode): JsonElement {
         return when (node) {
-            is ExpressionStatementNode -> buildJsonObject { put("ExpressionStatement", serializeExpressionStatement(node)) }
-            is DeclarationStatementNode -> buildJsonObject { put("DeclarationStatement", serializeDeclarationStatement(node)) }
+            is ExpressionStatementNode -> buildJsonObject { put("Expression", serializeExpressionStatement(node)) }
+            is DeclarationStatementNode -> buildJsonObject { put("Declaration", serializeDeclarationStatement(node)) }
             else -> TODO("Unknown node type: ${node::class.simpleName}")
         }
     }
 
     fun serializeExpression(node: ExpressionNode): JsonElement {
         return when (node) {
-            is BranchExpressionNode -> buildJsonObject { put("BranchExpression", serializeBranchExpression(node)) }
-            is CauseExpressionNode -> buildJsonObject { put("CauseExpression", serializeCauseExpression(node)) }
-            is CallExpressionNode -> buildJsonObject { put("CallExpression", serializeCallExpression(node)) }
-            is IdentifierExpressionNode -> buildJsonObject { put("IdentifierExpression", serializeIdentifierExpression(node)) }
-            is StringLiteralExpressionNode -> buildJsonObject { put("StringLiteralExpression", serializeStringLiteralExpression(node)) }
-            is NumberLiteralExpressionNode -> buildJsonObject { put("NumberLiteralExpression", serializeNumberLiteralExpression(node)) }
+            is BranchExpressionNode -> buildJsonObject { put("Branch", serializeBranchExpression(node)) }
+            is CauseExpressionNode -> buildJsonObject { put("Cause", serializeCauseExpression(node)) }
+            is CallExpressionNode -> buildJsonObject { put("Call", serializeCallExpression(node)) }
+            is IdentifierExpressionNode -> buildJsonObject { put("Identifier", serializeIdentifierExpression(node)) }
+            is StringLiteralExpressionNode -> buildJsonObject { put("StringLiteral", serializeStringLiteralExpression(node)) }
+            is NumberLiteralExpressionNode -> buildJsonObject { put("NumberLiteral", serializeNumberLiteralExpression(node)) }
             else -> TODO("Unknown node type: ${node::class.simpleName}")
         }
     }
 
     fun serializeBranchOption(node: BranchOptionNode): JsonElement {
         return when (node) {
-            is IfBranchOptionNode -> buildJsonObject { put("IfBranchOption", serializeIfBranchOption(node)) }
-            is IsBranchOptionNode -> buildJsonObject { put("IsBranchOption", serializeIsBranchOption(node)) }
-            is ElseBranchOptionNode -> buildJsonObject { put("ElseBranchOption", serializeElseBranchOption(node)) }
+            is IfBranchOptionNode -> buildJsonObject { put("If", serializeIfBranchOption(node)) }
+            is IsBranchOptionNode -> buildJsonObject { put("Is", serializeIsBranchOption(node)) }
+            is ElseBranchOptionNode -> buildJsonObject { put("Else", serializeElseBranchOption(node)) }
             else -> TODO("Unknown node type: ${node::class.simpleName}")
         }
     }
