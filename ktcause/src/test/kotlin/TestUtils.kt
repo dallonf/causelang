@@ -25,11 +25,19 @@ object TestUtils {
                 )
             }
 
-            val tags = file.analyzed?.nodeTags
-            if (tags != null) {
-                val rsTagsJson = RustCompiler.rsSerializeTags(tags)
-                println(rsTagsJson)
-            }
+//            val tags = file.analyzed?.nodeTags
+//            if (tags != null) {
+//                val rsTagsJson = RustCompiler.rsSerializeTags(tags)
+//                val normalizedRsTagsJson = RustSerialization.encoder.parseToJsonElement(rsTagsJson).let {
+//                    RustSerialization.encoder.encodeToString(it)
+//                }
+//                val ktTagsJson = ""
+//                assertEquals(
+//                    normalizedRsTagsJson,
+//                    ktTagsJson,
+//                    "Kotlin-generated AST tags for $path does not match Rust-generated"
+//                )
+//            }
         }
     }
 
