@@ -1,10 +1,7 @@
 package com.dallonf.ktcause.serialization
 
 import com.dallonf.ktcause.types.*
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.*
 
 object LangTypeRustSerialization {
 
@@ -12,6 +9,25 @@ object LangTypeRustSerialization {
     //  kt ValueLangType -> rs AnyInferredLangType
     //  kt ResolvedValueLangType -> rs LangType
     //  kt OptionValueLangType -> rs OneOfLangType
+
+    private fun serializeCanonicalLangTypeId(canonicalLangTypeId: CanonicalLangTypeId): JsonElement {
+        return buildJsonObject {
+            put("path", canonicalLangTypeId.path)
+            put("parent_name", canonicalLangTypeId.parentName)
+            put("name", canonicalLangTypeId.name)
+            put("number", canonicalLangTypeId.number.toInt())
+            put("category", serializeCanonicalLangTypeCategory(canonicalLangTypeId.category))
+            put("is_unique", canonicalLangTypeId.isUnique)
+        }
+    }
+
+    private fun serializeCanonicalLangTypeCategory(category: CanonicalLangTypeId.CanonicalLangTypeIdCategory): JsonElement {
+        return when (category) {
+            CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT -> JsonPrimitive("Object")
+            CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL -> JsonPrimitive("Signal")
+        }
+    }
+
 
     fun serializeLangType(resolvedValueLangType: ResolvedValueLangType): JsonElement {
         return when (resolvedValueLangType) {
@@ -63,9 +79,13 @@ object LangTypeRustSerialization {
         return JsonPrimitive("TODO")
     }
 
+
     fun serializeInstanceLangType(instanceValueLangType: InstanceValueLangType): JsonElement {
-        return JsonPrimitive("TODO")
+        return buildJsonObject {
+            put("type_id", serializeCanonicalLangTypeId(instanceValueLangType.canonicalTypeId))
+        }
     }
+
 
     fun serializeFunctionLangType(functionValueLangType: FunctionValueLangType): JsonElement {
         return JsonPrimitive("TODO")
