@@ -156,10 +156,12 @@ object RustCompiler {
 
 //        generateTestOutput("tmp", ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles);
         val astJson = AstRustSerialization.serializeFile(ast).let { RustSerialization.encoder.encodeToString(it) }
+        val tagsJson =
+            RustSerialization.serializeNodeTagMap(filteredTags).let { RustSerialization.encoder.encodeToString(it) }
         return compileInner(
             path,
             astJson,
-            filteredTags,
+            tagsJson,
             filteredCanonicalTypes,
             filteredExternalFiles
         )
@@ -203,7 +205,7 @@ object RustCompiler {
     private external fun compileInner(
         path: String,
         astJson: String,
-        tags: Map<Breadcrumbs, List<NodeTag>>,
+        tagsJson: String,
         canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,
         externalFiles: Map<String, Resolver.ExternalFileDescriptor>
     ): RustCompilerResult
