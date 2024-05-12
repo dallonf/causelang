@@ -4,6 +4,7 @@ import com.dallonf.ktcause.NodeTag
 import com.dallonf.ktcause.Resolver
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.gen.TagsRustSerialization.serializeNodeTag
+import com.dallonf.ktcause.types.ResolvedValueLangType
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.*
 
@@ -34,11 +35,12 @@ object RustSerialization {
 
     fun serializeExternalFileDescriptor(fileDescriptor: Resolver.ExternalFileDescriptor): JsonElement {
         return buildJsonObject {
-            put("exports",
-                fileDescriptor.exports.mapValues { (_, type) -> LangTypeRustSerialization.serializeLangType(type) }
-                    .let {
-                        JsonObject(it)
-                    })
+            put("exports", fileDescriptor.exports.mapValues { (_, type) ->
+                require(type is ResolvedValueLangType)
+                LangTypeRustSerialization.serializeLangType(type)
+            }.let {
+                    JsonObject(it)
+                })
         }
     }
 
