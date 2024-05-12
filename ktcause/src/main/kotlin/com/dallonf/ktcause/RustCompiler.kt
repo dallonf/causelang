@@ -3,6 +3,7 @@ package com.dallonf.ktcause
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.gen.AstRustSerialization
 import com.dallonf.ktcause.gen.rustCompilerSupportedTypes
+import com.dallonf.ktcause.serialization.RustSerialization
 import com.dallonf.ktcause.types.ActionValueLangType
 import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.CanonicalLangTypeId

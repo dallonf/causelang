@@ -1,5 +1,6 @@
-package com.dallonf.ktcause
+package com.dallonf.ktcause.serialization
 
+import com.dallonf.ktcause.NodeTag
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.gen.TagsRustSerialization.serializeNodeTag
 import kotlinx.serialization.ExperimentalSerializationApi

@@ -2,10 +2,10 @@ import com.dallonf.ktcause.*
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.gen.AstRustSerialization
+import com.dallonf.ktcause.serialization.RustSerialization
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.assertEquals
 
 object TestUtils {

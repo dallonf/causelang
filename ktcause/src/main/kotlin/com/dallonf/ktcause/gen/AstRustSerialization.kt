@@ -2,7 +2,7 @@ package com.dallonf.ktcause.gen
 
 import kotlinx.serialization.json.*
 import com.dallonf.ktcause.ast.*
-import com.dallonf.ktcause.RustSerialization
+import com.dallonf.ktcause.serialization.RustSerialization
 
 object AstRustSerialization {
     fun serializeTypeReference(node: TypeReferenceNode): JsonElement {
