@@ -5,12 +5,27 @@ import com.dallonf.ktcause.gen.AstRustSerialization
 import com.dallonf.ktcause.serialization.RustSerialization
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
 import kotlin.test.assertEquals
 
 object TestUtils {
 
     fun assertSerializationEqual(vm: LangVm) {
+        fun normalizeMapOrdering(jsonElement: JsonElement): JsonElement {
+            if (jsonElement is JsonObject) {
+                val sortedEntries = jsonElement.entries.sortedBy { (key, _) -> key }
+                return buildJsonObject {
+                    sortedEntries.forEach { (key, value) ->
+                        put(key, normalizeMapOrdering(value))
+                    }
+                }
+            } else {
+                return jsonElement
+            }
+        }
+
         vm.codeBundle.inputFilesDebugContext?.forEach { (path, file) ->
             val ast = file.ast
             if (ast != null) {
@@ -21,9 +36,7 @@ object TestUtils {
                 val ktAstJson =
                     AstRustSerialization.serializeFile(ast).let { RustSerialization.encoder.encodeToString(it) }
                 assertEquals(
-                    normalizedRsAstJson,
-                    ktAstJson,
-                    "Kotlin-generated AST JSON for $path does not match Rust-generated"
+                    normalizedRsAstJson, ktAstJson, "Kotlin-generated AST JSON for $path does not match Rust-generated"
                 )
             }
 
@@ -37,20 +50,35 @@ object TestUtils {
                         val sorted = rsTagsJsonParsed.entries.sortedBy { (key, _) -> key }
                         RustSerialization.encoder.encodeToString(sorted)
                     }
-                val ktTagsJson =
-                    RustSerialization.serializeNodeTagMap(filteredTags)
-                        .let { ktTagsSerialized ->
-                            require(ktTagsSerialized is JsonObject)
-                            val sorted = ktTagsSerialized.entries.sortedBy { (key, _) -> key }
-                            RustSerialization.encoder.encodeToString(sorted)
-                        }
+                val ktTagsJson = RustSerialization.serializeNodeTagMap(filteredTags).let { ktTagsSerialized ->
+                    require(ktTagsSerialized is JsonObject)
+                    val sorted = ktTagsSerialized.entries.sortedBy { (key, _) -> key }
+                    RustSerialization.encoder.encodeToString(sorted)
+                }
                 assertEquals(
                     normalizedRsTagsJson,
                     ktTagsJson,
-                    "Kotlin-generated AST tags for $path does not match Rust-generated"
+                    "Kotlin-generated node tags for $path does not match Rust-generated"
                 )
             }
         }
+
+        val externalFiles = vm.codeBundle.files.mapValues { (_, file) -> file.toFileDescriptor() }.filter { (path, _) ->
+            if (path.startsWith("core/")) {
+                RustCompiler.supportedCoreImports.contains(path)
+            } else {
+                true
+            }
+        }.let { RustCompiler.getFilteredExternalFiles(it) }
+        val rsExternalFilesJson = RustCompiler.rsSerializeExternalFiles(externalFiles).let {
+            RustSerialization.encoder.parseToJsonElement(it)
+        }.let { normalizeMapOrdering(it) }.let { RustSerialization.encoder.encodeToString(it) }
+        val ktExternalFilesJson =
+            RustSerialization.serializeExternalFileDescriptorMap(externalFiles).let { normalizeMapOrdering(it) }
+                .let { RustSerialization.encoder.encodeToString(it) }
+        assertEquals(
+            rsExternalFilesJson, ktExternalFilesJson, "Kotlin-generated file descriptors do not match Rust-generated"
+        )
     }
 
     fun expectNoCompileErrors(vm: LangVm) {

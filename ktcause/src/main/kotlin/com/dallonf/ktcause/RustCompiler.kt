@@ -95,7 +95,7 @@ object RustCompiler {
 
         val unsupportedImports = run {
             val imports = ast.allDescendants().mapNotNull { it as? ImportNode }
-            imports.filter { !listOf("core/builtin.cau", "core/math").contains(it.path.path) }
+            imports.filter { !supportedCoreImports.contains(it.path.path) }
         }
         yieldAll(unsupportedImports.map { "Unsupported import: ${it.path.path}" })
 
@@ -122,7 +122,8 @@ object RustCompiler {
         yieldAll(typeErrorsOnlyKtResolverWouldFind.map { "Found type error that the Rust resolver can't output yet: $it" })
     }
 
-    private val supportedCoreExports = setOf("Debug", "Action", "AssumptionBroken", "Text", "Number", "equals")
+    val supportedCoreImports = setOf("core/builtin.cau", "core/math")
+    private val supportedCoreBuiltins = setOf("Debug", "Action", "AssumptionBroken", "Text", "Number", "equals")
 
     fun compile(
         path: String,
@@ -133,26 +134,11 @@ object RustCompiler {
         val filteredCanonicalTypes = run {
             val allEntries = externalFiles.flatMap { it.value.types.entries }
                 // only supported core types for now
-                .filter { supportedCoreExports.contains(it.key.name) }
+                .filter { supportedCoreBuiltins.contains(it.key.name) }
             val asPairs = allEntries.map { it.toPair() }
             mapOf(*asPairs.toTypedArray())
         }
-        val filteredExternalFiles = externalFiles.mapValues { (key, value) ->
-            if (key == "core/builtin.cau") {
-                val filteredExports = value.exports.mapValues { (exportKey, exportValue) ->
-                    // only supported core exports for now
-                    // all others are just Actions
-                    if (supportedCoreExports.contains(exportKey)) {
-                        exportValue
-                    } else {
-                        ActionValueLangType
-                    }
-                }
-                Resolver.ExternalFileDescriptor(filteredExports, value.types)
-            } else {
-                value
-            }
-        }
+        val filteredExternalFiles = getFilteredExternalFiles(externalFiles)
         val filteredTags = getFilteredTags(tags)
 
 //        generateTestOutput("tmp", ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles);
@@ -167,6 +153,24 @@ object RustCompiler {
             filteredExternalFiles
         )
     }
+
+    fun getFilteredExternalFiles(externalFiles: Map<String, Resolver.ExternalFileDescriptor>) =
+        externalFiles.mapValues { (key, value) ->
+            if (key == "core/builtin.cau") {
+                val filteredExports = value.exports.mapValues { (exportKey, exportValue) ->
+                    // only supported core exports for now
+                    // all others are just Actions
+                    if (supportedCoreBuiltins.contains(exportKey)) {
+                        exportValue
+                    } else {
+                        ActionValueLangType
+                    }
+                }
+                Resolver.ExternalFileDescriptor(filteredExports, value.types)
+            } else {
+                value
+            }
+        }
 
     fun getFilteredTags(tags: Map<Breadcrumbs, List<NodeTag>>) =
         tags.mapValues { (breadcrumbs, tags) ->
@@ -223,6 +227,11 @@ object RustCompiler {
     private external fun rsSerializeTagsInner(tags: Map<Breadcrumbs, List<NodeTag>>): String
     fun rsSerializeTags(tags: Map<Breadcrumbs, List<NodeTag>>): String {
         return rsSerializeTagsInner(getFilteredTags(tags))
+    }
+
+    private external fun rsSerializeExternalFilesInner(externalFiles: Map<String, Resolver.ExternalFileDescriptor>): String
+    fun rsSerializeExternalFiles(externalFiles: Map<String, Resolver.ExternalFileDescriptor>): String {
+        return rsSerializeExternalFilesInner(externalFiles)
     }
 
     data class RustCompilerResult(

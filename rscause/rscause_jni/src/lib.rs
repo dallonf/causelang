@@ -84,6 +84,24 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_rsSerializeTagsInne
 }
 
 #[no_mangle]
+pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_rsSerializeExternalFilesInner<
+    'local,
+>(
+    mut env: JNIEnv<'local>,
+    _class: JClass<'local>,
+    jni_external_files: JObject<'local>,
+) -> jvalue {
+    jtry(&mut env, move |mut env| {
+        let tags: Arc<HashMap<Arc<String>, ExternalFileDescriptor>> =
+            jni_external_files.jni_into(&mut env)?;
+
+        let serialized = serde_json::to_string_pretty(&tags)?;
+        let result = env.new_string(serialized)?;
+        return Ok(JValueOwned::Object(result.into()).as_jni());
+    })
+}
+
+#[no_mangle]
 pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
