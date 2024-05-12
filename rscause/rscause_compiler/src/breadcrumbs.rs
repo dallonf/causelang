@@ -2,6 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
+use std::string;
 
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Serialize};
@@ -89,8 +90,12 @@ impl<'de> Deserialize<'de> for Breadcrumbs {
         D: de::Deserializer<'de>,
     {
         let breadcrumb_string = String::deserialize(deserializer)?;
-        let entries: Vec<BreadcrumbEntry> = breadcrumb_string
-            .split('.')
+        let string_entries = breadcrumb_string.split('.').collect::<Vec<_>>();
+        if string_entries.eq(&vec![""]) {
+            return Ok(Self::default());
+        }
+        let entries: Vec<BreadcrumbEntry> = string_entries
+            .into_iter()
             .map(|segment| match segment.parse::<usize>() {
                 Ok(index) => Ok(BreadcrumbEntry::Index(index)),
                 Err(_) => {

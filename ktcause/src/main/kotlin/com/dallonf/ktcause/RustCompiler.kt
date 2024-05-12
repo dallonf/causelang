@@ -1,11 +1,13 @@
 package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.*
+import com.dallonf.ktcause.gen.AstRustSerialization
 import com.dallonf.ktcause.gen.rustCompilerSupportedTypes
 import com.dallonf.ktcause.types.ActionValueLangType
 import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 import com.dallonf.ktcause.types.ErrorLangType
+import kotlinx.serialization.encodeToString
 import kotlin.reflect.KClass
 
 object RustCompiler {
@@ -153,7 +155,14 @@ object RustCompiler {
         val filteredTags = getFilteredTags(tags)
 
 //        generateTestOutput("tmp", ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles);
-        return compileInner(path, ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles)
+        val astJson = AstRustSerialization.serializeFile(ast).let { RustSerialization.encoder.encodeToString(it) }
+        return compileInner(
+            path,
+            astJson,
+            filteredTags,
+            filteredCanonicalTypes,
+            filteredExternalFiles
+        )
     }
 
     private fun getFilteredTags(tags: Map<Breadcrumbs, List<NodeTag>>) =
@@ -193,7 +202,7 @@ object RustCompiler {
 
     private external fun compileInner(
         path: String,
-        ast: FileNode,
+        astJson: String,
         tags: Map<Breadcrumbs, List<NodeTag>>,
         canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,
         externalFiles: Map<String, Resolver.ExternalFileDescriptor>

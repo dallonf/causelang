@@ -331,6 +331,7 @@ internal class ErrorHandlingBasicTest {
                 """.trimIndent()
             )
         }
+        TestUtils.assertSerializationEqual(vm)
         assertEquals(
             """
             [

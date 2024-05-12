@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::sync::Arc;
 
-use jni::objects::{JClass, JObject, JValue, JValueOwned};
+use jni::objects::{JClass, JObject, JString, JValue, JValueOwned};
 use jni::sys::jvalue;
 use jni::JNIEnv;
 use mapping::{IntoJni, JniInto};
@@ -88,14 +88,17 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     jni_path: JObject<'local>,
-    jni_ast: JObject<'local>,
+    jni_ast_json: JString<'local>,
     jni_tags: JObject<'local>,
     jni_canonical_types: JObject<'local>,
     jni_external_files: JObject<'local>,
 ) -> jvalue {
     jtry(&mut env, move |mut env| {
         let path: Arc<String> = jni_path.jni_into(&mut env)?;
-        let ast: Arc<FileNode> = jni_ast.jni_into(&mut env)?;
+        let ast: Arc<FileNode> = env
+            .get_string(&jni_ast_json)?
+            .to_str()?
+            .pipe(|it| serde_json::from_str(&it))?;
         let canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>> =
             jni_canonical_types.jni_into(&mut env)?;
         let external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>> =

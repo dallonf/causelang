@@ -53,8 +53,9 @@ async function generateAstRustSerializationKt() {
           case "string":
           case "boolean":
           case "int":
-          case "bigdecimal":
             return name;
+          case "bigdecimal":
+            return `${name}.toPlainString()`
           default:
             return type satisfies never;
         }

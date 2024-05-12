@@ -237,7 +237,7 @@ object AstRustSerialization {
     fun serializeNumberLiteralExpression(node: NumberLiteralExpressionNode): JsonElement {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
-            put("value", node.value)
+            put("value", node.value.toPlainString())
         }
     }
 
