@@ -1,0 +1,28 @@
+package com.dallonf.ktcause.gen
+
+import kotlinx.serialization.json.*
+import com.dallonf.ktcause.NodeTag
+import com.dallonf.ktcause.RustSerialization
+
+object TagsRustSerialization {
+  fun serializeNodeTag(tag: NodeTag): JsonElement {
+    return when (tag) {
+      {{#each tags}}
+      is NodeTag.{{this.name}} -> buildJsonObject {
+        put("{{this.name}}", serialize{{this.name}}Tag(tag))
+      }
+      {{/each}}
+      else -> TODO("Unknown tag type: ${tag::class.simpleName}")
+    }
+  }
+
+  {{#each tags}}
+  fun serialize{{this.name}}Tag(tag: NodeTag.{{this.name}}): JsonElement {
+    return buildJsonObject {
+      {{#each this.params}}
+      put("{{this.snakeCaseName}}", {{this.serializeExpression}})
+      {{/each}}
+    }
+  }
+  {{/each}}
+}

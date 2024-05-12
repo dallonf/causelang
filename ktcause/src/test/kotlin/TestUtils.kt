@@ -4,6 +4,8 @@ import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.gen.AstRustSerialization
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.assertEquals
 
 object TestUtils {
@@ -25,19 +27,29 @@ object TestUtils {
                 )
             }
 
-//            val tags = file.analyzed?.nodeTags
-//            if (tags != null) {
-//                val rsTagsJson = RustCompiler.rsSerializeTags(tags)
-//                val normalizedRsTagsJson = RustSerialization.encoder.parseToJsonElement(rsTagsJson).let {
-//                    RustSerialization.encoder.encodeToString(it)
-//                }
-//                val ktTagsJson = ""
-//                assertEquals(
-//                    normalizedRsTagsJson,
-//                    ktTagsJson,
-//                    "Kotlin-generated AST tags for $path does not match Rust-generated"
-//                )
-//            }
+            val tags = file.analyzed?.nodeTags
+            if (tags != null) {
+                val filteredTags = RustCompiler.getFilteredTags(tags)
+                val rsTagsJson = RustCompiler.rsSerializeTags(filteredTags)
+                val normalizedRsTagsJson =
+                    RustSerialization.encoder.parseToJsonElement(rsTagsJson).let { rsTagsJsonParsed ->
+                        require(rsTagsJsonParsed is JsonObject)
+                        val sorted = rsTagsJsonParsed.entries.sortedBy { (key, _) -> key }
+                        RustSerialization.encoder.encodeToString(sorted)
+                    }
+                val ktTagsJson =
+                    RustSerialization.serializeNodeTagMap(filteredTags)
+                        .let { ktTagsSerialized ->
+                            require(ktTagsSerialized is JsonObject)
+                            val sorted = ktTagsSerialized.entries.sortedBy { (key, _) -> key }
+                            RustSerialization.encoder.encodeToString(sorted)
+                        }
+                assertEquals(
+                    normalizedRsTagsJson,
+                    ktTagsJson,
+                    "Kotlin-generated AST tags for $path does not match Rust-generated"
+                )
+            }
         }
     }
 

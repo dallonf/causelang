@@ -1,8 +1,8 @@
 package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.*
+import com.dallonf.ktcause.gen.TagsRustSerialization.serializeNodeTag
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 
 object RustSerialization {
@@ -11,6 +11,14 @@ object RustSerialization {
         Json {
             prettyPrint = true
             prettyPrintIndent = "  "
+        }
+    }
+
+    fun serializeNodeTagMap(tagMap: Map<Breadcrumbs, List<NodeTag>>): JsonElement {
+        return buildJsonObject {
+            tagMap.entries.forEach { entry ->
+                put(breadcrumbsToString(entry.key), JsonArray(entry.value.map { serializeNodeTag(it) }))
+            }
         }
     }
 
@@ -32,12 +40,14 @@ object RustSerialization {
     }
 
     fun serializeBreadcrumbs(breadcrumbs: Breadcrumbs): JsonElement {
-        return JsonPrimitive(breadcrumbs.entries.map {
-            when (it) {
-                is Breadcrumbs.BreadcrumbEntry.Name -> toSnakeCase(it.name)
-                is Breadcrumbs.BreadcrumbEntry.Index -> it.index.toString()
-            }
-        }.joinToString("."))
+        return JsonPrimitive(breadcrumbsToString(breadcrumbs))
+    }
+
+    private fun breadcrumbsToString(breadcrumbs: Breadcrumbs) = breadcrumbs.entries.joinToString(".") {
+        when (it) {
+            is Breadcrumbs.BreadcrumbEntry.Name -> toSnakeCase(it.name)
+            is Breadcrumbs.BreadcrumbEntry.Index -> it.index.toString()
+        }
     }
 
     fun toSnakeCase(name: String): String {

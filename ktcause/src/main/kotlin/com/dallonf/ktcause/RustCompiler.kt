@@ -165,7 +165,7 @@ object RustCompiler {
         )
     }
 
-    private fun getFilteredTags(tags: Map<Breadcrumbs, List<NodeTag>>) =
+    fun getFilteredTags(tags: Map<Breadcrumbs, List<NodeTag>>) =
         tags.mapValues { (breadcrumbs, tags) ->
             tags.filter {
                 when (it) {
