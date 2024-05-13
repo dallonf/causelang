@@ -7,6 +7,7 @@ import com.dallonf.ktcause.RustCompiler
 import com.dallonf.ktcause.gen.InstructionRustSerialization
 import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.CanonicalLangTypeId
+import com.dallonf.ktcause.types.FunctionValueLangType
 import kotlinx.serialization.json.*
 import org.apache.commons.numbers.fraction.BigFraction
 
@@ -37,8 +38,29 @@ object CompilerResultRustSerialization {
     }
 
     fun deserializeCompiledExport(compiledExport: JsonElement): CompiledFile.CompiledExport {
-        TODO("Not yet implemented")
+        if (compiledExport is JsonObject) {
+            compiledExport["Function"]?.let { function ->
+                require(function is JsonObject)
+                val index = (function["procedure_index"] as JsonPrimitive).int
+                val type = function["function_type"].let functionType@{ inferredFunctionType ->
+                    if (inferredFunctionType is JsonObject) {
+                        inferredFunctionType["Known"]?.let {
+                            return@functionType LangTypeRustSerialization.deserializeFunctionValueLangType(
+                                it
+                            )
+                        }
+                    }
+
+                    throw AssertionError("Unrecognized InferredType for function export: $inferredFunctionType")
+                }
+
+                return CompiledFile.CompiledExport.Function(index, type)
+            }
+        }
+
+        throw AssertionError("Unrecognized compiled export: $compiledExport")
     }
+
 
     fun deserializeProcedure(procedure: JsonElement): CompiledFile.Procedure {
         require(procedure is JsonObject)
@@ -102,6 +124,16 @@ object CompilerResultRustSerialization {
     }
 
     private fun deserializeProcedureInstructionMapping(procedureInstructionMapping: JsonElement): CompiledFile.Procedure.InstructionMapping {
-        TODO()
+        require(procedureInstructionMapping is JsonObject)
+        val nodeInfo = RustSerialization.deserializeNodeInfo(procedureInstructionMapping["node_info"]!!)
+        val instructionPhase = when ((procedureInstructionMapping["phase"] as JsonPrimitive).content) {
+            "Setup" -> CompiledFile.Procedure.InstructionPhase.SETUP
+            "Execute" -> CompiledFile.Procedure.InstructionPhase.EXECUTE
+            "Plumbing" -> CompiledFile.Procedure.InstructionPhase.PLUMBING
+            "Cleanup" -> CompiledFile.Procedure.InstructionPhase.CLEANUP
+            else -> throw AssertionError("Unrecognized instruction phase: ${procedureInstructionMapping["phase"]}")
+        }
+
+        return CompiledFile.Procedure.InstructionMapping(nodeInfo, instructionPhase)
     }
 }

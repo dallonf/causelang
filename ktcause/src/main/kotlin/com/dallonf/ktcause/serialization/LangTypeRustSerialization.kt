@@ -9,6 +9,7 @@ object LangTypeRustSerialization {
     //  kt ValueLangType -> rs AnyInferredLangType
     //  kt ResolvedValueLangType -> rs LangType
     //  kt OptionValueLangType -> rs OneOfLangType
+    //  kt ConstraintValueLangType -> rs LangType::TypeReference
 
 
     fun serializeLangType(resolvedValueLangType: ResolvedValueLangType): JsonElement {
@@ -43,9 +44,44 @@ object LangTypeRustSerialization {
         }
     }
 
+
     fun deserializeResolvedValueLangType(langType: JsonElement): ResolvedValueLangType {
-        TODO()
+        if (langType is JsonObject) {
+            langType["TypeReference"]?.let {
+                val typeReference = deserializeValueLangType(it)
+                return ConstraintValueLangType(typeReference as ResolvedValueLangType)
+            }
+
+            langType["Instance"]?.let {
+                return deserializeInstanceValueLangType(it)
+            }
+
+            langType["Function"]?.let {
+                return deserializeFunctionValueLangType(it)
+            }
+
+            langType["Primitive"]?.let {
+                return deserializePrimitiveValueLangType(it)
+            }
+
+            langType["OneOf"]?.let {
+                return deserializeOptionValueLangType(it)
+            }
+        }
+
+        if (langType is JsonPrimitive) {
+            if (langType.content == "Action") {
+                return ActionValueLangType
+            }
+
+            if (langType.content == "Anything") {
+                return AnythingValueLangType
+            }
+        }
+
+        throw AssertionError("Unrecognized lang type: $langType")
     }
+
 
     fun serializeAnyInferredLangType(valueLangType: ValueLangType): JsonElement {
         return when (valueLangType) {
@@ -61,6 +97,19 @@ object LangTypeRustSerialization {
         }
     }
 
+    fun deserializeValueLangType(anyInferredLangType: JsonElement): ValueLangType {
+        if (anyInferredLangType is JsonObject) {
+            anyInferredLangType["Known"]?.let {
+                return deserializeResolvedValueLangType(it)
+            }
+
+            // TODO: Pending/Error
+        }
+
+        throw AssertionError("Unrecognized AnyInferredLangType: $anyInferredLangType")
+    }
+
+
     fun serializeLangError(errorLangType: ErrorLangType): JsonElement {
         return JsonPrimitive("TODO")
     }
@@ -72,6 +121,10 @@ object LangTypeRustSerialization {
         }
     }
 
+    fun deserializeInstanceValueLangType(instanceLangType: JsonElement): InstanceValueLangType {
+        TODO()
+    }
+
 
     fun serializeFunctionLangType(functionValueLangType: FunctionValueLangType): JsonElement {
         return buildJsonObject {
@@ -81,11 +134,25 @@ object LangTypeRustSerialization {
         }
     }
 
+    fun deserializeFunctionValueLangType(functionLangType: JsonElement): FunctionValueLangType {
+        require(functionLangType is JsonObject)
+        val name = (functionLangType["name"] as JsonPrimitive).content
+        // TODO: params
+        val returnType = deserializeValueLangType(functionLangType["return_type"]!!)
+
+        return FunctionValueLangType(name, returnType.valueToConstraintReference(), listOf())
+    }
+
+
     fun serializePrimitiveLangType(primitiveValueLangType: PrimitiveValueLangType): JsonElement {
         return when (primitiveValueLangType.kind) {
             LangPrimitiveKind.TEXT -> JsonPrimitive("Text")
             LangPrimitiveKind.NUMBER -> JsonPrimitive("Number")
         }
+    }
+
+    fun deserializePrimitiveValueLangType(primitiveLangType: JsonElement): PrimitiveValueLangType {
+        TODO()
     }
 
     fun serializeOneOfLangType(optionValueLangType: OptionValueLangType): JsonElement {
@@ -94,6 +161,10 @@ object LangTypeRustSerialization {
                 optionValueLangType.options.map { serializeAnyInferredLangType(it.asValueType()) }
                     .let { JsonArray(it) })
         }
+    }
+
+    fun deserializeOptionValueLangType(oneOfLangType: JsonElement): OptionValueLangType {
+        TODO()
     }
 
     fun serializeCanonicalLangTypeId(canonicalLangTypeId: CanonicalLangTypeId): String {
