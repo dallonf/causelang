@@ -129,7 +129,10 @@ object LangTypeRustSerialization {
 
     private fun serializeCanonicalLangType(type: CanonicalLangType): JsonElement {
         fun serializeField(objectField: CanonicalLangType.ObjectField): JsonElement {
-            return JsonPrimitive("TODO")
+            return buildJsonObject {
+                put("name", objectField.name)
+                put("value_type", serializeAnyInferredLangType(objectField.valueConstraint.asValueType()))
+            }
         }
 
         return when (type) {
