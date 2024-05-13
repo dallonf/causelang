@@ -47,22 +47,31 @@ object RustSerialization {
 
     fun serializeNodeInfo(info: NodeInfo): JsonElement {
         return buildJsonObject {
-            put("position", buildJsonObject {
-                put("start", serializeDocumentPosition(info.position.start))
-                put("end", serializeDocumentPosition(info.position.end))
-            })
+            put("position", serializeDocumentRange(info.position))
             put("breadcrumbs", serializeBreadcrumbs(info.breadcrumbs))
         }
     }
 
     fun deserializeNodeInfo(info: JsonElement): NodeInfo {
         require(info is JsonObject)
-        val position = info["position"] as JsonObject
-        val start = deserializeDocumentPosition(position["start"]!!)
-        val end = deserializeDocumentPosition(position["end"]!!)
+        val position = deserializeDocumentRange(info["position"]!!)
         val breadcrumbs = deserializeBreadcrumbs(info["breadcrumbs"]!!)
 
-        return NodeInfo(DocumentRange(start, end), breadcrumbs)
+        return NodeInfo(position, breadcrumbs)
+    }
+
+    fun serializeDocumentRange(dp: DocumentRange): JsonElement {
+        return buildJsonObject {
+            put("start", serializeDocumentPosition(dp.start))
+            put("end", serializeDocumentPosition(dp.end))
+        }
+    }
+
+    fun deserializeDocumentRange(dr: JsonElement): DocumentRange {
+        require(dr is JsonObject)
+        val start = deserializeDocumentPosition(dr["start"]!!)
+        val end = deserializeDocumentPosition(dr["end"]!!)
+        return DocumentRange(start, end)
     }
 
     fun serializeDocumentPosition(dp: DocumentPosition): JsonElement {
@@ -116,5 +125,7 @@ object RustSerialization {
         }
         return capitalizedParts.joinToString()
     }
+
+
 }
 

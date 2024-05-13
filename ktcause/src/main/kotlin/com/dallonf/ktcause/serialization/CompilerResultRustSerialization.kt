@@ -4,9 +4,11 @@ import com.dallonf.ktcause.CompiledFile
 import com.dallonf.ktcause.Instruction
 import com.dallonf.ktcause.Resolver
 import com.dallonf.ktcause.RustCompiler
+import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.gen.InstructionRustSerialization
 import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.CanonicalLangTypeId
+import com.dallonf.ktcause.types.ErrorLangType
 import com.dallonf.ktcause.types.FunctionValueLangType
 import kotlinx.serialization.json.*
 import org.apache.commons.numbers.fraction.BigFraction
@@ -108,7 +110,18 @@ object CompilerResultRustSerialization {
             }
 
             compiledConstant["Error"]?.let {
-                TODO()
+                require(it is JsonObject)
+                val sourcePosition = it["source_position"].let sourcePosition@{ errorPosition ->
+                    if (errorPosition is JsonObject) {
+                        errorPosition["Source"]?.let {
+                            return@sourcePosition deserializeSourcePosition(it)
+                        }
+                    }
+
+                    throw AssertionError("Can't parse an ErrorPosition: $errorPosition")
+                }
+                val error = deserializeErrorLangType(it["error"]!!)
+                return CompiledFile.CompiledConstant.ErrorConst(sourcePosition, error)
             }
 
             compiledConstant["Type"]?.let {
@@ -123,7 +136,20 @@ object CompilerResultRustSerialization {
         throw AssertionError("Can't parse as a compiled constant: $compiledConstant")
     }
 
-    private fun deserializeProcedureInstructionMapping(procedureInstructionMapping: JsonElement): CompiledFile.Procedure.InstructionMapping {
+    fun deserializeErrorLangType(langError: JsonElement): ErrorLangType {
+        // TODO
+        return ErrorLangType.NotSupportedInRust
+    }
+
+    fun deserializeSourcePosition(sourcePosition: JsonElement): SourcePosition.Source {
+        require(sourcePosition is JsonObject)
+        val path = (sourcePosition["path"] as JsonPrimitive).content
+        val breadcrumbs = RustSerialization.deserializeBreadcrumbs(sourcePosition["breadcrumbs"]!!)
+        val position = RustSerialization.deserializeDocumentRange(sourcePosition["position"]!!)
+        return SourcePosition.Source(path, breadcrumbs, position)
+    }
+
+    fun deserializeProcedureInstructionMapping(procedureInstructionMapping: JsonElement): CompiledFile.Procedure.InstructionMapping {
         require(procedureInstructionMapping is JsonObject)
         val nodeInfo = RustSerialization.deserializeNodeInfo(procedureInstructionMapping["node_info"]!!)
         val instructionPhase = when ((procedureInstructionMapping["phase"] as JsonPrimitive).content) {
