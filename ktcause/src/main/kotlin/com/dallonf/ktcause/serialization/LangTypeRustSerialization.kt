@@ -103,7 +103,11 @@ object LangTypeRustSerialization {
                 return deserializeResolvedValueLangType(it)
             }
 
-            // TODO: Pending/Error
+            anyInferredLangType["Error"]?.let {
+                return deserializeErrorLangType(it)
+            }
+
+            // TODO: Pending
         }
 
         throw AssertionError("Unrecognized AnyInferredLangType: $anyInferredLangType")
@@ -112,6 +116,11 @@ object LangTypeRustSerialization {
 
     fun serializeLangError(errorLangType: ErrorLangType): JsonElement {
         return JsonPrimitive("TODO")
+    }
+
+    fun deserializeErrorLangType(langError: JsonElement): ErrorLangType {
+        // TODO
+        return ErrorLangType.NotSupportedInRust
     }
 
 

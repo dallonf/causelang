@@ -23,7 +23,11 @@ object CompilerResultRustSerialization {
     }
 
     fun deserializeResolverError(resolverError: JsonElement): Resolver.ResolverError {
-        TODO()
+        require(resolverError is JsonObject)
+        val position = deserializeSourcePosition(resolverError["position"]!!)
+        val error = LangTypeRustSerialization.deserializeErrorLangType(resolverError["error"]!!)
+
+        return Resolver.ResolverError(position, error)
     }
 
     fun deserializeCompiledFile(compiledFile: JsonElement): CompiledFile {
@@ -120,7 +124,7 @@ object CompilerResultRustSerialization {
 
                     throw AssertionError("Can't parse an ErrorPosition: $errorPosition")
                 }
-                val error = deserializeErrorLangType(it["error"]!!)
+                val error = LangTypeRustSerialization.deserializeErrorLangType(it["error"]!!)
                 return CompiledFile.CompiledConstant.ErrorConst(sourcePosition, error)
             }
 
@@ -134,11 +138,6 @@ object CompilerResultRustSerialization {
         }
 
         throw AssertionError("Can't parse as a compiled constant: $compiledConstant")
-    }
-
-    fun deserializeErrorLangType(langError: JsonElement): ErrorLangType {
-        // TODO
-        return ErrorLangType.NotSupportedInRust
     }
 
     fun deserializeSourcePosition(sourcePosition: JsonElement): SourcePosition.Source {
