@@ -126,7 +126,7 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local
     jni_path: JObject<'local>,
     jni_ast_json: JString<'local>,
     jni_tags_json: JString<'local>,
-    jni_canonical_types: JObject<'local>,
+    jni_canonical_types_json: JString<'local>,
     jni_external_files_json: JString<'local>,
 ) -> jvalue {
     jtry(&mut env, move |mut env| {
@@ -135,8 +135,10 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local
             .get_string(&jni_ast_json)?
             .to_str()?
             .pipe(|it| serde_json::from_str(&it))?;
-        let canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>> =
-            jni_canonical_types.jni_into(&mut env)?;
+        let canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>> = env
+            .get_string(&jni_canonical_types_json)?
+            .to_str()?
+            .pipe(|it| serde_json::from_str(&it))?;
         let external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>> = env
             .get_string(&jni_external_files_json)?
             .to_str()?

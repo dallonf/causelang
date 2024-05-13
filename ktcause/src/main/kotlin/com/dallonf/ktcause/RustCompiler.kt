@@ -3,6 +3,7 @@ package com.dallonf.ktcause
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.gen.AstRustSerialization
 import com.dallonf.ktcause.gen.rustCompilerSupportedTypes
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization
 import com.dallonf.ktcause.serialization.RustSerialization
 import com.dallonf.ktcause.types.ActionValueLangType
 import com.dallonf.ktcause.types.CanonicalLangType
@@ -54,8 +55,7 @@ object RustCompiler {
     }
 
     fun shouldRunRustCompiler(
-        path: String, ast: FileNode, analyzed: AnalyzedNode,
-        otherFiles: Map<String, Resolver.ExternalFileDescriptor>
+        path: String, ast: FileNode, analyzed: AnalyzedNode, otherFiles: Map<String, Resolver.ExternalFileDescriptor>
     ): Boolean {
         return when (mode) {
             Mode.ALWAYS -> true
@@ -79,10 +79,7 @@ object RustCompiler {
     }
 
     private fun getReasonsNotSupported(
-        ast: FileNode,
-        analyzed: AnalyzedNode,
-        path: String,
-        otherFiles: Map<String, Resolver.ExternalFileDescriptor>
+        ast: FileNode, analyzed: AnalyzedNode, path: String, otherFiles: Map<String, Resolver.ExternalFileDescriptor>
     ): Sequence<String> = sequence {
         val incompatibleNodes = getIncompatibleNodeTypes(ast)
         yieldAll(incompatibleNodes.map { "Incompatible node type: $it" })
@@ -98,6 +95,12 @@ object RustCompiler {
             imports.filter { !supportedCoreImports.contains(it.path.path) }
         }
         yieldAll(unsupportedImports.map { "Unsupported import: ${it.path.path}" })
+
+        val unsupportedIdentifiers = run {
+            val identifiers = ast.allDescendants().mapNotNull { it as? IdentifierNode }
+            identifiers.filter { unsupportedIdentifiers.contains(it.text) }
+        }
+        yieldAll(unsupportedIdentifiers.map { "Unsupported identifier: ${it.text}" })
 
         val unsupportedTypeAnnotations = ast.allDescendants().filter {
             when (it) {
@@ -124,6 +127,7 @@ object RustCompiler {
 
     val supportedCoreImports = setOf("core/builtin.cau", "core/math")
     private val supportedCoreBuiltins = setOf("Debug", "Action", "Text", "Number", "equals")
+    private val unsupportedIdentifiers = setOf("AssumptionBroken")
 
     fun compile(
         path: String,
@@ -139,14 +143,12 @@ object RustCompiler {
         val astJson = AstRustSerialization.serializeFile(ast).let { RustSerialization.encoder.encodeToString(it) }
         val tagsJson =
             RustSerialization.serializeNodeTagMap(filteredTags).let { RustSerialization.encoder.encodeToString(it) }
+        val canonicalTypesJson = LangTypeRustSerialization.serializeCanonicalTypeMap(filteredCanonicalTypes)
+            .let { RustSerialization.encoder.encodeToString(it) }
         val externalFilesJson = RustSerialization.serializeExternalFileDescriptorMap(filteredExternalFiles)
             .let { RustSerialization.encoder.encodeToString(it) }
         return compileInner(
-            path,
-            astJson,
-            tagsJson,
-            filteredCanonicalTypes,
-            externalFilesJson
+            path, astJson, tagsJson, canonicalTypesJson, externalFilesJson
         )
     }
 
@@ -176,25 +178,24 @@ object RustCompiler {
             }
         }
 
-    fun getFilteredTags(tags: Map<Breadcrumbs, List<NodeTag>>) =
-        tags.mapValues { (breadcrumbs, tags) ->
-            tags.filter {
-                when (it) {
-                    is NodeTag.ReferencesFile -> true
-                    is NodeTag.BadFileReference -> true
-                    is NodeTag.ValueGoesTo -> true
-                    is NodeTag.ValueComesFrom -> true
-                    is NodeTag.FunctionCanReturnTypeOf -> true
-                    is NodeTag.ReturnsFromFunction -> true
-                    is NodeTag.FunctionCanReturnAction -> true
-                    is NodeTag.ActionReturn -> true
-                    is NodeTag.DeclarationForScope -> true
-                    is NodeTag.ScopeContainsDeclaration -> true
-                    is NodeTag.TopLevelDeclaration -> true
-                    else -> false
-                }
+    fun getFilteredTags(tags: Map<Breadcrumbs, List<NodeTag>>) = tags.mapValues { (breadcrumbs, tags) ->
+        tags.filter {
+            when (it) {
+                is NodeTag.ReferencesFile -> true
+                is NodeTag.BadFileReference -> true
+                is NodeTag.ValueGoesTo -> true
+                is NodeTag.ValueComesFrom -> true
+                is NodeTag.FunctionCanReturnTypeOf -> true
+                is NodeTag.ReturnsFromFunction -> true
+                is NodeTag.FunctionCanReturnAction -> true
+                is NodeTag.ActionReturn -> true
+                is NodeTag.DeclarationForScope -> true
+                is NodeTag.ScopeContainsDeclaration -> true
+                is NodeTag.TopLevelDeclaration -> true
+                else -> false
             }
         }
+    }
 
     private val otherUnsupportedNodeTypes: List<String> =
         listOf<KClass<out Any>>(IsBranchOptionNode::class).mapNotNull { it.simpleName }
@@ -212,11 +213,7 @@ object RustCompiler {
     }
 
     private external fun compileInner(
-        path: String,
-        astJson: String,
-        tagsJson: String,
-        canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,
-        externalFilesJson: String
+        path: String, astJson: String, tagsJson: String, canonicalTypesJson: String, externalFilesJson: String
     ): RustCompilerResult
 
     private external fun generateTestOutput(
@@ -244,7 +241,6 @@ object RustCompiler {
     }
 
     data class RustCompilerResult(
-        val compiledFile: CompiledFile,
-        val errors: List<Resolver.ResolverError>
+        val compiledFile: CompiledFile, val errors: List<Resolver.ResolverError>
     )
 }
