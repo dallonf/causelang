@@ -4,6 +4,7 @@ import com.dallonf.ktcause.CompiledFile
 import com.dallonf.ktcause.Instruction
 import com.dallonf.ktcause.Resolver
 import com.dallonf.ktcause.RustCompiler
+import com.dallonf.ktcause.gen.InstructionRustSerialization
 import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 import kotlinx.serialization.json.*
@@ -43,7 +44,8 @@ object CompilerResultRustSerialization {
         require(procedure is JsonObject)
         val identity = deserializeProcedureIdentity(procedure["identity"]!!)
         val constantTable = (procedure["constant_table"] as JsonArray).map { deserializeCompiledConstant(it) }
-        val instructions = (procedure["instructions"] as JsonArray).map { deserializeInstruction(it) }
+        val instructions =
+            (procedure["instructions"] as JsonArray).map { InstructionRustSerialization.deserializeInstruction(it) }
         val sourceMap = (procedure["source_map"] as JsonArray?)?.let { array ->
             array.map {
                 if (it is JsonNull) {
@@ -97,10 +99,6 @@ object CompilerResultRustSerialization {
         }
 
         throw AssertionError("Can't parse as a compiled constant: $compiledConstant")
-    }
-
-    fun deserializeInstruction(instruction: JsonElement): Instruction {
-        TODO()
     }
 
     private fun deserializeProcedureInstructionMapping(procedureInstructionMapping: JsonElement): CompiledFile.Procedure.InstructionMapping {

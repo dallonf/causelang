@@ -1,0 +1,30 @@
+package com.dallonf.ktcause.gen
+
+import kotlinx.serialization.json.*
+import com.dallonf.ktcause.Instruction
+
+object InstructionRustSerialization {
+  fun deserializeInstruction(instruction: JsonElement): Instruction {
+    if (instruction is JsonObject) {
+      {{#each instructions}}
+      instruction["{{this.name}}"]?.let {
+        return deserialize{{this.name}}Instruction(it)
+      }
+      {{/each}}
+    }
+
+    throw AssertionError("Can't parse as an instruction: $instruction")
+  }
+
+  {{#each instructions}}
+
+  fun deserialize{{this.name}}Instruction(instruction: JsonElement): Instruction.{{this.name}} {
+    require(instruction is JsonObject)
+    return Instruction.{{this.name}}{{#if this.hasParams}}(
+      {{#each this.params}}
+        {{this.deserializeExpression}},
+      {{/each}}
+    ){{/if}}
+  }
+  {{/each}}
+}
