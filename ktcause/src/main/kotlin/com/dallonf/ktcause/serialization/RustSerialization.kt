@@ -2,7 +2,6 @@ package com.dallonf.ktcause.serialization
 
 import com.dallonf.ktcause.NodeTag
 import com.dallonf.ktcause.Resolver
-import com.dallonf.ktcause.RustCompiler
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.gen.TagsRustSerialization.serializeNodeTag
 import com.dallonf.ktcause.types.ResolvedValueLangType
@@ -56,6 +55,16 @@ object RustSerialization {
         }
     }
 
+    fun deserializeNodeInfo(info: JsonElement): NodeInfo {
+        require(info is JsonObject)
+        val position = info["position"] as JsonObject
+        val start = deserializeDocumentPosition(position["start"]!!)
+        val end = deserializeDocumentPosition(position["end"]!!)
+        val breadcrumbs = deserializeBreadcrumbs(info["breadcrumbs"]!!)
+
+        return NodeInfo(DocumentRange(start, end), breadcrumbs)
+    }
+
     fun serializeDocumentPosition(dp: DocumentPosition): JsonElement {
         return buildJsonObject {
             put("line", dp.line)
@@ -63,8 +72,20 @@ object RustSerialization {
         }
     }
 
+    fun deserializeDocumentPosition(dp: JsonElement): DocumentPosition {
+        require(dp is JsonObject)
+        val line = (dp["line"] as JsonPrimitive).int
+        val column = (dp["column"] as JsonPrimitive).int
+        return DocumentPosition(line, column)
+    }
+
     fun serializeBreadcrumbs(breadcrumbs: Breadcrumbs): JsonElement {
         return JsonPrimitive(breadcrumbsToString(breadcrumbs))
+    }
+
+    fun deserializeBreadcrumbs(breadcrumbs: JsonElement): Breadcrumbs {
+        require(breadcrumbs is JsonPrimitive)
+        return breadcrumbsFromString(breadcrumbs.content)
     }
 
     private fun breadcrumbsToString(breadcrumbs: Breadcrumbs) = breadcrumbs.entries.joinToString(".") {
@@ -74,9 +95,26 @@ object RustSerialization {
         }
     }
 
-    fun toSnakeCase(name: String): String {
+    private fun breadcrumbsFromString(content: String): Breadcrumbs {
+        val stringEntries = content.split('.')
+        val entries = stringEntries.map {
+            val number = it.toIntOrNull()
+            number?.let { Breadcrumbs.BreadcrumbEntry.Index(number) } ?: Breadcrumbs.BreadcrumbEntry.Name(it)
+        }
+        return Breadcrumbs(entries)
+    }
+
+    private fun toSnakeCase(name: String): String {
         val pattern = "(?<=.)[A-Z]".toRegex()
         return name.replace(pattern, "_$0").lowercase()
+    }
+
+    private fun toCamelCase(name: String): String {
+        val parts = name.split("_")
+        val capitalizedParts = listOf(parts[0]) + parts.drop(1).map { part ->
+            part.take(1).uppercase() + part.drop(1)
+        }
+        return capitalizedParts.joinToString()
     }
 }
 

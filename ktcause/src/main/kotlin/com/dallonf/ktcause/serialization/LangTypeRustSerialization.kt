@@ -43,6 +43,10 @@ object LangTypeRustSerialization {
         }
     }
 
+    fun deserializeResolvedValueLangType(langType: JsonElement): ResolvedValueLangType {
+        TODO()
+    }
+
     fun serializeAnyInferredLangType(valueLangType: ValueLangType): JsonElement {
         return when (valueLangType) {
             is ResolvedValueLangType -> buildJsonObject {

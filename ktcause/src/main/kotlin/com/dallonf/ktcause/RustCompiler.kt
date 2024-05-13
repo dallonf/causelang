@@ -156,8 +156,8 @@ object RustCompiler {
         val resultJson = compileInner(
             path, astJson, tagsJson, canonicalTypesJson, externalFilesJson
         )
-        println(resultJson)
-        val result = deserializeRustCompilerResult(Json.parseToJsonElement(resultJson) as JsonObject)
+//        println(resultJson)
+        val result = deserializeRustCompilerResult(Json.parseToJsonElement(resultJson))
         return result
     }
 
