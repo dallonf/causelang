@@ -152,7 +152,16 @@ object LangTypeRustSerialization {
     }
 
     fun deserializePrimitiveValueLangType(primitiveLangType: JsonElement): PrimitiveValueLangType {
-        TODO()
+        if (primitiveLangType is JsonPrimitive) {
+            if (primitiveLangType.content == "Text") {
+                return PrimitiveValueLangType(LangPrimitiveKind.TEXT)
+            }
+            if (primitiveLangType.content == "Number") {
+                return PrimitiveValueLangType(LangPrimitiveKind.NUMBER)
+            }
+        }
+
+        throw AssertionError("Unrecognized primitive lang type: $primitiveLangType")
     }
 
     fun serializeOneOfLangType(optionValueLangType: OptionValueLangType): JsonElement {
@@ -164,7 +173,11 @@ object LangTypeRustSerialization {
     }
 
     fun deserializeOptionValueLangType(oneOfLangType: JsonElement): OptionValueLangType {
-        TODO()
+        require(oneOfLangType is JsonObject)
+        val options = (oneOfLangType["options"] as JsonArray)
+            .map { deserializeValueLangType(it) }
+            .map { it.valueToConstraintReference() }
+        return OptionValueLangType(options)
     }
 
     fun serializeCanonicalLangTypeId(canonicalLangTypeId: CanonicalLangTypeId): String {
