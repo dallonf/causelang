@@ -88,14 +88,26 @@ object LangTypeRustSerialization {
 
 
     fun serializeFunctionLangType(functionValueLangType: FunctionValueLangType): JsonElement {
-        return JsonPrimitive("TODO")
+        return buildJsonObject {
+            put("name", functionValueLangType.name)
+            // TODO: params
+            put("return_type", serializeAnyInferredLangType(functionValueLangType.returnConstraint.asValueType()))
+        }
     }
 
-    private fun serializePrimitiveLangType(primitiveValueLangType: PrimitiveValueLangType): JsonElement {
-        return JsonPrimitive("TODO")
+    fun serializePrimitiveLangType(primitiveValueLangType: PrimitiveValueLangType): JsonElement {
+        return when (primitiveValueLangType.kind) {
+            LangPrimitiveKind.TEXT -> JsonPrimitive("Text")
+            LangPrimitiveKind.NUMBER -> JsonPrimitive("Number")
+        }
     }
 
-    private fun serializeOneOfLangType(optionValueLangType: OptionValueLangType): JsonElement {
-        return JsonPrimitive("TODO")
+    fun serializeOneOfLangType(optionValueLangType: OptionValueLangType): JsonElement {
+        return buildJsonObject {
+            put(
+                "options",
+                optionValueLangType.options.map { serializeAnyInferredLangType(it.asValueType()) }
+                    .let { JsonArray(it) })
+        }
     }
 }
