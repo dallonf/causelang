@@ -3,6 +3,7 @@ package com.dallonf.ktcause
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.gen.AstRustSerialization
 import com.dallonf.ktcause.gen.rustCompilerSupportedTypes
+import com.dallonf.ktcause.serialization.CompilerResultRustSerialization.deserializeRustCompilerResult
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization
 import com.dallonf.ktcause.serialization.RustSerialization
 import com.dallonf.ktcause.types.ActionValueLangType
@@ -10,6 +11,8 @@ import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 import com.dallonf.ktcause.types.ErrorLangType
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlin.reflect.KClass
 
 object RustCompiler {
@@ -99,6 +102,8 @@ object RustCompiler {
         val unsupportedIdentifiers = run {
             val identifiers = ast.allDescendants().mapNotNull { it as? IdentifierNode }
             identifiers.filter { unsupportedIdentifiers.contains(it.text) }
+                // but don't worry about it if it's only imported
+                .filter { it.allAncestors(ast).none { ancestor -> ancestor is ImportMappingNode } }
         }
         yieldAll(unsupportedIdentifiers.map { "Unsupported identifier: ${it.text}" })
 
@@ -147,9 +152,13 @@ object RustCompiler {
             .let { RustSerialization.encoder.encodeToString(it) }
         val externalFilesJson = RustSerialization.serializeExternalFileDescriptorMap(filteredExternalFiles)
             .let { RustSerialization.encoder.encodeToString(it) }
-        return compileInner(
+
+        val resultJson = compileInner(
             path, astJson, tagsJson, canonicalTypesJson, externalFilesJson
         )
+        println(resultJson)
+        val result = deserializeRustCompilerResult(Json.parseToJsonElement(resultJson) as JsonObject)
+        return result
     }
 
     fun getFilteredCanonicalTypes(externalFiles: Map<String, Resolver.ExternalFileDescriptor>): Map<CanonicalLangTypeId, CanonicalLangType> {
@@ -214,7 +223,7 @@ object RustCompiler {
 
     private external fun compileInner(
         path: String, astJson: String, tagsJson: String, canonicalTypesJson: String, externalFilesJson: String
-    ): RustCompilerResult
+    ): String
 
     private external fun generateTestOutput(
         testName: String,

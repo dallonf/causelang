@@ -140,6 +140,7 @@ sealed interface AstNode {
         }
 
         fun findNode(breadcrumbs: Breadcrumbs): AstNode {
+            // TODO: could probably implement as a specialization of findBreadcrumbWalkNode
             val (entry, remainingBreadcrumbs) = breadcrumbs.popStart()
 
             val foundChild = childNodes()[entry]
@@ -152,6 +153,22 @@ sealed interface AstNode {
                     }
                 } else {
                     foundChild.findNode(remainingBreadcrumbs)
+                }
+            } else {
+                error("Can't find key $entry for node: $this")
+            }
+        }
+
+        fun findBreadcrumbWalkNode(breadcrumbs: Breadcrumbs): BreadcrumbWalkChild {
+            val (entry, remainingBreadcrumbs) = breadcrumbs.popStart()
+
+            val foundChild = childNodes()[entry]
+
+            return if (foundChild != null) {
+                if (remainingBreadcrumbs.isEmpty()) {
+                    foundChild
+                } else {
+                    foundChild.findBreadcrumbWalkNode(remainingBreadcrumbs)
                 }
             } else {
                 error("Can't find key $entry for node: $this")
@@ -177,6 +194,19 @@ sealed interface AstNode {
     fun findNode(breadcrumbs: Breadcrumbs): AstNode = BreadcrumbWalkChild.Node(this).findNode(breadcrumbs)
 
     fun allDescendants() = BreadcrumbWalkChild.Node(this).allDescendants()
+
+    fun allAncestors(topAst: AstNode): Sequence<AstNode> {
+        var currentBreadcrumbs = this.info.breadcrumbs.up()
+        return sequence {
+            while (!currentBreadcrumbs.isEmpty()) {
+                val child = BreadcrumbWalkChild.Node(topAst).findBreadcrumbWalkNode(currentBreadcrumbs)
+                if (child is BreadcrumbWalkChild.Node) {
+                    yield(child.node)
+                }
+                currentBreadcrumbs = currentBreadcrumbs.up()
+            }
+        }
+    }
 }
 
 data class IdentifierNode(override val info: NodeInfo, val text: String) : AstNode {

@@ -2,6 +2,7 @@ package com.dallonf.ktcause.serialization
 
 import com.dallonf.ktcause.NodeTag
 import com.dallonf.ktcause.Resolver
+import com.dallonf.ktcause.RustCompiler
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.gen.TagsRustSerialization.serializeNodeTag
 import com.dallonf.ktcause.types.ResolvedValueLangType
@@ -16,6 +17,7 @@ object RustSerialization {
             prettyPrintIndent = "  "
         }
     }
+
 
     fun serializeNodeTagMap(tagMap: Map<Breadcrumbs, List<NodeTag>>): JsonElement {
         return buildJsonObject {
@@ -39,8 +41,8 @@ object RustSerialization {
                 require(type is ResolvedValueLangType)
                 LangTypeRustSerialization.serializeLangType(type)
             }.let {
-                    JsonObject(it)
-                })
+                JsonObject(it)
+            })
         }
     }
 

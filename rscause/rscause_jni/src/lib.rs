@@ -170,11 +170,13 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local
             errors: resolved_types.errors.clone(),
         };
 
-        result.into_jni(&mut env)?.as_jni().pipe(Ok)
+        let result_json = serde_json::to_string_pretty(&result)?;
+        let result_json_jni = env.new_string(result_json)?;
+        Ok(JValueOwned::Object(result_json_jni.into()).as_jni())
     })
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 struct RustCompilerResult {
     pub compiled_file: CompiledFile,
     pub errors: Vec<ResolverError>,

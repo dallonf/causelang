@@ -31,7 +31,7 @@ pub struct ResolveTypesResult {
     pub errors: Vec<ResolverError>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ResolverError {
     pub position: SourcePosition,
     pub error: LangError,
