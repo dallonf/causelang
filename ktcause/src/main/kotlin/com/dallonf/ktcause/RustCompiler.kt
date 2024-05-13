@@ -123,7 +123,7 @@ object RustCompiler {
     }
 
     val supportedCoreImports = setOf("core/builtin.cau", "core/math")
-    private val supportedCoreBuiltins = setOf("Debug", "Action", "AssumptionBroken", "Text", "Number", "equals")
+    private val supportedCoreBuiltins = setOf("Debug", "Action", "Text", "Number", "equals")
 
     fun compile(
         path: String,
@@ -131,13 +131,7 @@ object RustCompiler {
         tags: Map<Breadcrumbs, List<NodeTag>>,
         externalFiles: Map<String, Resolver.ExternalFileDescriptor>
     ): RustCompilerResult {
-        val filteredCanonicalTypes = run {
-            val allEntries = externalFiles.flatMap { it.value.types.entries }
-                // only supported core types for now
-                .filter { supportedCoreBuiltins.contains(it.key.name) }
-            val asPairs = allEntries.map { it.toPair() }
-            mapOf(*asPairs.toTypedArray())
-        }
+        val filteredCanonicalTypes = getFilteredCanonicalTypes(externalFiles)
         val filteredExternalFiles = getFilteredExternalFiles(externalFiles)
         val filteredTags = getFilteredTags(tags)
 
@@ -154,6 +148,14 @@ object RustCompiler {
             filteredCanonicalTypes,
             externalFilesJson
         )
+    }
+
+    fun getFilteredCanonicalTypes(externalFiles: Map<String, Resolver.ExternalFileDescriptor>): Map<CanonicalLangTypeId, CanonicalLangType> {
+        val allEntries = externalFiles.flatMap { it.value.types.entries }
+            // only supported core types for now
+            .filter { supportedCoreBuiltins.contains(it.key.name) }
+        val asPairs = allEntries.map { it.toPair() }
+        return mapOf(*asPairs.toTypedArray())
     }
 
     fun getFilteredExternalFiles(externalFiles: Map<String, Resolver.ExternalFileDescriptor>) =
@@ -234,6 +236,11 @@ object RustCompiler {
     private external fun rsSerializeExternalFilesInner(externalFiles: Map<String, Resolver.ExternalFileDescriptor>): String
     fun rsSerializeExternalFiles(externalFiles: Map<String, Resolver.ExternalFileDescriptor>): String {
         return rsSerializeExternalFilesInner(externalFiles)
+    }
+
+    private external fun rsSerializeCanonicalTypesInner(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>): String
+    fun rsSerializeCanonicalTypes(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>): String {
+        return rsSerializeCanonicalTypesInner(canonicalTypes)
     }
 
     data class RustCompilerResult(

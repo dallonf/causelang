@@ -10,24 +10,6 @@ object LangTypeRustSerialization {
     //  kt ResolvedValueLangType -> rs LangType
     //  kt OptionValueLangType -> rs OneOfLangType
 
-    private fun serializeCanonicalLangTypeId(canonicalLangTypeId: CanonicalLangTypeId): JsonElement {
-        return buildJsonObject {
-            put("path", canonicalLangTypeId.path)
-            put("parent_name", canonicalLangTypeId.parentName)
-            put("name", canonicalLangTypeId.name)
-            put("number", canonicalLangTypeId.number.toInt())
-            put("category", serializeCanonicalLangTypeCategory(canonicalLangTypeId.category))
-            put("is_unique", canonicalLangTypeId.isUnique)
-        }
-    }
-
-    private fun serializeCanonicalLangTypeCategory(category: CanonicalLangTypeId.CanonicalLangTypeIdCategory): JsonElement {
-        return when (category) {
-            CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT -> JsonPrimitive("Object")
-            CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL -> JsonPrimitive("Signal")
-        }
-    }
-
 
     fun serializeLangType(resolvedValueLangType: ResolvedValueLangType): JsonElement {
         return when (resolvedValueLangType) {
@@ -104,10 +86,71 @@ object LangTypeRustSerialization {
 
     fun serializeOneOfLangType(optionValueLangType: OptionValueLangType): JsonElement {
         return buildJsonObject {
-            put(
-                "options",
+            put("options",
                 optionValueLangType.options.map { serializeAnyInferredLangType(it.asValueType()) }
                     .let { JsonArray(it) })
+        }
+    }
+
+    fun serializeCanonicalLangTypeId(canonicalLangTypeId: CanonicalLangTypeId): String {
+        val nameWithFallback = canonicalLangTypeId.name ?: "$?"
+        val fullName = if (canonicalLangTypeId.parentName != null) {
+            "${canonicalLangTypeId.parentName}.$nameWithFallback"
+        } else {
+            nameWithFallback
+        }
+        val numberIfApplicable = if (canonicalLangTypeId.number == 0U) {
+            ""
+        } else {
+            "_${canonicalLangTypeId.number}"
+        }
+
+        val category = when (canonicalLangTypeId.category) {
+            CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT -> 'O'
+            CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL -> 'S'
+        }
+
+        val unique = if (canonicalLangTypeId.isUnique) {
+            "!"
+        } else {
+            ""
+        }
+
+        return "${canonicalLangTypeId.path}:$category:$fullName$numberIfApplicable$unique"
+    }
+
+    fun serializeCanonicalTypeMap(map: Map<CanonicalLangTypeId, CanonicalLangType>): JsonElement {
+        return buildJsonObject {
+            for ((id, type) in map.entries) {
+                put(serializeCanonicalLangTypeId(id), serializeCanonicalLangType(type))
+            }
+        }
+    }
+
+    private fun serializeCanonicalLangType(type: CanonicalLangType): JsonElement {
+        fun serializeField(objectField: CanonicalLangType.ObjectField): JsonElement {
+            return JsonPrimitive("TODO")
+        }
+
+        return when (type) {
+            is CanonicalLangType.ObjectCanonicalLangType -> buildJsonObject {
+                put("Object", buildJsonObject {
+                    put("type_id", serializeCanonicalLangTypeId(type.id))
+                    put("fields", type.fields.map { serializeField(it) }.let {
+                        JsonArray(it)
+                    })
+                })
+            }
+
+            is CanonicalLangType.SignalCanonicalLangType -> buildJsonObject {
+                put("Signal", buildJsonObject {
+                    put("type_id", serializeCanonicalLangTypeId(type.id))
+                    put("fields", type.fields.map { serializeField(it) }.let {
+                        JsonArray(it)
+                    })
+                    put("result", serializeAnyInferredLangType(type.result.asValueType()))
+                })
+            }
         }
     }
 }

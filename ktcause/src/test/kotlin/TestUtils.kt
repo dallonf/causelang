@@ -2,6 +2,7 @@ import com.dallonf.ktcause.*
 import com.dallonf.ktcause.Debug.debug
 import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.gen.AstRustSerialization
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization
 import com.dallonf.ktcause.serialization.RustSerialization
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 import kotlinx.serialization.encodeToString
@@ -78,6 +79,18 @@ object TestUtils {
                 .let { RustSerialization.encoder.encodeToString(it) }
         assertEquals(
             rsExternalFilesJson, ktExternalFilesJson, "Kotlin-generated file descriptors do not match Rust-generated"
+        )
+
+        val canonicalTypes = RustCompiler.getFilteredCanonicalTypes(externalFiles)
+        val rsCanonicalTypesJson = RustCompiler.rsSerializeCanonicalTypes(canonicalTypes).let {
+            RustSerialization.encoder.parseToJsonElement(it)
+        }.let { normalizeMapOrdering(it) }.let { RustSerialization.encoder.encodeToString(it) }
+
+        val ktCanonicalTypesJson =
+            LangTypeRustSerialization.serializeCanonicalTypeMap(canonicalTypes).let { normalizeMapOrdering(it) }
+                .let { RustSerialization.encoder.encodeToString(it) }
+        assertEquals(
+            rsCanonicalTypesJson, ktCanonicalTypesJson, "Kotlin-generated canonical types do not match Rust-generated"
         )
     }
 
