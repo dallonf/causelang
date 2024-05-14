@@ -50,6 +50,7 @@ export const errorTypes: ErrorTypeDeclaration[] = [
   },
   {
     name: "MismatchedType",
+    manualMapping: true,
     fields: {
       expected: diverged({
         rust: "lang_types::LangType",
@@ -102,17 +103,12 @@ export const errorTypes: ErrorTypeDeclaration[] = [
   },
   {
     name: "ActionIncompatibleWithValueTypes",
+    manualMapping: true,
     fields: {
       actions: listOf(
         diverged({ rust: "SourcePosition", kotlin: "SourcePosition.Source" })
       ),
       // NOTE: removing `types` for now because it's hard to translate
-      types: listOf(
-        diverged({
-          kotlin: "ActionIncompatibleWithValueTypes.ValueType",
-          rust: "()",
-        })
-      ),
     },
   },
   {

@@ -36,8 +36,8 @@ object LangErrorRustSerialization {
     throw AssertionError("Can't parse as an error: $langError")
   }
   {{#each errorTypes}}
+  {{#unless this.manualMapping}}
   {{#if this.hasFields}}
-
   fun deserialize{{this.name}}ErrorLangType(error: JsonElement): ErrorLangType.{{this.name}} {
     require(error is JsonObject)
     return ErrorLangType.{{this.name}}(
@@ -47,5 +47,14 @@ object LangErrorRustSerialization {
     )
   }
   {{/if}}
+  {{/unless}}
   {{/each}}
+
+  fun deserializeMismatchedTypeErrorLangType(error: JsonElement): ErrorLangType {
+    require(error is JsonObject)
+    return ErrorLangType.MismatchedType(
+      deserializeResolvedValueLangType(error["expected"]!!).toConstraint(),
+      deserializeResolvedValueLangType(error["actual"]!!)
+    )
+  }
 }

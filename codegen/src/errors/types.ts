@@ -1,5 +1,10 @@
 export interface ErrorTypeDeclaration {
   name: string;
+  /**
+   * If the mapping is too complex to be automatically generated,
+   * set this to true and write the mapping yourself.
+   */
+  manualMapping?: boolean;
   fields?: Record<string, FieldType>;
 }
 

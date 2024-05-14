@@ -98,17 +98,6 @@ async function generateLangErrorRustSerializationKt() {
     name: string,
     { nullable = true } = {}
   ): string {
-    if (
-      typeof field === "object" &&
-      field.kind === "list" &&
-      typeof field.type === "object" &&
-      field.type.kind === "diverged" &&
-      field.type.kotlin === "ActionIncompatibleWithValueTypes.ValueType"
-    ) {
-      // This is a special case that we don't want to handle yet
-      return 'null';
-    }
-
     if (typeof field === "string") {
       const assertedName = nullable ? `${name}!!` : name;
       switch (field) {

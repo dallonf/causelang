@@ -10,144 +10,145 @@ import com.dallonf.ktcause.types.ErrorLangType
 import kotlinx.serialization.json.*
 
 object LangErrorRustSerialization {
-  fun deserializeErrorLangType(langError: JsonElement): ErrorLangType {
-    if (langError is JsonObject) {
-      langError["ProxyError"]?.let {
-        return deserializeProxyErrorErrorLangType(it)
-      }
-      langError["ImplementationTodo"]?.let {
-        return deserializeImplementationTodoErrorLangType(it)
-      }
-      langError["MismatchedType"]?.let {
-        return deserializeMismatchedTypeErrorLangType(it)
-      }
-      langError["MissingParameters"]?.let {
-        return deserializeMissingParametersErrorLangType(it)
-      }
-      langError["ExcessParameters"]?.let {
-        return deserializeExcessParametersErrorLangType(it)
-      }
-      langError["MissingElseBranch"]?.let {
-        return deserializeMissingElseBranchErrorLangType(it)
-      }
-      langError["UnreachableBranch"]?.let {
-        return deserializeUnreachableBranchErrorLangType(it)
-      }
-      langError["ActionIncompatibleWithValueTypes"]?.let {
-        return deserializeActionIncompatibleWithValueTypesErrorLangType(it)
-      }
-      langError["ConstraintUsedAsValue"]?.let {
-        return deserializeConstraintUsedAsValueErrorLangType(it)
-      }
-      langError["ValueUsedAsConstraint"]?.let {
-        return deserializeValueUsedAsConstraintErrorLangType(it)
-      }
-      langError["CompilerBug"]?.let {
-        return deserializeCompilerBugErrorLangType(it)
-      }
+    fun deserializeErrorLangType(langError: JsonElement): ErrorLangType {
+        if (langError is JsonObject) {
+            langError["ProxyError"]?.let {
+                return deserializeProxyErrorErrorLangType(it)
+            }
+            langError["ImplementationTodo"]?.let {
+                return deserializeImplementationTodoErrorLangType(it)
+            }
+            langError["MismatchedType"]?.let {
+                return deserializeMismatchedTypeErrorLangType(it)
+            }
+            langError["MissingParameters"]?.let {
+                return deserializeMissingParametersErrorLangType(it)
+            }
+            langError["ExcessParameters"]?.let {
+                return deserializeExcessParametersErrorLangType(it)
+            }
+            langError["MissingElseBranch"]?.let {
+                return deserializeMissingElseBranchErrorLangType(it)
+            }
+            langError["UnreachableBranch"]?.let {
+                return deserializeUnreachableBranchErrorLangType(it)
+            }
+            langError["ActionIncompatibleWithValueTypes"]?.let {
+                return deserializeActionIncompatibleWithValueTypesErrorLangType(it)
+            }
+            langError["ConstraintUsedAsValue"]?.let {
+                return deserializeConstraintUsedAsValueErrorLangType(it)
+            }
+            langError["ValueUsedAsConstraint"]?.let {
+                return deserializeValueUsedAsConstraintErrorLangType(it)
+            }
+            langError["CompilerBug"]?.let {
+                return deserializeCompilerBugErrorLangType(it)
+            }
+        }
+
+        if (langError is JsonPrimitive) {
+            val errorName = langError.content
+            return when (errorName) {
+                "NeverResolved" -> ErrorLangType.NeverResolved
+                "NotInScope" -> ErrorLangType.NotInScope
+                "FileNotFound" -> ErrorLangType.FileNotFound
+                "ImportPathInvalid" -> ErrorLangType.ImportPathInvalid
+                "ExportNotFound" -> ErrorLangType.ExportNotFound
+                "NotCallable" -> ErrorLangType.NotCallable
+                "NotCausable" -> ErrorLangType.NotCausable
+                "UnknownParameter" -> ErrorLangType.UnknownParameter
+                "DoesNotHaveAnyMembers" -> ErrorLangType.DoesNotHaveAnyMembers
+                "DoesNotHaveMember" -> ErrorLangType.DoesNotHaveMember
+                "NotVariable" -> ErrorLangType.NotVariable
+                "OuterVariable" -> ErrorLangType.OuterVariable
+                "CannotBreakHere" -> ErrorLangType.CannotBreakHere
+                "NotSupportedInRust" -> ErrorLangType.NotSupportedInRust
+                else -> throw AssertionError("Unknown error type: $errorName")
+            }
+        }
+
+        throw AssertionError("Can't parse as an error: $langError")
     }
 
-    if (langError is JsonPrimitive) {
-      val errorName = langError.content
-      return when (errorName) {
-        "NeverResolved" -> ErrorLangType.NeverResolved
-        "NotInScope" -> ErrorLangType.NotInScope
-        "FileNotFound" -> ErrorLangType.FileNotFound
-        "ImportPathInvalid" -> ErrorLangType.ImportPathInvalid
-        "ExportNotFound" -> ErrorLangType.ExportNotFound
-        "NotCallable" -> ErrorLangType.NotCallable
-        "NotCausable" -> ErrorLangType.NotCausable
-        "UnknownParameter" -> ErrorLangType.UnknownParameter
-        "DoesNotHaveAnyMembers" -> ErrorLangType.DoesNotHaveAnyMembers
-        "DoesNotHaveMember" -> ErrorLangType.DoesNotHaveMember
-        "NotVariable" -> ErrorLangType.NotVariable
-        "OuterVariable" -> ErrorLangType.OuterVariable
-        "CannotBreakHere" -> ErrorLangType.CannotBreakHere
-        "NotSupportedInRust" -> ErrorLangType.NotSupportedInRust
-        else -> throw AssertionError("Unknown error type: $errorName")
-      }
+
+    fun deserializeProxyErrorErrorLangType(error: JsonElement): ErrorLangType.ProxyError {
+        require(error is JsonObject)
+        return ErrorLangType.ProxyError(
+            deserializeErrorLangType(error["actual_error"]!!),
+            (error["proxy_chain"] as JsonArray).map { deserializeSourcePosition(it) },
+        )
     }
 
-    throw AssertionError("Can't parse as an error: $langError")
-  }
+    fun deserializeImplementationTodoErrorLangType(error: JsonElement): ErrorLangType.ImplementationTodo {
+        require(error is JsonObject)
+        return ErrorLangType.ImplementationTodo(
+            (error["description"] as JsonPrimitive).content,
+        )
+    }
 
-  fun deserializeProxyErrorErrorLangType(error: JsonElement): ErrorLangType.ProxyError {
-    require(error is JsonObject)
-    return ErrorLangType.ProxyError(
-      deserializeErrorLangType(error["actual_error"]!!),
-      (error["proxy_chain"] as JsonArray).map { deserializeSourcePosition(it) },
-    )
-  }
+    fun deserializeMissingParametersErrorLangType(error: JsonElement): ErrorLangType.MissingParameters {
+        require(error is JsonObject)
+        return ErrorLangType.MissingParameters(
+            (error["names"] as JsonArray).map { (it as JsonPrimitive).content },
+        )
+    }
 
-  fun deserializeImplementationTodoErrorLangType(error: JsonElement): ErrorLangType.ImplementationTodo {
-    require(error is JsonObject)
-    return ErrorLangType.ImplementationTodo(
-      (error["description"] as JsonPrimitive).content,
-    )
-  }
+    fun deserializeExcessParametersErrorLangType(error: JsonElement): ErrorLangType.ExcessParameters {
+        require(error is JsonObject)
+        return ErrorLangType.ExcessParameters(
+            (error["expected"] as JsonPrimitive).int,
+        )
+    }
 
-  fun deserializeMismatchedTypeErrorLangType(error: JsonElement): ErrorLangType.MismatchedType {
-    require(error is JsonObject)
-    return ErrorLangType.MismatchedType(
-      deserializeConstraintValueLangType(error["expected"]!!),
-      deserializeResolvedValueLangType(error["actual"]!!),
-    )
-  }
+    fun deserializeMissingElseBranchErrorLangType(error: JsonElement): ErrorLangType.MissingElseBranch {
+        require(error is JsonObject)
+        return ErrorLangType.MissingElseBranch(
+            error["options"]?.let { deserializeOptionValueLangType(it) },
+        )
+    }
 
-  fun deserializeMissingParametersErrorLangType(error: JsonElement): ErrorLangType.MissingParameters {
-    require(error is JsonObject)
-    return ErrorLangType.MissingParameters(
-      (error["names"] as JsonArray).map { (it as JsonPrimitive).content },
-    )
-  }
+    fun deserializeUnreachableBranchErrorLangType(error: JsonElement): ErrorLangType.UnreachableBranch {
+        require(error is JsonObject)
+        return ErrorLangType.UnreachableBranch(
+            error["options"]?.let { deserializeOptionValueLangType(it) },
+        )
+    }
 
-  fun deserializeExcessParametersErrorLangType(error: JsonElement): ErrorLangType.ExcessParameters {
-    require(error is JsonObject)
-    return ErrorLangType.ExcessParameters(
-      (error["expected"] as JsonPrimitive).int,
-    )
-  }
+    fun deserializeConstraintUsedAsValueErrorLangType(error: JsonElement): ErrorLangType.ConstraintUsedAsValue {
+        require(error is JsonObject)
+        return ErrorLangType.ConstraintUsedAsValue(
+            deserializeConstraintValueLangType(error["r#type"]!!),
+        )
+    }
 
-  fun deserializeMissingElseBranchErrorLangType(error: JsonElement): ErrorLangType.MissingElseBranch {
-    require(error is JsonObject)
-    return ErrorLangType.MissingElseBranch(
-      error["options"]?.let { deserializeOptionValueLangType(it) },
-    )
-  }
+    fun deserializeValueUsedAsConstraintErrorLangType(error: JsonElement): ErrorLangType.ValueUsedAsConstraint {
+        require(error is JsonObject)
+        return ErrorLangType.ValueUsedAsConstraint(
+            deserializeValueLangType(error["r#type"]!!),
+        )
+    }
 
-  fun deserializeUnreachableBranchErrorLangType(error: JsonElement): ErrorLangType.UnreachableBranch {
-    require(error is JsonObject)
-    return ErrorLangType.UnreachableBranch(
-      error["options"]?.let { deserializeOptionValueLangType(it) },
-    )
-  }
+    fun deserializeCompilerBugErrorLangType(error: JsonElement): ErrorLangType.CompilerBug {
+        require(error is JsonObject)
+        return ErrorLangType.CompilerBug(
+            (error["description"] as JsonPrimitive).content,
+        )
+    }
 
-  fun deserializeActionIncompatibleWithValueTypesErrorLangType(error: JsonElement): ErrorLangType.ActionIncompatibleWithValueTypes {
-    require(error is JsonObject)
-    return ErrorLangType.ActionIncompatibleWithValueTypes(
-      (error["actions"] as JsonArray).map { deserializeSourcePositionSource(it) },
-      null,
-    )
-  }
+    fun deserializeMismatchedTypeErrorLangType(error: JsonElement): ErrorLangType {
+        require(error is JsonObject)
+        return ErrorLangType.MismatchedType(
+            deserializeResolvedValueLangType(error["expected"]!!).toConstraint(),
+            deserializeResolvedValueLangType(error["actual"]!!)
+        )
+    }
 
-  fun deserializeConstraintUsedAsValueErrorLangType(error: JsonElement): ErrorLangType.ConstraintUsedAsValue {
-    require(error is JsonObject)
-    return ErrorLangType.ConstraintUsedAsValue(
-      deserializeConstraintValueLangType(error["r#type"]!!),
-    )
-  }
-
-  fun deserializeValueUsedAsConstraintErrorLangType(error: JsonElement): ErrorLangType.ValueUsedAsConstraint {
-    require(error is JsonObject)
-    return ErrorLangType.ValueUsedAsConstraint(
-      deserializeValueLangType(error["r#type"]!!),
-    )
-  }
-
-  fun deserializeCompilerBugErrorLangType(error: JsonElement): ErrorLangType.CompilerBug {
-    require(error is JsonObject)
-    return ErrorLangType.CompilerBug(
-      (error["description"] as JsonPrimitive).content,
-    )
-  }
+    private fun deserializeActionIncompatibleWithValueTypesErrorLangType(error: JsonElement): ErrorLangType {
+        require(error is JsonObject)
+        return ErrorLangType.ActionIncompatibleWithValueTypes(
+            (error["actions"] as JsonArray).map { deserializeSourcePosition(it) },
+            emptyList()
+        )
+    }
 }
