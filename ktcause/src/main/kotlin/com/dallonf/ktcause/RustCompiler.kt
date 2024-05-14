@@ -259,22 +259,6 @@ object RustCompiler {
     }
 
 
-    external fun rsSerializeAst(ast: FileNode): String
-    private external fun rsSerializeTagsInner(tags: Map<Breadcrumbs, List<NodeTag>>): String
-    fun rsSerializeTags(tags: Map<Breadcrumbs, List<NodeTag>>): String {
-        return rsSerializeTagsInner(getFilteredTags(tags))
-    }
-
-    private external fun rsSerializeExternalFilesInner(externalFiles: Map<String, Resolver.ExternalFileDescriptor>): String
-    fun rsSerializeExternalFiles(externalFiles: Map<String, Resolver.ExternalFileDescriptor>): String {
-        return rsSerializeExternalFilesInner(externalFiles)
-    }
-
-    private external fun rsSerializeCanonicalTypesInner(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>): String
-    fun rsSerializeCanonicalTypes(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>): String {
-        return rsSerializeCanonicalTypesInner(canonicalTypes)
-    }
-
     data class RustCompilerResult(
         val compiledFile: CompiledFile, val errors: List<Resolver.ResolverError>
     )
