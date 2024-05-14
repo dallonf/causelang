@@ -60,6 +60,23 @@ object RustSerialization {
         return NodeInfo(position, breadcrumbs)
     }
 
+    fun deserializeSourcePosition(errorPosition: JsonElement): SourcePosition.Source {
+        if (errorPosition is JsonObject) {
+            errorPosition["Source"]?.let {
+                return deserializeSourcePositionSource(it)
+            }
+        }
+        throw AssertionError("Can't deserialize source position: $errorPosition")
+    }
+
+    fun deserializeSourcePositionSource(sourcePosition: JsonElement): SourcePosition.Source {
+        require(sourcePosition is JsonObject)
+        val path = (sourcePosition["path"] as JsonPrimitive).content
+        val breadcrumbs = deserializeBreadcrumbs(sourcePosition["breadcrumbs"]!!)
+        val position = deserializeDocumentRange(sourcePosition["position"]!!)
+        return SourcePosition.Source(path, breadcrumbs, position)
+    }
+
     fun serializeDocumentRange(dp: DocumentRange): JsonElement {
         return buildJsonObject {
             put("start", serializeDocumentPosition(dp.start))

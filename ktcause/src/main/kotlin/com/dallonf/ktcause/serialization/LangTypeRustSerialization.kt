@@ -45,12 +45,15 @@ object LangTypeRustSerialization {
         }
     }
 
+    fun deserializeConstraintValueLangType(langType: JsonElement): ConstraintValueLangType {
+        val typeReference = deserializeValueLangType(langType)
+        return ConstraintValueLangType(typeReference as ResolvedValueLangType)
+    }
 
     fun deserializeResolvedValueLangType(langType: JsonElement): ResolvedValueLangType {
         if (langType is JsonObject) {
             langType["TypeReference"]?.let {
-                val typeReference = deserializeValueLangType(it)
-                return ConstraintValueLangType(typeReference as ResolvedValueLangType)
+                return deserializeConstraintValueLangType(it)
             }
 
             langType["Instance"]?.let {

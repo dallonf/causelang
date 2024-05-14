@@ -58,6 +58,12 @@ impl FromJni for Decimal {
     }
 }
 
+impl FromJni for () {
+    fn from_jni<'local>(env: &mut JNIEnv, value: &JObject<'local>) -> Result<Self> {
+        Ok(())
+    }
+}
+
 impl<T> FromJni for Vec<T>
 where
     T: FromJni,

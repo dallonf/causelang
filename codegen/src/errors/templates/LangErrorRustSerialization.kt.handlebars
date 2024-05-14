@@ -1,5 +1,11 @@
 package com.dallonf.ktcause.gen
 
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeConstraintValueLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeOptionValueLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeResolvedValueLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeValueLangType
+import com.dallonf.ktcause.serialization.RustSerialization.deserializeSourcePosition
+import com.dallonf.ktcause.serialization.RustSerialization.deserializeSourcePositionSource
 import com.dallonf.ktcause.types.ErrorLangType
 import kotlinx.serialization.json.*
 
@@ -31,10 +37,14 @@ object LangErrorRustSerialization {
   }
   {{#each errorTypes}}
   {{#if this.hasFields}}
-  
+
   fun deserialize{{this.name}}ErrorLangType(error: JsonElement): ErrorLangType.{{this.name}} {
     require(error is JsonObject)
-    TODO()
+    return ErrorLangType.{{this.name}}(
+      {{#each this.fields}}
+      {{this.deserializeExpression}},
+      {{/each}}
+    )
   }
   {{/if}}
   {{/each}}

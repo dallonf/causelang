@@ -134,8 +134,16 @@ impl FromJni for LangError {
           let jni_node = JObject::from(jni_node);
           jni_node.jni_into(env)?
         };
+        let types: Vec<()> = {
+          let jni_node = env
+            .call_method(value, "getTypes", "()Ljava/util/List;", &[])?
+            .l()?;
+          let jni_node = JObject::from(jni_node);
+          jni_node.jni_into(env)?
+        };
         Ok(LangError::ActionIncompatibleWithValueTypes(error_types::ActionIncompatibleWithValueTypesError {
           actions,
+          types,
         }).into())
       },
       "ConstraintUsedAsValue" => {
@@ -311,8 +319,10 @@ impl IntoJni for LangError {
       LangError::ActionIncompatibleWithValueTypes(err) => {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$ActionIncompatibleWithValueTypes")?;
         let actions = err.actions.into_jni(env)?;
-        let result = env.new_object(class, "(Ljava/util/List;)V", &[
+        let types = err.types.into_jni(env)?;
+        let result = env.new_object(class, "(Ljava/util/List;Ljava/util/List;)V", &[
           actions.borrow(),
+          types.borrow(),
         ])?;
         Ok(result.into())
       },

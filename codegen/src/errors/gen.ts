@@ -93,10 +93,71 @@ async function generateLangErrorRustSerializationKt() {
     import.meta.url
   );
 
+  function getDeserializeExpression(
+    field: FieldType,
+    name: string,
+    { nullable = true } = {}
+  ): string {
+    if (
+      typeof field === "object" &&
+      field.kind === "list" &&
+      typeof field.type === "object" &&
+      field.type.kind === "diverged" &&
+      field.type.kotlin === "ActionIncompatibleWithValueTypes.ValueType"
+    ) {
+      // This is a special case that we don't want to handle yet
+      return 'null';
+    }
+
+    if (typeof field === "string") {
+      const assertedName = nullable ? `${name}!!` : name;
+      switch (field) {
+        case "string":
+          return `(${name} as JsonPrimitive).content`;
+        case "u32":
+          return `(${name} as JsonPrimitive).int`;
+        default:
+          return `deserialize${field.replace(/\./g, "")}(${assertedName})`;
+      }
+    }
+
+    switch (field.kind) {
+      case "arc":
+      case "box":
+        return getDeserializeExpression(field.type, name, { nullable });
+      case "diverged":
+        return getDeserializeExpression(field.kotlin, name, { nullable });
+      case "list": {
+        const innerType = getDeserializeExpression(field.type, "it", {
+          nullable: false,
+        });
+        return `(${name} as JsonArray).map { ${innerType} }`;
+      }
+      case "optional": {
+        const innerType = getDeserializeExpression(field.type, "it", {
+          nullable: false,
+        });
+        return `${name}?.let { ${innerType} }`;
+      }
+      default:
+        return field satisfies never;
+    }
+  }
+
   const errorTypesForTemplate = errorTypes.map((error) => {
     return {
       ...error,
       hasFields: Object.keys(error.fields ?? {}).length > 0,
+      fields: Object.entries(error.fields ?? {}).map(([name, type]) => {
+        const rsName = rustFieldName(name);
+        return {
+          rsName,
+          deserializeExpression: getDeserializeExpression(
+            type,
+            `error["${rsName}"]`
+          ),
+        };
+      }),
     };
   });
 

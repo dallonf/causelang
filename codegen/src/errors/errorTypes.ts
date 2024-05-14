@@ -107,6 +107,12 @@ export const errorTypes: ErrorTypeDeclaration[] = [
         diverged({ rust: "SourcePosition", kotlin: "SourcePosition.Source" })
       ),
       // NOTE: removing `types` for now because it's hard to translate
+      types: listOf(
+        diverged({
+          kotlin: "ActionIncompatibleWithValueTypes.ValueType",
+          rust: "()",
+        })
+      ),
     },
   },
   {

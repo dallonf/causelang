@@ -60,6 +60,7 @@ pub struct UnreachableBranchError {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ActionIncompatibleWithValueTypesError {
     pub actions: Vec<SourcePosition>,
+    pub types: Vec<()>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConstraintUsedAsValueError {

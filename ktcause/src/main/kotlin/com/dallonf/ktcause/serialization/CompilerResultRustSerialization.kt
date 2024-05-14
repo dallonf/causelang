@@ -25,7 +25,7 @@ object CompilerResultRustSerialization {
 
     fun deserializeResolverError(resolverError: JsonElement): Resolver.ResolverError {
         require(resolverError is JsonObject)
-        val position = deserializeSourcePosition(resolverError["position"]!!)
+        val position = RustSerialization.deserializeSourcePositionSource(resolverError["position"]!!)
         val error = LangErrorRustSerialization.deserializeErrorLangType(resolverError["error"]!!)
 
         return Resolver.ResolverError(position, error)
@@ -116,15 +116,7 @@ object CompilerResultRustSerialization {
 
             compiledConstant["Error"]?.let {
                 require(it is JsonObject)
-                val sourcePosition = it["source_position"].let sourcePosition@{ errorPosition ->
-                    if (errorPosition is JsonObject) {
-                        errorPosition["Source"]?.let {
-                            return@sourcePosition deserializeSourcePosition(it)
-                        }
-                    }
-
-                    throw AssertionError("Can't parse an ErrorPosition: $errorPosition")
-                }
+                val sourcePosition = RustSerialization.deserializeSourcePosition(it["source_position"]!!)
                 val error = LangErrorRustSerialization.deserializeErrorLangType(it["error"]!!)
                 return CompiledFile.CompiledConstant.ErrorConst(sourcePosition, error)
             }
@@ -141,13 +133,7 @@ object CompilerResultRustSerialization {
         throw AssertionError("Can't parse as a compiled constant: $compiledConstant")
     }
 
-    fun deserializeSourcePosition(sourcePosition: JsonElement): SourcePosition.Source {
-        require(sourcePosition is JsonObject)
-        val path = (sourcePosition["path"] as JsonPrimitive).content
-        val breadcrumbs = RustSerialization.deserializeBreadcrumbs(sourcePosition["breadcrumbs"]!!)
-        val position = RustSerialization.deserializeDocumentRange(sourcePosition["position"]!!)
-        return SourcePosition.Source(path, breadcrumbs, position)
-    }
+
 
     fun deserializeProcedureInstructionMapping(procedureInstructionMapping: JsonElement): CompiledFile.Procedure.InstructionMapping {
         require(procedureInstructionMapping is JsonObject)

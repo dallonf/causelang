@@ -1,5 +1,11 @@
 package com.dallonf.ktcause.gen
 
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeConstraintValueLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeOptionValueLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeResolvedValueLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeValueLangType
+import com.dallonf.ktcause.serialization.RustSerialization.deserializeSourcePosition
+import com.dallonf.ktcause.serialization.RustSerialization.deserializeSourcePositionSource
 import com.dallonf.ktcause.types.ErrorLangType
 import kotlinx.serialization.json.*
 
@@ -64,59 +70,84 @@ object LangErrorRustSerialization {
 
     throw AssertionError("Can't parse as an error: $langError")
   }
-  
+
   fun deserializeProxyErrorErrorLangType(error: JsonElement): ErrorLangType.ProxyError {
     require(error is JsonObject)
-    TODO()
+    return ErrorLangType.ProxyError(
+      deserializeErrorLangType(error["actual_error"]!!),
+      (error["proxy_chain"] as JsonArray).map { deserializeSourcePosition(it) },
+    )
   }
-  
+
   fun deserializeImplementationTodoErrorLangType(error: JsonElement): ErrorLangType.ImplementationTodo {
     require(error is JsonObject)
-    TODO()
+    return ErrorLangType.ImplementationTodo(
+      (error["description"] as JsonPrimitive).content,
+    )
   }
-  
+
   fun deserializeMismatchedTypeErrorLangType(error: JsonElement): ErrorLangType.MismatchedType {
     require(error is JsonObject)
-    TODO()
+    return ErrorLangType.MismatchedType(
+      deserializeConstraintValueLangType(error["expected"]!!),
+      deserializeResolvedValueLangType(error["actual"]!!),
+    )
   }
-  
+
   fun deserializeMissingParametersErrorLangType(error: JsonElement): ErrorLangType.MissingParameters {
     require(error is JsonObject)
-    TODO()
+    return ErrorLangType.MissingParameters(
+      (error["names"] as JsonArray).map { (it as JsonPrimitive).content },
+    )
   }
-  
+
   fun deserializeExcessParametersErrorLangType(error: JsonElement): ErrorLangType.ExcessParameters {
     require(error is JsonObject)
-    TODO()
+    return ErrorLangType.ExcessParameters(
+      (error["expected"] as JsonPrimitive).int,
+    )
   }
-  
+
   fun deserializeMissingElseBranchErrorLangType(error: JsonElement): ErrorLangType.MissingElseBranch {
     require(error is JsonObject)
-    TODO()
+    return ErrorLangType.MissingElseBranch(
+      error["options"]?.let { deserializeOptionValueLangType(it) },
+    )
   }
-  
+
   fun deserializeUnreachableBranchErrorLangType(error: JsonElement): ErrorLangType.UnreachableBranch {
     require(error is JsonObject)
-    TODO()
+    return ErrorLangType.UnreachableBranch(
+      error["options"]?.let { deserializeOptionValueLangType(it) },
+    )
   }
-  
+
   fun deserializeActionIncompatibleWithValueTypesErrorLangType(error: JsonElement): ErrorLangType.ActionIncompatibleWithValueTypes {
     require(error is JsonObject)
-    TODO()
+    return ErrorLangType.ActionIncompatibleWithValueTypes(
+      (error["actions"] as JsonArray).map { deserializeSourcePositionSource(it) },
+      null,
+    )
   }
-  
+
   fun deserializeConstraintUsedAsValueErrorLangType(error: JsonElement): ErrorLangType.ConstraintUsedAsValue {
     require(error is JsonObject)
-    TODO()
+    return ErrorLangType.ConstraintUsedAsValue(
+      deserializeConstraintValueLangType(error["r#type"]!!),
+    )
   }
-  
+
   fun deserializeValueUsedAsConstraintErrorLangType(error: JsonElement): ErrorLangType.ValueUsedAsConstraint {
     require(error is JsonObject)
-    TODO()
+    return ErrorLangType.ValueUsedAsConstraint(
+      deserializeValueLangType(error["r#type"]!!),
+    )
   }
-  
+
   fun deserializeCompilerBugErrorLangType(error: JsonElement): ErrorLangType.CompilerBug {
     require(error is JsonObject)
-    TODO()
+    return ErrorLangType.CompilerBug(
+      (error["description"] as JsonPrimitive).content,
+    )
   }
 }

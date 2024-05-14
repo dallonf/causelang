@@ -756,6 +756,7 @@ impl ResolveTypes for ast::BranchExpressionNode {
                                         .expect("Action return branches should have a source")
                                 })
                                 .collect(),
+                            types: vec![],
                         },
                     )
                     .into(),
