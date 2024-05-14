@@ -1,0 +1,70 @@
+{
+  "core/builtin.cau": {
+    "exports": {
+      "Text": {
+        "TypeReference": {
+          "Known": {
+            "Primitive": "Text"
+          }
+        }
+      },
+      "Number": {
+        "TypeReference": {
+          "Known": {
+            "Primitive": "Number"
+          }
+        }
+      },
+      "Action": {
+        "TypeReference": {
+          "Known": "Action"
+        }
+      },
+      "NeverContinues": "Action",
+      "Anything": "Action",
+      "AnySignal": "Action",
+      "True": "Action",
+      "False": "Action",
+      "Debug": {
+        "TypeReference": {
+          "Known": {
+            "Instance": {
+              "type_id": "core/builtin.cau:S:Debug"
+            }
+          }
+        }
+      },
+      "TypeError": "Action",
+      "AssumptionBroken": "Action",
+      "RunawayLoop": "Action",
+      "TrueOrFalse": "Action",
+      "equals": {
+        "Function": {
+          "name": "equals",
+          "return_type": {
+            "Known": {
+              "OneOf": {
+                "options": [
+                  {
+                    "Known": {
+                      "Instance": {
+                        "type_id": "core/builtin.cau:O:True!"
+                      }
+                    }
+                  },
+                  {
+                    "Known": {
+                      "Instance": {
+                        "type_id": "core/builtin.cau:O:False!"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

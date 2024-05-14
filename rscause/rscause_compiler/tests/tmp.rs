@@ -13,14 +13,13 @@ use tap::Pipe;
 #[test]
 fn test_tmp() {
     let path = Arc::new("project/test.cau".to_owned());
-    let ast: Arc<FileNode> =
-        serde_lexpr::from_str(include_str!("fixtures/tmp/ast.txt")).unwrap();
+    let ast: Arc<FileNode> = serde_json::from_str(include_str!("fixtures/tmp/ast.json")).unwrap();
     let node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>> =
-        serde_lexpr::from_str(include_str!("fixtures/tmp/tags.txt")).unwrap();
+        serde_json::from_str(include_str!("fixtures/tmp/tags.json")).unwrap();
     let canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>> =
-        serde_lexpr::from_str(include_str!("fixtures/tmp/canonical_types.txt")).unwrap();
+        serde_json::from_str(include_str!("fixtures/tmp/canonical_types.json")).unwrap();
     let external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>> =
-        serde_lexpr::from_str(include_str!("fixtures/tmp/external_files.txt")).unwrap();
+        serde_json::from_str(include_str!("fixtures/tmp/external_files.json")).unwrap();
     let resolve_types_result = resolve_types(
         path,
         ast.clone(),

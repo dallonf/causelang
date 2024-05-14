@@ -13,6 +13,8 @@ import com.dallonf.ktcause.types.ErrorLangType
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.internal.writeJson
+import java.io.File
 import kotlin.reflect.KClass
 
 object RustCompiler {
@@ -224,13 +226,38 @@ object RustCompiler {
         path: String, astJson: String, tagsJson: String, canonicalTypesJson: String, externalFilesJson: String
     ): String
 
-    private external fun generateTestOutput(
+    private fun generateTestOutput(
         testName: String,
         ast: FileNode,
         tags: Map<Breadcrumbs, List<NodeTag>>,
         canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>,
         externalFiles: Map<String, Resolver.ExternalFileDescriptor>
-    )
+    ) {
+        val path = "../rscause/rscause_compiler/tests/fixtures/$testName"
+        File("$path/ast.json").writeText(RustSerialization.encoder.encodeToString(AstRustSerialization.serializeFile(ast)))
+        File("$path/tags.json").writeText(
+            RustSerialization.encoder.encodeToString(
+                RustSerialization.serializeNodeTagMap(
+                    tags
+                )
+            )
+        )
+        File("$path/canonical_types.json").writeText(
+            RustSerialization.encoder.encodeToString(
+                LangTypeRustSerialization.serializeCanonicalTypeMap(
+                    canonicalTypes
+                )
+            )
+        )
+        File("$path/external_files.json").writeText(
+            RustSerialization.encoder.encodeToString(
+                RustSerialization.serializeExternalFileDescriptorMap(
+                    externalFiles
+                )
+            )
+        )
+    }
+
 
     external fun rsSerializeAst(ast: FileNode): String
     private external fun rsSerializeTagsInner(tags: Map<Breadcrumbs, List<NodeTag>>): String

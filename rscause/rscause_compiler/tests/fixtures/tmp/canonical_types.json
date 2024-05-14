@@ -1,0 +1,18 @@
+{
+  "core/builtin.cau:S:Debug": {
+    "Signal": {
+      "type_id": "core/builtin.cau:S:Debug",
+      "fields": [
+        {
+          "name": "value",
+          "value_type": {
+            "Known": "Anything"
+          }
+        }
+      ],
+      "result": {
+        "Known": "Action"
+      }
+    }
+  }
+}

@@ -1,0 +1,391 @@
+{
+  "declarations.0.mappings.0": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "Text"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "Text"
+      }
+    }
+  ],
+  "": [
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.0"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.1"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.2"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.3"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.4"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.5"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.6"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.7"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.8"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.9"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.10"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.11"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.12"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.0.mappings.13"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.1"
+      }
+    }
+  ],
+  "declarations.0.mappings.1": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "Number"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "Number"
+      }
+    }
+  ],
+  "declarations.0.mappings.2": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "Action"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "Action"
+      }
+    }
+  ],
+  "declarations.0.mappings.3": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "NeverContinues"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "NeverContinues"
+      }
+    }
+  ],
+  "declarations.0.mappings.4": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "Anything"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "Anything"
+      }
+    }
+  ],
+  "declarations.0.mappings.5": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "AnySignal"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "AnySignal"
+      }
+    }
+  ],
+  "declarations.0.mappings.6": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "True"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "True"
+      }
+    }
+  ],
+  "declarations.0.mappings.7": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "False"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "False"
+      }
+    }
+  ],
+  "declarations.0.mappings.8": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "Debug"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "Debug"
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.1.body.statements.0.expression.signal.callee"
+      }
+    }
+  ],
+  "declarations.0.mappings.9": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "TypeError"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "TypeError"
+      }
+    }
+  ],
+  "declarations.0.mappings.10": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "AssumptionBroken"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "AssumptionBroken"
+      }
+    }
+  ],
+  "declarations.0.mappings.11": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "RunawayLoop"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "RunawayLoop"
+      }
+    }
+  ],
+  "declarations.0.mappings.12": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "TrueOrFalse"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "TrueOrFalse"
+      }
+    }
+  ],
+  "declarations.0.mappings.13": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "equals"
+      }
+    },
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": "equals"
+      }
+    }
+  ],
+  "declarations.1": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "main"
+      }
+    },
+    {
+      "FunctionCanReturnTypeOf": {
+        "return_expression_value": "declarations.1.body"
+      }
+    }
+  ],
+  "declarations.0": [
+    {
+      "ReferencesFile": {
+        "path": "core/builtin.cau",
+        "export_name": null
+      }
+    }
+  ],
+  "declarations.1.body": [
+    {
+      "ReturnsFromFunction": {
+        "function": "declarations.1"
+      }
+    }
+  ],
+  "declarations.1.body.statements.0.expression": [
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.1.body.statements.0"
+      }
+    }
+  ],
+  "declarations.1.body.statements.0": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.1.body.statements.0.expression"
+      }
+    }
+  ],
+  "declarations.1.body.statements.0.expression.signal.callee": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.0.mappings.8"
+      }
+    }
+  ],
+  "declarations.1.body.statements.0.expression.signal.parameters.0": [
+  ]
+}

@@ -1,0 +1,674 @@
+{
+  "info": {
+    "position": {
+      "start": {
+        "line": 1,
+        "column": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 6
+      }
+    },
+    "breadcrumbs": ""
+  },
+  "declarations": [
+    {
+      "Import": {
+        "info": {
+          "position": {
+            "start": {
+              "line": 0,
+              "column": 0
+            },
+            "end": {
+              "line": 0,
+              "column": 0
+            }
+          },
+          "breadcrumbs": "declarations.0"
+        },
+        "path": {
+          "info": {
+            "position": {
+              "start": {
+                "line": 0,
+                "column": 0
+              },
+              "end": {
+                "line": 0,
+                "column": 0
+              }
+            },
+            "breadcrumbs": "declarations.0.path"
+          },
+          "path": "core/builtin.cau"
+        },
+        "mappings": [
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.0"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.0.source_name"
+              },
+              "text": "Text"
+            },
+            "rename": null
+          },
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.1"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.1.source_name"
+              },
+              "text": "Number"
+            },
+            "rename": null
+          },
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.2"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.2.source_name"
+              },
+              "text": "Action"
+            },
+            "rename": null
+          },
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.3"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.3.source_name"
+              },
+              "text": "NeverContinues"
+            },
+            "rename": null
+          },
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.4"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.4.source_name"
+              },
+              "text": "Anything"
+            },
+            "rename": null
+          },
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.5"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.5.source_name"
+              },
+              "text": "AnySignal"
+            },
+            "rename": null
+          },
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.6"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.6.source_name"
+              },
+              "text": "True"
+            },
+            "rename": null
+          },
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.7"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.7.source_name"
+              },
+              "text": "False"
+            },
+            "rename": null
+          },
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.8"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.8.source_name"
+              },
+              "text": "Debug"
+            },
+            "rename": null
+          },
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.9"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.9.source_name"
+              },
+              "text": "TypeError"
+            },
+            "rename": null
+          },
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.10"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.10.source_name"
+              },
+              "text": "AssumptionBroken"
+            },
+            "rename": null
+          },
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.11"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.11.source_name"
+              },
+              "text": "RunawayLoop"
+            },
+            "rename": null
+          },
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.12"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.12.source_name"
+              },
+              "text": "TrueOrFalse"
+            },
+            "rename": null
+          },
+          {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              },
+              "breadcrumbs": "declarations.0.mappings.13"
+            },
+            "source_name": {
+              "info": {
+                "position": {
+                  "start": {
+                    "line": 0,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 0
+                  }
+                },
+                "breadcrumbs": "declarations.0.mappings.13.source_name"
+              },
+              "text": "equals"
+            },
+            "rename": null
+          }
+        ]
+      }
+    },
+    {
+      "Function": {
+        "info": {
+          "position": {
+            "start": {
+              "line": 1,
+              "column": 0
+            },
+            "end": {
+              "line": 3,
+              "column": 1
+            }
+          },
+          "breadcrumbs": "declarations.1"
+        },
+        "name": {
+          "info": {
+            "position": {
+              "start": {
+                "line": 1,
+                "column": 9
+              },
+              "end": {
+                "line": 1,
+                "column": 13
+              }
+            },
+            "breadcrumbs": "declarations.1.name"
+          },
+          "text": "main"
+        },
+        "params": [
+        ],
+        "body": {
+          "Block": {
+            "info": {
+              "position": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 3,
+                  "column": 1
+                }
+              },
+              "breadcrumbs": "declarations.1.body"
+            },
+            "statements": [
+              {
+                "Expression": {
+                  "info": {
+                    "position": {
+                      "start": {
+                        "line": 2,
+                        "column": 4
+                      },
+                      "end": {
+                        "line": 2,
+                        "column": 31
+                      }
+                    },
+                    "breadcrumbs": "declarations.1.body.statements.0"
+                  },
+                  "expression": {
+                    "Cause": {
+                      "info": {
+                        "position": {
+                          "start": {
+                            "line": 2,
+                            "column": 4
+                          },
+                          "end": {
+                            "line": 2,
+                            "column": 31
+                          }
+                        },
+                        "breadcrumbs": "declarations.1.body.statements.0.expression"
+                      },
+                      "signal": {
+                        "Call": {
+                          "info": {
+                            "position": {
+                              "start": {
+                                "line": 2,
+                                "column": 10
+                              },
+                              "end": {
+                                "line": 2,
+                                "column": 31
+                              }
+                            },
+                            "breadcrumbs": "declarations.1.body.statements.0.expression.signal"
+                          },
+                          "callee": {
+                            "Identifier": {
+                              "info": {
+                                "position": {
+                                  "start": {
+                                    "line": 2,
+                                    "column": 10
+                                  },
+                                  "end": {
+                                    "line": 2,
+                                    "column": 15
+                                  }
+                                },
+                                "breadcrumbs": "declarations.1.body.statements.0.expression.signal.callee"
+                              },
+                              "identifier": {
+                                "info": {
+                                  "position": {
+                                    "start": {
+                                      "line": 2,
+                                      "column": 10
+                                    },
+                                    "end": {
+                                      "line": 2,
+                                      "column": 15
+                                    }
+                                  },
+                                  "breadcrumbs": "declarations.1.body.statements.0.expression.signal.callee.identifier"
+                                },
+                                "text": "Debug"
+                              }
+                            }
+                          },
+                          "parameters": [
+                            {
+                              "info": {
+                                "position": {
+                                  "start": {
+                                    "line": 2,
+                                    "column": 16
+                                  },
+                                  "end": {
+                                    "line": 2,
+                                    "column": 30
+                                  }
+                                },
+                                "breadcrumbs": "declarations.1.body.statements.0.expression.signal.parameters.0"
+                              },
+                              "value": {
+                                "StringLiteral": {
+                                  "info": {
+                                    "position": {
+                                      "start": {
+                                        "line": 2,
+                                        "column": 16
+                                      },
+                                      "end": {
+                                        "line": 2,
+                                        "column": 30
+                                      }
+                                    },
+                                    "breadcrumbs": "declarations.1.body.statements.0.expression.signal.parameters.0.value"
+                                  },
+                                  "text": "Hello world!"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "return_type": null
+      }
+    }
+  ]
+}
