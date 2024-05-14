@@ -54,7 +54,15 @@ object LangErrorRustSerialization {
     require(error is JsonObject)
     return ErrorLangType.MismatchedType(
       deserializeResolvedValueLangType(error["expected"]!!).toConstraint(),
-      deserializeResolvedValueLangType(error["actual"]!!)
+      deserializeResolvedValueLangType(error["actual"]!!),
+    )
+  }
+
+  private fun deserializeActionIncompatibleWithValueTypesErrorLangType(error: JsonElement): ErrorLangType {
+    require(error is JsonObject)
+    return ErrorLangType.ActionIncompatibleWithValueTypes(
+      (error["actions"] as JsonArray).map { deserializeSourcePosition(it) },
+      emptyList(),
     )
   }
 }

@@ -4,11 +4,7 @@ import { tags } from "./tags.ts";
 import { NodeTagParam } from "./types.ts";
 
 export async function generateTags() {
-  await Promise.all([
-    generateTagTypes(),
-    generateTagMappings(),
-    generateTagsRustSerializationKt(),
-  ]);
+  await Promise.all([generateTagTypes(), generateTagsRustSerializationKt()]);
 }
 
 async function generateTagTypes() {
@@ -22,36 +18,6 @@ async function generateTagTypes() {
 
   await Deno.writeTextFile(
     path.join(projectRoot, "rscause/rscause_compiler/src/gen/tags.rs"),
-    output
-  );
-}
-
-async function generateTagMappings() {
-  const template = await compileTemplate(
-    "tag_mappings.rs.handlebars",
-    import.meta.url
-  );
-
-  const templateTags = flattenTags().map((tag) => {
-    return {
-      ...tag,
-      params: tag.params.map((param) => {
-        let getterName = `get${changeCase.pascalCase(param.camelCaseName)}`;
-        if (getterName === "getIndex") getterName = "getIndex-pVg5ArA";
-        return { ...param, getterName };
-      }),
-    };
-  });
-
-  const output = template({
-    tags: templateTags,
-  });
-
-  await Deno.writeTextFile(
-    path.join(
-      projectRoot,
-      "rscause/rscause_jni/src/mapping/gen/tag_mappings.rs"
-    ),
     output
   );
 }
@@ -123,7 +89,6 @@ interface FlattenedTagParam {
   camelCaseName: string;
   type: NodeTagParam;
   rustType: string;
-  javaType: string;
 }
 
 function flattenTags(): FlattenedTag[] {
@@ -139,7 +104,6 @@ function flattenTags(): FlattenedTag[] {
                 camelCaseName: paramName,
                 type: param,
                 rustType: getParamRustType(param),
-                javaType: getParamJavaType(param),
               };
             }),
           },
@@ -154,7 +118,6 @@ function flattenTags(): FlattenedTag[] {
             camelCaseName: paramName,
             type: param,
             rustType: getParamRustType(param),
-            javaType: getParamJavaType(param),
           };
         });
         const breadcrumb2Param: FlattenedTagParam = {
@@ -162,14 +125,12 @@ function flattenTags(): FlattenedTag[] {
           camelCaseName: tag.interface.breadcrumb2,
           type: { type: "breadcrumbs" as const },
           rustType: "Breadcrumbs",
-          javaType: getParamJavaType({ type: "breadcrumbs" }),
         };
         const breadcrumb1Param: FlattenedTagParam = {
           snakeCaseName: changeCase.snakeCase(tag.interface.breadcrumb1),
           camelCaseName: tag.interface.breadcrumb1,
           type: { type: "breadcrumbs" as const },
           rustType: "Breadcrumbs",
-          javaType: getParamJavaType({ type: "breadcrumbs" }),
         };
         return [
           {
@@ -212,25 +173,6 @@ function getParamRustType(param: NodeTagParam) {
       return param.type satisfies never;
   }
   if (param.nullable) type = `Option<${type}>`;
-
-  return type;
-}
-
-function getParamJavaType(param: NodeTagParam) {
-  let type;
-  switch (param.type) {
-    case "string":
-      type = "Ljava/lang/String;";
-      break;
-    case "uint":
-      type = "I";
-      break;
-    case "breadcrumbs":
-      type = "Lcom/dallonf/ktcause/ast/Breadcrumbs;";
-      break;
-    default:
-      return param.type satisfies never;
-  }
 
   return type;
 }

@@ -1,12 +1,10 @@
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{BufWriter, Write};
 use std::sync::Arc;
 
-use jni::objects::{JClass, JObject, JString, JValue, JValueOwned};
+use jni::objects::{JClass, JObject, JString, JValueOwned};
 use jni::sys::jvalue;
 use jni::JNIEnv;
-use mapping::{IntoJni, JniInto};
+use mapping::JniInto;
 use rscause_compiler::ast::FileNode;
 use rscause_compiler::breadcrumbs::Breadcrumbs;
 use rscause_compiler::compile::compile;
@@ -14,9 +12,9 @@ use rscause_compiler::compiled_file::CompiledFile;
 use rscause_compiler::lang_types::{CanonicalLangType, CanonicalLangTypeId};
 use rscause_compiler::resolve_types::{resolve_types, ExternalFileDescriptor, ResolverError};
 use rscause_compiler::tags::NodeTag;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tap::Pipe;
-use util::{jtry, noisy_log};
+use util::jtry;
 
 mod mapping;
 mod util;
@@ -82,23 +80,4 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local
 struct RustCompilerResult {
     pub compiled_file: CompiledFile,
     pub errors: Vec<ResolverError>,
-}
-
-impl IntoJni for RustCompilerResult {
-    fn into_jni<'local>(
-        &self,
-        env: &mut jni::JNIEnv<'local>,
-    ) -> anyhow::Result<JValueOwned<'local>> {
-        noisy_log(env, "RustCompilerResult.into_jni");
-        let compiled_file = self.compiled_file.into_jni(env)?;
-        let errors = self.errors.into_jni(env)?;
-        let result = env
-            .new_object(
-                "com/dallonf/ktcause/RustCompiler$RustCompilerResult",
-                "(Lcom/dallonf/ktcause/CompiledFile;Ljava/util/List;)V",
-                &[compiled_file.borrow(), errors.borrow()],
-            )?
-            .into();
-        Ok(result)
-    }
 }

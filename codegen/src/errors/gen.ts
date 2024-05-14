@@ -9,7 +9,6 @@ const projectRoot = path.resolve(dirname, "../../../");
 export async function generateErrors() {
   await Promise.all([
     generateRustErrorTypes(),
-    generateMappings(),
     generateLangErrorRustSerializationKt(),
   ]);
 }
@@ -40,49 +39,6 @@ async function generateRustErrorTypes() {
 
   await Deno.writeTextFile(
     path.join(projectRoot, "rscause/rscause_compiler/src/gen/error_types.rs"),
-    output
-  );
-}
-
-async function generateMappings() {
-  const template = await compileTemplate(
-    "error_types_mapping.rs.handlebars",
-    import.meta.url
-  );
-
-  const errorTypesForTemplate = errorTypes.map((error) => {
-    return {
-      name: error.name,
-      hasFields:
-        error.fields !== undefined && Object.keys(error.fields).length > 0,
-      fields: Object.entries(error.fields ?? {}).map(([name, type]) => {
-        return {
-          name: rustFieldName(name),
-          rustType: rustFieldType(type),
-          getterName: changeCase.camelCase("get_" + name),
-          isInt: rustFieldType(type) === "u32",
-          isValueConstraintConversion:
-            rustFieldType(type) === "lang_types::LangType" &&
-            jniFieldType(type) ==
-              "Lcom/dallonf/ktcause/types/ConstraintValueLangType;",
-          jniType: jniFieldType(type),
-        };
-      }),
-      constructorParams: Object.entries(error.fields ?? {})
-        .map(([, type]) => jniFieldType(type))
-        .join(""),
-    };
-  });
-
-  const output = template({
-    errorTypes: errorTypesForTemplate,
-  });
-
-  await Deno.writeTextFile(
-    path.join(
-      projectRoot,
-      "rscause/rscause_jni/src/mapping/gen/error_types.rs"
-    ),
     output
   );
 }
@@ -184,37 +140,6 @@ function rustFieldType(type: FieldType): string {
       return `Box<${rustFieldType(type.type)}>`;
     case "arc":
       return `Arc<${rustFieldType(type.type)}>`;
-    default: {
-      return type satisfies never;
-    }
-  }
-}
-
-const jniTypeMap: Record<string, string> = {
-  u32: "I",
-  ErrorLangType: "Lcom/dallonf/ktcause/types/ErrorLangType;",
-  ConstraintValueLangType:
-    "Lcom/dallonf/ktcause/types/ConstraintValueLangType;",
-  ResolvedValueLangType: "Lcom/dallonf/ktcause/types/ResolvedValueLangType;",
-  OptionValueLangType: "Lcom/dallonf/ktcause/types/OptionValueLangType;",
-  ValueLangType: "Lcom/dallonf/ktcause/types/ValueLangType;",
-};
-
-function jniFieldType(type: FieldType): string {
-  if (typeof type === "string") {
-    if (type === "string") return "Ljava/lang/String;";
-    if (type in jniTypeMap) return jniTypeMap[type];
-    throw new Error(`Unknown JNI type ${type}`);
-  }
-  switch (type.kind) {
-    case "list":
-      return "Ljava/util/List;";
-    case "diverged":
-      return jniFieldType(type.kotlin);
-    case "optional":
-    case "box":
-    case "arc":
-      return jniFieldType(type.type);
     default: {
       return type satisfies never;
     }

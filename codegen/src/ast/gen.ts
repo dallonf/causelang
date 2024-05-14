@@ -14,7 +14,6 @@ export async function generateAst() {
     generateRustCompilerMetaKt(),
     generateAstRustSerializationKt(),
     generateAstNodesRs(),
-    generateAstMappingRs(),
   ]);
 }
 
@@ -55,7 +54,7 @@ async function generateAstRustSerializationKt() {
           case "int":
             return name;
           case "bigdecimal":
-            return `${name}.toPlainString()`
+            return `${name}.toPlainString()`;
           default:
             return type satisfies never;
         }
@@ -158,72 +157,6 @@ async function generateAstNodesRs() {
   );
 }
 
-async function generateAstMappingRs() {
-  const template = await compileTemplate(
-    "ast_mapping.rs.handlebars",
-    import.meta.url
-  );
-
-  const templateCategories = categories.map((category) => {
-    const suffixRegex = new RegExp(`${category.name}$`);
-    const name = `${category.name}Node`;
-    return {
-      name,
-      nodes: nodes
-        .filter((node) => node.category === category.name)
-        .map((node) => ({
-          categoryName: name,
-          variantName: node.name.replace(suffixRegex, ""),
-          nodeName: `${node.name}Node`,
-        })),
-    };
-  });
-
-  const templateNodes = nodes.map((node) => {
-    return {
-      name: `${node.name}Node`,
-      fields: Object.entries(node.fields).flatMap(
-        ([fieldName, type]): Record<string, unknown>[] => {
-          const rsName = changeCase.snakeCase(fieldName);
-          const rsType = rsFieldType(type, {
-            astNamespace: "ast",
-          });
-          const javaType = javaFieldType(type);
-          let getterName;
-          if (javaType === "Z" && fieldName.startsWith("is")) {
-            getterName = `${changeCase.camelCase(fieldName)}`;
-          } else {
-            getterName = `get${changeCase.pascalCase(fieldName)}`;
-          }
-          return [
-            {
-              isNode: true,
-              name: rsName,
-              getterName,
-              rsType,
-              javaType,
-              isBoolean: javaType === "Z",
-            },
-          ];
-        }
-      ),
-    };
-  });
-
-  const output = template({
-    breadcrumbNames: breadcrumbNames,
-    categories: templateCategories,
-    nodes: templateNodes,
-  });
-  await Deno.writeTextFile(
-    path.join(
-      projectRoot,
-      "rscause/rscause_jni/src/mapping/gen/ast_mapping.rs"
-    ),
-    output
-  );
-}
-
 function rsFieldType(
   type: NodeFieldType,
   opts: {
@@ -274,33 +207,6 @@ function isNode(type: NodeFieldType): boolean {
       return isNode(type.type);
     case "optional":
       return isNode(type.type);
-    default:
-      return type satisfies never;
-  }
-}
-
-function javaFieldType(type: NodeFieldType): string {
-  if (typeof type === "string") {
-    return `Lcom/dallonf/ktcause/ast/${type}Node;`;
-  }
-  switch (type.kind) {
-    case "primitive":
-      switch (type.type) {
-        case "string":
-          return "Ljava/lang/String;";
-        case "boolean":
-          return "Z";
-        case "int":
-          return "I";
-        case "bigdecimal":
-          return "Ljava/math/BigDecimal;";
-        default:
-          return type satisfies never;
-      }
-    case "list":
-      return `Ljava/util/List;`;
-    case "optional":
-      return javaFieldType(type.type);
     default:
       return type satisfies never;
   }
