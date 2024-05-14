@@ -6,6 +6,7 @@ import com.dallonf.ktcause.Resolver
 import com.dallonf.ktcause.RustCompiler
 import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.gen.InstructionRustSerialization
+import com.dallonf.ktcause.gen.LangErrorRustSerialization
 import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 import com.dallonf.ktcause.types.ErrorLangType
@@ -25,7 +26,7 @@ object CompilerResultRustSerialization {
     fun deserializeResolverError(resolverError: JsonElement): Resolver.ResolverError {
         require(resolverError is JsonObject)
         val position = deserializeSourcePosition(resolverError["position"]!!)
-        val error = LangTypeRustSerialization.deserializeErrorLangType(resolverError["error"]!!)
+        val error = LangErrorRustSerialization.deserializeErrorLangType(resolverError["error"]!!)
 
         return Resolver.ResolverError(position, error)
     }
@@ -124,7 +125,7 @@ object CompilerResultRustSerialization {
 
                     throw AssertionError("Can't parse an ErrorPosition: $errorPosition")
                 }
-                val error = LangTypeRustSerialization.deserializeErrorLangType(it["error"]!!)
+                val error = LangErrorRustSerialization.deserializeErrorLangType(it["error"]!!)
                 return CompiledFile.CompiledConstant.ErrorConst(sourcePosition, error)
             }
 

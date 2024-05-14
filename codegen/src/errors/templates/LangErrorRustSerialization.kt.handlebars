@@ -1,0 +1,41 @@
+package com.dallonf.ktcause.gen
+
+import com.dallonf.ktcause.types.ErrorLangType
+import kotlinx.serialization.json.*
+
+object LangErrorRustSerialization {
+  fun deserializeErrorLangType(langError: JsonElement): ErrorLangType {
+    if (langError is JsonObject) {
+      {{#each errorTypes}}
+      {{#if this.hasFields}}
+      langError["{{this.name}}"]?.let {
+        return deserialize{{this.name}}ErrorLangType(it)
+      }
+      {{/if}}
+      {{/each}}
+    }
+
+    if (langError is JsonPrimitive) {
+      val errorName = langError.content
+      return when (errorName) {
+        {{#each errorTypes}}
+        {{#unless this.hasFields}}
+        "{{this.name}}" -> ErrorLangType.{{this.name}}
+        {{/unless}}
+        {{/each}}
+        else -> throw AssertionError("Unknown error type: $errorName")
+      }
+    }
+
+    throw AssertionError("Can't parse as an error: $langError")
+  }
+  {{#each errorTypes}}
+  {{#if this.hasFields}}
+  
+  fun deserialize{{this.name}}ErrorLangType(error: JsonElement): ErrorLangType.{{this.name}} {
+    require(error is JsonObject)
+    TODO()
+  }
+  {{/if}}
+  {{/each}}
+}

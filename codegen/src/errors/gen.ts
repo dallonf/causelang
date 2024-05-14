@@ -7,7 +7,11 @@ const dirname = path.dirname(path.fromFileUrl(import.meta.url));
 const projectRoot = path.resolve(dirname, "../../../");
 
 export async function generateErrors() {
-  await Promise.all([generateRustErrorTypes(), generateMappings()]);
+  await Promise.all([
+    generateRustErrorTypes(),
+    generateMappings(),
+    generateLangErrorRustSerializationKt(),
+  ]);
 }
 
 async function generateRustErrorTypes() {
@@ -78,6 +82,32 @@ async function generateMappings() {
     path.join(
       projectRoot,
       "rscause/rscause_jni/src/mapping/gen/error_types.rs"
+    ),
+    output
+  );
+}
+
+async function generateLangErrorRustSerializationKt() {
+  const template = await compileTemplate(
+    "LangErrorRustSerialization.kt.handlebars",
+    import.meta.url
+  );
+
+  const errorTypesForTemplate = errorTypes.map((error) => {
+    return {
+      ...error,
+      hasFields: Object.keys(error.fields ?? {}).length > 0,
+    };
+  });
+
+  const output = template({
+    errorTypes: errorTypesForTemplate,
+  });
+
+  await Deno.writeTextFile(
+    path.join(
+      projectRoot,
+      "ktcause/src/main/kotlin/com/dallonf/ktcause/gen/LangErrorRustSerialization.kt"
     ),
     output
   );

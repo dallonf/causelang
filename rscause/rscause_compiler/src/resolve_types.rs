@@ -5,8 +5,8 @@ use crate::ast::{
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
     compiler_bug_error, ActionIncompatibleWithValueTypesError, CompilerBugError, ErrorPosition,
-    ImplementationTodoError, LangError, MismatchedTypeError, SourcePosition,
-    UnreachableBranchError, ValueUsedAsConstraintError,
+    ImplementationTodoError, LangError, MismatchedTypeError, MissingElseBranchError,
+    SourcePosition, UnreachableBranchError, ValueUsedAsConstraintError,
 };
 use crate::find_tag;
 use crate::lang_types::{
@@ -714,7 +714,8 @@ impl ResolveTypes for ast::BranchExpressionNode {
 
         if !with_value.options.is_empty() {
             possible_return_values.push(PossibleReturnValue {
-                value: LangError::MissingElseBranch.into(),
+                value: LangError::MissingElseBranch(MissingElseBranchError { options: None })
+                    .into(),
                 source: None,
             })
         }

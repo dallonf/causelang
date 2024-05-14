@@ -80,6 +80,14 @@ export const errorTypes: ErrorTypeDeclaration[] = [
   },
   {
     name: "MissingElseBranch",
+    fields: {
+      options: optional(
+        diverged({
+          rust: "lang_types::OneOfLangType",
+          kotlin: "OptionValueLangType",
+        })
+      ),
+    },
   },
   {
     name: "UnreachableBranch",

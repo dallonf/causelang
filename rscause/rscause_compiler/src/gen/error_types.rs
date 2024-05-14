@@ -13,7 +13,7 @@ pub enum LangError {
     MissingParameters(MissingParametersError),
     ExcessParameters(ExcessParametersError),
     UnknownParameter,
-    MissingElseBranch,
+    MissingElseBranch(MissingElseBranchError),
     UnreachableBranch(UnreachableBranchError),
     ActionIncompatibleWithValueTypes(ActionIncompatibleWithValueTypesError),
     ConstraintUsedAsValue(ConstraintUsedAsValueError),
@@ -48,6 +48,10 @@ pub struct MissingParametersError {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExcessParametersError {
     pub expected: u32,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MissingElseBranchError {
+    pub options: Option<lang_types::OneOfLangType>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnreachableBranchError {

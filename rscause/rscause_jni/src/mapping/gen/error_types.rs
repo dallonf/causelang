@@ -103,7 +103,16 @@ impl FromJni for LangError {
         Ok(LangError::UnknownParameter)
       },
       "MissingElseBranch" => {
-        Ok(LangError::MissingElseBranch)
+        let options: Option<lang_types::OneOfLangType> = {
+          let jni_node = env
+            .call_method(value, "getOptions", "()Lcom/dallonf/ktcause/types/OptionValueLangType;", &[])?
+            .l()?;
+          let jni_node = JObject::from(jni_node);
+          jni_node.jni_into(env)?
+        };
+        Ok(LangError::MissingElseBranch(error_types::MissingElseBranchError {
+          options,
+        }).into())
       },
       "UnreachableBranch" => {
         let options: Option<lang_types::OneOfLangType> = {
@@ -283,9 +292,11 @@ impl IntoJni for LangError {
         ])?;
         Ok(result.into())
       },
-      LangError::MissingElseBranch => {
+      LangError::MissingElseBranch(err) => {
         let class = env.find_class("com/dallonf/ktcause/types/ErrorLangType$MissingElseBranch")?;
-        let result = env.new_object(class, "()V", &[
+        let options = err.options.into_jni(env)?;
+        let result = env.new_object(class, "(Lcom/dallonf/ktcause/types/OptionValueLangType;)V", &[
+          options.borrow(),
         ])?;
         Ok(result.into())
       },

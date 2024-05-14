@@ -1,5 +1,6 @@
 package com.dallonf.ktcause.serialization
 
+import com.dallonf.ktcause.gen.LangErrorRustSerialization
 import com.dallonf.ktcause.types.*
 import kotlinx.serialization.json.*
 
@@ -104,7 +105,7 @@ object LangTypeRustSerialization {
             }
 
             anyInferredLangType["Error"]?.let {
-                return deserializeErrorLangType(it)
+                return LangErrorRustSerialization.deserializeErrorLangType(it)
             }
 
             // TODO: Pending
@@ -116,11 +117,6 @@ object LangTypeRustSerialization {
 
     fun serializeLangError(errorLangType: ErrorLangType): JsonElement {
         return JsonPrimitive("TODO")
-    }
-
-    fun deserializeErrorLangType(langError: JsonElement): ErrorLangType {
-        // TODO
-        return ErrorLangType.NotSupportedInRust
     }
 
 
