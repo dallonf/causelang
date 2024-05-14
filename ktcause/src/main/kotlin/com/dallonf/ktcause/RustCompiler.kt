@@ -66,7 +66,15 @@ object RustCompiler {
             Mode.ALWAYS -> true
             Mode.NEVER -> false
             Mode.IF_SUPPORTED -> {
-                getReasonsNotSupported(ast, analyzed, path, otherFiles).none()
+                val reasonsNotSupported = getReasonsNotSupported(ast, analyzed, path, otherFiles).toList()
+                if (reasonsNotSupported.isNotEmpty()) {
+                    println(
+                        "NOTE: Falling back to Kotlin compiler:\n" + reasonsNotSupported.joinToString(
+                            "\n"
+                        )
+                    )
+                }
+                reasonsNotSupported.none()
             }
 
             Mode.ASSERT_SUPPORTED -> {
