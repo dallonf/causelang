@@ -454,6 +454,12 @@ impl ResolveTypes for ast::FunctionNode {
         });
         let get_inferred_return_type = || ctx.get_resolved_type_proxying_errors(&self.body);
         let return_type = explicit_return_type.unwrap_or_else(get_inferred_return_type);
+
+        ctx.contraints.push((
+            self.body.breadcrumbs().clone(),
+            TypeConstaint::EqualTo(return_type.clone()),
+        ));
+
         let function_type = FunctionLangType { name, return_type };
         Some(function_type.into())
     }
@@ -633,11 +639,11 @@ impl ResolveTypes for ast::BranchExpressionNode {
             .unwrap_or(LangType::Anything.into())
             .pipe(|it| OneOfLangType::new_with_one(it.into()));
 
-        struct PossibleReturnValue {
+        struct PossibleResultValue {
             value: AnyInferredLangType,
             source: Option<SourcePosition>,
         }
-        let mut possible_return_values = Vec::<PossibleReturnValue>::new();
+        let mut possible_return_values = Vec::<PossibleResultValue>::new();
 
         let branches_before_else = self
             .branches
@@ -678,7 +684,7 @@ impl ResolveTypes for ast::BranchExpressionNode {
             }
 
             let source_position = ctx.get_source_position(branch);
-            possible_return_values.push(PossibleReturnValue {
+            possible_return_values.push(PossibleResultValue {
                 value: resolved_type,
                 source: source_position.clone().into(),
             })
@@ -691,7 +697,7 @@ impl ResolveTypes for ast::BranchExpressionNode {
         if let Some(else_branch) = else_branch {
             with_value = OneOfLangType::new(vec![]);
             let resolved_type = ctx.get_resolved_type_proxying_errors(&else_branch.body);
-            possible_return_values.push(PossibleReturnValue {
+            possible_return_values.push(PossibleResultValue {
                 value: resolved_type,
                 source: ctx.get_source_position(else_branch.as_ref()).into(),
             });
@@ -706,14 +712,14 @@ impl ResolveTypes for ast::BranchExpressionNode {
             let unreachable_error =
                 LangError::UnreachableBranch(UnreachableBranchError { options: None });
             let source_position = ctx.get_source_position(branch);
-            possible_return_values.push(PossibleReturnValue {
+            possible_return_values.push(PossibleResultValue {
                 value: unreachable_error.into(),
                 source: source_position.clone().into(),
             });
         }
 
         if !with_value.options.is_empty() {
-            possible_return_values.push(PossibleReturnValue {
+            possible_return_values.push(PossibleResultValue {
                 value: LangError::MissingElseBranch(MissingElseBranchError { options: None })
                     .into(),
                 source: None,

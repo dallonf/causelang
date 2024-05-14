@@ -111,7 +111,6 @@ object RustCompiler {
 
         val unsupportedTypeAnnotations = ast.allDescendants().filter {
             when (it) {
-                is FunctionNode -> it.returnType != null
                 else -> false
             }
         }
@@ -130,6 +129,11 @@ object RustCompiler {
             }
         }
         yieldAll(typeErrorsOnlyKtResolverWouldFind.map { "Found type error that the Rust resolver can't output yet: $it" })
+
+        val nestedFunctions = ast.allDescendants().filter {
+            it is FunctionNode && it.allAncestors(ast).any { ancestor -> ancestor is FunctionNode }
+        }
+        yieldAll(nestedFunctions.map { "Found a nested function at $it" })
     }
 
     val supportedCoreImports = setOf("core/builtin.cau", "core/math")

@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
+use std::hash::Hash;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -16,6 +17,7 @@ use crate::instructions::{
     PopScopeInstruction, PushActionInstruction, ReadLocalInstruction,
     ReadLocalThroughEffectScopeInstruction, ReturnInstruction,
 };
+use crate::resolve_types::ResolverError;
 use crate::tags::{ReferencesFileNodeTag, TopLevelDeclarationNodeTag};
 use crate::{
     ast,
@@ -40,6 +42,7 @@ struct CompilerContext {
     path: Arc<String>,
     procedures: Vec<Procedure>,
     types: Arc<ResolveTypesResult>,
+    constraint_errors: Arc<HashMap<Breadcrumbs, Vec<LangError>>>,
     canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
     scope_stack: VecDeque<Rc<RefCell<CompilerScope>>>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
@@ -88,6 +91,12 @@ impl CompilerContext {
             InferredType::InferenceVariable(_) => Some(LangError::NeverResolved.into()),
             InferredType::Known(_) => None,
         }
+        .or_else(|| {
+            self.constraint_errors
+                .get(breadcrumbs)
+                .and_then(|errors_at_position| errors_at_position.iter().next())
+                .map(|it| it.to_owned().into())
+        })
         .pipe(Ok)
     }
 }
@@ -230,11 +239,20 @@ pub fn compile(
     canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
     types: Arc<ResolveTypesResult>,
 ) -> Result<CompiledFile> {
+    let constraint_errors = {
+        let mut errors = HashMap::new();
+        for ResolverError { error, position } in types.errors.iter() {
+            let errors_at_position = errors.entry(position.breadcrumbs.clone()).or_insert(vec![]);
+            errors_at_position.push(error.clone());
+        }
+        Arc::new(errors)
+    };
     let mut ctx = CompilerContext {
         path: path.clone(),
         procedures: Vec::new(),
         canonical_types,
         types,
+        constraint_errors,
         scope_stack: VecDeque::new(),
         node_tags,
     };
@@ -297,7 +315,9 @@ fn compile_function_declaration(
         ctx,
         |procedure, ctx| {
             compile_body(&function.body, procedure, ctx)?;
-            // TODO: report errors
+            if let Some(error) = ctx.check_for_runtime_error(function.body.breadcrumbs())? {
+                compile_bad_value((&function.body).into(), error, procedure, ctx)?;
+            }
             Ok(())
         },
     )
