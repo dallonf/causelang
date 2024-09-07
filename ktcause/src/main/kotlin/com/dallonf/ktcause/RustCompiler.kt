@@ -97,12 +97,6 @@ object RustCompiler {
         val incompatibleNodes = getIncompatibleNodeTypes(ast)
         yieldAll(incompatibleNodes.map { "Incompatible node type: $it" })
 
-        val functionDeclarationsWithParameters = run {
-            val functions = ast.allDescendants().mapNotNull { it as? FunctionNode }
-            functions.filter { it.params.isNotEmpty() }
-        }
-        yieldAll(functionDeclarationsWithParameters.map { "Declared function by the name of ${it.name.text} has parameters" })
-
         val unsupportedImports = run {
             val imports = ast.allDescendants().mapNotNull { it as? ImportNode }
             imports.filter { !supportedCoreImports.contains(it.path.path) }
@@ -144,7 +138,7 @@ object RustCompiler {
         yieldAll(nestedFunctions.map { "Found a nested function at $it" })
     }
 
-    val supportedCoreImports = setOf("core/builtin.cau", "core/math")
+    val supportedCoreImports = setOf("core/builtin.cau", "core/math", "core/text")
     private val supportedCoreBuiltins = setOf("Debug", "Action", "Text", "Number", "equals")
     private val unsupportedIdentifiers = setOf("AssumptionBroken")
 
