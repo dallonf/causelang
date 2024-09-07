@@ -1,9 +1,12 @@
 use std::{any::Any, borrow::Borrow, str::FromStr, sync::Arc};
 
 use anyhow::anyhow;
-use serde::{de, Deserialize, Serialize};
+use serde::{
+    de::{self, value},
+    Deserialize, Serialize,
+};
 
-use crate::error_types::LangError;
+use crate::error_types::{ConstraintUsedAsValueError, LangError};
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum InferredType<T> {
@@ -83,16 +86,35 @@ pub enum LangType {
     OneOf(OneOfLangType),
 }
 
+impl LangType {
+    /// If this is a TypeReference, extract the value type
+    pub fn get_referenced_value_type(&self) -> AnyInferredLangType {
+        match self {
+            LangType::TypeReference(value_type) => value_type.clone(),
+            _ => LangError::ConstraintUsedAsValue(ConstraintUsedAsValueError {
+                r#type: self.to_owned(),
+            })
+            .into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct FunctionLangType {
     pub name: Arc<String>,
-    // TODO: pub params
+    pub params: Vec<LangParameter>,
     pub return_type: AnyInferredLangType,
 }
 impl From<FunctionLangType> for LangType {
     fn from(value: FunctionLangType) -> Self {
         Self::Function(value)
     }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct LangParameter {
+    pub name: Arc<String>,
+    pub value_type: AnyInferredLangType,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]

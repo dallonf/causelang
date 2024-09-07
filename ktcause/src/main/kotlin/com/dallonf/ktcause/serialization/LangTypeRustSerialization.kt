@@ -137,7 +137,7 @@ object LangTypeRustSerialization {
     fun serializeFunctionLangType(functionValueLangType: FunctionValueLangType): JsonElement {
         return buildJsonObject {
             put("name", functionValueLangType.name)
-            // TODO: params
+            put("params", functionValueLangType.params.map { serializeLangParam(it) }.let { JsonArray(it) })
             put("return_type", serializeAnyInferredLangType(functionValueLangType.returnConstraint.asValueType()))
         }
     }
@@ -145,10 +145,24 @@ object LangTypeRustSerialization {
     fun deserializeFunctionValueLangType(functionLangType: JsonElement): FunctionValueLangType {
         require(functionLangType is JsonObject)
         val name = (functionLangType["name"] as JsonPrimitive).content
-        // TODO: params
+        val params = (functionLangType["params"] as JsonArray).map { deserializeLangParam(it) }
         val returnType = deserializeValueLangType(functionLangType["return_type"]!!)
 
-        return FunctionValueLangType(name, returnType.valueToConstraintReference(), listOf())
+        return FunctionValueLangType(name, returnType.valueToConstraintReference(), params)
+    }
+
+    fun serializeLangParam(langParameter: LangParameter): JsonElement {
+        return buildJsonObject {
+            put("name", langParameter.name)
+            put("value_type", serializeAnyInferredLangType(langParameter.valueConstraint.asValueType()))
+        }
+    }
+
+    fun deserializeLangParam(langParameter: JsonElement): LangParameter {
+        require(langParameter is JsonObject)
+        val name = (langParameter["name"] as JsonPrimitive).content
+        val valueConstraint = deserializeValueLangType(langParameter["value_type"]!!).valueToConstraintReference()
+        return LangParameter(name, valueConstraint)
     }
 
 
@@ -182,8 +196,7 @@ object LangTypeRustSerialization {
 
     fun deserializeOptionValueLangType(oneOfLangType: JsonElement): OptionValueLangType {
         require(oneOfLangType is JsonObject)
-        val options = (oneOfLangType["options"] as JsonArray)
-            .map { deserializeValueLangType(it) }
+        val options = (oneOfLangType["options"] as JsonArray).map { deserializeValueLangType(it) }
             .map { it.valueToConstraintReference() }
         return OptionValueLangType(options)
     }

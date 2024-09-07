@@ -4,16 +4,18 @@ use crate::ast::{
 };
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
-    compiler_bug_error, ActionIncompatibleWithValueTypesError, CompilerBugError, ErrorPosition,
-    ImplementationTodoError, LangError, MismatchedTypeError, MissingElseBranchError,
-    SourcePosition, UnreachableBranchError, ValueUsedAsConstraintError,
+    compiler_bug_error, ActionIncompatibleWithValueTypesError, CompilerBugError,
+    ConstraintUsedAsValueError, ErrorPosition, ExcessParametersError, ImplementationTodoError,
+    LangError, MismatchedTypeError, MissingElseBranchError, MissingParametersError, SourcePosition,
+    UnreachableBranchError, ValueUsedAsConstraintError,
 };
 use crate::find_tag;
 use crate::lang_types::{
     AnyInferredLangType, CanonicalLangType, CanonicalLangTypeId, FunctionLangType, InferredType,
-    LangType, OneOfLangType, PrimitiveLangType,
+    LangParameter, LangType, OneOfLangType, PrimitiveLangType,
 };
 use crate::tags::NodeTag;
+use serde::de::value;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -373,7 +375,10 @@ impl ResolveTypes for AnyAstNode {
             Self::IdentifierTypeReference(node) => resolve_identifier_type_reference(node, ctx),
             Self::Pattern(_) => todo!("Pattern"),
             Self::FunctionSignatureParameter(node) => node.compute_type(ctx),
-            Self::FunctionCallParameter(_) => None, /* TODO? typechecking */
+            Self::FunctionCallParameter(node) => {
+                let value_type = ctx.get_resolved_type_proxying_errors(&node.value);
+                Some(value_type)
+            }
             Self::SingleStatementBody(node) => node.compute_type(ctx),
             Self::BranchExpression(node) => node.compute_type(ctx),
             Self::IfBranchOption(_) => None,
@@ -442,16 +447,24 @@ impl ResolveTypes for ast::FunctionNode {
         let name = self.name.text.clone();
         let explicit_return_type = self.return_type.as_ref().map(|it| {
             let type_reference = ctx.get_resolved_type_proxying_errors(it);
-            type_reference.and_then(|type_reference| match type_reference.as_ref() {
-                LangType::TypeReference(referenced_type) => referenced_type.clone(),
-                _ => InferredType::Error(
-                    LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
-                        r#type: AnyInferredLangType::Known(type_reference.clone()),
-                    })
-                    .into(),
-                ),
-            })
+            type_reference.and_then(|type_reference| type_reference.get_referenced_value_type())
         });
+        let params: Vec<_> = self
+            .params
+            .iter()
+            .map(|param_node| {
+                let value_type = param_node
+                    .type_reference
+                    .as_ref()
+                    .map(|it| ctx.get_resolved_type_proxying_errors(it))
+                    .unwrap_or_else(|| LangError::NeverResolved.into())
+                    .and_then(|it| it.get_referenced_value_type());
+                LangParameter {
+                    name: param_node.name.text.clone(),
+                    value_type,
+                }
+            })
+            .collect();
         let get_inferred_return_type = || ctx.get_resolved_type_proxying_errors(&self.body);
         let return_type = explicit_return_type.unwrap_or_else(get_inferred_return_type);
 
@@ -460,7 +473,11 @@ impl ResolveTypes for ast::FunctionNode {
             TypeConstaint::EqualTo(return_type.clone()),
         ));
 
-        let function_type = FunctionLangType { name, return_type };
+        let function_type = FunctionLangType {
+            name,
+            params,
+            return_type,
+        };
         Some(function_type.into())
     }
 }
@@ -511,23 +528,68 @@ impl ResolveTypes for ast::CauseExpressionNode {
 impl ResolveTypes for ast::CallExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let callee_type = ctx.get_resolved_type_proxying_errors(&self.callee);
-        let result_type =
-            callee_type
+        let callee_type = match callee_type.to_result() {
+            Ok(it) => it,
+            Err(err) => return Some(InferredType::Error(err.into())),
+        };
+
+        let result_type = match callee_type.as_ref() {
+            LangType::Function(function_type) => Ok(function_type.return_type.clone()),
+            LangType::TypeReference(referenced_type) => referenced_type
+                .clone()
                 .to_result()
-                .and_then(|callee_type| match callee_type.as_ref() {
-                    LangType::Function(function_type) => Ok(function_type.return_type.clone()),
-                    LangType::TypeReference(referenced_type) => referenced_type
-                        .clone()
-                        .to_result()
-                        .and_then(|referenced_type| {
-                            let instance_type = match referenced_type.as_ref() {
-                                LangType::Instance(instance) => Ok(instance),
-                                _ => Err(LangError::NotCallable),
-                            }?;
-                            Ok(instance_type.clone().into())
-                        }),
-                    _ => Err(LangError::NotCallable.into()),
-                });
+                .and_then(|referenced_type| {
+                    let instance_type = match referenced_type.as_ref() {
+                        LangType::Instance(instance) => Ok(instance),
+                        _ => Err(LangError::NotCallable),
+                    }?;
+                    Ok(instance_type.clone().into())
+                }),
+            _ => Err(LangError::NotCallable.into()),
+        };
+
+        let parameters = match callee_type.as_ref() {
+            LangType::Function(function_type) => Ok(function_type.params.clone()),
+            LangType::TypeReference(_referenced_type) => {
+                if self.parameters.len() == 0 {
+                    Ok(vec![])
+                } else {
+                    Err(LangError::NotSupportedInRust)
+                }
+            }
+            _ => Err(LangError::NotCallable.into()),
+        };
+        if let Ok(parameters) = parameters {
+            match self.parameters.len().cmp(&parameters.len()) {
+                std::cmp::Ordering::Less => {
+                    return Some(
+                        LangError::MissingParameters(MissingParametersError {
+                            names: parameters[self.parameters.len()..]
+                                .into_iter()
+                                .map(|it| it.name.as_ref().to_owned())
+                                .collect(),
+                        })
+                        .into(),
+                    )
+                }
+                std::cmp::Ordering::Greater => {
+                    return Some(
+                        LangError::ExcessParameters(ExcessParametersError {
+                            expected: parameters.len() as u32,
+                        })
+                        .into(),
+                    )
+                }
+                std::cmp::Ordering::Equal => {}
+            }
+            for (lang_param, param_node) in parameters.iter().zip(self.parameters.iter()) {
+                ctx.contraints.push((
+                    param_node.breadcrumbs().clone(),
+                    TypeConstaint::EqualTo(lang_param.value_type.clone()),
+                ))
+            }
+        }
+
         Some(result_type.unwrap_or_else(|err| InferredType::Error(err.into())))
     }
 }
