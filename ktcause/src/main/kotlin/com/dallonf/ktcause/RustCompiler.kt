@@ -136,6 +136,15 @@ object RustCompiler {
             it is FunctionNode && it.allAncestors(ast).any { ancestor -> ancestor is FunctionNode }
         }
         yieldAll(nestedFunctions.map { "Found a nested function at $it" })
+
+        val recursiveFunctions = ast.allDescendants().mapNotNull { it as? FunctionNode }.filter {
+            val name = it.name.text
+            val callsItself =
+                it.allDescendants()
+                    .any { it is CallExpressionNode && it.callee is IdentifierExpressionNode && it.callee.identifier.text == name }
+            callsItself
+        }
+        yieldAll(recursiveFunctions.map { "Found a function that calls itself at ${it.info.breadcrumbs}" })
     }
 
     val supportedCoreImports = setOf("core/builtin.cau", "core/math", "core/text")
