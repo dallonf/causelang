@@ -852,8 +852,10 @@ impl ResolveTypes for SingleStatementBodyNode {
 
 impl ResolveTypes for FunctionSignatureParameterNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        if let Some(type_reference) = &self.type_reference {
-            let referenced_type = ctx.get_resolved_type_proxying_errors(type_reference);
+        if let Some(type_reference_node) = &self.type_reference {
+            let referenced_type = ctx
+                .get_resolved_type_proxying_errors(type_reference_node)
+                .and_then(|it| it.get_referenced_value_type());
             return Some(referenced_type);
         } else {
             return Some(
