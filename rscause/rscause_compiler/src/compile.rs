@@ -2,10 +2,11 @@ use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
 use std::rc::Rc;
+use std::result;
 use std::sync::Arc;
 
 use crate::ast::{AnyAstNode, AstNode, NodeInfo};
-use crate::breadcrumbs::HasBreadcrumbs;
+use crate::breadcrumbs::{self, HasBreadcrumbs};
 use crate::compiled_file::{CompiledConstant, ErrorConst, ProcedureInstructionMapping};
 use crate::error_types::{CompilerBugError, ErrorPosition, LangError, SourcePosition};
 use crate::find_tag;
@@ -79,7 +80,7 @@ impl CompilerContext {
             .unwrap_or_else(|| vec![])
     }
 
-    fn check_for_runtime_error(&self, breadcrumbs: &Breadcrumbs) -> Result<Option<Arc<LangError>>> {
+    fn check_for_badtype_error(&self, breadcrumbs: &Breadcrumbs) -> Result<Option<Arc<LangError>>> {
         let found_type = self
             .types
             .value_types
@@ -315,7 +316,7 @@ fn compile_function_declaration(
         ctx,
         |procedure, ctx| {
             compile_body(&function.body, procedure, ctx)?;
-            if let Some(error) = ctx.check_for_runtime_error(function.body.breadcrumbs())? {
+            if let Some(error) = ctx.check_for_badtype_error(function.body.breadcrumbs())? {
                 compile_bad_value((&function.body).into(), error, procedure, ctx)?;
             }
             Ok(())
@@ -487,7 +488,7 @@ fn compile_local_declaration(
             // TODO: captured values
             let new_procedure = compile_function_declaration(&function, ctx)?;
 
-            if let Some(error) = ctx.check_for_runtime_error(function.breadcrumbs())? {
+            if let Some(error) = ctx.check_for_badtype_error(function.breadcrumbs())? {
                 compile_bad_value(function.into(), error, procedure, ctx)?;
             } else {
                 ctx.procedures.push(new_procedure);
@@ -522,7 +523,7 @@ fn compile_local_declaration(
         }
         ast::DeclarationNode::NamedValue(named_value) => {
             compile_expression(&named_value.value, procedure, ctx)?;
-            if let Some(error) = ctx.check_for_runtime_error(named_value.breadcrumbs())? {
+            if let Some(error) = ctx.check_for_badtype_error(named_value.breadcrumbs())? {
                 procedure.write_instruction(
                     Instruction::Pop(PopInstruction { number: 1 }),
                     Some(named_value.info()),
@@ -552,16 +553,16 @@ fn compile_expression(
 ) -> Result<()> {
     match expression {
         ast::ExpressionNode::Branch(expression) => {
-            compile_branch_expression(&expression, procedure, ctx)
+            compile_branch_expression(&expression, procedure, ctx)?;
         }
         ast::ExpressionNode::Cause(expression) => {
-            compile_cause_expression(expression.clone(), procedure, ctx)
+            compile_cause_expression(expression.clone(), procedure, ctx)?;
         }
         ast::ExpressionNode::Call(expression) => {
-            compile_call_expression(expression, procedure, ctx)
+            compile_call_expression(expression, procedure, ctx)?;
         }
         ast::ExpressionNode::Identifier(expression) => {
-            compile_identifier_expression(expression.clone(), procedure, ctx)
+            compile_identifier_expression(expression.clone(), procedure, ctx)?;
         }
         ast::ExpressionNode::StringLiteral(expression) => {
             let constant =
@@ -570,7 +571,6 @@ fn compile_expression(
                 Instruction::Literal(LiteralInstruction { constant }),
                 Some(&expression.info),
             );
-            Ok(())
         }
         ast::ExpressionNode::NumberLiteral(expression) => {
             let numerator = expression.value.mantissa().into();
@@ -581,9 +581,18 @@ fn compile_expression(
                 Instruction::Literal(LiteralInstruction { constant }),
                 Some(&expression.info),
             );
-            Ok(())
         }
+    };
+
+    let result_error = ctx.check_for_badtype_error(expression.breadcrumbs())?;
+    if let Some(result_error) = result_error {
+        procedure.write_instruction(
+            Instruction::Pop(PopInstruction { number: 1 }),
+            expression.info().into(),
+        );
+        compile_bad_value(expression.into(), result_error, procedure, ctx)?;
     }
+    Ok(())
 }
 
 fn compile_identifier_expression(
@@ -601,7 +610,7 @@ fn compile_cause_expression(
 ) -> Result<()> {
     compile_expression(&expression.signal, procedure, ctx)?;
 
-    if let Some(error) = ctx.check_for_runtime_error(&expression.breadcrumbs())? {
+    if let Some(error) = ctx.check_for_badtype_error(&expression.breadcrumbs())? {
         let error_const = add_error_constant(error, &AnyAstNode::from(&expression), procedure, ctx);
         compile_type_error(error_const, procedure);
         return Ok(());
@@ -623,7 +632,14 @@ fn compile_call_expression(
 
     for param in &expression.parameters {
         compile_expression(&param.value, procedure, ctx)?;
-        // TODO: handle errors
+        let badvalue = ctx.check_for_badtype_error(param.breadcrumbs())?;
+        if let Some(badvalue) = badvalue {
+            procedure.write_instruction(
+                Instruction::Pop(PopInstruction { number: 1 }),
+                Some(&param.info),
+            );
+            compile_bad_value(param.into(), badvalue, procedure, ctx)?;
+        }
     }
 
     // TODO: handle an error preventing the call
