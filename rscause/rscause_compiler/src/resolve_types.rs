@@ -110,7 +110,23 @@ pub fn resolve_types(
             }
             .clone();
             match constraint {
-                TypeConstaint::AssignableTo(_) => todo!(),
+                TypeConstaint::AssignableTo(expected_type) => {
+                    if let InferredType::Known(expected_type) = expected_type {
+                        if !actual_type.is_assignable_to(&expected_type) {
+                            Some(ResolverError::new(
+                                source_position,
+                                LangError::MismatchedType(MismatchedTypeError {
+                                    expected: expected_type.as_ref().clone(),
+                                    actual: actual_type,
+                                }),
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
                 TypeConstaint::EqualTo(expected_type) => {
                     if let InferredType::Known(expected_type) = expected_type {
                         if &actual_type != expected_type {
@@ -587,7 +603,7 @@ impl ResolveTypes for ast::CallExpressionNode {
             for (lang_param, param_node) in parameters.iter().zip(self.parameters.iter()) {
                 ctx.contraints.push((
                     param_node.breadcrumbs().clone(),
-                    TypeConstaint::EqualTo(lang_param.value_type.clone()),
+                    TypeConstaint::AssignableTo(lang_param.value_type.clone()),
                 ))
             }
         }
