@@ -15,12 +15,14 @@ use crate::lang_types::{
     LangParameter, LangType, OneOfLangType, PrimitiveLangType,
 };
 use crate::tags::NodeTag;
+use itertools::Itertools;
 use serde::de::value;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::sync::Arc;
-use tap::Pipe;
+use tap::{Pipe, Tap};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExternalFileDescriptor {
@@ -701,6 +703,7 @@ impl ResolveTypes for ast::BranchExpressionNode {
             .unwrap_or(LangType::Anything.into())
             .pipe(|it| OneOfLangType::new_with_one(it.into()));
 
+        #[derive(Debug)]
         struct PossibleResultValue {
             value: AnyInferredLangType,
             source: Option<SourcePosition>,

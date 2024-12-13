@@ -283,25 +283,24 @@ impl OneOfLangType {
                     continue;
                 };
 
-                let is_duplicate = not_duplicated.iter().any(|existing_type| {
+                // first check if the the type is already covered by the options in `not_duplicated`
+                let is_already_covered = not_duplicated.iter().any(|existing_type| {
                     OneOfLangType::is_mergeable(&possible_type.clone().into(), existing_type)
                 });
-                if !is_duplicate {
-                    let redundant_extra_types = not_duplicated
-                        .iter()
+                if !is_already_covered {
+                    // make sure none of the existing options in `not_duplicated``
+                    // would be made redundant by adding `possible_type`
+                    // (i.e. they are more specific than `possible_type`)
+                    not_duplicated = not_duplicated
+                        .into_iter()
                         .filter(|existing_type| {
-                            OneOfLangType::is_mergeable(
+                            !OneOfLangType::is_mergeable(
                                 &possible_type.clone().into(),
                                 existing_type,
                             )
                         })
-                        .cloned()
-                        .collect_vec();
+                        .collect();
                     not_duplicated.push(possible_type.clone().into());
-                    not_duplicated = not_duplicated
-                        .into_iter()
-                        .filter(|existing| redundant_extra_types.contains(existing))
-                        .collect_vec();
                 }
             }
             not_duplicated
