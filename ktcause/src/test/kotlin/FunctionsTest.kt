@@ -371,7 +371,7 @@ class FunctionsTest {
                     }
                     
                     function main() {
-                        let result = count_down(3)
+                        let result: Number = count_down(3)
                         cause Debug(result)
                     }
                 """.trimIndent()
