@@ -1,4 +1,5 @@
-use std::{any::Any, borrow::Borrow, str::FromStr, sync::Arc};
+use crate::prelude::*;
+use std::{str::FromStr, sync::Arc};
 
 use anyhow::anyhow;
 use serde::{
@@ -44,6 +45,14 @@ impl<T> InferredType<T> {
             InferredType::InferenceVariable(var) => InferredType::InferenceVariable(var),
         }
     }
+
+    pub fn as_known(&self) -> Option<&T> {
+        if let InferredType::Known(known) = self {
+            Some(known)
+        } else {
+            None
+        }
+    }
 }
 impl<T> From<LangError> for InferredType<T> {
     fn from(value: LangError) -> Self {
@@ -84,6 +93,7 @@ pub enum LangType {
     Primitive(PrimitiveLangType),
     Anything,
     OneOf(OneOfLangType),
+    NeverContinues,
 }
 
 impl LangType {
@@ -95,6 +105,63 @@ impl LangType {
                 r#type: self.to_owned(),
             })
             .into(),
+        }
+    }
+
+    pub fn is_assignable_to(&self, other_type: &LangType) -> bool {
+        if self == &LangType::NeverContinues {
+            return true;
+        }
+
+        match other_type {
+            // Type references aren't assignable to other type references
+            // at least until generics become a thing
+            LangType::TypeReference(_other_type_reference) => false,
+
+            LangType::Action => self == &LangType::Action,
+            LangType::Instance(other_instance) => {
+                if let LangType::Instance(self_instance) = self {
+                    self_instance.type_id == other_instance.type_id
+                } else {
+                    // TODO: support unique types
+                    false
+                }
+            }
+            LangType::Function(other_function) => {
+                if let LangType::Function(self_function) = self {
+                    let params_match = self_function.params.len() == other_function.params.len()
+                        && self_function
+                            .params
+                            .iter()
+                            .zip(other_function.params.iter())
+                            .all(|(self_param, other_param)| {
+                                // names can be different, but types can't be
+                                // at least until we work out variance
+                                // or named arguments
+                                self_param == other_param
+                            });
+
+                    let return_type_matches = {
+                        // also don't allow any variance for now
+                        self_function.return_type == other_function.return_type
+                    };
+
+                    params_match && return_type_matches
+                } else {
+                    false
+                }
+            }
+            LangType::Primitive(other_primitive) => {
+                if let LangType::Primitive(self_primitive) = self {
+                    self_primitive == other_primitive
+                } else {
+                    false
+                }
+            }
+            LangType::Anything => true,
+            LangType::OneOf(other_one_of) => other_one_of.is_superset_of(self),
+
+            LangType::NeverContinues => self == &LangType::NeverContinues,
         }
     }
 }
@@ -158,16 +225,120 @@ impl OneOfLangType {
     }
 
     pub fn is_superset_of(&self, pattern_type: &LangType) -> bool {
-        // TODO: Implement this
-        true
+        let possible_values = match pattern_type {
+            LangType::OneOf(pattern_one_of) => pattern_one_of.simplify().options.clone(),
+            other => vec![other.clone().into()],
+        };
+
+        let mut has_pending_values = false;
+        let result = possible_values
+            .into_iter()
+            .all(|possible_value| match possible_value {
+                InferredType::InferenceVariable(_) => {
+                    has_pending_values = true;
+                    true
+                }
+                InferredType::Error(_) => false,
+                InferredType::Known(possible_value) => self.options.iter().any(|option| {
+                    if let InferredType::Known(option) = option {
+                        possible_value.is_assignable_to(&option)
+                    } else {
+                        false
+                    }
+                }),
+            });
+
+        if result && has_pending_values {
+            panic!("Value is pending; can't tell if it was truly assignable");
+        }
+
+        return result;
     }
 
     pub fn narrow(&self, pattern_type: &LangType) -> OneOfLangType {
         self.clone()
     }
 
+    pub fn simplify(&self) -> OneOfLangType {
+        let all_possible_types = self
+            .options
+            .iter()
+            .flat_map(|it| {
+                if let InferredType::Known(known) = it {
+                    if let LangType::OneOf(one_of) = known.as_ref() {
+                        return one_of.simplify().options.clone();
+                    }
+                }
+                return vec![it.clone()];
+            })
+            .collect_vec();
+
+        let all_possible_types = if all_possible_types.len() > 1 {
+            let mut not_duplicated = vec![];
+            for possible_type in &all_possible_types {
+                let possible_type = if let InferredType::Known(known) = possible_type {
+                    known
+                } else {
+                    not_duplicated.push(possible_type.clone());
+                    continue;
+                };
+
+                let is_duplicate = not_duplicated.iter().any(|existing_type| {
+                    OneOfLangType::is_mergeable(&possible_type.clone().into(), existing_type)
+                });
+                if !is_duplicate {
+                    let redundant_extra_types = not_duplicated
+                        .iter()
+                        .filter(|existing_type| {
+                            OneOfLangType::is_mergeable(
+                                &possible_type.clone().into(),
+                                existing_type,
+                            )
+                        })
+                        .cloned()
+                        .collect_vec();
+                    not_duplicated.push(possible_type.clone().into());
+                    not_duplicated = not_duplicated
+                        .into_iter()
+                        .filter(|existing| redundant_extra_types.contains(existing))
+                        .collect_vec();
+                }
+            }
+            not_duplicated
+        } else {
+            all_possible_types
+        };
+
+        OneOfLangType::new(all_possible_types)
+    }
+
     pub fn simplify_to_value(&self) -> AnyInferredLangType {
-        self.clone().into()
+        let simplified = self.simplify();
+        if simplified.options.len() == 1 {
+            simplified.options[0].clone()
+        } else {
+            simplified.into()
+        }
+    }
+
+    fn is_mergeable(
+        less_specific: &AnyInferredLangType,
+        more_specific: &AnyInferredLangType,
+    ) -> bool {
+        if less_specific == more_specific {
+            return true;
+        }
+
+        let more_specific_type = more_specific.as_known();
+        let less_specific_value = less_specific.as_known();
+
+        if let (Some(more_specific_type), Some(less_specific_value)) =
+            (more_specific_type, less_specific_value)
+        {
+            return less_specific_value.is_assignable_to(more_specific_type);
+        }
+
+        false
     }
 }
 impl From<OneOfLangType> for LangType {

@@ -5,5 +5,6 @@ pub mod compiled_file;
 pub mod error_types;
 pub mod instructions;
 pub mod lang_types;
+mod prelude;
 pub mod resolve_types;
 pub mod tags;
