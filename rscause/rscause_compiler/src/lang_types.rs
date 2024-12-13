@@ -256,7 +256,38 @@ impl OneOfLangType {
     }
 
     pub fn narrow(&self, pattern_type: &LangType) -> OneOfLangType {
-        self.clone()
+        let possible_values = match pattern_type {
+            LangType::OneOf(pattern_one_of) => pattern_one_of.simplify().options.clone(),
+            other => vec![other.clone().into()],
+        };
+
+        let remaining_options = self
+            .options
+            .iter()
+            .cloned()
+            .filter(|option| {
+                if let InferredType::Known(option) = option {
+                    !possible_values.iter().any(|possible_value| {
+                        if let InferredType::Known(possible_value) = possible_value {
+                            option.is_assignable_to(&possible_value)
+                        } else {
+                            // don't count error or pending
+                            false
+                        }
+                    })
+                } else {
+                    // keep error and pending options around
+                    true
+                }
+            })
+            .collect();
+
+        return OneOfLangType::new(remaining_options);
+    }
+
+    pub fn expand(&self, pattern_type: &LangType) -> OneOfLangType {
+        let new_values = vec![self.options.clone(), vec![pattern_type.clone().into()]].concat();
+        return OneOfLangType::new(new_values).simplify();
     }
 
     pub fn simplify(&self) -> OneOfLangType {
