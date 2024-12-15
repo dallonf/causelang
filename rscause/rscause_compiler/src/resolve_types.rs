@@ -69,52 +69,45 @@ pub fn resolve_types(
         descendant.get_resolved_type(&mut ctx);
     }
 
-    // Check all constraints of known types
-    let constraint_errors = ctx
-        .constraints
+    // Check all edicts of known types
+    let edict_errors = ctx
+        .edicts
         .iter()
-        .filter_map(|(key, constraint, _diagnostic)| {
-            if let ConstraintKey::Breadcrumbs(breadcrumbs) = key {
-                Some((breadcrumbs, constraint))
-            } else {
-                None
-            }
-        })
-        .filter_map(|(breadcrumbs, constraint)| {
+        .filter_map(|edict| {
             let actual_type = ctx
                 .value_types
-                .get(breadcrumbs)
+                .get(&edict.breadcrumbs)
                 .map(|it| it.as_ref())
                 .flatten();
             let source_position = SourcePosition {
                 path: path.clone(),
-                breadcrumbs: breadcrumbs.clone(),
+                breadcrumbs: edict.breadcrumbs.clone(),
                 position: ctx
-                    .node_at_path(breadcrumbs)
-                    .expect("constraints must be placed on a node actually in the tree")
+                    .node_at_path(&edict.breadcrumbs)
+                    .expect("edicts must be placed on a node actually in the tree")
                     .info()
                     .position,
             };
             let actual_type = match actual_type {
                 Some(InferredType::Known(it)) => it,
                 Some(InferredType::InferenceVariable(var)) => todo!(
-                    "Todo: figure out how to resolve a constraint on an inference variable ({var})"
+                    "Todo: figure out how to resolve a edict on an inference variable ({var})"
                 ),
-                // we won't check constraints if this type is already an error
+                // we won't check edicts if this type is already an error
                 Some(InferredType::Error(_)) => return None,
                 None => {
                     return Some(ResolverError::new(
                         source_position,
                         LangError::compiler_bug(format!(
-                            "No type found when computing constraint for {}",
-                            breadcrumbs
+                            "No type found when computing edict for {}",
+                            &edict.breadcrumbs
                         )),
                     ))
                 }
             }
             .clone();
-            match constraint {
-                TypeConstraint::AssignableTo(expected_type) => {
+            match &edict.rule {
+                TypeEdictRule::AssignableTo(expected_type) => {
                     if let InferredType::Known(expected_type) = expected_type {
                         if !actual_type.is_assignable_to(&expected_type) {
                             Some(ResolverError::new(
@@ -131,24 +124,7 @@ pub fn resolve_types(
                         None
                     }
                 }
-                TypeConstraint::EqualTo(expected_type) => {
-                    if let InferredType::Known(expected_type) = expected_type {
-                        if &actual_type != expected_type {
-                            Some(ResolverError::new(
-                                source_position,
-                                LangError::MismatchedType(MismatchedTypeError {
-                                    expected: expected_type.as_ref().clone(),
-                                    actual: actual_type,
-                                }),
-                            ))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                }
-                TypeConstraint::MustBeTypeReference => {
+                TypeEdictRule::MustBeTypeReference => {
                     if let LangType::TypeReference(_) = actual_type.as_ref() {
                         None
                     } else {
@@ -232,13 +208,31 @@ pub fn resolve_types(
                 })
             })
         })
-        .chain(constraint_errors.into_iter())
+        .chain(edict_errors.into_iter())
         .collect();
 
     ResolveTypesResult {
         value_types: result,
         errors,
     }
+}
+
+/// A type "edict" is an explicit declaration that a given node's value
+/// must satisfy some rules. They are also used as extra constraints
+/// in type inference.
+/// ex. a named value must be assignable to its type annotation,
+/// a function parameter must fit the function definition.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct TypeEdict {
+    breadcrumbs: Breadcrumbs,
+    rule: TypeEdictRule,
+    diagnostic: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+enum TypeEdictRule {
+    AssignableTo(AnyInferredLangType),
+    MustBeTypeReference,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -277,7 +271,9 @@ struct ResolveTypesContext {
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 
     value_types: HashMap<Breadcrumbs, Option<AnyInferredLangType>>,
-    constraints: Vec<(ConstraintKey, TypeConstraint, ConstraintDiagnostic)>,
+
+    // constraints: Vec<(ConstraintKey, TypeConstraint, ConstraintDiagnostic)>,
+    edicts: Vec<TypeEdict>,
     next_inference_variable: usize,
 }
 
@@ -297,7 +293,8 @@ impl ResolveTypesContext {
             external_files,
 
             value_types: HashMap::new(),
-            constraints: vec![],
+            // constraints: vec![],
+            edicts: vec![],
             next_inference_variable: 0,
         }
     }
@@ -387,19 +384,19 @@ impl ResolveTypesContext {
         new_id
     }
 
-    fn add_inference_variable_at_breadcrumbs(
-        &mut self,
-        breadcrumbs: &Breadcrumbs,
-        reason: impl Into<String>,
-    ) -> usize {
-        let new_var = self.add_inference_variable();
-        self.constraints.push((
-            breadcrumbs.clone().into(),
-            TypeConstraint::EqualTo(InferredType::InferenceVariable(new_var)),
-            ConstraintDiagnostic::Resolver(breadcrumbs.clone(), reason.into()),
-        ));
-        new_var
-    }
+    // fn add_inference_variable_at_breadcrumbs(
+    //     &mut self,
+    //     breadcrumbs: &Breadcrumbs,
+    //     reason: impl Into<String>,
+    // ) -> usize {
+    //     let new_var = self.add_inference_variable();
+    //     self.constraints.push((
+    //         breadcrumbs.clone().into(),
+    //         TypeConstraint::EqualTo(InferredType::InferenceVariable(new_var)),
+    //         ConstraintDiagnostic::Resolver(breadcrumbs.clone(), reason.into()),
+    //     ));
+    //     new_var
+    // }
 }
 
 trait ResolveTypes: ast::AstNode {
@@ -492,14 +489,11 @@ fn resolve_identifier_type_reference(
         Err(err) => return Some(InferredType::Error(err.into())),
     };
     let source_node_type = ctx.get_resolved_type_proxying_errors(&source_node);
-    ctx.constraints.push((
-        node.breadcrumbs().clone().into(),
-        TypeConstraint::MustBeTypeReference,
-        ConstraintDiagnostic::Resolver(
-            node.breadcrumbs().clone(),
-            "An IdentifierTypeReference must refer to a type".into(),
-        ),
-    ));
+    ctx.edicts.push(TypeEdict {
+        breadcrumbs: node.breadcrumbs().clone(),
+        rule: TypeEdictRule::MustBeTypeReference,
+        diagnostic: "An IdentifierTypeReference must refer to a type".into(),
+    });
     Some(source_node_type)
 }
 
@@ -559,14 +553,12 @@ impl ResolveTypes for ast::FunctionNode {
             })
             .collect();
         if let Some(explicit_return_type) = &explicit_return_type {
-            ctx.constraints.push((
-                self.body.breadcrumbs().clone().into(),
-                TypeConstraint::AssignableTo(explicit_return_type.clone()),
-                ConstraintDiagnostic::Resolver(
-                    self.body.breadcrumbs().clone(),
-                    "Result of function body must be assignable to function's return type".into(),
-                ),
-            ));
+            ctx.edicts.push(TypeEdict {
+                breadcrumbs: self.body.breadcrumbs().clone(),
+                rule: TypeEdictRule::AssignableTo(explicit_return_type.clone()),
+                diagnostic: "Result of function body must be assignable to function's return type"
+                    .into(),
+            });
         }
         let get_inferred_return_type = || ctx.get_resolved_type_proxying_errors(&self.body);
         let return_type = explicit_return_type.unwrap_or_else(get_inferred_return_type);
@@ -620,14 +612,11 @@ impl ResolveTypes for ast::EffectStatementNode {
                 _ => InferredType::Error(LangError::NotCausable.into()),
             });
 
-        ctx.constraints.push((
-            self.body.info().breadcrumbs.clone().into(),
-            TypeConstraint::AssignableTo(result_type),
-            ConstraintDiagnostic::Resolver(
-                self.body.info().breadcrumbs.clone(),
-                "Result of effect handler must be assignable to effect's result".into(),
-            ),
-        ));
+        ctx.edicts.push(TypeEdict {
+            breadcrumbs: self.body.info().breadcrumbs.clone().into(),
+            rule: TypeEdictRule::AssignableTo(result_type),
+            diagnostic: "Result of effect handler must be assignable to effect's result".into(),
+        });
 
         return Some(LangType::Action.into());
     }
@@ -717,15 +706,13 @@ impl ResolveTypes for ast::CallExpressionNode {
                 std::cmp::Ordering::Equal => {}
             }
             for (lang_param, param_node) in parameters.iter().zip(self.parameters.iter()) {
-                ctx.constraints.push((
-                    param_node.breadcrumbs().clone().into(),
-                    TypeConstraint::AssignableTo(lang_param.value_type.clone()),
-                    ConstraintDiagnostic::Resolver(
-                        param_node.breadcrumbs().clone(),
+                ctx.edicts.push(TypeEdict {
+                    breadcrumbs: param_node.breadcrumbs().clone(),
+                    rule: TypeEdictRule::AssignableTo(lang_param.value_type.clone()),
+                    diagnostic:
                         "Function call param must be assignable to function definition param type"
                             .into(),
-                    ),
-                ))
+                });
             }
         }
 
@@ -813,14 +800,11 @@ impl ResolveTypes for ast::NamedValueNode {
         let inferred_type = ctx.get_resolved_type_proxying_errors(&self.value);
 
         if let Some(Ok(annotated_type)) = &annotated_type {
-            ctx.constraints.push((
-                self.value.breadcrumbs().clone().into(),
-                TypeConstraint::AssignableTo(annotated_type.clone().into()),
-                ConstraintDiagnostic::Resolver(
-                    self.value.breadcrumbs().clone(),
-                    "A named value must be assignable to its declared type".into(),
-                ),
-            ));
+            ctx.edicts.push(TypeEdict {
+                breadcrumbs: self.value.breadcrumbs().clone(),
+                rule: TypeEdictRule::AssignableTo(annotated_type.clone().into()),
+                diagnostic: "A named value must be assignable to its declared type".into(),
+            });
         }
 
         let result = annotated_type
