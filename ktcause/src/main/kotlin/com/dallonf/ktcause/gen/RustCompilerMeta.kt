@@ -26,6 +26,7 @@ val rustCompilerSupportedTypes = setOf(
         ElseBranchOptionNode::class,
         CauseExpressionNode::class,
         CallExpressionNode::class,
+        MemberExpressionNode::class,
         IdentifierExpressionNode::class,
         StringLiteralExpressionNode::class,
         NumberLiteralExpressionNode::class,

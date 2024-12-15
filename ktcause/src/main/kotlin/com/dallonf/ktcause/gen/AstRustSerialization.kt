@@ -43,6 +43,7 @@ object AstRustSerialization {
             is BranchExpressionNode -> buildJsonObject { put("Branch", serializeBranchExpression(node)) }
             is CauseExpressionNode -> buildJsonObject { put("Cause", serializeCauseExpression(node)) }
             is CallExpressionNode -> buildJsonObject { put("Call", serializeCallExpression(node)) }
+            is MemberExpressionNode -> buildJsonObject { put("Member", serializeMemberExpression(node)) }
             is IdentifierExpressionNode -> buildJsonObject { put("Identifier", serializeIdentifierExpression(node)) }
             is StringLiteralExpressionNode -> buildJsonObject { put("StringLiteral", serializeStringLiteralExpression(node)) }
             is NumberLiteralExpressionNode -> buildJsonObject { put("NumberLiteral", serializeNumberLiteralExpression(node)) }
@@ -226,6 +227,14 @@ object AstRustSerialization {
             put("info", RustSerialization.serializeNodeInfo(node.info))
             put("callee", serializeExpression(node.callee))
             put("parameters", JsonArray(node.parameters.map { serializeFunctionCallParameter(it) }))
+        }
+    }
+
+    fun serializeMemberExpression(node: MemberExpressionNode): JsonElement {
+        return buildJsonObject {
+            put("info", RustSerialization.serializeNodeInfo(node.info))
+            put("object_expression", serializeExpression(node.objectExpression))
+            put("member_identifier", serializeIdentifier(node.memberIdentifier))
         }
     }
 

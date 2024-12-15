@@ -586,7 +586,7 @@ private fun parseMemberExpressionSuffix(
 
     val suffixRange = suffix.getRange()
     val range = DocumentRange(objectExpression.info.position.start, suffixRange.end)
-    return MemberExpression(
+    return MemberExpressionNode(
         NodeInfo(range, breadcrumbs), objectExpression, identifier
     )
 }

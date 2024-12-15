@@ -14,12 +14,12 @@ use crate::error_types::{CompilerBugError, ErrorPosition, LangError, SourcePosit
 use crate::find_tag;
 use crate::instructions::{
     CallFunctionInstruction, CauseInstruction, ConstructInstruction, DefineFunctionInstruction,
-    FinishEffectInstruction, ImportInstruction, ImportSameFileInstruction, Instruction,
-    InstructionPhase, IsAssignableToInstruction, JumpIfFalseInstruction, JumpInstruction,
-    LiteralInstruction, NameValueInstruction, NoOpInstruction, PopEffectsInstruction,
-    PopInstruction, PopScopeInstruction, PushActionInstruction, ReadLocalInstruction,
-    ReadLocalThroughEffectScopeInstruction, RegisterEffectInstruction, RejectSignalInstruction,
-    ReturnInstruction,
+    FinishEffectInstruction, GetMemberInstruction, ImportInstruction, ImportSameFileInstruction,
+    Instruction, InstructionPhase, IsAssignableToInstruction, JumpIfFalseInstruction,
+    JumpInstruction, LiteralInstruction, NameValueInstruction, NoOpInstruction,
+    PopEffectsInstruction, PopInstruction, PopScopeInstruction, PushActionInstruction,
+    ReadLocalInstruction, ReadLocalThroughEffectScopeInstruction, RegisterEffectInstruction,
+    RejectSignalInstruction, ReturnInstruction,
 };
 use crate::resolve_types::ResolverError;
 use crate::tags::{ReferencesFileNodeTag, TopLevelDeclarationNodeTag};
@@ -670,6 +670,9 @@ fn compile_expression(
         ast::ExpressionNode::Call(expression) => {
             compile_call_expression(expression, procedure, ctx)?;
         }
+        ast::ExpressionNode::Member(expression) => {
+            compile_member_expression(expression.clone(), procedure, ctx)?
+        }
         ast::ExpressionNode::Identifier(expression) => {
             compile_identifier_expression(expression.clone(), procedure, ctx)?;
         }
@@ -792,6 +795,70 @@ fn compile_call_expression(
         ),
         _ => return Err(anyhow!("Callee {callee_type:?} is not callable")),
     }
+
+    Ok(())
+}
+
+fn compile_member_expression(
+    expression: Arc<ast::MemberExpressionNode>,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    compile_expression(&expression.object_expression, procedure, ctx)?;
+
+    if let Some(error) = ctx.check_for_badtype_error(expression.breadcrumbs())? {
+        procedure.write_instruction(
+            Instruction::Pop(PopInstruction { number: 1 }),
+            Some(&expression.info),
+        );
+        compile_bad_value(expression.into(), error, procedure, ctx)?;
+        return Ok(());
+    }
+
+    // TODO: the resolver already did a lot of this work to figure out what type
+    // is being referenced - can we lean on that?
+    let object_type = ctx
+        .types
+        .value_types
+        .get(expression.member_identifier.breadcrumbs())
+        .ok_or_else(|| anyhow!("No type found for member expression"))?
+        .as_known()
+        .ok_or_else(|| {
+            anyhow!(
+                "Member expression type is not known (should have been handled by BadValue check)"
+            )
+        })?
+        .pipe(|object_type| {
+            if let LangType::Instance(instance) = object_type.as_ref() {
+                Ok(instance.to_owned())
+            } else {
+                Err(anyhow!("Member expression type is not an Instance (should have been handled by BadValue check)"))
+            }
+        })?;
+    let fields = ctx
+        .canonical_types
+        .get(&object_type.type_id)
+        .ok_or_else(|| anyhow!("Can't find canonical type for member expression"))?
+        .fields();
+
+    let field_name = &expression.member_identifier.text;
+    let field_index = fields
+        .iter()
+        .enumerate()
+        .find(|(_i, field)| &field.name == field_name)
+        .ok_or_else(|| {
+            anyhow!(
+                "Member {field_name} doesn't exist in type (should have been handled by BadValue check)"
+            )
+        })?
+        .0;
+
+    procedure.write_instruction(
+        Instruction::GetMember(GetMemberInstruction {
+            index: field_index as u32,
+        }),
+        Some(&expression.info),
+    );
 
     Ok(())
 }

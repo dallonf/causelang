@@ -452,7 +452,7 @@ object Compiler {
             is BreakExpression -> compileBreakExpression(expression, procedure, ctx)
 
             is CallExpressionNode -> compileCallExpression(expression, procedure, ctx)
-            is MemberExpression -> compileMemberExpression(expression, procedure, ctx)
+            is MemberExpressionNode -> compileMemberExpression(expression, procedure, ctx)
             is PipeCallExpression -> compilePipeCallExpression(expression, procedure, ctx)
 
             is IdentifierExpressionNode -> compileIdentifierExpression(expression, procedure, ctx)
@@ -963,7 +963,7 @@ object Compiler {
     }
 
     private fun compileMemberExpression(
-        expression: MemberExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        expression: MemberExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         compileExpression(expression.objectExpression, procedure, ctx)
 

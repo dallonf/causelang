@@ -455,7 +455,7 @@ data class IdentifierExpressionNode(override val info: NodeInfo, val identifier:
         buildMap { put("identifier", identifier) }
 }
 
-data class MemberExpression(
+data class MemberExpressionNode(
     override val info: NodeInfo, val objectExpression: ExpressionNode, val memberIdentifier: IdentifierNode
 ) : ExpressionNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {

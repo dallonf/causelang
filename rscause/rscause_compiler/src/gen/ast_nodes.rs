@@ -36,6 +36,8 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "signal",
     "callee",
     "parameters",
+    "object_expression",
+    "member_identifier",
     "identifier",
     "text",
     "value",
@@ -65,6 +67,7 @@ pub enum AnyAstNode {
     ElseBranchOption(Arc<ElseBranchOptionNode>),
     CauseExpression(Arc<CauseExpressionNode>),
     CallExpression(Arc<CallExpressionNode>),
+    MemberExpression(Arc<MemberExpressionNode>),
     IdentifierExpression(Arc<IdentifierExpressionNode>),
     StringLiteralExpression(Arc<StringLiteralExpressionNode>),
     NumberLiteralExpression(Arc<NumberLiteralExpressionNode>),
@@ -94,6 +97,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::ElseBranchOption(node) => node.children(),
             AnyAstNode::CauseExpression(node) => node.children(),
             AnyAstNode::CallExpression(node) => node.children(),
+            AnyAstNode::MemberExpression(node) => node.children(),
             AnyAstNode::IdentifierExpression(node) => node.children(),
             AnyAstNode::StringLiteralExpression(node) => node.children(),
             AnyAstNode::NumberLiteralExpression(node) => node.children(),
@@ -123,6 +127,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::ElseBranchOption(node) => node.info(),
             AnyAstNode::CauseExpression(node) => node.info(),
             AnyAstNode::CallExpression(node) => node.info(),
+            AnyAstNode::MemberExpression(node) => node.info(),
             AnyAstNode::IdentifierExpression(node) => node.info(),
             AnyAstNode::StringLiteralExpression(node) => node.info(),
             AnyAstNode::NumberLiteralExpression(node) => node.info(),
@@ -154,6 +159,7 @@ impl HasBreadcrumbs for AnyAstNode {
             AnyAstNode::ElseBranchOption(node) => node.breadcrumbs(),
             AnyAstNode::CauseExpression(node) => node.breadcrumbs(),
             AnyAstNode::CallExpression(node) => node.breadcrumbs(),
+            AnyAstNode::MemberExpression(node) => node.breadcrumbs(),
             AnyAstNode::IdentifierExpression(node) => node.breadcrumbs(),
             AnyAstNode::StringLiteralExpression(node) => node.breadcrumbs(),
             AnyAstNode::NumberLiteralExpression(node) => node.breadcrumbs(),
@@ -179,8 +185,13 @@ impl AstNode for TypeReferenceNode {
 }
 impl From<&TypeReferenceNode> for AnyAstNode {
     fn from(value: &TypeReferenceNode) -> Self {
+        value.clone().into()
+    }
+}
+impl From<TypeReferenceNode> for AnyAstNode {
+    fn from(value: TypeReferenceNode) -> Self {
         match value {
-            TypeReferenceNode::Identifier(node) => AnyAstNode::IdentifierTypeReference(node.clone()),
+            TypeReferenceNode::Identifier(node) => AnyAstNode::IdentifierTypeReference(node),
         }
     }
 }
@@ -216,10 +227,15 @@ impl AstNode for DeclarationNode {
 }
 impl From<&DeclarationNode> for AnyAstNode {
     fn from(value: &DeclarationNode) -> Self {
+        value.clone().into()
+    }
+}
+impl From<DeclarationNode> for AnyAstNode {
+    fn from(value: DeclarationNode) -> Self {
         match value {
-            DeclarationNode::Import(node) => AnyAstNode::Import(node.clone()),
-            DeclarationNode::Function(node) => AnyAstNode::Function(node.clone()),
-            DeclarationNode::NamedValue(node) => AnyAstNode::NamedValue(node.clone()),
+            DeclarationNode::Import(node) => AnyAstNode::Import(node),
+            DeclarationNode::Function(node) => AnyAstNode::Function(node),
+            DeclarationNode::NamedValue(node) => AnyAstNode::NamedValue(node),
         }
     }
 }
@@ -254,9 +270,14 @@ impl AstNode for BodyNode {
 }
 impl From<&BodyNode> for AnyAstNode {
     fn from(value: &BodyNode) -> Self {
+        value.clone().into()
+    }
+}
+impl From<BodyNode> for AnyAstNode {
+    fn from(value: BodyNode) -> Self {
         match value {
-            BodyNode::Block(node) => AnyAstNode::BlockBody(node.clone()),
-            BodyNode::SingleStatement(node) => AnyAstNode::SingleStatementBody(node.clone()),
+            BodyNode::Block(node) => AnyAstNode::BlockBody(node),
+            BodyNode::SingleStatement(node) => AnyAstNode::SingleStatementBody(node),
         }
     }
 }
@@ -293,10 +314,15 @@ impl AstNode for StatementNode {
 }
 impl From<&StatementNode> for AnyAstNode {
     fn from(value: &StatementNode) -> Self {
+        value.clone().into()
+    }
+}
+impl From<StatementNode> for AnyAstNode {
+    fn from(value: StatementNode) -> Self {
         match value {
-            StatementNode::Expression(node) => AnyAstNode::ExpressionStatement(node.clone()),
-            StatementNode::Declaration(node) => AnyAstNode::DeclarationStatement(node.clone()),
-            StatementNode::Effect(node) => AnyAstNode::EffectStatement(node.clone()),
+            StatementNode::Expression(node) => AnyAstNode::ExpressionStatement(node),
+            StatementNode::Declaration(node) => AnyAstNode::DeclarationStatement(node),
+            StatementNode::Effect(node) => AnyAstNode::EffectStatement(node),
         }
     }
 }
@@ -315,6 +341,7 @@ pub enum ExpressionNode {
     Branch(Arc<BranchExpressionNode>),
     Cause(Arc<CauseExpressionNode>),
     Call(Arc<CallExpressionNode>),
+    Member(Arc<MemberExpressionNode>),
     Identifier(Arc<IdentifierExpressionNode>),
     StringLiteral(Arc<StringLiteralExpressionNode>),
     NumberLiteral(Arc<NumberLiteralExpressionNode>),
@@ -325,6 +352,7 @@ impl AstNode for ExpressionNode {
             ExpressionNode::Branch(node) => node.children(),
             ExpressionNode::Cause(node) => node.children(),
             ExpressionNode::Call(node) => node.children(),
+            ExpressionNode::Member(node) => node.children(),
             ExpressionNode::Identifier(node) => node.children(),
             ExpressionNode::StringLiteral(node) => node.children(),
             ExpressionNode::NumberLiteral(node) => node.children(),
@@ -335,6 +363,7 @@ impl AstNode for ExpressionNode {
             ExpressionNode::Branch(node) => node.info(),
             ExpressionNode::Cause(node) => node.info(),
             ExpressionNode::Call(node) => node.info(),
+            ExpressionNode::Member(node) => node.info(),
             ExpressionNode::Identifier(node) => node.info(),
             ExpressionNode::StringLiteral(node) => node.info(),
             ExpressionNode::NumberLiteral(node) => node.info(),
@@ -343,13 +372,19 @@ impl AstNode for ExpressionNode {
 }
 impl From<&ExpressionNode> for AnyAstNode {
     fn from(value: &ExpressionNode) -> Self {
+        value.clone().into()
+    }
+}
+impl From<ExpressionNode> for AnyAstNode {
+    fn from(value: ExpressionNode) -> Self {
         match value {
-            ExpressionNode::Branch(node) => AnyAstNode::BranchExpression(node.clone()),
-            ExpressionNode::Cause(node) => AnyAstNode::CauseExpression(node.clone()),
-            ExpressionNode::Call(node) => AnyAstNode::CallExpression(node.clone()),
-            ExpressionNode::Identifier(node) => AnyAstNode::IdentifierExpression(node.clone()),
-            ExpressionNode::StringLiteral(node) => AnyAstNode::StringLiteralExpression(node.clone()),
-            ExpressionNode::NumberLiteral(node) => AnyAstNode::NumberLiteralExpression(node.clone()),
+            ExpressionNode::Branch(node) => AnyAstNode::BranchExpression(node),
+            ExpressionNode::Cause(node) => AnyAstNode::CauseExpression(node),
+            ExpressionNode::Call(node) => AnyAstNode::CallExpression(node),
+            ExpressionNode::Member(node) => AnyAstNode::MemberExpression(node),
+            ExpressionNode::Identifier(node) => AnyAstNode::IdentifierExpression(node),
+            ExpressionNode::StringLiteral(node) => AnyAstNode::StringLiteralExpression(node),
+            ExpressionNode::NumberLiteral(node) => AnyAstNode::NumberLiteralExpression(node),
         }
     }
 }
@@ -359,6 +394,7 @@ impl HasBreadcrumbs for ExpressionNode {
             ExpressionNode::Branch(node) => node.breadcrumbs(),
             ExpressionNode::Cause(node) => node.breadcrumbs(),
             ExpressionNode::Call(node) => node.breadcrumbs(),
+            ExpressionNode::Member(node) => node.breadcrumbs(),
             ExpressionNode::Identifier(node) => node.breadcrumbs(),
             ExpressionNode::StringLiteral(node) => node.breadcrumbs(),
             ExpressionNode::NumberLiteral(node) => node.breadcrumbs(),
@@ -390,10 +426,15 @@ impl AstNode for BranchOptionNode {
 }
 impl From<&BranchOptionNode> for AnyAstNode {
     fn from(value: &BranchOptionNode) -> Self {
+        value.clone().into()
+    }
+}
+impl From<BranchOptionNode> for AnyAstNode {
+    fn from(value: BranchOptionNode) -> Self {
         match value {
-            BranchOptionNode::If(node) => AnyAstNode::IfBranchOption(node.clone()),
-            BranchOptionNode::Is(node) => AnyAstNode::IsBranchOption(node.clone()),
-            BranchOptionNode::Else(node) => AnyAstNode::ElseBranchOption(node.clone()),
+            BranchOptionNode::If(node) => AnyAstNode::IfBranchOption(node),
+            BranchOptionNode::Is(node) => AnyAstNode::IsBranchOption(node),
+            BranchOptionNode::Else(node) => AnyAstNode::ElseBranchOption(node),
         }
     }
 }
@@ -418,6 +459,11 @@ impl From<&Arc<IdentifierNode>> for AnyAstNode {
         AnyAstNode::Identifier(value.clone())
     }
 }
+impl From<Arc<IdentifierNode>> for AnyAstNode {
+    fn from(value: Arc<IdentifierNode>) -> Self {
+        AnyAstNode::Identifier(value.clone())
+    }
+}
 impl AstNode for IdentifierNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         HashMap::new()
@@ -439,6 +485,11 @@ pub struct IdentifierTypeReferenceNode {
 }
 impl From<&Arc<IdentifierTypeReferenceNode>> for AnyAstNode {
     fn from(value: &Arc<IdentifierTypeReferenceNode>) -> Self {
+        AnyAstNode::IdentifierTypeReference(value.clone())
+    }
+}
+impl From<Arc<IdentifierTypeReferenceNode>> for AnyAstNode {
+    fn from(value: Arc<IdentifierTypeReferenceNode>) -> Self {
         AnyAstNode::IdentifierTypeReference(value.clone())
     }
 }
@@ -469,6 +520,11 @@ pub struct PatternNode {
 }
 impl From<&Arc<PatternNode>> for AnyAstNode {
     fn from(value: &Arc<PatternNode>) -> Self {
+        AnyAstNode::Pattern(value.clone())
+    }
+}
+impl From<Arc<PatternNode>> for AnyAstNode {
+    fn from(value: Arc<PatternNode>) -> Self {
         AnyAstNode::Pattern(value.clone())
     }
 }
@@ -506,6 +562,11 @@ impl From<&Arc<FunctionSignatureParameterNode>> for AnyAstNode {
         AnyAstNode::FunctionSignatureParameter(value.clone())
     }
 }
+impl From<Arc<FunctionSignatureParameterNode>> for AnyAstNode {
+    fn from(value: Arc<FunctionSignatureParameterNode>) -> Self {
+        AnyAstNode::FunctionSignatureParameter(value.clone())
+    }
+}
 impl AstNode for FunctionSignatureParameterNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
@@ -539,6 +600,11 @@ impl From<&Arc<FunctionCallParameterNode>> for AnyAstNode {
         AnyAstNode::FunctionCallParameter(value.clone())
     }
 }
+impl From<Arc<FunctionCallParameterNode>> for AnyAstNode {
+    fn from(value: Arc<FunctionCallParameterNode>) -> Self {
+        AnyAstNode::FunctionCallParameter(value.clone())
+    }
+}
 impl AstNode for FunctionCallParameterNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
@@ -565,6 +631,11 @@ pub struct FileNode {
 }
 impl From<&Arc<FileNode>> for AnyAstNode {
     fn from(value: &Arc<FileNode>) -> Self {
+        AnyAstNode::File(value.clone())
+    }
+}
+impl From<Arc<FileNode>> for AnyAstNode {
+    fn from(value: Arc<FileNode>) -> Self {
         AnyAstNode::File(value.clone())
     }
 }
@@ -595,6 +666,11 @@ pub struct ImportNode {
 }
 impl From<&Arc<ImportNode>> for AnyAstNode {
     fn from(value: &Arc<ImportNode>) -> Self {
+        AnyAstNode::Import(value.clone())
+    }
+}
+impl From<Arc<ImportNode>> for AnyAstNode {
+    fn from(value: Arc<ImportNode>) -> Self {
         AnyAstNode::Import(value.clone())
     }
 }
@@ -631,6 +707,11 @@ impl From<&Arc<ImportPathNode>> for AnyAstNode {
         AnyAstNode::ImportPath(value.clone())
     }
 }
+impl From<Arc<ImportPathNode>> for AnyAstNode {
+    fn from(value: Arc<ImportPathNode>) -> Self {
+        AnyAstNode::ImportPath(value.clone())
+    }
+}
 impl AstNode for ImportPathNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         HashMap::new()
@@ -653,6 +734,11 @@ pub struct ImportMappingNode {
 }
 impl From<&Arc<ImportMappingNode>> for AnyAstNode {
     fn from(value: &Arc<ImportMappingNode>) -> Self {
+        AnyAstNode::ImportMapping(value.clone())
+    }
+}
+impl From<Arc<ImportMappingNode>> for AnyAstNode {
+    fn from(value: Arc<ImportMappingNode>) -> Self {
         AnyAstNode::ImportMapping(value.clone())
     }
 }
@@ -689,6 +775,11 @@ pub struct FunctionNode {
 }
 impl From<&Arc<FunctionNode>> for AnyAstNode {
     fn from(value: &Arc<FunctionNode>) -> Self {
+        AnyAstNode::Function(value.clone())
+    }
+}
+impl From<Arc<FunctionNode>> for AnyAstNode {
+    fn from(value: Arc<FunctionNode>) -> Self {
         AnyAstNode::Function(value.clone())
     }
 }
@@ -736,6 +827,11 @@ impl From<&Arc<NamedValueNode>> for AnyAstNode {
         AnyAstNode::NamedValue(value.clone())
     }
 }
+impl From<Arc<NamedValueNode>> for AnyAstNode {
+    fn from(value: Arc<NamedValueNode>) -> Self {
+        AnyAstNode::NamedValue(value.clone())
+    }
+}
 impl AstNode for NamedValueNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
@@ -773,6 +869,11 @@ impl From<&Arc<BlockBodyNode>> for AnyAstNode {
         AnyAstNode::BlockBody(value.clone())
     }
 }
+impl From<Arc<BlockBodyNode>> for AnyAstNode {
+    fn from(value: Arc<BlockBodyNode>) -> Self {
+        AnyAstNode::BlockBody(value.clone())
+    }
+}
 impl AstNode for BlockBodyNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
@@ -799,6 +900,11 @@ pub struct SingleStatementBodyNode {
 }
 impl From<&Arc<SingleStatementBodyNode>> for AnyAstNode {
     fn from(value: &Arc<SingleStatementBodyNode>) -> Self {
+        AnyAstNode::SingleStatementBody(value.clone())
+    }
+}
+impl From<Arc<SingleStatementBodyNode>> for AnyAstNode {
+    fn from(value: Arc<SingleStatementBodyNode>) -> Self {
         AnyAstNode::SingleStatementBody(value.clone())
     }
 }
@@ -831,6 +937,11 @@ impl From<&Arc<ExpressionStatementNode>> for AnyAstNode {
         AnyAstNode::ExpressionStatement(value.clone())
     }
 }
+impl From<Arc<ExpressionStatementNode>> for AnyAstNode {
+    fn from(value: Arc<ExpressionStatementNode>) -> Self {
+        AnyAstNode::ExpressionStatement(value.clone())
+    }
+}
 impl AstNode for ExpressionStatementNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
@@ -857,6 +968,11 @@ pub struct DeclarationStatementNode {
 }
 impl From<&Arc<DeclarationStatementNode>> for AnyAstNode {
     fn from(value: &Arc<DeclarationStatementNode>) -> Self {
+        AnyAstNode::DeclarationStatement(value.clone())
+    }
+}
+impl From<Arc<DeclarationStatementNode>> for AnyAstNode {
+    fn from(value: Arc<DeclarationStatementNode>) -> Self {
         AnyAstNode::DeclarationStatement(value.clone())
     }
 }
@@ -887,6 +1003,11 @@ pub struct EffectStatementNode {
 }
 impl From<&Arc<EffectStatementNode>> for AnyAstNode {
     fn from(value: &Arc<EffectStatementNode>) -> Self {
+        AnyAstNode::EffectStatement(value.clone())
+    }
+}
+impl From<Arc<EffectStatementNode>> for AnyAstNode {
+    fn from(value: Arc<EffectStatementNode>) -> Self {
         AnyAstNode::EffectStatement(value.clone())
     }
 }
@@ -924,6 +1045,11 @@ impl From<&Arc<BranchExpressionNode>> for AnyAstNode {
         AnyAstNode::BranchExpression(value.clone())
     }
 }
+impl From<Arc<BranchExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<BranchExpressionNode>) -> Self {
+        AnyAstNode::BranchExpression(value.clone())
+    }
+}
 impl AstNode for BranchExpressionNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
@@ -955,6 +1081,11 @@ pub struct IfBranchOptionNode {
 }
 impl From<&Arc<IfBranchOptionNode>> for AnyAstNode {
     fn from(value: &Arc<IfBranchOptionNode>) -> Self {
+        AnyAstNode::IfBranchOption(value.clone())
+    }
+}
+impl From<Arc<IfBranchOptionNode>> for AnyAstNode {
+    fn from(value: Arc<IfBranchOptionNode>) -> Self {
         AnyAstNode::IfBranchOption(value.clone())
     }
 }
@@ -992,6 +1123,11 @@ impl From<&Arc<IsBranchOptionNode>> for AnyAstNode {
         AnyAstNode::IsBranchOption(value.clone())
     }
 }
+impl From<Arc<IsBranchOptionNode>> for AnyAstNode {
+    fn from(value: Arc<IsBranchOptionNode>) -> Self {
+        AnyAstNode::IsBranchOption(value.clone())
+    }
+}
 impl AstNode for IsBranchOptionNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
@@ -1025,6 +1161,11 @@ impl From<&Arc<ElseBranchOptionNode>> for AnyAstNode {
         AnyAstNode::ElseBranchOption(value.clone())
     }
 }
+impl From<Arc<ElseBranchOptionNode>> for AnyAstNode {
+    fn from(value: Arc<ElseBranchOptionNode>) -> Self {
+        AnyAstNode::ElseBranchOption(value.clone())
+    }
+}
 impl AstNode for ElseBranchOptionNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
@@ -1051,6 +1192,11 @@ pub struct CauseExpressionNode {
 }
 impl From<&Arc<CauseExpressionNode>> for AnyAstNode {
     fn from(value: &Arc<CauseExpressionNode>) -> Self {
+        AnyAstNode::CauseExpression(value.clone())
+    }
+}
+impl From<Arc<CauseExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<CauseExpressionNode>) -> Self {
         AnyAstNode::CauseExpression(value.clone())
     }
 }
@@ -1084,6 +1230,11 @@ impl From<&Arc<CallExpressionNode>> for AnyAstNode {
         AnyAstNode::CallExpression(value.clone())
     }
 }
+impl From<Arc<CallExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<CallExpressionNode>) -> Self {
+        AnyAstNode::CallExpression(value.clone())
+    }
+}
 impl AstNode for CallExpressionNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
@@ -1108,12 +1259,56 @@ impl HasBreadcrumbs for CallExpressionNode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct MemberExpressionNode {
+    pub info: NodeInfo,
+    pub object_expression: ExpressionNode,
+    pub member_identifier: Arc<IdentifierNode>,
+}
+impl From<&Arc<MemberExpressionNode>> for AnyAstNode {
+    fn from(value: &Arc<MemberExpressionNode>) -> Self {
+        AnyAstNode::MemberExpression(value.clone())
+    }
+}
+impl From<Arc<MemberExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<MemberExpressionNode>) -> Self {
+        AnyAstNode::MemberExpression(value.clone())
+    }
+}
+impl AstNode for MemberExpressionNode {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("object_expression"),
+            (&self.object_expression).into(),
+        );
+        result.insert(
+            BreadcrumbName::new("member_identifier"),
+            (&self.member_identifier).into(),
+        );
+        result
+    }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
+}
+impl HasBreadcrumbs for MemberExpressionNode {
+    fn breadcrumbs(&self) -> &Breadcrumbs {
+        &self.info.breadcrumbs
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdentifierExpressionNode {
     pub info: NodeInfo,
     pub identifier: Arc<IdentifierNode>,
 }
 impl From<&Arc<IdentifierExpressionNode>> for AnyAstNode {
     fn from(value: &Arc<IdentifierExpressionNode>) -> Self {
+        AnyAstNode::IdentifierExpression(value.clone())
+    }
+}
+impl From<Arc<IdentifierExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<IdentifierExpressionNode>) -> Self {
         AnyAstNode::IdentifierExpression(value.clone())
     }
 }
@@ -1146,6 +1341,11 @@ impl From<&Arc<StringLiteralExpressionNode>> for AnyAstNode {
         AnyAstNode::StringLiteralExpression(value.clone())
     }
 }
+impl From<Arc<StringLiteralExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<StringLiteralExpressionNode>) -> Self {
+        AnyAstNode::StringLiteralExpression(value.clone())
+    }
+}
 impl AstNode for StringLiteralExpressionNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         HashMap::new()
@@ -1167,6 +1367,11 @@ pub struct NumberLiteralExpressionNode {
 }
 impl From<&Arc<NumberLiteralExpressionNode>> for AnyAstNode {
     fn from(value: &Arc<NumberLiteralExpressionNode>) -> Self {
+        AnyAstNode::NumberLiteralExpression(value.clone())
+    }
+}
+impl From<Arc<NumberLiteralExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<NumberLiteralExpressionNode>) -> Self {
         AnyAstNode::NumberLiteralExpression(value.clone())
     }
 }

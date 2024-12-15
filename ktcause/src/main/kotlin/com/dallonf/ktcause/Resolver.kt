@@ -759,7 +759,7 @@ object Resolver {
                             }
                         }
 
-                        is MemberExpression -> {
+                        is MemberExpressionNode -> {
                             val obj = getResolvedTypeOf(node.objectExpression)
 
                             if (obj.isPending(knownCanonicalTypes)) {

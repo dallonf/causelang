@@ -595,7 +595,7 @@ object Analyzer {
             is NumberLiteralExpressionNode -> {}
 
             is CallExpressionNode -> analyzeCallExpression(expression, output, ctx)
-            is MemberExpression -> analyzeMemberExpression(expression, output, ctx)
+            is MemberExpressionNode -> analyzeMemberExpression(expression, output, ctx)
             is PipeCallExpression -> analyzePipeCallExpression(expression, output, ctx)
         }
     }
@@ -686,7 +686,7 @@ object Analyzer {
     }
 
     private fun analyzeMemberExpression(
-        expression: MemberExpression, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: MemberExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         analyzeExpression(expression.objectExpression, output, ctx)
     }

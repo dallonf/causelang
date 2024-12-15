@@ -61,9 +61,14 @@ impl AstNode for {{this.name}} {
 }
 impl From<&{{this.name}}> for AnyAstNode {
     fn from(value: &{{this.name}}) -> Self {
+        value.clone().into()
+    }
+}
+impl From<{{this.name}}> for AnyAstNode {
+    fn from(value: {{this.name}}) -> Self {
         match value {
             {{#each this.nodes}}
-            {{../name}}::{{this.variantName}}(node) => AnyAstNode::{{this.anyVariantName}}(node.clone()),
+            {{../name}}::{{this.variantName}}(node) => AnyAstNode::{{this.anyVariantName}}(node),
             {{/each}}
         }
     }
@@ -90,6 +95,11 @@ pub struct {{this.name}} {
 }
 impl From<&Arc<{{this.name}}>> for AnyAstNode {
     fn from(value: &Arc<{{this.name}}>) -> Self {
+        AnyAstNode::{{this.variantName}}(value.clone())
+    }
+}
+impl From<Arc<{{this.name}}>> for AnyAstNode {
+    fn from(value: Arc<{{this.name}}>) -> Self {
         AnyAstNode::{{this.variantName}}(value.clone())
     }
 }

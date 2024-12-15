@@ -237,9 +237,9 @@ enum TypeEdictRule {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 enum TypeConstraint {
-    AssignableTo(AnyInferredLangType),
     EqualTo(AnyInferredLangType),
-    MustBeTypeReference,
+    AssignableTo(AnyInferredLangType),
+    MemberOf(AnyInferredLangType, Arc<String>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -256,6 +256,7 @@ impl From<Breadcrumbs> for ConstraintKey {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 enum ConstraintDiagnostic {
     Unknown,
+    PendingInference,
     Resolver(Breadcrumbs, String),
     Inferred(
         String,
@@ -272,7 +273,7 @@ struct ResolveTypesContext {
 
     value_types: HashMap<Breadcrumbs, Option<AnyInferredLangType>>,
 
-    // constraints: Vec<(ConstraintKey, TypeConstraint, ConstraintDiagnostic)>,
+    constraints: Vec<(ConstraintKey, TypeConstraint, ConstraintDiagnostic)>,
     edicts: Vec<TypeEdict>,
     next_inference_variable: usize,
 }
@@ -293,7 +294,8 @@ impl ResolveTypesContext {
             external_files,
 
             value_types: HashMap::new(),
-            // constraints: vec![],
+
+            constraints: vec![],
             edicts: vec![],
             next_inference_variable: 0,
         }
@@ -384,19 +386,15 @@ impl ResolveTypesContext {
         new_id
     }
 
-    // fn add_inference_variable_at_breadcrumbs(
-    //     &mut self,
-    //     breadcrumbs: &Breadcrumbs,
-    //     reason: impl Into<String>,
-    // ) -> usize {
-    //     let new_var = self.add_inference_variable();
-    //     self.constraints.push((
-    //         breadcrumbs.clone().into(),
-    //         TypeConstraint::EqualTo(InferredType::InferenceVariable(new_var)),
-    //         ConstraintDiagnostic::Resolver(breadcrumbs.clone(), reason.into()),
-    //     ));
-    //     new_var
-    // }
+    fn add_inference_variable_at_breadcrumbs(&mut self, breadcrumbs: &Breadcrumbs) -> usize {
+        let new_var = self.add_inference_variable();
+        self.constraints.push((
+            ConstraintKey::Breadcrumbs(breadcrumbs.clone()),
+            TypeConstraint::EqualTo(InferredType::InferenceVariable(new_var)),
+            ConstraintDiagnostic::PendingInference,
+        ));
+        new_var
+    }
 }
 
 trait ResolveTypes: ast::AstNode {
@@ -452,6 +450,7 @@ impl ResolveTypes for AnyAstNode {
             Self::EffectStatement(node) => node.compute_type(ctx),
             Self::CauseExpression(node) => node.compute_type(ctx),
             Self::CallExpression(node) => node.compute_type(ctx),
+            Self::MemberExpression(node) => node.compute_type(ctx),
             Self::IdentifierExpression(node) => node.compute_type(ctx),
             Self::StringLiteralExpression(node) => node.compute_type(ctx),
             Self::NumberLiteralExpression(node) => node.compute_type(ctx),
@@ -717,6 +716,20 @@ impl ResolveTypes for ast::CallExpressionNode {
         }
 
         Some(result_type.unwrap_or_else(|err| InferredType::Error(err.into())))
+    }
+}
+
+impl ResolveTypes for ast::MemberExpressionNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        let object = ctx.get_resolved_type_proxying_errors(&self.object_expression);
+        let var = ctx.add_inference_variable_at_breadcrumbs(self.breadcrumbs());
+        let var_type = InferredType::InferenceVariable(var);
+        ctx.constraints.push((
+            ConstraintKey::InferenceVariable(var),
+            TypeConstraint::MemberOf(object.clone(), self.member_identifier.text.clone()),
+            ConstraintDiagnostic::Resolver(self.breadcrumbs().clone(), "Member expression".into()),
+        ));
+        return Some(var_type);
     }
 }
 

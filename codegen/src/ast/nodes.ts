@@ -188,6 +188,14 @@ export const nodes: NodeDeclaration[] = [
     },
   },
   {
+    name: "MemberExpression",
+    category: "Expression",
+    fields: {
+      objectExpression: "Expression",
+      memberIdentifier: "Identifier",
+    },
+  },
+  {
     name: "IdentifierExpression",
     category: "Expression",
     fields: {
