@@ -73,7 +73,7 @@ pub fn resolve_types(
     let constraint_errors = ctx
         .constraints
         .iter()
-        .filter_map(|(key, constraint)| {
+        .filter_map(|(key, constraint, _diagnostic)| {
             if let ConstraintKey::Breadcrumbs(breadcrumbs) = key {
                 Some((breadcrumbs, constraint))
             } else {
@@ -259,6 +259,16 @@ impl From<Breadcrumbs> for ConstraintKey {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+enum ConstraintDiagnostic {
+    Unknown,
+    Resolver(Breadcrumbs, String),
+    Inferred(
+        String,
+        Vec<(ConstraintKey, TypeConstraint, ConstraintDiagnostic)>,
+    ),
+}
+
 struct ResolveTypesContext {
     file_path: Arc<String>,
     root_node: Arc<ast::FileNode>,
@@ -267,7 +277,7 @@ struct ResolveTypesContext {
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 
     value_types: HashMap<Breadcrumbs, Option<AnyInferredLangType>>,
-    constraints: Vec<(ConstraintKey, TypeConstraint)>,
+    constraints: Vec<(ConstraintKey, TypeConstraint, ConstraintDiagnostic)>,
     next_inference_variable: usize,
 }
 
@@ -377,11 +387,16 @@ impl ResolveTypesContext {
         new_id
     }
 
-    fn add_inference_variable_at_breadcrumbs(&mut self, breadcrumbs: &Breadcrumbs) -> usize {
+    fn add_inference_variable_at_breadcrumbs(
+        &mut self,
+        breadcrumbs: &Breadcrumbs,
+        reason: impl Into<String>,
+    ) -> usize {
         let new_var = self.add_inference_variable();
         self.constraints.push((
             breadcrumbs.clone().into(),
             TypeConstraint::EqualTo(InferredType::InferenceVariable(new_var)),
+            ConstraintDiagnostic::Resolver(breadcrumbs.clone(), reason.into()),
         ));
         new_var
     }
@@ -480,6 +495,10 @@ fn resolve_identifier_type_reference(
     ctx.constraints.push((
         node.breadcrumbs().clone().into(),
         TypeConstraint::MustBeTypeReference,
+        ConstraintDiagnostic::Resolver(
+            node.breadcrumbs().clone(),
+            "An IdentifierTypeReference must refer to a type".into(),
+        ),
     ));
     Some(source_node_type)
 }
@@ -539,13 +558,18 @@ impl ResolveTypes for ast::FunctionNode {
                 }
             })
             .collect();
+        if let Some(explicit_return_type) = &explicit_return_type {
+            ctx.constraints.push((
+                self.body.breadcrumbs().clone().into(),
+                TypeConstraint::AssignableTo(explicit_return_type.clone()),
+                ConstraintDiagnostic::Resolver(
+                    self.body.breadcrumbs().clone(),
+                    "Result of function body must be assignable to function's return type".into(),
+                ),
+            ));
+        }
         let get_inferred_return_type = || ctx.get_resolved_type_proxying_errors(&self.body);
         let return_type = explicit_return_type.unwrap_or_else(get_inferred_return_type);
-
-        ctx.constraints.push((
-            self.body.breadcrumbs().clone().into(),
-            TypeConstraint::EqualTo(return_type.clone()),
-        ));
 
         let function_type = FunctionLangType {
             name,
@@ -599,6 +623,10 @@ impl ResolveTypes for ast::EffectStatementNode {
         ctx.constraints.push((
             self.body.info().breadcrumbs.clone().into(),
             TypeConstraint::AssignableTo(result_type),
+            ConstraintDiagnostic::Resolver(
+                self.body.info().breadcrumbs.clone(),
+                "Result of effect handler must be assignable to effect's result".into(),
+            ),
         ));
 
         return Some(LangType::Action.into());
@@ -692,6 +720,11 @@ impl ResolveTypes for ast::CallExpressionNode {
                 ctx.constraints.push((
                     param_node.breadcrumbs().clone().into(),
                     TypeConstraint::AssignableTo(lang_param.value_type.clone()),
+                    ConstraintDiagnostic::Resolver(
+                        param_node.breadcrumbs().clone(),
+                        "Function call param must be assignable to function definition param type"
+                            .into(),
+                    ),
                 ))
             }
         }
@@ -783,6 +816,10 @@ impl ResolveTypes for ast::NamedValueNode {
             ctx.constraints.push((
                 self.value.breadcrumbs().clone().into(),
                 TypeConstraint::AssignableTo(annotated_type.clone().into()),
+                ConstraintDiagnostic::Resolver(
+                    self.value.breadcrumbs().clone(),
+                    "A named value must be assignable to its declared type".into(),
+                ),
             ));
         }
 
