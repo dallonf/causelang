@@ -33,6 +33,7 @@ object AstRustSerialization {
         return when (node) {
             is ExpressionStatementNode -> buildJsonObject { put("Expression", serializeExpressionStatement(node)) }
             is DeclarationStatementNode -> buildJsonObject { put("Declaration", serializeDeclarationStatement(node)) }
+            is EffectStatementNode -> buildJsonObject { put("Effect", serializeEffectStatement(node)) }
             else -> TODO("Unknown node type: ${node::class.simpleName}")
         }
     }
@@ -171,6 +172,14 @@ object AstRustSerialization {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
             put("declaration", serializeDeclaration(node.declaration))
+        }
+    }
+
+    fun serializeEffectStatement(node: EffectStatementNode): JsonElement {
+        return buildJsonObject {
+            put("info", RustSerialization.serializeNodeInfo(node.info))
+            put("pattern", serializePattern(node.pattern))
+            put("body", serializeBody(node.body))
         }
     }
 

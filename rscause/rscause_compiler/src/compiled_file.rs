@@ -29,11 +29,18 @@ pub struct Procedure {
 #[derive(Debug, Clone, Serialize)]
 pub enum ProcedureIdentity {
     Function(FunctionProcedureIdentity),
+    Effect(EffectProcedureIdentity),
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FunctionProcedureIdentity {
     pub name: Arc<String>,
+    pub declaration: NodeInfo,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct EffectProcedureIdentity {
+    pub matches_type: Arc<LangType>,
     pub declaration: NodeInfo,
 }
 

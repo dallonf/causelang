@@ -99,7 +99,7 @@ object RustCompiler {
 
         val unsupportedImports = run {
             val imports = ast.allDescendants().mapNotNull { it as? ImportNode }
-            imports.filter { !supportedCoreImports.contains(it.path.path) }
+            imports.filter { it.path.path.startsWith("core/") }.filter { !supportedCoreImports.contains(it.path.path) }
         }
         yieldAll(unsupportedImports.map { "Unsupported import: ${it.path.path}" })
 

@@ -7,16 +7,19 @@ use std::sync::Arc;
 
 use crate::ast::{AnyAstNode, AstNode, NodeInfo};
 use crate::breadcrumbs::{self, HasBreadcrumbs};
-use crate::compiled_file::{CompiledConstant, ErrorConst, ProcedureInstructionMapping};
+use crate::compiled_file::{
+    CompiledConstant, EffectProcedureIdentity, ErrorConst, ProcedureInstructionMapping,
+};
 use crate::error_types::{CompilerBugError, ErrorPosition, LangError, SourcePosition};
 use crate::find_tag;
 use crate::instructions::{
     CallFunctionInstruction, CauseInstruction, ConstructInstruction, DefineFunctionInstruction,
-    ImportInstruction, ImportSameFileInstruction, Instruction, InstructionPhase,
-    IsAssignableToInstruction, JumpIfFalseInstruction, JumpInstruction, LiteralInstruction,
-    NameValueInstruction, NoOpInstruction, PopEffectsInstruction, PopInstruction,
-    PopScopeInstruction, PushActionInstruction, ReadLocalInstruction,
-    ReadLocalThroughEffectScopeInstruction, ReturnInstruction,
+    FinishEffectInstruction, ImportInstruction, ImportSameFileInstruction, Instruction,
+    InstructionPhase, IsAssignableToInstruction, JumpIfFalseInstruction, JumpInstruction,
+    LiteralInstruction, NameValueInstruction, NoOpInstruction, PopEffectsInstruction,
+    PopInstruction, PopScopeInstruction, PushActionInstruction, ReadLocalInstruction,
+    ReadLocalThroughEffectScopeInstruction, RegisterEffectInstruction, RejectSignalInstruction,
+    ReturnInstruction,
 };
 use crate::resolve_types::ResolverError;
 use crate::tags::{ReferencesFileNodeTag, TopLevelDeclarationNodeTag};
@@ -473,6 +476,16 @@ fn compile_statement(
                 );
             }
         }
+        ast::StatementNode::Effect(statement) => {
+            compile_effect_statement(statement, procedure, ctx)?;
+            if is_last_statement {
+                procedure.write_instruction_with_phase(
+                    Instruction::PushAction(PushActionInstruction {}),
+                    Some(&statement.info),
+                    InstructionPhase::Cleanup,
+                );
+            }
+        }
     }
     Ok(())
 }
@@ -543,6 +556,102 @@ fn compile_local_declaration(
             );
         }
     }
+    Ok(())
+}
+
+fn compile_effect_statement(
+    statement: &ast::EffectStatementNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    let matching_type = ctx
+        .types
+        .value_types
+        .get(&statement.pattern.type_reference.info().breadcrumbs)
+        .ok_or(anyhow!("no type found for effect pattern"))?;
+    let matching_type = if let InferredType::Known(matching_type) = matching_type {
+        matching_type.clone()
+    } else {
+        // can't compile an effect without a valid type
+        return Ok(());
+    };
+
+    let mut effect_procedure = Procedure {
+        identity: ProcedureIdentity::Effect(EffectProcedureIdentity {
+            matches_type: matching_type.clone(),
+            declaration: statement.info().clone(),
+        }),
+        constant_table: Vec::new(),
+        instructions: Vec::new(),
+        source_map: Some(Vec::new()),
+    };
+    ctx.scope_stack
+        .back()
+        .ok_or(anyhow!("no scope"))?
+        .borrow_mut()
+        .effect_count += 1;
+    ctx.scope_stack
+        .push_back(Rc::new(RefCell::new(CompilerScope::new(
+            statement.info().breadcrumbs.clone(),
+            ScopeType::Effect,
+        ))));
+    ctx.add_to_scope(&statement.pattern.info.breadcrumbs)?;
+    if let Some(name) = statement.pattern.name.as_ref().map(|it| it.text.clone()) {
+        let name_constant = effect_procedure.add_constant(CompiledConstant::String(name.clone()));
+        effect_procedure.write_instruction(
+            Instruction::NameValue(NameValueInstruction {
+                name_constant,
+                variable: false,
+                local_index: None,
+            }),
+            Some(&statement.info()),
+        );
+    }
+
+    // Check the condition
+    if ctx
+        .check_for_badtype_error(&statement.pattern.type_reference.info().breadcrumbs)?
+        .is_none()
+    {
+        effect_procedure.write_instruction(
+            Instruction::ReadLocal(ReadLocalInstruction { index: 0 }),
+            Some(statement.info()),
+        );
+        compile_value_flow_reference(
+            (&statement.pattern.type_reference).into(),
+            &mut effect_procedure,
+            ctx,
+        )?;
+        effect_procedure.write_instruction(
+            Instruction::IsAssignableTo(IsAssignableToInstruction {}),
+            Some(statement.info()),
+        );
+        let reject_signal = effect_procedure
+            .write_jump_if_false_placeholder(statement.info(), InstructionPhase::Execute);
+        compile_body(&statement.body, &mut effect_procedure, ctx)?;
+        effect_procedure.write_instruction_with_phase(
+            Instruction::FinishEffect(FinishEffectInstruction {}),
+            Some(statement.info()),
+            InstructionPhase::Cleanup,
+        );
+        reject_signal.fill_latest(&mut effect_procedure);
+    }
+
+    effect_procedure.write_instruction_with_phase(
+        Instruction::RejectSignal(RejectSignalInstruction {}),
+        Some(statement.info()),
+        InstructionPhase::Cleanup,
+    );
+
+    ctx.scope_stack.pop_back();
+    ctx.procedures.push(effect_procedure);
+    procedure.write_instruction(
+        Instruction::RegisterEffect(RegisterEffectInstruction {
+            procedure_index: ctx.procedures.len() as u32 - 1,
+        }),
+        Some(statement.info()),
+    );
+
     Ok(())
 }
 

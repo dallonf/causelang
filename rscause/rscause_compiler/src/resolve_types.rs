@@ -11,8 +11,9 @@ use crate::error_types::{
 };
 use crate::find_tag;
 use crate::lang_types::{
-    AnyInferredLangType, CanonicalLangType, CanonicalLangTypeId, FunctionLangType, InferredType,
-    LangParameter, LangType, OneOfLangType, PrimitiveLangType,
+    AnyInferredLangType, CanonicalLangType, CanonicalLangTypeCategory, CanonicalLangTypeId,
+    FunctionLangType, InferredType, InstanceLangType, LangParameter, LangType, OneOfLangType,
+    PrimitiveLangType,
 };
 use crate::tags::NodeTag;
 use itertools::Itertools;
@@ -385,13 +386,17 @@ impl ResolveTypes for AnyAstNode {
             Self::BlockBody(node) => node.compute_type(ctx),
             Self::DeclarationStatement(node) => node.compute_type(ctx),
             Self::ExpressionStatement(node) => node.compute_type(ctx),
+            Self::EffectStatement(node) => node.compute_type(ctx),
             Self::CauseExpression(node) => node.compute_type(ctx),
             Self::CallExpression(node) => node.compute_type(ctx),
             Self::IdentifierExpression(node) => node.compute_type(ctx),
             Self::StringLiteralExpression(node) => node.compute_type(ctx),
             Self::NumberLiteralExpression(node) => node.compute_type(ctx),
             Self::IdentifierTypeReference(node) => resolve_identifier_type_reference(node, ctx),
-            Self::Pattern(_) => todo!("Pattern"),
+            Self::Pattern(node) => {
+                let type_reference = ctx.get_resolved_type_proxying_errors(&node.type_reference);
+                Some(type_reference)
+            }
             Self::FunctionSignatureParameter(node) => node.compute_type(ctx),
             Self::FunctionCallParameter(node) => {
                 let value_type = ctx.get_resolved_type_proxying_errors(&node.value);
@@ -514,6 +519,38 @@ impl ResolveTypes for ast::ExpressionStatementNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         ctx.get_resolved_type_proxying_errors(&self.expression)
             .pipe(Some)
+    }
+}
+
+impl ResolveTypes for ast::EffectStatementNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        let result_type: AnyInferredLangType = ctx
+            .get_resolved_type_proxying_errors(&self.pattern)
+            .and_then(|it| match it.as_ref() {
+                // TODO: if the pattern is pending when we hit this resolution,
+                // this validation probably gets skipped...
+                LangType::Instance(instance) => {
+                    if instance.type_id.category == CanonicalLangTypeCategory::Signal {
+                        return InferredType::Known(
+                            LangType::Instance(InstanceLangType {
+                                type_id: instance.type_id.clone(),
+                            })
+                            .into(),
+                        );
+                    } else {
+                        LangError::NotCausable.into()
+                    }
+                }
+                LangType::AnySignal => InferredType::Known(LangType::AnySignal.into()),
+                _ => InferredType::Error(LangError::NotCausable.into()),
+            });
+
+        ctx.contraints.push((
+            self.body.info().breadcrumbs.clone(),
+            TypeConstaint::AssignableTo(result_type),
+        ));
+
+        return Some(LangType::Action.into());
     }
 }
 

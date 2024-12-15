@@ -92,6 +92,7 @@ pub enum LangType {
     Function(FunctionLangType),
     Primitive(PrimitiveLangType),
     Anything,
+    AnySignal,
     OneOf(OneOfLangType),
     NeverContinues,
 }
@@ -159,6 +160,16 @@ impl LangType {
                 }
             }
             LangType::Anything => true,
+            LangType::AnySignal => {
+                if self == &LangType::AnySignal {
+                    true
+                } else if let LangType::Instance(self_instance) = self {
+                    self_instance.type_id.category == CanonicalLangTypeCategory::Signal
+                } else {
+                    // TODO: support unique types
+                    false
+                }
+            }
             LangType::OneOf(other_one_of) => other_one_of.is_superset_of(self),
 
             LangType::NeverContinues => self == &LangType::NeverContinues,

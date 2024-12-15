@@ -19,6 +19,7 @@ val rustCompilerSupportedTypes = setOf(
         SingleStatementBodyNode::class,
         ExpressionStatementNode::class,
         DeclarationStatementNode::class,
+        EffectStatementNode::class,
         BranchExpressionNode::class,
         IfBranchOptionNode::class,
         IsBranchOptionNode::class,

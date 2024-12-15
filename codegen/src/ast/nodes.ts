@@ -132,6 +132,14 @@ export const nodes: NodeDeclaration[] = [
       declaration: "Declaration",
     },
   },
+  {
+    name: "EffectStatement",
+    category: "Statement",
+    fields: {
+      pattern: "Pattern",
+      body: "Body",
+    },
+  },
 
   {
     name: "BranchExpression",
