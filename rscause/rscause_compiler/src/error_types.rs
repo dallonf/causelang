@@ -6,14 +6,14 @@ use crate::{ast::DocumentRange, breadcrumbs::Breadcrumbs, lang_types};
 
 include!("gen/error_types.rs");
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SourcePosition {
     pub path: Arc<String>,
     pub breadcrumbs: Breadcrumbs,
     pub position: DocumentRange,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ErrorPosition {
     Source(SourcePosition),
 }

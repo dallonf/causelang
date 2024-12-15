@@ -4,10 +4,10 @@ use crate::ast::{
 };
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
-    compiler_bug_error, ActionIncompatibleWithValueTypesError, CompilerBugError,
-    ConstraintUsedAsValueError, ErrorPosition, ExcessParametersError, ImplementationTodoError,
-    LangError, MismatchedTypeError, MissingElseBranchError, MissingParametersError, SourcePosition,
-    UnreachableBranchError, ValueUsedAsConstraintError,
+    compiler_bug_error, ActionIncompatibleWithValueTypesError, CompilerBugError, ErrorPosition,
+    ExcessParametersError, ImplementationTodoError, LangError, MismatchedTypeError,
+    MissingElseBranchError, MissingParametersError, SourcePosition, UnreachableBranchError,
+    ValueUsedAsConstraintError,
 };
 use crate::find_tag;
 use crate::lang_types::{
@@ -15,15 +15,13 @@ use crate::lang_types::{
     FunctionLangType, InferredType, InstanceLangType, LangParameter, LangType, OneOfLangType,
     PrimitiveLangType,
 };
+use crate::prelude::*;
 use crate::tags::NodeTag;
-use itertools::Itertools;
-use serde::de::value;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
-use tap::{Pipe, Tap};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExternalFileDescriptor {
@@ -57,15 +55,13 @@ pub fn resolve_types(
     canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 ) -> ResolveTypesResult {
-    let mut ctx = ResolveTypesContext {
-        file_path: path.clone(),
-        root_node: file.clone(),
-        value_types: HashMap::new(),
-        contraints: vec![],
-        node_tags,
+    let mut ctx = ResolveTypesContext::new(
+        path.clone(),
+        file.clone(),
         canonical_types,
+        node_tags,
         external_files,
-    };
+    );
 
     // infer types of all nodes
     let descendants = BreadcrumbTreeNode::from(&file.clone()).descendants();
@@ -73,10 +69,17 @@ pub fn resolve_types(
         descendant.get_resolved_type(&mut ctx);
     }
 
-    // Check all constraints
+    // Check all constraints of known types
     let constraint_errors = ctx
-        .contraints
+        .constraints
         .iter()
+        .filter_map(|(key, constraint)| {
+            if let ConstraintKey::Breadcrumbs(breadcrumbs) = key {
+                Some((breadcrumbs, constraint))
+            } else {
+                None
+            }
+        })
         .filter_map(|(breadcrumbs, constraint)| {
             let actual_type = ctx
                 .value_types
@@ -111,7 +114,7 @@ pub fn resolve_types(
             }
             .clone();
             match constraint {
-                TypeConstaint::AssignableTo(expected_type) => {
+                TypeConstraint::AssignableTo(expected_type) => {
                     if let InferredType::Known(expected_type) = expected_type {
                         if !actual_type.is_assignable_to(&expected_type) {
                             Some(ResolverError::new(
@@ -128,7 +131,7 @@ pub fn resolve_types(
                         None
                     }
                 }
-                TypeConstaint::EqualTo(expected_type) => {
+                TypeConstraint::EqualTo(expected_type) => {
                     if let InferredType::Known(expected_type) = expected_type {
                         if &actual_type != expected_type {
                             Some(ResolverError::new(
@@ -145,7 +148,7 @@ pub fn resolve_types(
                         None
                     }
                 }
-                TypeConstaint::MustBeTypeReference => {
+                TypeConstraint::MustBeTypeReference => {
                     if let LangType::TypeReference(_) = actual_type.as_ref() {
                         None
                     } else {
@@ -238,24 +241,57 @@ pub fn resolve_types(
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-enum TypeConstaint {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+enum TypeConstraint {
     AssignableTo(AnyInferredLangType),
     EqualTo(AnyInferredLangType),
     MustBeTypeReference,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+enum ConstraintKey {
+    Breadcrumbs(Breadcrumbs),
+    InferenceVariable(usize),
+}
+impl From<Breadcrumbs> for ConstraintKey {
+    fn from(value: Breadcrumbs) -> Self {
+        ConstraintKey::Breadcrumbs(value)
+    }
+}
+
 struct ResolveTypesContext {
     file_path: Arc<String>,
     root_node: Arc<ast::FileNode>,
-    value_types: HashMap<Breadcrumbs, Option<AnyInferredLangType>>,
-    contraints: Vec<(Breadcrumbs, TypeConstaint)>,
     canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
+
+    value_types: HashMap<Breadcrumbs, Option<AnyInferredLangType>>,
+    constraints: Vec<(ConstraintKey, TypeConstraint)>,
+    next_inference_variable: usize,
 }
 
 impl ResolveTypesContext {
+    fn new(
+        file_path: Arc<String>,
+        root_node: Arc<ast::FileNode>,
+        canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
+        node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
+        external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
+    ) -> Self {
+        Self {
+            file_path,
+            root_node,
+            canonical_types,
+            node_tags,
+            external_files,
+
+            value_types: HashMap::new(),
+            constraints: vec![],
+            next_inference_variable: 0,
+        }
+    }
+
     fn node_at_path(&self, breadcrumbs: &Breadcrumbs) -> Result<ast::AnyAstNode, LangError> {
         BreadcrumbTreeNode::from(&self.root_node)
             .at_path(breadcrumbs)
@@ -333,6 +369,21 @@ impl ResolveTypesContext {
             breadcrumbs: node.breadcrumbs().clone(),
             position: node.info().position.clone(),
         }
+    }
+
+    fn add_inference_variable(&mut self) -> usize {
+        let new_id = self.next_inference_variable;
+        self.next_inference_variable += 1;
+        new_id
+    }
+
+    fn add_inference_variable_at_breadcrumbs(&mut self, breadcrumbs: &Breadcrumbs) -> usize {
+        let new_var = self.add_inference_variable();
+        self.constraints.push((
+            breadcrumbs.clone().into(),
+            TypeConstraint::EqualTo(InferredType::InferenceVariable(new_var)),
+        ));
+        new_var
     }
 }
 
@@ -426,9 +477,9 @@ fn resolve_identifier_type_reference(
         Err(err) => return Some(InferredType::Error(err.into())),
     };
     let source_node_type = ctx.get_resolved_type_proxying_errors(&source_node);
-    ctx.contraints.push((
-        node.breadcrumbs().clone(),
-        TypeConstaint::MustBeTypeReference,
+    ctx.constraints.push((
+        node.breadcrumbs().clone().into(),
+        TypeConstraint::MustBeTypeReference,
     ));
     Some(source_node_type)
 }
@@ -491,9 +542,9 @@ impl ResolveTypes for ast::FunctionNode {
         let get_inferred_return_type = || ctx.get_resolved_type_proxying_errors(&self.body);
         let return_type = explicit_return_type.unwrap_or_else(get_inferred_return_type);
 
-        ctx.contraints.push((
-            self.body.breadcrumbs().clone(),
-            TypeConstaint::EqualTo(return_type.clone()),
+        ctx.constraints.push((
+            self.body.breadcrumbs().clone().into(),
+            TypeConstraint::EqualTo(return_type.clone()),
         ));
 
         let function_type = FunctionLangType {
@@ -545,9 +596,9 @@ impl ResolveTypes for ast::EffectStatementNode {
                 _ => InferredType::Error(LangError::NotCausable.into()),
             });
 
-        ctx.contraints.push((
-            self.body.info().breadcrumbs.clone(),
-            TypeConstaint::AssignableTo(result_type),
+        ctx.constraints.push((
+            self.body.info().breadcrumbs.clone().into(),
+            TypeConstraint::AssignableTo(result_type),
         ));
 
         return Some(LangType::Action.into());
@@ -638,9 +689,9 @@ impl ResolveTypes for ast::CallExpressionNode {
                 std::cmp::Ordering::Equal => {}
             }
             for (lang_param, param_node) in parameters.iter().zip(self.parameters.iter()) {
-                ctx.contraints.push((
-                    param_node.breadcrumbs().clone(),
-                    TypeConstaint::AssignableTo(lang_param.value_type.clone()),
+                ctx.constraints.push((
+                    param_node.breadcrumbs().clone().into(),
+                    TypeConstraint::AssignableTo(lang_param.value_type.clone()),
                 ))
             }
         }
@@ -729,10 +780,9 @@ impl ResolveTypes for ast::NamedValueNode {
         let inferred_type = ctx.get_resolved_type_proxying_errors(&self.value);
 
         if let Some(Ok(annotated_type)) = &annotated_type {
-            ctx.contraints.push((
-                self.value.breadcrumbs().clone(),
-                // TODO: should be TypeConstaint::AssignableTo
-                TypeConstaint::EqualTo(annotated_type.clone().into()),
+            ctx.constraints.push((
+                self.value.breadcrumbs().clone().into(),
+                TypeConstraint::AssignableTo(annotated_type.clone().into()),
             ));
         }
 

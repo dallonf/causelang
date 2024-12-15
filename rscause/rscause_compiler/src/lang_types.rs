@@ -1,5 +1,9 @@
 use crate::prelude::*;
-use std::{str::FromStr, sync::Arc};
+use std::{
+    hash::{Hash, Hasher},
+    str::FromStr,
+    sync::Arc,
+};
 
 use anyhow::anyhow;
 use serde::{
@@ -9,7 +13,7 @@ use serde::{
 
 use crate::error_types::{ConstraintUsedAsValueError, LangError};
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum InferredType<T> {
     Known(T),
     Error(Arc<LangError>),
@@ -84,7 +88,7 @@ impl From<Result<Arc<LangType>, Arc<LangError>>> for AnyInferredLangType {
 
 pub type AnyInferredLangType = InferredType<Arc<LangType>>;
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum LangType {
     TypeReference(AnyInferredLangType),
     Action,
@@ -177,7 +181,7 @@ impl LangType {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct FunctionLangType {
     pub name: Arc<String>,
     pub params: Vec<LangParameter>,
@@ -189,13 +193,13 @@ impl From<FunctionLangType> for LangType {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct LangParameter {
     pub name: Arc<String>,
     pub value_type: AnyInferredLangType,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum PrimitiveLangType {
     Text,
     Number,
@@ -206,7 +210,7 @@ impl From<PrimitiveLangType> for LangType {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct InstanceLangType {
     pub type_id: Arc<CanonicalLangTypeId>,
 }
@@ -385,6 +389,11 @@ impl OneOfLangType {
 impl From<OneOfLangType> for LangType {
     fn from(value: OneOfLangType) -> Self {
         Self::OneOf(value)
+    }
+}
+impl Hash for OneOfLangType {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.simplify().options.hash(state);
     }
 }
 
