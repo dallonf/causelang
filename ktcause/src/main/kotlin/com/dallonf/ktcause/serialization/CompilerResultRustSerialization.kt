@@ -98,6 +98,15 @@ object CompilerResultRustSerialization {
 
                 return CompiledFile.Procedure.ProcedureIdentity.Function(name, declaration)
             }
+
+            procedureIdentity["Effect"]?.let {
+                require(it is JsonObject)
+                val matchesType =
+                    LangTypeRustSerialization.deserializeResolvedValueLangType(it["matches_type"]!!).valueToConstraintReference()
+                val declaration = RustSerialization.deserializeNodeInfo(it["declaration"]!!)
+
+                return CompiledFile.Procedure.ProcedureIdentity.Effect(matchesType, declaration)
+            }
         }
 
         throw AssertionError("Can't parse as a procedure identity: $procedureIdentity")
@@ -132,7 +141,6 @@ object CompilerResultRustSerialization {
 
         throw AssertionError("Can't parse as a compiled constant: $compiledConstant")
     }
-
 
 
     fun deserializeProcedureInstructionMapping(procedureInstructionMapping: JsonElement): CompiledFile.Procedure.InstructionMapping {

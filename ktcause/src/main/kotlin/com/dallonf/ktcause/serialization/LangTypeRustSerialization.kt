@@ -130,7 +130,10 @@ object LangTypeRustSerialization {
     }
 
     fun deserializeInstanceValueLangType(instanceLangType: JsonElement): InstanceValueLangType {
-        TODO()
+        require(instanceLangType is JsonObject)
+        val canonicalTypeId = deserializeCanonicalLangTypeId((instanceLangType["type_id"]!! as JsonPrimitive).content)
+
+        return InstanceValueLangType(canonicalTypeId)
     }
 
 
@@ -226,6 +229,40 @@ object LangTypeRustSerialization {
         }
 
         return "${canonicalLangTypeId.path}:$category:$fullName$numberIfApplicable$unique"
+    }
+
+    private fun deserializeCanonicalLangTypeId(canonicalLangTypeId: String): CanonicalLangTypeId {
+        var (path, categoryStr, combinedName) = canonicalLangTypeId.split(":")
+
+        val category = when (categoryStr) {
+            "O" -> CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT
+            "S" -> CanonicalLangTypeId.CanonicalLangTypeIdCategory.SIGNAL
+            else -> throw AssertionError("Unrecognized canonical type category indicator: $categoryStr")
+        }
+        val unique = if (combinedName.endsWith("!")) {
+            combinedName = combinedName.removeSuffix("!")
+            true
+        } else {
+            false
+        }
+        val numberSuffixRegex = Regex("""_(\d+)$""")
+        val number = numberSuffixRegex.find(combinedName)?.let { match ->
+            combinedName = combinedName.removeSuffix(match.value)
+            match.groups[0]!!.value.toUInt()
+        } ?: 0U
+
+        val (parentName, maybeName) = if (combinedName.contains(".")) {
+            combinedName.split(".")
+        } else {
+            listOf(null, combinedName)
+        }
+        val name = if (maybeName == "$?") {
+            null
+        } else {
+            maybeName
+        }
+
+        return CanonicalLangTypeId(path, parentName, name, number, category, unique)
     }
 
     fun serializeCanonicalTypeMap(map: Map<CanonicalLangTypeId, CanonicalLangType>): JsonElement {

@@ -148,8 +148,8 @@ object RustCompiler {
         tags: Map<Breadcrumbs, List<NodeTag>>,
         externalFiles: Map<String, Resolver.ExternalFileDescriptor>
     ): RustCompilerResult {
-        val filteredCanonicalTypes = getFilteredCanonicalTypes(externalFiles)
         val filteredExternalFiles = getFilteredExternalFiles(externalFiles)
+        val filteredCanonicalTypes = getFilteredCanonicalTypes(filteredExternalFiles)
         val filteredTags = getFilteredTags(tags)
 
 //        generateTestOutput("tmp", ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles);
@@ -170,8 +170,6 @@ object RustCompiler {
 
     fun getFilteredCanonicalTypes(externalFiles: Map<String, Resolver.ExternalFileDescriptor>): Map<CanonicalLangTypeId, CanonicalLangType> {
         val allEntries = externalFiles.flatMap { it.value.types.entries }
-            // only supported core types for now
-            .filter { supportedCoreBuiltins.contains(it.key.name) }
         val asPairs = allEntries.map { it.toPair() }
         return mapOf(*asPairs.toTypedArray())
     }
@@ -188,7 +186,8 @@ object RustCompiler {
                         ActionValueLangType
                     }
                 }
-                Resolver.ExternalFileDescriptor(filteredExports, value.types)
+                val filteredTypes = value.types.filter { supportedCoreBuiltins.contains(it.key.name) }
+                Resolver.ExternalFileDescriptor(filteredExports, filteredTypes)
             } else {
                 value
             }
