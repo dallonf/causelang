@@ -4,7 +4,7 @@ use std::sync::Arc;
 use jni::objects::{JClass, JObject, JString, JValueOwned};
 use jni::sys::jvalue;
 use jni::JNIEnv;
-use mapping::JniInto;
+use mapping::{strict_transfer_jstring, JniInto};
 use rscause_compiler::ast::FileNode;
 use rscause_compiler::breadcrumbs::Breadcrumbs;
 use rscause_compiler::compile::compile;
@@ -31,22 +31,18 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local
 ) -> jvalue {
     jtry(&mut env, move |mut env| {
         let path: Arc<String> = jni_path.jni_into(&mut env)?;
-        let ast: Arc<FileNode> = env
-            .get_string(&jni_ast_json)?
-            .to_str()?
+
+        let ast: Arc<FileNode> = strict_transfer_jstring(&mut env, &jni_ast_json)?
             .pipe(|it| serde_json::from_str(&it))?;
-        let canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>> = env
-            .get_string(&jni_canonical_types_json)?
-            .to_str()?
-            .pipe(|it| serde_json::from_str(&it))?;
-        let external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>> = env
-            .get_string(&jni_external_files_json)?
-            .to_str()?
-            .pipe(|it| serde_json::from_str(&it))?;
-        let tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>> = env
-            .get_string(&jni_tags_json)?
-            .to_str()?
-            .pipe(|it| serde_json::from_str(&it))?;
+        let canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>> =
+            strict_transfer_jstring(&mut env, &jni_canonical_types_json)?
+                .pipe(|it| serde_json::from_str(&it))?;
+        let external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>> =
+            strict_transfer_jstring(&mut env, &jni_external_files_json)?
+                .pipe(|it| serde_json::from_str(&it))?;
+        let tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>> =
+            strict_transfer_jstring(&mut env, &jni_tags_json)?
+                .pipe(|it| serde_json::from_str(&it))?;
 
         let resolved_types: Arc<_> = resolve_types(
             path.clone(),

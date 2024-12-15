@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
-use anyhow::Result;
-use jni::{objects::JObject, JNIEnv};
+use anyhow::{anyhow, Result};
+use jni::{
+    objects::{JObject, JPrimitiveArray, JString},
+    JNIEnv,
+};
+use tap::Pipe;
 
 use crate::util::noisy_log;
 
@@ -40,4 +44,24 @@ where
         noisy_log(env, "Arc<T>::from_jni");
         Ok(Arc::new(value.jni_into(env)?))
     }
+}
+
+/// Decodes a string to UTF-8 before transferring to Rust.
+/// Works around Java's weird "Modified" UTF-8 encoding, but almost
+/// certainly much slower
+pub fn strict_transfer_jstring<'local>(env: &mut JNIEnv, value: &JString<'local>) -> Result<String> {
+    let param = env.new_string("UTF-8")?;
+    let jbytes = env
+        .call_method(
+            value,
+            "getBytes",
+            "(Ljava/lang/String;)[B",
+            &vec![(&param).into()],
+        )?
+        .l()?
+        .pipe(|jbytes| JPrimitiveArray::from(jbytes));
+    env.delete_local_ref(param)?;
+
+    let bytes = env.convert_byte_array(jbytes)?;
+    String::from_utf8(bytes).map_err(|err| anyhow!(err))
 }
