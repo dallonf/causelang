@@ -2,20 +2,22 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
+use std::str::FromStr;
 use std::string;
 
+use anyhow::anyhow;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::BREADCRUMB_NAMES;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum BreadcrumbEntry {
     Index(usize),
     Name(BreadcrumbName),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub struct BreadcrumbName {
     pub name: &'static str,
     precomputed_hash: u64,
@@ -41,7 +43,7 @@ impl From<BreadcrumbName> for BreadcrumbEntry {
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Default)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Default)]
 pub struct Breadcrumbs {
     pub entries: Vec<BreadcrumbEntry>,
 }
@@ -127,6 +129,33 @@ impl Display for Breadcrumbs {
             })
             .collect();
         write!(f, "{}", segments.join("."))
+    }
+}
+
+impl FromStr for Breadcrumbs {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let string_entries = s.split('.').collect::<Vec<_>>();
+        if string_entries.eq(&vec![""]) {
+            return Ok(Self::default());
+        }
+        let entries: Vec<BreadcrumbEntry> = string_entries
+            .into_iter()
+            .map(|segment| match segment.parse::<usize>() {
+                Ok(index) => Ok(BreadcrumbEntry::Index(index)),
+                Err(_) => {
+                    let index = BREADCRUMB_NAMES
+                        .iter()
+                        .position(|it| it == &segment)
+                        .ok_or(anyhow!("Unknown breadcrumb name {}", segment))?;
+                    Ok(BreadcrumbEntry::Name(BreadcrumbName::new(
+                        BREADCRUMB_NAMES[index],
+                    )))
+                }
+            })
+            .collect::<Result<Vec<_>, Self::Err>>()?;
+        Ok(Self { entries })
     }
 }
 

@@ -10,10 +10,11 @@ use crate::error_types::{
     ValueUsedAsConstraintError,
 };
 use crate::find_tag;
+use crate::infer_types::infer_types;
 use crate::lang_types::{
     AnyInferredLangType, CanonicalLangType, CanonicalLangTypeCategory, CanonicalLangTypeId,
     FunctionLangType, InferredType, InstanceLangType, LangParameter, LangType, OneOfLangType,
-    PrimitiveLangType,
+    PrimitiveLangType, SignalCanonicalLangType,
 };
 use crate::prelude::*;
 use crate::tags::NodeTag;
@@ -63,11 +64,13 @@ pub fn resolve_types(
         external_files,
     );
 
-    // infer types of all nodes
+    // scan types of all nodes
     let descendants = BreadcrumbTreeNode::from(&file.clone()).descendants();
     for descendant in &descendants {
         descendant.get_resolved_type(&mut ctx);
     }
+
+    infer_types(&mut ctx);
 
     // Check all edicts of known types
     let edict_errors = ctx
@@ -223,59 +226,45 @@ pub fn resolve_types(
 /// ex. a named value must be assignable to its type annotation,
 /// a function parameter must fit the function definition.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-struct TypeEdict {
+pub struct TypeEdict {
     breadcrumbs: Breadcrumbs,
     rule: TypeEdictRule,
     diagnostic: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-enum TypeEdictRule {
+pub enum TypeEdictRule {
     AssignableTo(AnyInferredLangType),
     MustBeTypeReference,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-enum TypeConstraint {
+pub enum TypeConstraint {
     EqualTo(AnyInferredLangType),
     AssignableTo(AnyInferredLangType),
     MemberOf(AnyInferredLangType, Arc<String>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-enum ConstraintKey {
-    Breadcrumbs(Breadcrumbs),
-    InferenceVariable(usize),
-}
-impl From<Breadcrumbs> for ConstraintKey {
-    fn from(value: Breadcrumbs) -> Self {
-        ConstraintKey::Breadcrumbs(value)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-enum ConstraintDiagnostic {
+pub enum ConstraintDiagnostic {
     Unknown,
     PendingInference,
     Resolver(Breadcrumbs, String),
-    Inferred(
-        String,
-        Vec<(ConstraintKey, TypeConstraint, ConstraintDiagnostic)>,
-    ),
+    Inferred(String, Vec<(usize, TypeConstraint, ConstraintDiagnostic)>),
 }
 
-struct ResolveTypesContext {
-    file_path: Arc<String>,
-    root_node: Arc<ast::FileNode>,
-    canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
-    node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
-    external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
+pub struct ResolveTypesContext {
+    pub file_path: Arc<String>,
+    pub root_node: Arc<ast::FileNode>,
+    pub canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
+    pub node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
+    pub external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 
-    value_types: HashMap<Breadcrumbs, Option<AnyInferredLangType>>,
+    pub value_types: HashMap<Breadcrumbs, Option<AnyInferredLangType>>,
 
-    constraints: Vec<(ConstraintKey, TypeConstraint, ConstraintDiagnostic)>,
-    edicts: Vec<TypeEdict>,
-    next_inference_variable: usize,
+    pub constraints: Vec<(u64, TypeConstraint, ConstraintDiagnostic)>,
+    pub edicts: Vec<TypeEdict>,
+    pub next_inference_variable: u64,
 }
 
 impl ResolveTypesContext {
@@ -289,7 +278,7 @@ impl ResolveTypesContext {
         Self {
             file_path,
             root_node,
-            canonical_types,
+            canonical_types: canonical_types.as_ref().to_owned(),
             node_tags,
             external_files,
 
@@ -380,20 +369,10 @@ impl ResolveTypesContext {
         }
     }
 
-    fn add_inference_variable(&mut self) -> usize {
+    fn add_inference_variable(&mut self) -> u64 {
         let new_id = self.next_inference_variable;
         self.next_inference_variable += 1;
         new_id
-    }
-
-    fn add_inference_variable_at_breadcrumbs(&mut self, breadcrumbs: &Breadcrumbs) -> usize {
-        let new_var = self.add_inference_variable();
-        self.constraints.push((
-            ConstraintKey::Breadcrumbs(breadcrumbs.clone()),
-            TypeConstraint::EqualTo(InferredType::InferenceVariable(new_var)),
-            ConstraintDiagnostic::PendingInference,
-        ));
-        new_var
     }
 }
 
@@ -456,8 +435,16 @@ impl ResolveTypes for AnyAstNode {
             Self::NumberLiteralExpression(node) => node.compute_type(ctx),
             Self::IdentifierTypeReference(node) => resolve_identifier_type_reference(node, ctx),
             Self::Pattern(node) => {
-                let type_reference = ctx.get_resolved_type_proxying_errors(&node.type_reference);
-                Some(type_reference)
+                let referenced_type = ctx
+                    .get_resolved_type_proxying_errors(&node.type_reference)
+                    .and_then(|referenced_type| match referenced_type.as_ref() {
+                        LangType::TypeReference(it) => it.clone(),
+                        _ => LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
+                            r#type: InferredType::Known(referenced_type),
+                        })
+                        .into(),
+                    });
+                Some(referenced_type)
             }
             Self::FunctionSignatureParameter(node) => node.compute_type(ctx),
             Self::FunctionCallParameter(node) => {
@@ -592,22 +579,32 @@ impl ResolveTypes for ast::EffectStatementNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let result_type: AnyInferredLangType = ctx
             .get_resolved_type_proxying_errors(&self.pattern)
-            .and_then(|it| match it.as_ref() {
+            .and_then(|pattern_type| match pattern_type.as_ref() {
                 // TODO: if the pattern is pending when we hit this resolution,
                 // this validation probably gets skipped...
                 LangType::Instance(instance) => {
                     if instance.type_id.category == CanonicalLangTypeCategory::Signal {
-                        return InferredType::Known(
-                            LangType::Instance(InstanceLangType {
-                                type_id: instance.type_id.clone(),
+                        let result_type = ctx
+                            .canonical_types
+                            .get(&instance.type_id)
+                            .ok_or(LangError::compiler_bug(format!(
+                                "Missing type for {}",
+                                instance.type_id.to_string()
+                            )))
+                            .and_then(|canonical_type| match canonical_type.as_ref() {
+                                CanonicalLangType::Signal(signal) => Ok(signal),
+                                _ => Err(LangError::NotCausable),
                             })
-                            .into(),
-                        );
+                            .map(|signal| signal.result().clone());
+                        result_type.unwrap_or_else(|err| InferredType::Error(err.into()))
                     } else {
                         LangError::NotCausable.into()
                     }
                 }
-                LangType::AnySignal => InferredType::Known(LangType::AnySignal.into()),
+                // can't guarantee a result when capturing AnySignal
+                // TODO: this is actually probably a bug in the language that you
+                // can define effects for signals that require a result via AnySignal
+                LangType::AnySignal => InferredType::Known(LangType::Action.into()),
                 _ => InferredType::Error(LangError::NotCausable.into()),
             });
 
@@ -722,14 +719,13 @@ impl ResolveTypes for ast::CallExpressionNode {
 impl ResolveTypes for ast::MemberExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let object = ctx.get_resolved_type_proxying_errors(&self.object_expression);
-        let var = ctx.add_inference_variable_at_breadcrumbs(self.breadcrumbs());
-        let var_type = InferredType::InferenceVariable(var);
+        let var = ctx.add_inference_variable();
         ctx.constraints.push((
-            ConstraintKey::InferenceVariable(var),
+            var,
             TypeConstraint::MemberOf(object.clone(), self.member_identifier.text.clone()),
             ConstraintDiagnostic::Resolver(self.breadcrumbs().clone(), "Member expression".into()),
         ));
-        return Some(var_type);
+        return Some(InferredType::InferenceVariable(var));
     }
 }
 

@@ -820,19 +820,19 @@ fn compile_member_expression(
     let object_type = ctx
         .types
         .value_types
-        .get(expression.member_identifier.breadcrumbs())
-        .ok_or_else(|| anyhow!("No type found for member expression"))?
+        .get(expression.object_expression.breadcrumbs())
+        .ok_or_else(|| anyhow!("No type found for object expression: {:?}", expression.member_identifier.breadcrumbs()))?
         .as_known()
         .ok_or_else(|| {
             anyhow!(
-                "Member expression type is not known (should have been handled by BadValue check)"
+                "Object expression type is not known (should have been handled by BadValue check)"
             )
         })?
         .pipe(|object_type| {
             if let LangType::Instance(instance) = object_type.as_ref() {
                 Ok(instance.to_owned())
             } else {
-                Err(anyhow!("Member expression type is not an Instance (should have been handled by BadValue check)"))
+                Err(anyhow!("Object expression type is not an Instance (should have been handled by BadValue check)"))
             }
         })?;
     let fields = ctx
@@ -1039,8 +1039,6 @@ fn compile_value_flow_reference(
         compile_value_reference(node.info(), &comes_from.source, procedure, ctx)?;
         return Ok(());
     }
-
-    dbg!(&ctx.node_tags);
 
     Err(anyhow!(
         "Wasn't able to resolve identifier at {} to anything",

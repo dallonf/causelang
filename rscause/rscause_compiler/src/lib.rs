@@ -7,4 +7,5 @@ pub mod instructions;
 pub mod lang_types;
 mod prelude;
 pub mod resolve_types;
+pub mod infer_types;
 pub mod tags;

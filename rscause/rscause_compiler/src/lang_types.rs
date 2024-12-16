@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::anyhow;
 use serde::{
-    de::{self, value},
+    de::{self},
     Deserialize, Serialize,
 };
 
@@ -17,7 +17,7 @@ use crate::error_types::{ConstraintUsedAsValueError, LangError};
 pub enum InferredType<T> {
     Known(T),
     Error(Arc<LangError>),
-    InferenceVariable(usize),
+    InferenceVariable(u64),
 }
 impl<T> InferredType<T> {
     #[inline]
@@ -101,6 +101,45 @@ pub enum LangType {
     NeverContinues,
 }
 
+pub trait HasInference {
+    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType>;
+    // TODO: this is going to be horrifically slow to do for every single
+    // found type
+    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self;
+
+    fn has_pending(&self) -> bool {
+        self.recursive_inferred_types()
+            .iter()
+            .any(|it| matches!(it, InferredType::InferenceVariable(_)))
+    }
+}
+
+impl HasInference for AnyInferredLangType {
+    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+        match self {
+            InferredType::Known(known) => known.recursive_inferred_types(),
+            InferredType::Error(_) => vec![self.clone()],
+            InferredType::InferenceVariable(_) => vec![self.clone()],
+        }
+    }
+
+    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+        match self {
+            InferredType::Known(known) => {
+                InferredType::Known(known.fill_variable(id, value).into())
+            }
+            InferredType::Error(error) => InferredType::Error(error.clone()),
+            &InferredType::InferenceVariable(current_id) => {
+                if current_id == id {
+                    value
+                } else {
+                    InferredType::InferenceVariable(current_id)
+                }
+            }
+        }
+    }
+}
+
 impl LangType {
     /// If this is a TypeReference, extract the value type
     pub fn get_referenced_value_type(&self) -> AnyInferredLangType {
@@ -181,6 +220,44 @@ impl LangType {
     }
 }
 
+impl HasInference for LangType {
+    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+        match self {
+            LangType::TypeReference(inferred_type) => inferred_type.recursive_inferred_types(),
+            LangType::Action => vec![],
+            LangType::Instance(instance_lang_type) => vec![],
+            LangType::Function(function_lang_type) => function_lang_type.recursive_inferred_types(),
+            LangType::Primitive(primitive_lang_type) => vec![],
+            LangType::Anything => vec![],
+            LangType::AnySignal => vec![],
+            LangType::OneOf(one_of_lang_type) => one_of_lang_type.recursive_inferred_types(),
+            LangType::NeverContinues => vec![],
+        }
+    }
+
+    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+        match self {
+            LangType::TypeReference(inferred_type) => {
+                LangType::TypeReference(inferred_type.fill_variable(id, value))
+            }
+            LangType::Action => LangType::Action,
+            LangType::Instance(instance_lang_type) => {
+                LangType::Instance(instance_lang_type.clone())
+            }
+            LangType::Function(function_lang_type) => {
+                LangType::Function(function_lang_type.fill_variable(id, value))
+            }
+            LangType::Primitive(primitive_lang_type) => LangType::Primitive(*primitive_lang_type),
+            LangType::Anything => LangType::Anything,
+            LangType::AnySignal => LangType::AnySignal,
+            LangType::OneOf(one_of_lang_type) => {
+                LangType::OneOf(one_of_lang_type.fill_variable(id, value))
+            }
+            LangType::NeverContinues => LangType::NeverContinues,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct FunctionLangType {
     pub name: Arc<String>,
@@ -192,6 +269,36 @@ impl From<FunctionLangType> for LangType {
         Self::Function(value)
     }
 }
+impl HasInference for FunctionLangType {
+    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+        let mut result = vec![];
+        let mut param_results = self
+            .params
+            .iter()
+            .flat_map(|p| p.value_type.recursive_inferred_types())
+            .collect();
+        result.append(&mut param_results);
+        result.append(&mut self.return_type.recursive_inferred_types());
+        return result;
+    }
+
+    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+        let params = self
+            .params
+            .iter()
+            .map(|it| LangParameter {
+                name: it.name.clone(),
+                value_type: it.value_type.fill_variable(id, value.clone()),
+            })
+            .collect_vec();
+        let return_type = self.return_type.fill_variable(id, value.clone());
+        return Self {
+            name: self.name.clone(),
+            params,
+            return_type,
+        };
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct LangParameter {
@@ -199,7 +306,7 @@ pub struct LangParameter {
     pub value_type: AnyInferredLangType,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum PrimitiveLangType {
     Text,
     Number,
@@ -396,8 +503,26 @@ impl Hash for OneOfLangType {
         self.simplify().options.hash(state);
     }
 }
+impl HasInference for OneOfLangType {
+    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+        self.options
+            .iter()
+            .flat_map(|o| o.recursive_inferred_types())
+            .collect()
+    }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+        let options = self
+            .simplify()
+            .options
+            .iter()
+            .map(|it| it.fill_variable(id, value.clone()))
+            .collect_vec();
+        return Self { options };
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct CanonicalLangTypeId {
     pub path: Arc<String>,
     pub parent_name: Option<Arc<String>>,
@@ -516,13 +641,13 @@ impl<'de> Deserialize<'de> for CanonicalLangTypeId {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum CanonicalLangTypeCategory {
     Object,
     Signal,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum CanonicalLangType {
     Object(ObjectCanonicalLangType),
     Signal(SignalCanonicalLangType),
@@ -538,6 +663,25 @@ impl CanonicalLangType {
         match self {
             Self::Object(object) => object.fields.clone(),
             Self::Signal(signal) => signal.fields.clone(),
+        }
+    }
+}
+impl HasInference for CanonicalLangType {
+    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+        match self {
+            CanonicalLangType::Object(object) => object.recursive_inferred_types(),
+            CanonicalLangType::Signal(signal) => signal.recursive_inferred_types(),
+        }
+    }
+
+    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+        match self {
+            CanonicalLangType::Object(object) => {
+                CanonicalLangType::Object(object.fill_variable(id, value))
+            }
+            CanonicalLangType::Signal(signal) => {
+                CanonicalLangType::Signal(signal.fill_variable(id, value))
+            }
         }
     }
 }
@@ -561,7 +705,7 @@ fn assert_uniqueness_matches(
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct ObjectCanonicalLangType {
     type_id: CanonicalLangTypeId,
     fields: Vec<CanonicalTypeField>,
@@ -584,8 +728,32 @@ impl ObjectCanonicalLangType {
         &self.fields
     }
 }
+impl HasInference for ObjectCanonicalLangType {
+    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+        return self
+            .fields
+            .iter()
+            .flat_map(|f| f.value_type.recursive_inferred_types())
+            .collect();
+    }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+        let fields = self
+            .fields
+            .iter()
+            .map(|it| CanonicalTypeField {
+                name: it.name.clone(),
+                value_type: it.value_type.fill_variable(id, value.clone()),
+            })
+            .collect();
+        return Self {
+            type_id: self.type_id.clone(),
+            fields,
+        };
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct SignalCanonicalLangType {
     type_id: CanonicalLangTypeId,
     fields: Vec<CanonicalTypeField>,
@@ -618,8 +786,39 @@ impl SignalCanonicalLangType {
         &self.result
     }
 }
+impl HasInference for SignalCanonicalLangType {
+    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+        let mut result = vec![];
+        result.append(
+            &mut self
+                .fields
+                .iter()
+                .flat_map(|f| f.value_type.recursive_inferred_types())
+                .collect(),
+        );
+        result.append(&mut self.result.recursive_inferred_types());
+        return result;
+    }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+        let fields = self
+            .fields
+            .iter()
+            .map(|it| CanonicalTypeField {
+                name: it.name.clone(),
+                value_type: it.value_type.fill_variable(id, value.clone()),
+            })
+            .collect();
+        let result = self.result.fill_variable(id, value);
+        return Self {
+            type_id: self.type_id.clone(),
+            fields,
+            result,
+        };
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct CanonicalTypeField {
     pub name: Arc<String>,
     pub value_type: AnyInferredLangType,
