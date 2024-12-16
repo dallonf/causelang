@@ -1,12 +1,10 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
-use std::hash::Hash;
 use std::rc::Rc;
-use std::result;
 use std::sync::Arc;
 
 use crate::ast::{AnyAstNode, AstNode, NodeInfo};
-use crate::breadcrumbs::{self, HasBreadcrumbs};
+use crate::breadcrumbs::HasBreadcrumbs;
 use crate::compiled_file::{
     CompiledConstant, EffectProcedureIdentity, ErrorConst, ProcedureInstructionMapping,
 };
@@ -56,6 +54,9 @@ impl CompilerContext {
         let mut index = 0;
         for scope in self.scope_stack.iter().rev() {
             index += scope.borrow().named_value_indices.len();
+            if !matches!(scope.borrow().scope_type, ScopeType::Body) {
+                break;
+            }
         }
         index
     }
@@ -105,6 +106,7 @@ impl CompilerContext {
     }
 }
 
+#[derive(Debug)]
 struct CompilerScope {
     scope_root: Breadcrumbs,
     scope_type: ScopeType,
@@ -128,6 +130,7 @@ impl CompilerScope {
     }
 }
 
+#[derive(Debug)]
 struct OpenLoop(Breadcrumbs);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
