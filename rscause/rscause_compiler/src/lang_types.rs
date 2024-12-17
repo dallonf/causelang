@@ -10,10 +10,17 @@ use serde::{
     de::{self},
     Deserialize, Serialize,
 };
+use strum::EnumTryAs;
 
 use crate::error_types::{ConstraintUsedAsValueError, LangError};
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
+pub enum NotKnown {
+    Error(Arc<LangError>),
+    InferenceVariable(u64),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
 pub enum InferredType<T> {
     Known(T),
     Error(Arc<LangError>),
@@ -32,8 +39,9 @@ impl<T> InferredType<T> {
             InferredType::InferenceVariable(var) => InferredType::InferenceVariable(var),
         }
     }
+    // Will be a NeverResolved error if it's an inference variable
     #[inline]
-    pub fn to_result(self) -> Result<T, Arc<LangError>> {
+    pub fn to_result_assuming_inferred(self) -> Result<T, Arc<LangError>> {
         match self {
             InferredType::Known(t) => Ok(t),
             InferredType::Error(err) => Err(err),
@@ -88,7 +96,7 @@ impl From<Result<Arc<LangType>, Arc<LangError>>> for AnyInferredLangType {
 
 pub type AnyInferredLangType = InferredType<Arc<LangType>>;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
 pub enum LangType {
     TypeReference(AnyInferredLangType),
     Action,

@@ -514,7 +514,7 @@ fn compile_local_declaration(
                         .get(function.breadcrumbs())
                         .cloned()
                         .ok_or(anyhow!("missing type for {}", function.breadcrumbs()))?
-                        .to_result()
+                        .to_result_assuming_inferred()
                         .expect("cannot be an error due to check above"),
                 ));
                 procedure.write_instruction(
@@ -765,7 +765,7 @@ fn compile_call_expression(
         .get(expression.callee.breadcrumbs())
         .cloned()
         .ok_or_else(|| anyhow!("No type for callee at {}", expression.callee.breadcrumbs()))?
-        .to_result()
+        .to_result_assuming_inferred()
         .map_err(|_| anyhow!("Callee type is an error"))?;
 
     match callee_type.as_ref() {
@@ -773,7 +773,7 @@ fn compile_call_expression(
             // TODO: handle unique types
             let canonical_type = type_reference
                 .clone()
-                .to_result()
+                .to_result_assuming_inferred()
                 .map_err(|_| anyhow!("Callee type is a reference to an error or unique type"))
                 .and_then(|instance_type| match instance_type.as_ref() {
                     LangType::Instance(instance) => {

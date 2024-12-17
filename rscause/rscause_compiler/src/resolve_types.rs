@@ -622,7 +622,7 @@ impl ResolveTypes for ast::CauseExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let maybe_signal = ctx.get_resolved_type_proxying_errors(&self.signal);
         let signal_result_type = maybe_signal
-            .to_result()
+            .to_result_assuming_inferred()
             .and_then(|maybe_signal| match maybe_signal.as_ref() {
                 LangType::Instance(instance) => Ok(instance.type_id.clone()),
                 _ => Err(LangError::NotCausable.into()),
@@ -647,7 +647,7 @@ impl ResolveTypes for ast::CauseExpressionNode {
 impl ResolveTypes for ast::CallExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let callee_type = ctx.get_resolved_type_proxying_errors(&self.callee);
-        let callee_type = match callee_type.to_result() {
+        let callee_type = match callee_type.to_result_assuming_inferred() {
             Ok(it) => it,
             Err(err) => return Some(InferredType::Error(err.into())),
         };
@@ -656,7 +656,7 @@ impl ResolveTypes for ast::CallExpressionNode {
             LangType::Function(function_type) => Ok(function_type.return_type.clone()),
             LangType::TypeReference(referenced_type) => referenced_type
                 .clone()
-                .to_result()
+                .to_result_assuming_inferred()
                 .and_then(|referenced_type| {
                     let instance_type = match referenced_type.as_ref() {
                         LangType::Instance(instance) => Ok(instance),
@@ -781,7 +781,7 @@ impl ResolveTypes for ast::NamedValueNode {
             .as_ref()
             .map(|it| ctx.get_resolved_type_proxying_errors(it))
             .map(|annotated_type| {
-                let annotated_type = annotated_type.to_result()?;
+                let annotated_type = annotated_type.to_result_assuming_inferred()?;
                 match annotated_type.as_ref() {
                     LangType::TypeReference(InferredType::Known(value_type)) => {
                         Ok(value_type.clone())
