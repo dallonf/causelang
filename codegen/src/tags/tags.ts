@@ -5,6 +5,10 @@ export const tags: NodeTag[] = [
     path: { type: "string" },
     exportName: { type: "string", nullable: true },
   }),
+  singleNodeTag("CanonicalIdInfo", {
+    parentName: { type: "string", nullable: true },
+    index: { type: "uint" },
+  }),
   singleNodeTag("BadFileReference", {}),
   singleNodeTag("TopLevelDeclaration", {
     name: { type: "string" },

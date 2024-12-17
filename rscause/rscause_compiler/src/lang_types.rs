@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{error_types::ValueUsedAsConstraintError, prelude::*};
 use std::{
     hash::{Hash, Hasher},
     str::FromStr,
@@ -13,12 +13,6 @@ use serde::{
 use strum::EnumTryAs;
 
 use crate::error_types::{ConstraintUsedAsValueError, LangError};
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
-pub enum NotKnown {
-    Error(Arc<LangError>),
-    InferenceVariable(u64),
-}
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
 pub enum InferredType<T> {
@@ -48,6 +42,22 @@ impl<T> InferredType<T> {
             InferredType::InferenceVariable(_) => Err(LangError::NeverResolved.into()),
         }
     }
+    #[inline]
+    pub fn to_result(self) -> Result<T, NotKnown> {
+        match self {
+            InferredType::Known(t) => Ok(t),
+            InferredType::Error(error) => Err(NotKnown::Error(error)),
+            InferredType::InferenceVariable(id) => Err(NotKnown::InferenceVariable(id)),
+        }
+    }
+
+    pub fn from_result(value: Result<T, NotKnown>) -> Self {
+        match value {
+            Ok(known) => InferredType::Known(known),
+            Err(NotKnown::Error(error)) => InferredType::Error(error),
+            Err(NotKnown::InferenceVariable(id)) => InferredType::InferenceVariable(id),
+        }
+    }
 
     #[inline]
     pub fn map_err<F: FnOnce(Arc<LangError>) -> Arc<LangError>>(self, op: F) -> InferredType<T> {
@@ -66,6 +76,21 @@ impl<T> InferredType<T> {
         }
     }
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
+pub enum NotKnown {
+    Error(Arc<LangError>),
+    InferenceVariable(u64),
+}
+impl<T> From<T> for NotKnown
+where
+    T: Into<Arc<LangError>>,
+{
+    fn from(value: T) -> Self {
+        NotKnown::Error(value.into())
+    }
+}
+
 impl<T> From<LangError> for InferredType<T> {
     fn from(value: LangError) -> Self {
         Self::Error(Arc::new(value))
@@ -93,8 +118,49 @@ impl From<Result<Arc<LangType>, Arc<LangError>>> for AnyInferredLangType {
         }
     }
 }
+impl From<Result<Arc<LangType>, NotKnown>> for AnyInferredLangType {
+    fn from(value: Result<Arc<LangType>, NotKnown>) -> Self {
+        match value {
+            Ok(value) => Self::Known(value),
+            Err(NotKnown::Error(err)) => Self::Error(err),
+            Err(NotKnown::InferenceVariable(id)) => Self::InferenceVariable(id),
+        }
+    }
+}
+impl From<Result<AnyInferredLangType, NotKnown>> for AnyInferredLangType {
+    fn from(value: Result<AnyInferredLangType, NotKnown>) -> Self {
+        match value {
+            Ok(value) => value,
+            Err(NotKnown::Error(err)) => Self::Error(err),
+            Err(NotKnown::InferenceVariable(id)) => Self::InferenceVariable(id),
+        }
+    }
+}
+impl From<&Result<Arc<LangType>, NotKnown>> for AnyInferredLangType {
+    fn from(value: &Result<Arc<LangType>, NotKnown>) -> Self {
+        return value.clone().into();
+    }
+}
 
 pub type AnyInferredLangType = InferredType<Arc<LangType>>;
+impl AnyInferredLangType {
+    /// Assuming this is a LangType::TypeReference, return the inner value.
+    pub fn try_get_referenced_type(&self) -> AnyInferredLangType {
+        let instance = self.clone().and_then(|it| {
+            it.try_as_type_reference_ref()
+                .ok_or(
+                    LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
+                        r#type: self.clone(),
+                    })
+                    .conv::<NotKnown>(),
+                )
+                .cloned()
+                .pipe(|result| AnyInferredLangType::from(result))
+        });
+
+        return instance;
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
 pub enum LangType {
@@ -233,9 +299,9 @@ impl HasInference for LangType {
         match self {
             LangType::TypeReference(inferred_type) => inferred_type.recursive_inferred_types(),
             LangType::Action => vec![],
-            LangType::Instance(instance_lang_type) => vec![],
+            LangType::Instance(_) => vec![],
             LangType::Function(function_lang_type) => function_lang_type.recursive_inferred_types(),
-            LangType::Primitive(primitive_lang_type) => vec![],
+            LangType::Primitive(_) => vec![],
             LangType::Anything => vec![],
             LangType::AnySignal => vec![],
             LangType::OneOf(one_of_lang_type) => one_of_lang_type.recursive_inferred_types(),

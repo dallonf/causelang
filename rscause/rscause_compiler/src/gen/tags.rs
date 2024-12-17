@@ -1,6 +1,7 @@
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumTryAs)]
 pub enum NodeTag {
     ReferencesFile(ReferencesFileNodeTag),
+    CanonicalIdInfo(CanonicalIdInfoNodeTag),
     BadFileReference(BadFileReferenceNodeTag),
     TopLevelDeclaration(TopLevelDeclarationNodeTag),
     ValueGoesTo(ValueGoesToNodeTag),
@@ -16,6 +17,7 @@ impl NodeTag {
   pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> Option<NodeTag> {
     match self {
         NodeTag::ReferencesFile(_) => None,
+        NodeTag::CanonicalIdInfo(_) => None,
         NodeTag::BadFileReference(_) => None,
         NodeTag::TopLevelDeclaration(_) => None,
         NodeTag::ValueGoesTo(tag) => Some(tag.inverse(breadcrumbs).into()),
@@ -34,6 +36,11 @@ impl NodeTag {
 pub struct ReferencesFileNodeTag {
     pub path: Arc<String>,
     pub export_name: Option<Arc<String>>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CanonicalIdInfoNodeTag {
+    pub parent_name: Option<Arc<String>>,
+    pub index: u32,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BadFileReferenceNodeTag {

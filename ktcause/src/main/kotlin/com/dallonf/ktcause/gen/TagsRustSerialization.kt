@@ -10,6 +10,9 @@ object TagsRustSerialization {
       is NodeTag.ReferencesFile -> buildJsonObject {
         put("ReferencesFile", serializeReferencesFileTag(tag))
       }
+      is NodeTag.CanonicalIdInfo -> buildJsonObject {
+        put("CanonicalIdInfo", serializeCanonicalIdInfoTag(tag))
+      }
       is NodeTag.BadFileReference -> buildJsonObject {
         put("BadFileReference", serializeBadFileReferenceTag(tag))
       }
@@ -48,6 +51,12 @@ object TagsRustSerialization {
     return buildJsonObject {
       put("path", tag.path)
       put("export_name", tag.exportName)
+    }
+  }
+  fun serializeCanonicalIdInfoTag(tag: NodeTag.CanonicalIdInfo): JsonElement {
+    return buildJsonObject {
+      put("parent_name", tag.parentName)
+      put("index", tag.index)
     }
   }
   fun serializeBadFileReferenceTag(tag: NodeTag.BadFileReference): JsonElement {

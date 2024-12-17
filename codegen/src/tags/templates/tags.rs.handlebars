@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumTryAs)]
 pub enum NodeTag {
   {{#each tags}}
     {{this.name}}({{this.name}}NodeTag),

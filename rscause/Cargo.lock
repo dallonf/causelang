@@ -649,6 +649,7 @@ dependencies = [
  "strum",
  "tap",
  "thiserror",
+ "tryvial",
 ]
 
 [[package]]
@@ -872,6 +873,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "tryvial"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edebbe6f32d5a62f44fc7d7a7e79963bc4cac720ba63cc1e00ec17832d9464ee"
+dependencies = [
+ "tryvial-proc",
+]
+
+[[package]]
+name = "tryvial-proc"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78d7245fd71d5be726bdc4dbe7e1b94f8d7627c5ccfeb6d624deb96542d0d149"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "venial",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -882,6 +903,16 @@ name = "uuid"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e395fcf16a7a3d8127ec99782007af141946b4795001f876d54fb0d55978560"
+
+[[package]]
+name = "venial"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61584a325b16f97b5b25fcc852eb9550843a251057a5e3e5992d2376f3df4bb2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+]
 
 [[package]]
 name = "version_check"
