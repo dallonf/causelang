@@ -453,7 +453,7 @@ object Analyzer {
 
         declaration.fields?.let { fields ->
             for (field in fields) {
-                analyzeTypeReference(field.typeConstraint, output, ctx)
+                analyzeTypeReference(field.typeAnnotation, output, ctx)
             }
         }
     }
@@ -465,7 +465,7 @@ object Analyzer {
 
         declaration.fields?.let { fields ->
             for (field in fields) {
-                analyzeTypeReference(field.typeConstraint, output, ctx)
+                analyzeTypeReference(field.typeAnnotation, output, ctx)
             }
         }
 

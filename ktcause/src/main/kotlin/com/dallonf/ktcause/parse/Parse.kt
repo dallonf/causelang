@@ -250,7 +250,7 @@ private fun parseObjectFields(
         ObjectField(
             NodeInfo(field.getRange(), fieldBreadcrumbs),
             name = parseIdentifier(field.IDENTIFIER().symbol, fieldBreadcrumbs.appendName("name"), ctx),
-            typeConstraint = parseTypeReference(
+            typeAnnotation = parseTypeReference(
                 field.typeReference(), fieldBreadcrumbs.appendName("typeConstraint"), ctx
             )
         )

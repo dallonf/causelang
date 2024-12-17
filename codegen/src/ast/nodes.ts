@@ -102,6 +102,22 @@ export const nodes: NodeDeclaration[] = [
       isVariable: booleanPrimitive,
     },
   },
+  {
+    name: "SignalType",
+    category: "Declaration",
+    fields: {
+      name: "Identifier",
+      fields: listOf("ObjectField"),
+      result: optional("TypeReference"),
+    },
+  },
+  {
+    name: "ObjectField",
+    fields: {
+      name: "Identifier",
+      typeAnnotation: "TypeReference",
+    }
+  },
 
   {
     name: "BlockBody",

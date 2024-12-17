@@ -345,11 +345,11 @@ data class SignalType(
 }
 
 data class ObjectField(
-    override val info: NodeInfo, val name: IdentifierNode, val typeConstraint: TypeReferenceNode
+    override val info: NodeInfo, val name: IdentifierNode, val typeAnnotation: TypeReferenceNode
 ) : AstNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
         put("name", name)
-        put("typeConstraint", typeConstraint)
+        put("typeAnnotation", typeAnnotation)
     }
 }
 
