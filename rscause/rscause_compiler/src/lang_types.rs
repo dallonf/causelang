@@ -35,27 +35,11 @@ impl<T> InferredType<T> {
     }
     // Will be a NeverResolved error if it's an inference variable
     #[inline]
-    pub fn to_result_assuming_inferred(self) -> Result<T, Arc<LangError>> {
+    pub fn to_result_assuming_inferred(self) -> LangTypeResult<T> {
         match self {
             InferredType::Known(t) => Ok(t),
             InferredType::Error(err) => Err(err),
             InferredType::InferenceVariable(_) => Err(LangError::NeverResolved.into()),
-        }
-    }
-    #[inline]
-    pub fn to_result(self) -> Result<T, NotKnown> {
-        match self {
-            InferredType::Known(t) => Ok(t),
-            InferredType::Error(error) => Err(NotKnown::Error(error)),
-            InferredType::InferenceVariable(id) => Err(NotKnown::InferenceVariable(id)),
-        }
-    }
-
-    pub fn from_result(value: Result<T, NotKnown>) -> Self {
-        match value {
-            Ok(known) => InferredType::Known(known),
-            Err(NotKnown::Error(error)) => InferredType::Error(error),
-            Err(NotKnown::InferenceVariable(id)) => InferredType::InferenceVariable(id),
         }
     }
 
@@ -77,19 +61,8 @@ impl<T> InferredType<T> {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
-pub enum NotKnown {
-    Error(Arc<LangError>),
-    InferenceVariable(u64),
-}
-impl<T> From<T> for NotKnown
-where
-    T: Into<Arc<LangError>>,
-{
-    fn from(value: T) -> Self {
-        NotKnown::Error(value.into())
-    }
-}
+type LangTypeResult<T> = Result<T, Arc<LangError>>;
+type AnyLangTypeResult = LangTypeResult<Arc<LangType>>;
 
 impl<T> From<LangError> for InferredType<T> {
     fn from(value: LangError) -> Self {
@@ -118,47 +91,24 @@ impl From<Result<Arc<LangType>, Arc<LangError>>> for AnyInferredLangType {
         }
     }
 }
-impl From<Result<Arc<LangType>, NotKnown>> for AnyInferredLangType {
-    fn from(value: Result<Arc<LangType>, NotKnown>) -> Self {
-        match value {
-            Ok(value) => Self::Known(value),
-            Err(NotKnown::Error(err)) => Self::Error(err),
-            Err(NotKnown::InferenceVariable(id)) => Self::InferenceVariable(id),
-        }
-    }
-}
-impl From<Result<AnyInferredLangType, NotKnown>> for AnyInferredLangType {
-    fn from(value: Result<AnyInferredLangType, NotKnown>) -> Self {
-        match value {
-            Ok(value) => value,
-            Err(NotKnown::Error(err)) => Self::Error(err),
-            Err(NotKnown::InferenceVariable(id)) => Self::InferenceVariable(id),
-        }
-    }
-}
-impl From<&Result<Arc<LangType>, NotKnown>> for AnyInferredLangType {
-    fn from(value: &Result<Arc<LangType>, NotKnown>) -> Self {
-        return value.clone().into();
-    }
-}
 
 pub type AnyInferredLangType = InferredType<Arc<LangType>>;
 impl AnyInferredLangType {
-    /// Assuming this is a LangType::TypeReference, return the inner value.
-    pub fn try_get_referenced_type(&self) -> AnyInferredLangType {
-        let instance = self.clone().and_then(|it| {
-            it.try_as_type_reference_ref()
-                .ok_or(
-                    LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
-                        r#type: self.clone(),
-                    })
-                    .conv::<NotKnown>(),
-                )
-                .cloned()
-                .pipe(|result| AnyInferredLangType::from(result))
-        });
+    /// Assuming this is a LangType::TypeReference and that
+    /// any type inference has already been run, return the inner value.
+    pub fn try_get_referenced_type(&self) -> AnyLangTypeResult {
+        let self_result = self.clone().to_result_assuming_inferred()?;
+        let instance = self_result
+            .try_as_type_reference_ref()
+            .ok_or(
+                LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
+                    r#type: self.clone(),
+                })
+                .pipe(Arc::new),
+            )?
+            .to_owned();
 
-        return instance;
+        return instance.to_result_assuming_inferred();
     }
 }
 
@@ -829,9 +779,9 @@ impl HasInference for ObjectCanonicalLangType {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct SignalCanonicalLangType {
-    type_id: CanonicalLangTypeId,
-    fields: Vec<CanonicalTypeField>,
-    result: AnyInferredLangType,
+    pub type_id: CanonicalLangTypeId,
+    pub fields: Vec<CanonicalTypeField>,
+    pub result: AnyInferredLangType,
 }
 
 impl SignalCanonicalLangType {

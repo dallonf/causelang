@@ -231,27 +231,27 @@ private fun parseObjectDeclaration(
 
 private fun parseSignalDeclaration(
     signalDeclaration: SignalDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): SignalType {
+): SignalTypeNode {
     val name = parseIdentifier(signalDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
     val fields = signalDeclaration.objectFields()?.let { parseObjectFields(it, breadcrumbs.appendName("fields"), ctx) }
     val result =
         signalDeclaration.typeReference()?.let { parseTypeReference(it, breadcrumbs.appendName("result"), ctx) }
 
-    return SignalType(
-        NodeInfo(signalDeclaration.getRange(), breadcrumbs), name, fields, result
+    return SignalTypeNode(
+        NodeInfo(signalDeclaration.getRange(), breadcrumbs), name, fields ?: emptyList(), result
     )
 }
 
 private fun parseObjectFields(
     objectFields: ObjectFieldsContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): List<ObjectField> {
+): List<ObjectFieldNode> {
     return objectFields.objectField().mapIndexed { i, field ->
         val fieldBreadcrumbs = breadcrumbs.appendIndex(i)
-        ObjectField(
+        ObjectFieldNode(
             NodeInfo(field.getRange(), fieldBreadcrumbs),
             name = parseIdentifier(field.IDENTIFIER().symbol, fieldBreadcrumbs.appendName("name"), ctx),
             typeAnnotation = parseTypeReference(
-                field.typeReference(), fieldBreadcrumbs.appendName("typeConstraint"), ctx
+                field.typeReference(), fieldBreadcrumbs.appendName("typeAnnotation"), ctx
             )
         )
     }

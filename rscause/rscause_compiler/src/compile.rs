@@ -19,6 +19,8 @@ use crate::instructions::{
     ReadLocalInstruction, ReadLocalThroughEffectScopeInstruction, RegisterEffectInstruction,
     RejectSignalInstruction, ReturnInstruction,
 };
+use crate::lang_types::AnyInferredLangType;
+use crate::prelude::*;
 use crate::resolve_types::ResolverError;
 use crate::tags::{ReferencesFileNodeTag, TopLevelDeclarationNodeTag};
 use crate::{
@@ -300,6 +302,32 @@ pub fn compile(
                     },
                 );
             }
+            ast::DeclarationNode::SignalType(declaration) => {
+                let error = ctx.check_for_badtype_error(declaration.breadcrumbs())?;
+                if let Some(error) = error {
+                    exports.insert(declaration.name.text.clone(), CompiledExport::Error(error));
+                }
+                let resolved_type = ctx
+                    .types
+                    .value_types
+                    .get(declaration.breadcrumbs())
+                    .cloned()
+                    .ok_or_else(|| {
+                        anyhow!("No type for signal type at {}", declaration.breadcrumbs())
+                    })?;
+                let resolved_type = resolved_type.to_result_assuming_inferred().map_err(|err| {
+                    anyhow!(
+                        "Unexpected LangError at {}: {:?}",
+                        declaration.breadcrumbs(),
+                        err
+                    )
+                })?;
+                let instance_type = resolved_type.get_referenced_value_type();
+                exports.insert(
+                    declaration.name.text.clone(),
+                    CompiledExport::Type(instance_type),
+                );
+            }
             ast::DeclarationNode::NamedValue(_) => { /* TODO */ }
         }
     }
@@ -499,7 +527,29 @@ fn compile_local_declaration(
     ctx: &mut CompilerContext,
 ) -> Result<()> {
     match &statement.declaration {
-        ast::DeclarationNode::Import(_) => todo!(),
+        ast::DeclarationNode::Import(_) => {}
+
+        ast::DeclarationNode::SignalType(signal) => {
+            let resolved_type = ctx
+                .types
+                .value_types
+                .get(signal.breadcrumbs())
+                .ok_or(anyhow!(
+                    "couldn't resolve type for local signal declaration"
+                ))?;
+            match resolved_type.clone().to_result_assuming_inferred() {
+                Ok(resolved_type) => {
+                    let constant =
+                        procedure.add_constant(CompiledConstant::Type(resolved_type.clone()));
+                    procedure.write_instruction(
+                        Instruction::Literal(LiteralInstruction { constant }),
+                        Some(&signal.info),
+                    );
+                }
+                Err(err) => compile_bad_value(signal.into(), err, procedure, ctx)?,
+            };
+        }
+
         ast::DeclarationNode::Function(function) => {
             // TODO: captured values
             let new_procedure = compile_function_declaration(&function, ctx)?;

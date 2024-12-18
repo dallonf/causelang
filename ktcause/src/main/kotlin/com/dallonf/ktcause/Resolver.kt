@@ -953,7 +953,7 @@ object Resolver {
                             resolveWith(ConstraintValueLangType(InstanceValueLangType(id)))
                         }
 
-                        is SignalType -> {
+                        is SignalTypeNode -> {
                             val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
                             val fields = node.fields?.map { field ->
                                 val fieldType = getResolvedTypeOf(field.typeAnnotation).asConstraintReference()

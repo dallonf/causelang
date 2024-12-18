@@ -853,6 +853,7 @@ impl ResolveTypes for ast::SignalTypeNode {
             .map(|it| {
                 ctx.get_resolved_type_proxying_errors(it)
                     .try_get_referenced_type()
+                    .conv::<AnyInferredLangType>()
             })
             .unwrap_or(LangType::Action.into());
         let id = Arc::new(CanonicalLangTypeId {
@@ -889,7 +890,7 @@ impl ResolveTypes for ast::SignalTypeNode {
 impl ResolveTypes for ast::ObjectFieldNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let type_reference = ctx.get_resolved_type_proxying_errors(&self.type_annotation);
-        Some(type_reference.try_get_referenced_type())
+        Some(type_reference.try_get_referenced_type().into())
     }
 }
 

@@ -38,7 +38,7 @@ async function generateTagsRustSerializationKt() {
       case "string":
         return name;
       case "uint":
-        return name;
+        return `${name}.toInt()`;
       case "breadcrumbs":
         return `RustSerialization.serializeBreadcrumbs(${name})`;
       default:

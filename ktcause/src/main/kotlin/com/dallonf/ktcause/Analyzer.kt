@@ -219,7 +219,7 @@ object Analyzer {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
-            is SignalType -> {
+            is SignalTypeNode -> {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
@@ -304,7 +304,7 @@ object Analyzer {
             is FunctionNode -> analyzeFunctionDeclaration(declaration, output, ctx)
             is NamedValueNode -> analyzeNamedValueDeclaration(declaration, output, ctx)
             is ObjectType -> analyzeObjectTypeDeclaration(declaration, output, ctx)
-            is SignalType -> analyzeSignalTypeDeclaration(declaration, output, ctx)
+            is SignalTypeNode -> analyzeSignalTypeDeclaration(declaration, output, ctx)
             is OptionType -> analyzeOptionTypeDeclaration(declaration, output, ctx)
         }
     }
@@ -459,7 +459,7 @@ object Analyzer {
     }
 
     private fun analyzeSignalTypeDeclaration(
-        declaration: SignalType, output: AnalyzedNode, ctx: AnalyzerContext
+        declaration: SignalTypeNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         tagCanonicalTypeId(declaration.name.text, declaration.info.breadcrumbs, ctx, output)
 

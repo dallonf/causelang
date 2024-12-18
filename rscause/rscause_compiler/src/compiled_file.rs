@@ -8,7 +8,7 @@ use serde::{Serialize, Serializer};
 use crate::ast::NodeInfo;
 use crate::error_types::{ErrorPosition, LangError};
 use crate::instructions::{Instruction, InstructionPhase};
-use crate::lang_types::{FunctionLangType, InferredType, LangType};
+use crate::lang_types::{AnyInferredLangType, FunctionLangType, InferredType, LangType};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CompiledFile {
@@ -78,4 +78,6 @@ pub enum CompiledExport {
         procedure_index: u32,
         function_type: InferredType<Arc<FunctionLangType>>,
     },
+    Type(AnyInferredLangType),
+    Error(Arc<LangError>),
 }

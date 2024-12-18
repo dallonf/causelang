@@ -56,7 +56,7 @@ object TagsRustSerialization {
   fun serializeCanonicalIdInfoTag(tag: NodeTag.CanonicalIdInfo): JsonElement {
     return buildJsonObject {
       put("parent_name", tag.parentName)
-      put("index", tag.index)
+      put("index", tag.index.toInt())
     }
   }
   fun serializeBadFileReferenceTag(tag: NodeTag.BadFileReference): JsonElement {
