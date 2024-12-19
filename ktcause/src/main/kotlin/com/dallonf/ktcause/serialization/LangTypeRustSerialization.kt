@@ -36,6 +36,7 @@ object LangTypeRustSerialization {
             }
 
             is AnythingValueLangType -> JsonPrimitive("Anything")
+            is AnySignalValueLangType -> JsonPrimitive("AnySignal")
 
             is OptionValueLangType -> buildJsonObject {
                 put("OneOf", serializeOneOfLangType(resolvedValueLangType))
@@ -80,6 +81,10 @@ object LangTypeRustSerialization {
 
             if (langType.content == "Anything") {
                 return AnythingValueLangType
+            }
+
+            if (langType.content == "AnySignal") {
+                return AnySignalValueLangType
             }
         }
 

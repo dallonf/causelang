@@ -140,7 +140,7 @@ object RustCompiler {
     }
 
     val supportedCoreImports = setOf("core/builtin.cau", "core/math", "core/text")
-    private val supportedCoreBuiltins = setOf("Debug", "Action", "Text", "Number", "equals")
+    private val supportedCoreBuiltins = setOf("Debug", "Action", "Anything", "AnySignal", "Text", "Number", "equals")
     private val unsupportedIdentifiers = setOf("AssumptionBroken")
 
     fun compile(

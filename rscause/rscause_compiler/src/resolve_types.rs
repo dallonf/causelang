@@ -379,7 +379,10 @@ impl ResolveTypesContext {
         new_id
     }
 
-    pub fn get_canonical_type(&self, type_id: &CanonicalLangTypeId) -> Option<Arc<CanonicalLangType>> {
+    pub fn get_canonical_type(
+        &self,
+        type_id: &CanonicalLangTypeId,
+    ) -> Option<Arc<CanonicalLangType>> {
         self.new_canonical_types
             .get(type_id)
             .cloned()
@@ -679,49 +682,81 @@ impl ResolveTypes for ast::CallExpressionNode {
             _ => Err(LangError::NotCallable.into()),
         };
 
+        #[derive(Debug, Clone, Eq, PartialEq)]
+        struct CallParameter {
+            name: Arc<String>,
+            value_type: AnyInferredLangType,
+        }
+
         let parameters = match callee_type.as_ref() {
-            LangType::Function(function_type) => Ok(function_type.params.clone()),
-            LangType::TypeReference(_referenced_type) => {
-                if self.parameters.len() == 0 {
-                    Ok(vec![])
-                } else {
-                    Err(LangError::NotSupportedInRust)
-                }
-            }
+            LangType::Function(function_type) => Ok(function_type
+                .params
+                .iter()
+                .map(|it| CallParameter {
+                    name: it.name.clone(),
+                    value_type: it.value_type.clone(),
+                })
+                .collect_vec()),
+            LangType::TypeReference(referenced_type) => referenced_type
+                .clone()
+                .to_result_assuming_inferred()
+                .and_then(|referenced_type| {
+                    let instance_type = match referenced_type.as_ref() {
+                        LangType::Instance(instance) => Ok(instance),
+                        _ => Err(LangError::NotCallable),
+                    }?;
+                    let canonical_type = ctx.get_canonical_type(&instance_type.type_id).ok_or(
+                        LangError::compiler_bug(format!(
+                            "Missing canonical type: {}",
+                            instance_type.type_id.to_string()
+                        )),
+                    )?;
+                    Ok(canonical_type
+                        .fields()
+                        .iter()
+                        .map(|it| CallParameter {
+                            name: it.name.clone(),
+                            value_type: it.value_type.clone(),
+                        })
+                        .collect_vec())
+                }),
             _ => Err(LangError::NotCallable.into()),
         };
-        if let Ok(parameters) = parameters {
-            match self.parameters.len().cmp(&parameters.len()) {
-                std::cmp::Ordering::Less => {
-                    return Some(
-                        LangError::MissingParameters(MissingParametersError {
-                            names: parameters[self.parameters.len()..]
-                                .into_iter()
-                                .map(|it| it.name.as_ref().to_owned())
-                                .collect(),
-                        })
-                        .into(),
-                    )
+        match parameters {
+            Ok(parameters) => {
+                match self.parameters.len().cmp(&parameters.len()) {
+                    std::cmp::Ordering::Less => {
+                        return Some(
+                            LangError::MissingParameters(MissingParametersError {
+                                names: parameters[self.parameters.len()..]
+                                    .into_iter()
+                                    .map(|it| it.name.as_ref().to_owned())
+                                    .collect(),
+                            })
+                            .into(),
+                        )
+                    }
+                    std::cmp::Ordering::Greater => {
+                        return Some(
+                            LangError::ExcessParameters(ExcessParametersError {
+                                expected: parameters.len() as u32,
+                            })
+                            .into(),
+                        )
+                    }
+                    std::cmp::Ordering::Equal => {}
                 }
-                std::cmp::Ordering::Greater => {
-                    return Some(
-                        LangError::ExcessParameters(ExcessParametersError {
-                            expected: parameters.len() as u32,
-                        })
-                        .into(),
-                    )
-                }
-                std::cmp::Ordering::Equal => {}
-            }
-            for (lang_param, param_node) in parameters.iter().zip(self.parameters.iter()) {
-                ctx.edicts.push(TypeEdict {
+                for (lang_param, param_node) in parameters.iter().zip(self.parameters.iter()) {
+                    ctx.edicts.push(TypeEdict {
                     breadcrumbs: param_node.breadcrumbs().clone(),
                     rule: TypeEdictRule::AssignableTo(lang_param.value_type.clone()),
                     diagnostic:
                         "Function call param must be assignable to function definition param type"
                             .into(),
                 });
+                }
             }
+            Err(err) => return Some(InferredType::Error(err.into())),
         }
 
         Some(result_type.unwrap_or_else(|err| InferredType::Error(err.into())))
