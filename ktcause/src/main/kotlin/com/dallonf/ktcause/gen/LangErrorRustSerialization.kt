@@ -110,13 +110,13 @@ object LangErrorRustSerialization {
   fun deserializeConstraintUsedAsValueErrorLangType(error: JsonElement): ErrorLangType.ConstraintUsedAsValue {
     require(error is JsonObject)
     return ErrorLangType.ConstraintUsedAsValue(
-      deserializeConstraintValueLangType(error["r#type"]!!),
+      deserializeConstraintValueLangType(error["type"]!!),
     )
   }
   fun deserializeValueUsedAsConstraintErrorLangType(error: JsonElement): ErrorLangType.ValueUsedAsConstraint {
     require(error is JsonObject)
     return ErrorLangType.ValueUsedAsConstraint(
-      deserializeValueLangType(error["r#type"]!!),
+      deserializeValueLangType(error["type"]!!),
     )
   }
   fun deserializeCompilerBugErrorLangType(error: JsonElement): ErrorLangType.CompilerBug {

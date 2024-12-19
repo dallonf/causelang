@@ -26,7 +26,7 @@ async function generateRustErrorTypes() {
         error.fields !== undefined && Object.keys(error.fields).length > 0,
       fields: Object.entries(error.fields ?? {}).map(([name, type]) => {
         return {
-          name: rustFieldName(name),
+          name: rustSyntaxFieldName(name),
           type: rustFieldType(type),
         };
       }),
@@ -119,8 +119,17 @@ async function generateLangErrorRustSerializationKt() {
   );
 }
 
-function rustFieldName(name: string): string {
+/**
+ * Escapes reserved words with r#. Use this when outputting Rust syntax.
+ * @param name
+ * @returns
+ */
+function rustSyntaxFieldName(name: string): string {
   if (name === "type") return "r#type";
+  return rustFieldName(name);
+}
+
+function rustFieldName(name: string): string {
   return changeCase.snakeCase(name);
 }
 
