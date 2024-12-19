@@ -635,26 +635,50 @@ impl ResolveTypes for ast::EffectStatementNode {
 
 impl ResolveTypes for ast::CauseExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        let maybe_signal = ctx.get_resolved_type_proxying_errors(&self.signal);
-        let signal_result_type = maybe_signal
+        let canonical_type_id = match ctx
+            .get_resolved_type_proxying_errors(&self.signal)
             .to_result_assuming_inferred()
-            .and_then(|maybe_signal| match maybe_signal.as_ref() {
+            .and_then(|it| match it.as_ref() {
                 LangType::Instance(instance) => Ok(instance.type_id.clone()),
-                _ => Err(LangError::NotCausable.into()),
-            })
-            .and_then(|signal_id| {
-                ctx.get_canonical_type(signal_id.as_ref()).ok_or(
-                    LangError::CompilerBug(CompilerBugError {
-                        description: format!("Couldn't find a canonical symbol: {:?}", signal_id),
+                LangType::TypeReference(instance) => instance
+                    .clone()
+                    .to_result_assuming_inferred()
+                    .and_then(|it| {
+                        it.try_as_instance_ref()
+                            .cloned()
+                            .ok_or(LangError::NotCausable.into())
                     })
-                    .into(),
-                )
-            })
+                    .and_then(|instance| {
+                        if instance.type_id.is_unique {
+                            Ok(instance.type_id.clone())
+                        } else {
+                            Err(LangError::NotCausable.into())
+                        }
+                    }),
+                _ => Err(LangError::NotCausable.into()),
+            }) {
+            Ok(it) => it,
+            Err(err) => return Some(InferredType::Error(err.into())),
+        };
+        if canonical_type_id.category != CanonicalLangTypeCategory::Signal {
+            return Some(LangError::NotCallable.into());
+        }
+        let signal_result_type = ctx
+            .get_canonical_type(&canonical_type_id)
+            .ok_or(
+                LangError::CompilerBug(CompilerBugError {
+                    description: format!(
+                        "Couldn't find a canonical symbol: {:?}",
+                        &canonical_type_id
+                    ),
+                })
+                .into(),
+            )
             .and_then(|canonical_type| match canonical_type.as_ref() {
                 CanonicalLangType::Signal(signal_type) => Ok(signal_type.result().clone()),
                 _ => Err(LangError::NotCausable.into()),
             })
-            .unwrap_or_else(|err| InferredType::Error(err.into()));
+            .unwrap_or_else(|err: Arc<LangError>| InferredType::Error(err.into()));
         Some(signal_result_type)
     }
 }
