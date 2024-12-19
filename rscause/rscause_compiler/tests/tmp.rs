@@ -36,6 +36,6 @@ fn test_tmp() {
         resolve_types_result.clone(),
     )
     .pipe(Arc::new);
-    println!("{:#?}", resolve_types_result);
-    println!("{:#?}", compile_result);
+    println!("resolve_types_result: {:#?}", resolve_types_result);
+    println!("compile_result: {:#?}", compile_result);
 }

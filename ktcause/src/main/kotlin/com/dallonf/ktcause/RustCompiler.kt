@@ -54,6 +54,7 @@ object RustCompiler {
     }
 
     private val mode = Mode.IF_SUPPORTED
+    private val output_tmp = false
 
     init {
         System.loadLibrary("rscause_jni")
@@ -152,7 +153,9 @@ object RustCompiler {
         val filteredCanonicalTypes = getFilteredCanonicalTypes(filteredExternalFiles)
         val filteredTags = getFilteredTags(tags)
 
-//        generateTestOutput("tmp", ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles);
+        if (output_tmp) {
+            generateTestOutput("tmp", ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles)
+        }
         val astJson = AstRustSerialization.serializeFile(ast).let { RustSerialization.encoder.encodeToString(it) }
         val tagsJson =
             RustSerialization.serializeNodeTagMap(filteredTags).let { RustSerialization.encoder.encodeToString(it) }

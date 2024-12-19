@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::ast::{AnyAstNode, AstNode, NodeInfo};
@@ -548,7 +549,11 @@ fn compile_local_declaration(
                 .ok_or(anyhow!(
                     "couldn't resolve type for local signal declaration"
                 ))?;
-            match resolved_type.clone().to_result_assuming_inferred() {
+            let resolved_referenced_type = resolved_type
+                .clone()
+                .to_result_assuming_inferred()
+                .and_then(|it| it.get_referenced_value_type().to_result_assuming_inferred());
+            match resolved_referenced_type {
                 Ok(resolved_type) => {
                     let constant =
                         procedure.add_constant(CompiledConstant::Type(resolved_type.clone()));
@@ -559,6 +564,17 @@ fn compile_local_declaration(
                 }
                 Err(err) => compile_bad_value(signal.into(), err, procedure, ctx)?,
             };
+            let name = signal.name.text.clone();
+            ctx.add_to_scope(signal.breadcrumbs())?;
+            let name_constant = procedure.add_constant(CompiledConstant::String(name.clone()));
+            procedure.write_instruction(
+                Instruction::NameValue(NameValueInstruction {
+                    name_constant,
+                    variable: false,
+                    local_index: None,
+                }),
+                Some(&signal.info),
+            );
         }
 
         ast::DeclarationNode::Function(function) => {
