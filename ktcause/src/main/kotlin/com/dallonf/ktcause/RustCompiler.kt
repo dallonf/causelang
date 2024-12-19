@@ -12,8 +12,6 @@ import com.dallonf.ktcause.types.CanonicalLangTypeId
 import com.dallonf.ktcause.types.ErrorLangType
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.internal.writeJson
 import java.io.File
 import kotlin.reflect.KClass
 
@@ -54,7 +52,7 @@ object RustCompiler {
     }
 
     private val mode = Mode.IF_SUPPORTED
-    private val output_tmp = false
+    private val outputTmp = false
 
     init {
         System.loadLibrary("rscause_jni")
@@ -153,7 +151,7 @@ object RustCompiler {
         val filteredCanonicalTypes = getFilteredCanonicalTypes(filteredExternalFiles)
         val filteredTags = getFilteredTags(tags)
 
-        if (output_tmp) {
+        if (outputTmp) {
             generateTestOutput("tmp", ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles)
         }
         val astJson = AstRustSerialization.serializeFile(ast).let { RustSerialization.encoder.encodeToString(it) }
