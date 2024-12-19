@@ -194,6 +194,7 @@ object RustCompiler {
         }
 
     fun getFilteredTags(tags: Map<Breadcrumbs, List<NodeTag>>) = tags.mapValues { (breadcrumbs, tags) ->
+        // TODO: automate this with codegen
         tags.filter {
             when (it) {
                 is NodeTag.ReferencesFile -> true
@@ -207,6 +208,7 @@ object RustCompiler {
                 is NodeTag.DeclarationForScope -> true
                 is NodeTag.ScopeContainsDeclaration -> true
                 is NodeTag.TopLevelDeclaration -> true
+                is NodeTag.CanonicalIdInfo -> true
                 else -> false
             }
         }

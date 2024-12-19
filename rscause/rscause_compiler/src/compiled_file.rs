@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use num::BigRational;
@@ -8,12 +7,15 @@ use serde::{Serialize, Serializer};
 use crate::ast::NodeInfo;
 use crate::error_types::{ErrorPosition, LangError};
 use crate::instructions::{Instruction, InstructionPhase};
-use crate::lang_types::{AnyInferredLangType, FunctionLangType, InferredType, LangType};
+use crate::lang_types::{
+    AnyInferredLangType, CanonicalLangType, CanonicalLangTypeId, FunctionLangType, InferredType,
+    LangType,
+};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CompiledFile {
     pub path: Arc<String>,
-    // TODO: pub types
+    pub types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
     pub procedures: Vec<Procedure>,
     pub exports: HashMap<Arc<String>, CompiledExport>,
 }

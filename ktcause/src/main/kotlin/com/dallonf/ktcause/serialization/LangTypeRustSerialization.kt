@@ -191,7 +191,8 @@ object LangTypeRustSerialization {
 
     fun serializeOneOfLangType(optionValueLangType: OptionValueLangType): JsonElement {
         return buildJsonObject {
-            put("options",
+            put(
+                "options",
                 optionValueLangType.options.map { serializeAnyInferredLangType(it.asValueType()) }
                     .let { JsonArray(it) })
         }
@@ -231,7 +232,7 @@ object LangTypeRustSerialization {
         return "${canonicalLangTypeId.path}:$category:$fullName$numberIfApplicable$unique"
     }
 
-    private fun deserializeCanonicalLangTypeId(canonicalLangTypeId: String): CanonicalLangTypeId {
+    fun deserializeCanonicalLangTypeId(canonicalLangTypeId: String): CanonicalLangTypeId {
         var (path, categoryStr, combinedName) = canonicalLangTypeId.split(":")
 
         val category = when (categoryStr) {
@@ -273,6 +274,14 @@ object LangTypeRustSerialization {
         }
     }
 
+    fun deserializeCanonicalTypeMap(map: JsonElement): Map<CanonicalLangTypeId, CanonicalLangType> {
+        return (map as JsonObject).map {
+            val id = deserializeCanonicalLangTypeId(it.key)
+            val type = deserializeCanonicalLangType(it.value)
+            id to type
+        }.toMap()
+    }
+
     private fun serializeCanonicalLangType(type: CanonicalLangType): JsonElement {
         fun serializeField(objectField: CanonicalLangType.ObjectField): JsonElement {
             return buildJsonObject {
@@ -301,5 +310,33 @@ object LangTypeRustSerialization {
                 })
             }
         }
+    }
+
+    fun deserializeCanonicalLangType(type: JsonElement): CanonicalLangType {
+        fun deserializeField(field: JsonElement): CanonicalLangType.ObjectField {
+            require(field is JsonObject)
+            val name = (field["name"] as JsonPrimitive).content
+            val valueConstraint = deserializeValueLangType(field["value_type"]!!).valueToConstraintReference()
+            return CanonicalLangType.ObjectField(name, valueConstraint)
+        }
+
+        require(type is JsonObject)
+
+        type["Object"]?.let { objectType ->
+            require(objectType is JsonObject)
+            val typeId = deserializeCanonicalLangTypeId((objectType["type_id"] as JsonPrimitive).content)
+            val fields = (objectType["fields"] as JsonArray).map { deserializeField(it) }
+            return CanonicalLangType.ObjectCanonicalLangType(typeId, typeId.name!!, fields)
+        }
+
+        type["Signal"]?.let { signalType ->
+            require(signalType is JsonObject)
+            val typeId = deserializeCanonicalLangTypeId((signalType["type_id"] as JsonPrimitive).content)
+            val fields = (signalType["fields"] as JsonArray).map { deserializeField(it) }
+            val result = deserializeValueLangType(signalType["result"]!!).valueToConstraintReference()
+            return CanonicalLangType.SignalCanonicalLangType(typeId, typeId.name!!, fields, result)
+        }
+
+        throw AssertionError("Unrecognized canonical type: $type")
     }
 }

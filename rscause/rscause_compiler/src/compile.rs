@@ -47,7 +47,7 @@ struct CompilerContext {
     procedures: Vec<Procedure>,
     types: Arc<ResolveTypesResult>,
     constraint_errors: Arc<HashMap<Breadcrumbs, Vec<LangError>>>,
-    canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
+    canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
     scope_stack: VecDeque<Rc<RefCell<CompilerScope>>>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
 }
@@ -256,10 +256,20 @@ pub fn compile(
         }
         Arc::new(errors)
     };
+    let all_canonical_types = {
+        let mut it = canonical_types.as_ref().to_owned();
+        it.extend(
+            types
+                .new_canonical_types
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone())),
+        );
+        it
+    };
     let mut ctx = CompilerContext {
         path: path.clone(),
         procedures: Vec::new(),
-        canonical_types,
+        canonical_types: all_canonical_types.into(),
         types,
         constraint_errors,
         scope_stack: VecDeque::new(),
@@ -336,6 +346,7 @@ pub fn compile(
         path,
         procedures: ctx.procedures,
         exports,
+        types: ctx.types.new_canonical_types.clone().into(),
     })
 }
 
@@ -891,7 +902,13 @@ fn compile_member_expression(
     let fields = ctx
         .canonical_types
         .get(&object_type.type_id)
-        .ok_or_else(|| anyhow!("Can't find canonical type for member expression"))?
+        .ok_or_else(|| {
+            anyhow!(
+                "Can't find canonical type for member expression. Member expression: {} Type ID: {}",
+                expression.breadcrumbs(),
+                object_type.type_id.to_string()
+            )
+        })?
         .fields();
 
     let field_name = &expression.member_identifier.text;

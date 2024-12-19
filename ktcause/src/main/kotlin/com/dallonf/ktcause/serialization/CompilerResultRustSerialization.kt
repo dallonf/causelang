@@ -7,6 +7,8 @@ import com.dallonf.ktcause.RustCompiler
 import com.dallonf.ktcause.ast.SourcePosition
 import com.dallonf.ktcause.gen.InstructionRustSerialization
 import com.dallonf.ktcause.gen.LangErrorRustSerialization
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeCanonicalLangTypeId
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeCanonicalTypeMap
 import com.dallonf.ktcause.types.CanonicalLangType
 import com.dallonf.ktcause.types.CanonicalLangTypeId
 import com.dallonf.ktcause.types.ErrorLangType
@@ -34,7 +36,7 @@ object CompilerResultRustSerialization {
     fun deserializeCompiledFile(compiledFile: JsonElement): CompiledFile {
         require(compiledFile is JsonObject)
         val path = (compiledFile["path"] as JsonPrimitive).content
-        val types = emptyMap<CanonicalLangTypeId, CanonicalLangType>()
+        val types = deserializeCanonicalTypeMap(compiledFile["types"]!!)
         val procedures = (compiledFile["procedures"] as JsonArray).map { deserializeProcedure(it as JsonObject) }
         val exports = buildMap {
             val jsonExports = (compiledFile["exports"] as JsonObject)
@@ -62,6 +64,16 @@ object CompilerResultRustSerialization {
                 }
 
                 return CompiledFile.CompiledExport.Function(index, type)
+            }
+            compiledExport["Type"]?.let { jsonType ->
+                require(jsonType is JsonObject)
+                val type = LangTypeRustSerialization.deserializeValueLangType(jsonType)
+                return CompiledFile.CompiledExport.Constraint(type.valueToConstraintReference())
+            }
+            compiledExport["Error"]?.let { jsonError ->
+                require(jsonError is JsonObject)
+                val error = LangErrorRustSerialization.deserializeErrorLangType(jsonError)
+                return CompiledFile.CompiledExport.Error(error)
             }
         }
 
@@ -102,7 +114,8 @@ object CompilerResultRustSerialization {
             procedureIdentity["Effect"]?.let {
                 require(it is JsonObject)
                 val matchesType =
-                    LangTypeRustSerialization.deserializeResolvedValueLangType(it["matches_type"]!!).valueToConstraintReference()
+                    LangTypeRustSerialization.deserializeResolvedValueLangType(it["matches_type"]!!)
+                        .valueToConstraintReference()
                 val declaration = RustSerialization.deserializeNodeInfo(it["declaration"]!!)
 
                 return CompiledFile.Procedure.ProcedureIdentity.Effect(matchesType, declaration)

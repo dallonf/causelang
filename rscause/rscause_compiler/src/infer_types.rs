@@ -26,7 +26,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                 .unwrap_or_default()
         })
         .chain(
-            ctx.canonical_types
+            ctx.new_canonical_types
                 .values()
                 .flat_map(|canonical_type| canonical_type.recursive_inferred_types()),
         )
@@ -69,8 +69,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                                 }
                             })
                             .and_then(|instance| {
-                                ctx.canonical_types
-                                    .get(&instance.type_id)
+                                ctx.get_canonical_type(&instance.type_id)
                                     .map(|canonical_type| InferredType::Known(canonical_type))
                                     .unwrap_or(InferredType::Error(
                                         LangError::CompilerBug(CompilerBugError {
@@ -130,7 +129,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                 *ptr = ptr.fill_variable(id, solution.clone());
             }
         }
-        for ptr in ctx.canonical_types.values_mut() {
+        for ptr in ctx.new_canonical_types.values_mut() {
             *ptr = ptr.fill_variable(id, solution.clone()).into();
         }
     }
@@ -164,7 +163,7 @@ fn has_pending(ctx: &mut ResolveTypesContext) -> bool {
         .values()
         .any(|it| it.as_ref().map(|it| it.has_pending()).unwrap_or(false))
         || ctx
-            .canonical_types
+            .new_canonical_types
             .values()
             .any(|it| it.as_ref().has_pending());
 }
@@ -192,11 +191,11 @@ fn hash_ctx(ctx: &ResolveTypesContext) -> u64 {
         ctx.value_types.get(breadcrumb).unwrap().hash(&mut hasher);
     }
 
-    let mut all_canonical_type_ids = ctx.canonical_types.keys().collect_vec();
+    let mut all_canonical_type_ids = ctx.new_canonical_types.keys().collect_vec();
     all_canonical_type_ids.sort();
     hasher.write_usize(all_canonical_type_ids.len());
     for type_id in all_canonical_type_ids {
-        ctx.canonical_types.get(type_id).unwrap().hash(&mut hasher);
+        ctx.new_canonical_types.get(type_id).unwrap().hash(&mut hasher);
     }
 
     return hasher.finish();

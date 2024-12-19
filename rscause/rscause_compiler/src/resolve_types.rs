@@ -33,6 +33,7 @@ pub struct ExternalFileDescriptor {
 pub struct ResolveTypesResult {
     pub value_types: HashMap<Breadcrumbs, AnyInferredLangType>,
     pub errors: Vec<ResolverError>,
+    pub new_canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -217,6 +218,7 @@ pub fn resolve_types(
     ResolveTypesResult {
         value_types: result,
         errors,
+        new_canonical_types: ctx.new_canonical_types,
     }
 }
 
@@ -256,7 +258,7 @@ pub enum ConstraintDiagnostic {
 pub struct ResolveTypesContext {
     pub file_path: Arc<String>,
     pub root_node: Arc<ast::FileNode>,
-    pub canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
+    pub canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
     pub node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     pub external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 
@@ -265,6 +267,7 @@ pub struct ResolveTypesContext {
     pub constraints: Vec<(u64, TypeConstraint, ConstraintDiagnostic)>,
     pub edicts: Vec<TypeEdict>,
     pub next_inference_variable: u64,
+    pub new_canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
 }
 
 impl ResolveTypesContext {
@@ -278,7 +281,7 @@ impl ResolveTypesContext {
         Self {
             file_path,
             root_node,
-            canonical_types: canonical_types.as_ref().to_owned(),
+            canonical_types: canonical_types.clone(),
             node_tags,
             external_files,
 
@@ -287,6 +290,7 @@ impl ResolveTypesContext {
             constraints: vec![],
             edicts: vec![],
             next_inference_variable: 0,
+            new_canonical_types: HashMap::new(),
         }
     }
 
@@ -373,6 +377,13 @@ impl ResolveTypesContext {
         let new_id = self.next_inference_variable;
         self.next_inference_variable += 1;
         new_id
+    }
+
+    pub fn get_canonical_type(&self, type_id: &CanonicalLangTypeId) -> Option<Arc<CanonicalLangType>> {
+        self.new_canonical_types
+            .get(type_id)
+            .cloned()
+            .or_else(|| self.canonical_types.get(type_id).cloned())
     }
 }
 
@@ -587,14 +598,13 @@ impl ResolveTypes for ast::EffectStatementNode {
                 LangType::Instance(instance) => {
                     if instance.type_id.category == CanonicalLangTypeCategory::Signal {
                         let result_type = ctx
-                            .canonical_types
-                            .get(&instance.type_id)
+                            .get_canonical_type(&instance.type_id)
                             .ok_or(LangError::compiler_bug(format!(
                                 "Missing type for {}",
                                 instance.type_id.to_string()
                             )))
                             .and_then(|canonical_type| match canonical_type.as_ref() {
-                                CanonicalLangType::Signal(signal) => Ok(signal),
+                                CanonicalLangType::Signal(signal) => Ok(signal.clone()),
                                 _ => Err(LangError::NotCausable),
                             })
                             .map(|signal| signal.result().clone());
@@ -630,7 +640,7 @@ impl ResolveTypes for ast::CauseExpressionNode {
                 _ => Err(LangError::NotCausable.into()),
             })
             .and_then(|signal_id| {
-                ctx.canonical_types.get(signal_id.as_ref()).cloned().ok_or(
+                ctx.get_canonical_type(signal_id.as_ref()).ok_or(
                     LangError::CompilerBug(CompilerBugError {
                         description: format!("Couldn't find a canonical symbol: {:?}", signal_id),
                     })
@@ -831,7 +841,10 @@ impl ResolveTypes for ast::SignalTypeNode {
             .get_tags(self)
             .iter()
             .find_map(|it| it.try_as_canonical_id_info_ref().cloned())
-            .ok_or(LangError::compiler_bug("Couldn't find CanonicalIdInfo tag"));
+            .ok_or(LangError::compiler_bug(format!(
+                "Couldn't find CanonicalIdInfo tag at {}",
+                self.breadcrumbs()
+            )));
         let canonical_id_tag = match canonical_id_tag {
             Ok(it) => it,
             Err(err) => return Some(err.into()),
@@ -865,7 +878,7 @@ impl ResolveTypes for ast::SignalTypeNode {
             is_unique: fields.is_empty(),
         });
 
-        ctx.canonical_types.insert(
+        ctx.new_canonical_types.insert(
             id.clone(),
             CanonicalLangType::Signal(SignalCanonicalLangType {
                 type_id: id.as_ref().to_owned(),
