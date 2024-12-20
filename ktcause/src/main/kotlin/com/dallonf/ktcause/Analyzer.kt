@@ -215,7 +215,7 @@ object Analyzer {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
-            is ObjectType -> {
+            is ObjectTypeNode -> {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
@@ -303,7 +303,7 @@ object Analyzer {
             is ImportNode -> analyzeImportDeclaration(declaration, output, ctx)
             is FunctionNode -> analyzeFunctionDeclaration(declaration, output, ctx)
             is NamedValueNode -> analyzeNamedValueDeclaration(declaration, output, ctx)
-            is ObjectType -> analyzeObjectTypeDeclaration(declaration, output, ctx)
+            is ObjectTypeNode -> analyzeObjectTypeDeclaration(declaration, output, ctx)
             is SignalTypeNode -> analyzeSignalTypeDeclaration(declaration, output, ctx)
             is OptionType -> analyzeOptionTypeDeclaration(declaration, output, ctx)
         }
@@ -447,14 +447,12 @@ object Analyzer {
     }
 
     private fun analyzeObjectTypeDeclaration(
-        declaration: ObjectType, output: AnalyzedNode, ctx: AnalyzerContext
+        declaration: ObjectTypeNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         tagCanonicalTypeId(declaration.name.text, declaration.info.breadcrumbs, ctx, output)
 
-        declaration.fields?.let { fields ->
-            for (field in fields) {
-                analyzeTypeReference(field.typeAnnotation, output, ctx)
-            }
+        for (field in declaration.fields) {
+            analyzeTypeReference(field.typeAnnotation, output, ctx)
         }
     }
 
@@ -463,10 +461,8 @@ object Analyzer {
     ) {
         tagCanonicalTypeId(declaration.name.text, declaration.info.breadcrumbs, ctx, output)
 
-        declaration.fields?.let { fields ->
-            for (field in fields) {
-                analyzeTypeReference(field.typeAnnotation, output, ctx)
-            }
+        for (field in declaration.fields) {
+            analyzeTypeReference(field.typeAnnotation, output, ctx)
         }
 
         declaration.result?.let { analyzeTypeReference(it, output, ctx) }

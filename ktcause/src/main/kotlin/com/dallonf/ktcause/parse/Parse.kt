@@ -32,7 +32,8 @@ fun generateCoreBuiltinsImport(breadcrumbs: Breadcrumbs): ImportNode {
     val coreBuiltinFile = CoreFiles.builtin.toFileDescriptor()
     val coreBuiltinNames = coreBuiltinFile.exports.map { (key, _) -> key }
     val position = DocumentRange(DocumentPosition(0, 0), DocumentPosition(0, 0))
-    return ImportNode(NodeInfo(position, breadcrumbs),
+    return ImportNode(
+        NodeInfo(position, breadcrumbs),
         path = ImportPathNode(NodeInfo(position, breadcrumbs.appendName("path")), coreBuiltinFilepath),
         mappings = coreBuiltinNames.mapIndexed { i, name ->
             val mappingBreadcrumbs = breadcrumbs.appendName("mappings").appendIndex(i)
@@ -78,7 +79,8 @@ private fun parseFunctionTypeReference(
     val paramsBreadcrumbs = breadcrumbs.appendName("params")
     val params = typeReference.functionSignatureParam().mapIndexed { i, param ->
         val paramBreadcrumbs = paramsBreadcrumbs.appendIndex(i)
-        FunctionSignatureParameterNode(NodeInfo(param.getRange(), paramBreadcrumbs),
+        FunctionSignatureParameterNode(
+            NodeInfo(param.getRange(), paramBreadcrumbs),
             name = parseIdentifier(param.IDENTIFIER().symbol, paramBreadcrumbs.appendName("name"), ctx),
             typeReference = param.typeReference()
                 ?.let { parseTypeReference(it, paramBreadcrumbs.appendName("typeReference"), ctx) })
@@ -118,7 +120,8 @@ private fun parseFunctionDeclaration(
     val paramsBreadcrumbs = breadcrumbs.appendName("params")
     val params = functionDeclaration.functionSignatureParam().mapIndexed { i, param ->
         val paramBreadcrumbs = paramsBreadcrumbs.appendIndex(i)
-        FunctionSignatureParameterNode(NodeInfo(param.getRange(), paramBreadcrumbs),
+        FunctionSignatureParameterNode(
+            NodeInfo(param.getRange(), paramBreadcrumbs),
             name = parseIdentifier(param.IDENTIFIER().symbol, paramBreadcrumbs.appendName("name"), ctx),
             typeReference = param.typeReference()
                 ?.let { parseTypeReference(it, paramBreadcrumbs.appendName("typeReference"), ctx) })
@@ -220,12 +223,12 @@ private fun parseNamedValueDeclaration(
 
 private fun parseObjectDeclaration(
     objectDeclaration: ObjectDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): ObjectType {
+): ObjectTypeNode {
     val name = parseIdentifier(objectDeclaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
     val fields = objectDeclaration.objectFields()?.let { parseObjectFields(it, breadcrumbs.appendName("fields"), ctx) }
 
-    return ObjectType(
-        NodeInfo(objectDeclaration.getRange(), breadcrumbs), name, fields
+    return ObjectTypeNode(
+        NodeInfo(objectDeclaration.getRange(), breadcrumbs), name, fields ?: emptyList()
     )
 }
 
@@ -412,7 +415,8 @@ private fun parseFunctionExpression(
     val paramsBreadcrumbs = breadcrumbs.appendName("params")
     val params = expression.functionSignatureParam().mapIndexed { i, param ->
         val paramBreadcrumbs = paramsBreadcrumbs.appendIndex(i)
-        FunctionSignatureParameterNode(NodeInfo(param.getRange(), paramBreadcrumbs),
+        FunctionSignatureParameterNode(
+            NodeInfo(param.getRange(), paramBreadcrumbs),
             name = parseIdentifier(param.IDENTIFIER().symbol, paramBreadcrumbs.appendName("name"), ctx),
             typeReference = param.typeReference()
                 ?.let { parseTypeReference(it, paramBreadcrumbs.appendName("typeReference"), ctx) })
@@ -495,7 +499,8 @@ private fun parseLoopExpression(
 private fun parseReturnExpression(
     expression: ReturnExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ExpressionNode {
-    return ReturnExpression(NodeInfo(expression.getRange(), breadcrumbs),
+    return ReturnExpression(
+        NodeInfo(expression.getRange(), breadcrumbs),
         expression.expression()?.let { parseExpression(it, breadcrumbs.appendName("value"), ctx) })
 }
 

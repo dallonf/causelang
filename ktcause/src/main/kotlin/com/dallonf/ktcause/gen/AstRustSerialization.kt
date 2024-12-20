@@ -17,6 +17,7 @@ object AstRustSerialization {
             is ImportNode -> buildJsonObject { put("Import", serializeImport(node)) }
             is FunctionNode -> buildJsonObject { put("Function", serializeFunction(node)) }
             is NamedValueNode -> buildJsonObject { put("NamedValue", serializeNamedValue(node)) }
+            is ObjectTypeNode -> buildJsonObject { put("ObjectType", serializeObjectType(node)) }
             is SignalTypeNode -> buildJsonObject { put("SignalType", serializeSignalType(node)) }
             else -> TODO("Unknown node type: ${node::class.simpleName}")
         }
@@ -146,6 +147,14 @@ object AstRustSerialization {
             put("type_annotation", node.typeAnnotation?.let { serializeTypeReference(it)} ?: JsonNull)
             put("value", serializeExpression(node.value))
             put("is_variable", node.isVariable)
+        }
+    }
+
+    fun serializeObjectType(node: ObjectTypeNode): JsonElement {
+        return buildJsonObject {
+            put("info", RustSerialization.serializeNodeInfo(node.info))
+            put("name", serializeIdentifier(node.name))
+            put("fields", JsonArray(node.fields.map { serializeObjectField(it) }))
         }
     }
 

@@ -316,14 +316,12 @@ data class NamedValueNode(
     }
 }
 
-data class ObjectType(
-    override val info: NodeInfo, val name: IdentifierNode, val fields: List<ObjectFieldNode>?
+data class ObjectTypeNode(
+    override val info: NodeInfo, val name: IdentifierNode, val fields: List<ObjectFieldNode>
 ) : DeclarationNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
         put("name", name)
-        if (fields != null) {
-            put("fields", fields)
-        }
+        put("fields", fields)
     }
 }
 
@@ -335,9 +333,7 @@ data class SignalTypeNode(
 ) : DeclarationNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
         put("name", name)
-        if (fields != null) {
-            put("fields", fields)
-        }
+        put("fields", fields)
         if (result != null) {
             put("result", result)
         }

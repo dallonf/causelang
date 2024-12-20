@@ -317,6 +317,7 @@ pub fn compile(
                 let error = ctx.check_for_badtype_error(declaration.breadcrumbs())?;
                 if let Some(error) = error {
                     exports.insert(declaration.name.text.clone(), CompiledExport::Error(error));
+                    continue;
                 }
                 let resolved_type = ctx
                     .types
@@ -325,6 +326,33 @@ pub fn compile(
                     .cloned()
                     .ok_or_else(|| {
                         anyhow!("No type for signal type at {}", declaration.breadcrumbs())
+                    })?;
+                let resolved_type = resolved_type.to_result_assuming_inferred().map_err(|err| {
+                    anyhow!(
+                        "Unexpected LangError at {}: {:?}",
+                        declaration.breadcrumbs(),
+                        err
+                    )
+                })?;
+                let instance_type = resolved_type.get_referenced_value_type();
+                exports.insert(
+                    declaration.name.text.clone(),
+                    CompiledExport::Type(instance_type),
+                );
+            }
+            ast::DeclarationNode::ObjectType(declaration) => {
+                let error = ctx.check_for_badtype_error(declaration.breadcrumbs())?;
+                if let Some(error) = error {
+                    exports.insert(declaration.name.text.clone(), CompiledExport::Error(error));
+                    continue;
+                }
+                let resolved_type = ctx
+                    .types
+                    .value_types
+                    .get(declaration.breadcrumbs())
+                    .cloned()
+                    .ok_or_else(|| {
+                        anyhow!("No type for object type at {}", declaration.breadcrumbs())
                     })?;
                 let resolved_type = resolved_type.to_result_assuming_inferred().map_err(|err| {
                     anyhow!(
@@ -574,6 +602,41 @@ fn compile_local_declaration(
                     local_index: None,
                 }),
                 Some(&signal.info),
+            );
+        }
+        ast::DeclarationNode::ObjectType(object) => {
+            let resolved_type = ctx
+                .types
+                .value_types
+                .get(object.breadcrumbs())
+                .ok_or(anyhow!(
+                    "couldn't resolve type for local signal declaration"
+                ))?;
+            let resolved_referenced_type = resolved_type
+                .clone()
+                .to_result_assuming_inferred()
+                .and_then(|it| it.get_referenced_value_type().to_result_assuming_inferred());
+            match resolved_referenced_type {
+                Ok(resolved_type) => {
+                    let constant =
+                        procedure.add_constant(CompiledConstant::Type(resolved_type.clone()));
+                    procedure.write_instruction(
+                        Instruction::Literal(LiteralInstruction { constant }),
+                        Some(&object.info),
+                    );
+                }
+                Err(err) => compile_bad_value(object.into(), err, procedure, ctx)?,
+            };
+            let name = object.name.text.clone();
+            ctx.add_to_scope(object.breadcrumbs())?;
+            let name_constant = procedure.add_constant(CompiledConstant::String(name.clone()));
+            procedure.write_instruction(
+                Instruction::NameValue(NameValueInstruction {
+                    name_constant,
+                    variable: false,
+                    local_index: None,
+                }),
+                Some(&object.info),
             );
         }
 

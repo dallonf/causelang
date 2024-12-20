@@ -103,6 +103,14 @@ export const nodes: NodeDeclaration[] = [
     },
   },
   {
+    name: "ObjectType",
+    category: "Declaration",
+    fields: {
+      name: "Identifier",
+      fields: listOf("ObjectField"),
+    },
+  },
+  {
     name: "SignalType",
     category: "Declaration",
     fields: {
@@ -116,7 +124,7 @@ export const nodes: NodeDeclaration[] = [
     fields: {
       name: "Identifier",
       typeAnnotation: "TypeReference",
-    }
+    },
   },
 
   {

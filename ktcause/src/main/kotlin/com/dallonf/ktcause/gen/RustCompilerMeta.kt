@@ -15,6 +15,7 @@ val rustCompilerSupportedTypes = setOf(
         ImportMappingNode::class,
         FunctionNode::class,
         NamedValueNode::class,
+        ObjectTypeNode::class,
         SignalTypeNode::class,
         ObjectFieldNode::class,
         BlockBodyNode::class,

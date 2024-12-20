@@ -934,9 +934,9 @@ object Resolver {
                             resolveWith(getResolvedTypeOf(node.value))
                         }
 
-                        is ObjectType -> {
+                        is ObjectTypeNode -> {
                             val canonicalIdTag = pendingNodeTags.firstNotNullOf { it as? NodeTag.CanonicalIdInfo }
-                            val fields = node.fields?.map { field ->
+                            val fields = node.fields.map { field ->
                                 val fieldType = getResolvedTypeOf(field.typeAnnotation).asConstraintReference()
                                 CanonicalLangType.ObjectField(field.name.text, fieldType)
                             } ?: emptyList()

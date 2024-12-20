@@ -80,7 +80,7 @@ object Compiler {
                         CompiledFile.CompiledExport.Function(ctx.procedures.lastIndex, functionType)
                 }
 
-                is ObjectType -> {
+                is ObjectTypeNode -> {
                     val objectType = resolved.getExpectedType(declaration.info.breadcrumbs)
 
                     val error = objectType.getRuntimeError()
@@ -290,7 +290,7 @@ object Compiler {
     ) {
         when (val declaration = statement.declaration) {
             is ImportNode -> {}
-            is ObjectType, is SignalTypeNode, is OptionType -> {
+            is ObjectTypeNode, is SignalTypeNode, is OptionType -> {
                 val type = ctx.resolved.getInferredType(declaration.info.breadcrumbs)
                 type.getRuntimeError().let {
                     if (it != null) {
@@ -304,7 +304,7 @@ object Compiler {
                     }
                 }
                 val name = when (declaration) {
-                    is ObjectType -> declaration.name.text
+                    is ObjectTypeNode -> declaration.name.text
                     is OptionType -> declaration.name.text
                     is SignalTypeNode -> declaration.name.text
                     else -> throw AssertionError()

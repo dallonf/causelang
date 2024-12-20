@@ -14,7 +14,7 @@ use crate::infer_types::infer_types;
 use crate::lang_types::{
     AnyInferredLangType, CanonicalLangType, CanonicalLangTypeCategory, CanonicalLangTypeId,
     CanonicalTypeField, FunctionLangType, InferredType, InstanceLangType, LangParameter, LangType,
-    OneOfLangType, PrimitiveLangType, SignalCanonicalLangType,
+    ObjectCanonicalLangType, OneOfLangType, PrimitiveLangType, SignalCanonicalLangType,
 };
 use crate::prelude::*;
 use crate::tags::NodeTag;
@@ -437,6 +437,7 @@ impl ResolveTypes for AnyAstNode {
             Self::ImportMapping(node) => node.compute_type(ctx),
             Self::Function(node) => node.compute_type(ctx),
             Self::NamedValue(node) => node.compute_type(ctx),
+            Self::ObjectType(node) => node.compute_type(ctx),
             Self::SignalType(node) => node.compute_type(ctx),
             Self::ObjectField(node) => node.compute_type(ctx),
             Self::BlockBody(node) => node.compute_type(ctx),
@@ -891,6 +892,61 @@ impl ResolveTypes for ast::NamedValueNode {
             .map(|annotated_type| annotated_type.into())
             .unwrap_or(inferred_type);
         Some(result)
+    }
+}
+
+impl ResolveTypes for ast::ObjectTypeNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        let canonical_id_tag = ctx
+            .get_tags(self)
+            .iter()
+            .find_map(|it| it.try_as_canonical_id_info_ref().cloned())
+            .ok_or(LangError::compiler_bug(format!(
+                "Couldn't find CanonicalIdInfo tag at {}",
+                self.breadcrumbs()
+            )));
+        let canonical_id_tag = match canonical_id_tag {
+            Ok(it) => it,
+            Err(err) => return Some(err.into()),
+        };
+        let fields = self
+            .fields
+            .iter()
+            .map(|field| {
+                let field_type = ctx.get_resolved_type_proxying_errors(field);
+                CanonicalTypeField {
+                    name: field.name.text.clone(),
+                    value_type: field_type,
+                }
+            })
+            .collect_vec();
+        let id = Arc::new(CanonicalLangTypeId {
+            path: ctx.file_path.clone(),
+            parent_name: canonical_id_tag.parent_name.clone(),
+            name: self.name.text.clone().into(),
+            number: canonical_id_tag.index,
+            category: CanonicalLangTypeCategory::Object,
+            is_unique: fields.is_empty(),
+        });
+
+        ctx.new_canonical_types.insert(
+            id.clone(),
+            CanonicalLangType::Object(ObjectCanonicalLangType {
+                type_id: id.as_ref().to_owned(),
+                fields,
+            })
+            .into(),
+        );
+
+        Some(
+            LangType::TypeReference(
+                LangType::Instance(InstanceLangType {
+                    type_id: id.clone(),
+                })
+                .into(),
+            )
+            .into(),
+        )
     }
 }
 

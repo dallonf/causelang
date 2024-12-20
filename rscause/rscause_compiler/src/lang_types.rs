@@ -731,8 +731,8 @@ fn assert_uniqueness_matches(
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct ObjectCanonicalLangType {
-    type_id: CanonicalLangTypeId,
-    fields: Vec<CanonicalTypeField>,
+    pub type_id: CanonicalLangTypeId,
+    pub fields: Vec<CanonicalTypeField>,
 }
 
 impl ObjectCanonicalLangType {
