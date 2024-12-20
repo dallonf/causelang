@@ -42,6 +42,15 @@ impl<T> InferredType<T> {
             InferredType::InferenceVariable(_) => Err(LangError::NeverResolved.into()),
         }
     }
+    // Will be a NeverResolved error if it's an inference variable
+    #[inline]
+    pub fn to_result_assuming_inferred_ref(&self) -> LangTypeResult<&T> {
+        match self {
+            InferredType::Known(t) => Ok(t),
+            InferredType::Error(err) => Err(err.clone()),
+            InferredType::InferenceVariable(_) => Err(LangError::NeverResolved.into()),
+        }
+    }
 
     #[inline]
     pub fn map_err<F: FnOnce(Arc<LangError>) -> Arc<LangError>>(self, op: F) -> InferredType<T> {
@@ -176,6 +185,23 @@ impl LangType {
         }
     }
 
+    /// Includes special handling for unique types
+    pub fn get_canonical_id_for_instance(&self) -> Option<Arc<CanonicalLangTypeId>> {
+        match self {
+            LangType::Instance(instance_type) => Some(instance_type.type_id.clone()),
+            LangType::TypeReference(referenced_type) => {
+                let referenced_type = referenced_type.to_result_assuming_inferred_ref().ok()?;
+                let instance = referenced_type.try_as_instance_ref()?;
+                if instance.type_id.is_unique {
+                    Some(instance.type_id.clone())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
     pub fn is_assignable_to(&self, other_type: &LangType) -> bool {
         if self == &LangType::NeverContinues {
             return true;
@@ -183,16 +209,16 @@ impl LangType {
 
         match other_type {
             // Type references aren't assignable to other type references
-            // at least until generics become a thing
+            // at least until generics become a thing.
+            // TODO: this also might need some special handling for unique types
             LangType::TypeReference(_other_type_reference) => false,
 
             LangType::Action => self == &LangType::Action,
             LangType::Instance(other_instance) => {
-                if let LangType::Instance(self_instance) = self {
-                    self_instance.type_id == other_instance.type_id
-                } else {
-                    // TODO: support unique types
-                    false
+                let self_canonical_id = self.get_canonical_id_for_instance();
+                match self_canonical_id {
+                    Some(self_canonical_id) => self_canonical_id == other_instance.type_id,
+                    None => false,
                 }
             }
             LangType::Function(other_function) => {
@@ -230,11 +256,14 @@ impl LangType {
             LangType::AnySignal => {
                 if self == &LangType::AnySignal {
                     true
-                } else if let LangType::Instance(self_instance) = self {
-                    self_instance.type_id.category == CanonicalLangTypeCategory::Signal
                 } else {
-                    // TODO: support unique types
-                    false
+                    let self_canonical_id = self.get_canonical_id_for_instance();
+                    match self_canonical_id {
+                        Some(self_canonical_id) => {
+                            self_canonical_id.category == CanonicalLangTypeCategory::Signal
+                        }
+                        None => false,
+                    }
                 }
             }
             LangType::OneOf(other_one_of) => other_one_of.is_superset_of(self),
