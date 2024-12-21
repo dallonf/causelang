@@ -223,7 +223,7 @@ object Analyzer {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
-            is OptionType -> {
+            is OneOfTypeNode -> {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
         }
@@ -305,7 +305,7 @@ object Analyzer {
             is NamedValueNode -> analyzeNamedValueDeclaration(declaration, output, ctx)
             is ObjectTypeNode -> analyzeObjectTypeDeclaration(declaration, output, ctx)
             is SignalTypeNode -> analyzeSignalTypeDeclaration(declaration, output, ctx)
-            is OptionType -> analyzeOptionTypeDeclaration(declaration, output, ctx)
+            is OneOfTypeNode -> analyzeOptionTypeDeclaration(declaration, output, ctx)
         }
     }
 
@@ -478,7 +478,7 @@ object Analyzer {
     }
 
     private fun analyzeOptionTypeDeclaration(
-        declaration: OptionType, output: AnalyzedNode, ctx: AnalyzerContext
+        declaration: OneOfTypeNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         for (option in declaration.options) {
             analyzeTypeReference(option, output, ctx)

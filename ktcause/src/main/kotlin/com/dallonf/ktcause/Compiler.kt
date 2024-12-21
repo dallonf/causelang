@@ -108,7 +108,7 @@ object Compiler {
                     }
                 }
 
-                is OptionType -> {
+                is OneOfTypeNode -> {
                     val optionType = resolved.getExpectedType(declaration.info.breadcrumbs)
                     val error = optionType.getRuntimeError()
                     if (optionType is ConstraintValueLangType && optionType.valueType is OptionValueLangType) {
@@ -290,7 +290,7 @@ object Compiler {
     ) {
         when (val declaration = statement.declaration) {
             is ImportNode -> {}
-            is ObjectTypeNode, is SignalTypeNode, is OptionType -> {
+            is ObjectTypeNode, is SignalTypeNode, is OneOfTypeNode -> {
                 val type = ctx.resolved.getInferredType(declaration.info.breadcrumbs)
                 type.getRuntimeError().let {
                     if (it != null) {
@@ -305,7 +305,7 @@ object Compiler {
                 }
                 val name = when (declaration) {
                     is ObjectTypeNode -> declaration.name.text
-                    is OptionType -> declaration.name.text
+                    is OneOfTypeNode -> declaration.name.text
                     is SignalTypeNode -> declaration.name.text
                     else -> throw AssertionError()
                 }

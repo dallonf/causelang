@@ -974,7 +974,7 @@ object Resolver {
                             resolveWith(ConstraintValueLangType(InstanceValueLangType(id)))
                         }
 
-                        is OptionType -> {
+                        is OneOfTypeNode -> {
                             val options = node.options.map {
                                 getResolvedTypeOf(it).asConstraintReference()
                             }

@@ -440,6 +440,7 @@ impl ResolveTypes for AnyAstNode {
             Self::ObjectType(node) => node.compute_type(ctx),
             Self::SignalType(node) => node.compute_type(ctx),
             Self::ObjectField(node) => node.compute_type(ctx),
+            Self::OneOfType(node) => node.compute_type(ctx),
             Self::BlockBody(node) => node.compute_type(ctx),
             Self::DeclarationStatement(node) => node.compute_type(ctx),
             Self::ExpressionStatement(node) => node.compute_type(ctx),
@@ -1019,6 +1020,17 @@ impl ResolveTypes for ast::ObjectFieldNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let type_reference = ctx.get_resolved_type_proxying_errors(&self.type_annotation);
         Some(type_reference.try_get_referenced_type().into())
+    }
+}
+
+impl ResolveTypes for ast::OneOfTypeNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        let options = self
+            .options
+            .iter()
+            .map(|it| ctx.get_resolved_type_proxying_errors(it))
+            .collect_vec();
+        Some(LangType::TypeReference(LangType::OneOf(OneOfLangType { options }).into()).into())
     }
 }
 

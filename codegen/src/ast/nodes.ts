@@ -126,6 +126,14 @@ export const nodes: NodeDeclaration[] = [
       typeAnnotation: "TypeReference",
     },
   },
+  {
+    name: "OneOfType",
+    category: "Declaration",
+    fields: {
+      name: "Identifier",
+      options: listOf("TypeReference"),
+    },
+  },
 
   {
     name: "BlockBody",

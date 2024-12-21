@@ -262,13 +262,13 @@ private fun parseObjectFields(
 
 private fun parseOptionDeclaration(
     declaration: OptionDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): OptionType {
+): OneOfTypeNode {
     val name = parseIdentifier(declaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
     val optionsBreadcrumbs = breadcrumbs.appendName("options")
     val options = declaration.typeReference()
         .mapIndexed { option, it -> parseTypeReference(it, optionsBreadcrumbs.appendIndex(option), ctx) }
 
-    return OptionType(
+    return OneOfTypeNode(
         NodeInfo(declaration.getRange(), breadcrumbs), name, options
     )
 }

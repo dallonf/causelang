@@ -349,7 +349,7 @@ data class ObjectFieldNode(
     }
 }
 
-data class OptionType(
+data class OneOfTypeNode(
     override val info: NodeInfo, val name: IdentifierNode, val options: List<TypeReferenceNode>
 ) : DeclarationNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
