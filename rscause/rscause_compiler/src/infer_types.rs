@@ -3,13 +3,18 @@ use std::{
     collections::{HashMap, HashSet},
     hash::{DefaultHasher, Hash, Hasher},
     str::FromStr,
+    sync::Arc,
 };
 
 use itertools::Itertools;
+use tap::Conv;
 
 use crate::{
-    breadcrumbs::Breadcrumbs,
-    error_types::{CompilerBugError, LangError},
+    ast::{AnyAstNode, AstNode},
+    breadcrumbs::{self, Breadcrumbs},
+    error_types::{
+        CompilerBugError, ErrorPosition, LangError, SourcePosition, ValueUsedAsConstraintError,
+    },
     lang_types::{AnyInferredLangType, HasInference, InferredType, LangType},
     resolve_types::{ResolveTypesContext, TypeConstraint},
 };
@@ -51,6 +56,9 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
 
     while !variables.values().any(|it| is_solved(&it.borrow())) {
         for (_id, constraints) in variables.iter() {
+            if is_solved(&constraints.borrow()) {
+                continue;
+            }
             let mut new_constraints: Vec<TypeConstraint> = vec![];
             for constraint in constraints.borrow().clone() {
                 match constraint {
@@ -58,6 +66,74 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                         // these can't be simplified individually
                         new_constraints.push(constraint)
                     }
+                    TypeConstraint::ResolveFrom(breadcrumbs) => {
+                        let value_type = ctx
+                            .value_types
+                            .get(&breadcrumbs)
+                            .and_then(|it| it.as_ref())
+                            .cloned();
+                        let result = 'result: {
+                            let Some(value_type) = value_type else {
+                                break 'result InferredType::Error(Arc::new(
+                                    LangError::NeverResolved,
+                                ));
+                            };
+                            if let InferredType::Error(error) = &value_type {
+                                let error = error.clone();
+                                let node = ctx
+                                    .root_node
+                                    .clone()
+                                    .conv::<AnyAstNode>()
+                                    .node_at_path(&breadcrumbs);
+                                let node = match node {
+                                    Ok(node) => node,
+                                    Err(err) => {
+                                        break 'result InferredType::Error(Arc::new(
+                                            LangError::compiler_bug(err.to_string()),
+                                        ));
+                                    }
+                                };
+                                let source_position = ErrorPosition::Source(SourcePosition {
+                                    path: ctx.file_path.clone(),
+                                    breadcrumbs: breadcrumbs.clone(),
+                                    position: node.info().position,
+                                });
+                                break 'result InferredType::Error(
+                                    LangError::proxy_error(error, source_position).into(),
+                                );
+                            }
+
+                            value_type
+                        };
+                        new_constraints.push(TypeConstraint::EqualTo(result));
+                    }
+
+                    TypeConstraint::ReferencedType(type_reference) => {
+                        let result = 'result: {
+                            let known_reference = match type_reference {
+                                InferredType::Known(known) => known,
+                                InferredType::Error(lang_error) => {
+                                    // TODO: maybe proxy this
+                                    break 'result InferredType::Error(lang_error);
+                                }
+                                InferredType::InferenceVariable(var) => {
+                                    break 'result InferredType::InferenceVariable(var)
+                                }
+                            };
+                            let Some(referenced_type) = known_reference.try_as_type_reference_ref()
+                            else {
+                                break 'result InferredType::Error(
+                                    LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
+                                        r#type: known_reference.clone().into(),
+                                    })
+                                    .into(),
+                                );
+                            };
+                            referenced_type.clone()
+                        };
+                        new_constraints.push(TypeConstraint::EqualTo(result));
+                    }
+
                     TypeConstraint::MemberOf(inferred_type, name) => {
                         let field_type = inferred_type
                             .clone()
@@ -195,7 +271,10 @@ fn hash_ctx(ctx: &ResolveTypesContext) -> u64 {
     all_canonical_type_ids.sort();
     hasher.write_usize(all_canonical_type_ids.len());
     for type_id in all_canonical_type_ids {
-        ctx.new_canonical_types.get(type_id).unwrap().hash(&mut hasher);
+        ctx.new_canonical_types
+            .get(type_id)
+            .unwrap()
+            .hash(&mut hasher);
     }
 
     return hasher.finish();

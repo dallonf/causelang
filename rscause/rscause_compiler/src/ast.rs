@@ -114,7 +114,7 @@ where
         Self::List(
             nodes
                 .into_iter()
-                .map(|x| BreadcrumbTreeNode::Node(Some(x.clone().into())))
+                .map(|x| BreadcrumbTreeNode::Node(Some(x.into())))
                 .collect(),
         )
     }

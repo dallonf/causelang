@@ -245,6 +245,8 @@ pub enum TypeConstraint {
     EqualTo(AnyInferredLangType),
     AssignableTo(AnyInferredLangType),
     MemberOf(AnyInferredLangType, Arc<String>),
+    ReferencedType(AnyInferredLangType),
+    ResolveFrom(Breadcrumbs),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -330,7 +332,7 @@ impl ResolveTypesContext {
         resolved
     }
 
-    fn get_resolved_type_proxying_errors<'a, T>(&mut self, node: &'a T) -> AnyInferredLangType
+    pub fn get_resolved_type_proxying_errors<'a, T>(&mut self, node: &'a T) -> AnyInferredLangType
     where
         &'a T: Into<AnyAstNode>,
     {
@@ -1028,8 +1030,23 @@ impl ResolveTypes for ast::OneOfTypeNode {
         let options = self
             .options
             .iter()
-            .map(|it| ctx.get_resolved_type_proxying_errors(it))
-            .map(|it| it.try_get_referenced_type().conv::<AnyInferredLangType>())
+            .map(|it| {
+                let type_reference_var = ctx.add_inference_variable();
+                let referenced_type_var = ctx.add_inference_variable();
+                ctx.constraints.push((
+                    type_reference_var,
+                    TypeConstraint::ResolveFrom(it.breadcrumbs().clone()),
+                    ConstraintDiagnostic::Resolver(it.breadcrumbs().clone(), "oneof option".into()),
+                ));
+                ctx.constraints.push((
+                    referenced_type_var,
+                    TypeConstraint::ReferencedType(InferredType::InferenceVariable(
+                        referenced_type_var,
+                    )),
+                    ConstraintDiagnostic::Resolver(it.breadcrumbs().clone(), "oneof option".into()),
+                ));
+                InferredType::InferenceVariable(referenced_type_var)
+            })
             .collect_vec();
         Some(LangType::TypeReference(LangType::OneOf(OneOfLangType { options }).into()).into())
     }
