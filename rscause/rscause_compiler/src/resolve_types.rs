@@ -1029,6 +1029,7 @@ impl ResolveTypes for ast::OneOfTypeNode {
             .options
             .iter()
             .map(|it| ctx.get_resolved_type_proxying_errors(it))
+            .map(|it| it.try_get_referenced_type().conv::<AnyInferredLangType>())
             .collect_vec();
         Some(LangType::TypeReference(LangType::OneOf(OneOfLangType { options }).into()).into())
     }

@@ -210,7 +210,6 @@ impl LangType {
         match other_type {
             // Type references aren't assignable to other type references
             // at least until generics become a thing.
-            // TODO: this also might need some special handling for unique types
             LangType::TypeReference(_other_type_reference) => false,
 
             LangType::Action => self == &LangType::Action,
