@@ -51,8 +51,8 @@ object RustCompiler {
         ASSERT_SUPPORTED,
     }
 
-    private val mode = Mode.IF_SUPPORTED
-    private val outputTmp = false
+    private val MODE = Mode.IF_SUPPORTED
+    private const val OUTPUT_TMP = false
 
     init {
         System.loadLibrary("rscause_jni")
@@ -61,7 +61,7 @@ object RustCompiler {
     fun shouldRunRustCompiler(
         path: String, ast: FileNode, analyzed: AnalyzedNode, otherFiles: Map<String, Resolver.ExternalFileDescriptor>
     ): Boolean {
-        return when (mode) {
+        return when (MODE) {
             Mode.ALWAYS -> true
             Mode.NEVER -> false
             Mode.IF_SUPPORTED -> {
@@ -151,7 +151,7 @@ object RustCompiler {
         val filteredCanonicalTypes = getFilteredCanonicalTypes(filteredExternalFiles)
         val filteredTags = getFilteredTags(tags)
 
-        if (outputTmp) {
+        if (OUTPUT_TMP) {
             generateTestOutput("tmp", ast, filteredTags, filteredCanonicalTypes, filteredExternalFiles)
         }
         val astJson = AstRustSerialization.serializeFile(ast).let { RustSerialization.encoder.encodeToString(it) }
