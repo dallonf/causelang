@@ -15,7 +15,7 @@ use crate::{
     error_types::{
         CompilerBugError, ErrorPosition, LangError, SourcePosition, ValueUsedAsConstraintError,
     },
-    lang_types::{AnyInferredLangType, HasInference, InferredType, LangType},
+    lang_types::{AnyInferredLangType, AnyLangTypeResult, HasInference, InferredType, LangType},
     resolve_types::{ResolveTypesContext, TypeConstraint},
 };
 
@@ -52,13 +52,12 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
         constraints_for_var.borrow_mut().push(constraint.1.clone());
     }
 
+    let mut solved_variables = HashMap::<u64, AnyLangTypeResult>::new();
+
     let mut last_hash = hash_variables(&variables);
 
-    while !variables.values().any(|it| is_solved(&it.borrow())) {
+    while !variables.is_empty() {
         for (_id, constraints) in variables.iter() {
-            if is_solved(&constraints.borrow()) {
-                continue;
-            }
             let mut new_constraints: Vec<TypeConstraint> = vec![];
             for constraint in constraints.borrow().clone() {
                 match constraint {
@@ -114,24 +113,26 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                                 InferredType::Known(known) => known,
                                 InferredType::Error(lang_error) => {
                                     // TODO: maybe proxy this
-                                    break 'result InferredType::Error(lang_error);
+                                    break 'result TypeConstraint::EqualTo(InferredType::Error(
+                                        lang_error,
+                                    ));
                                 }
                                 InferredType::InferenceVariable(var) => {
-                                    break 'result InferredType::InferenceVariable(var)
+                                    break 'result TypeConstraint::ReferencedType(type_reference)
                                 }
                             };
                             let Some(referenced_type) = known_reference.try_as_type_reference_ref()
                             else {
-                                break 'result InferredType::Error(
+                                break 'result TypeConstraint::EqualTo(InferredType::Error(
                                     LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
                                         r#type: known_reference.clone().into(),
                                     })
                                     .into(),
-                                );
+                                ));
                             };
-                            referenced_type.clone()
+                            TypeConstraint::EqualTo(referenced_type.clone())
                         };
-                        new_constraints.push(TypeConstraint::EqualTo(result));
+                        new_constraints.push(result);
                     }
 
                     TypeConstraint::MemberOf(inferred_type, name) => {
@@ -186,6 +187,68 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
             constraints.replace(new_constraints);
         }
 
+        let mut solved_this_iteration = vec![];
+        for (id, constraints) in variables.iter() {
+            if is_solved(&constraints.borrow()) {
+                solved_variables.insert(
+                    *id,
+                    get_solution(&constraints.borrow())
+                        .unwrap()
+                        .to_result_assuming_inferred(),
+                );
+                solved_this_iteration.push(*id);
+            }
+        }
+        println!(
+            "Solved variables this iteration: {:#?}",
+            solved_this_iteration
+        );
+        variables = variables
+            .into_iter()
+            .filter_map(|(id, constraints)| {
+                if solved_variables.contains_key(&id) {
+                    return None;
+                }
+
+                let fill_solved_variables = |inferred_type: AnyInferredLangType| {
+                    solved_this_iteration
+                        .iter()
+                        .fold(inferred_type, |inferred_type, solved_id| {
+                            dbg!(&inferred_type);
+                            dbg!(solved_id);
+                            dbg!(inferred_type.fill_variable(
+                                *solved_id,
+                                solved_variables[solved_id].clone().into(),
+                            ))
+                        })
+                };
+
+                let new_constraints = constraints
+                    .take()
+                    .into_iter()
+                    .map(|constraint| match constraint {
+                        TypeConstraint::EqualTo(inferred_type) => {
+                            TypeConstraint::EqualTo(fill_solved_variables(inferred_type))
+                        }
+                        TypeConstraint::AssignableTo(inferred_type) => {
+                            TypeConstraint::AssignableTo(fill_solved_variables(inferred_type))
+                        }
+                        TypeConstraint::MemberOf(inferred_type, name) => {
+                            TypeConstraint::MemberOf(fill_solved_variables(inferred_type), name)
+                        }
+                        TypeConstraint::ReferencedType(inferred_type) => {
+                            TypeConstraint::ReferencedType(fill_solved_variables(inferred_type))
+                        }
+                        TypeConstraint::ResolveFrom(breadcrumbs) => {
+                            TypeConstraint::ResolveFrom(breadcrumbs)
+                        }
+                    })
+                    .collect();
+
+                return Some((id, RefCell::new(new_constraints)));
+            })
+            .collect();
+
         let new_hash = hash_variables(&variables);
         if new_hash == last_hash {
             break;
@@ -194,19 +257,14 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
     }
 
     // Fill all solved variables
-    for (id, constraints) in variables {
-        let solution = match get_solution(constraints.borrow().as_slice()) {
-            Some(it) => it,
-            None => continue,
-        };
-
+    for (id, solution) in solved_variables {
         for ptr in ctx.value_types.values_mut() {
             if let Some(ptr) = ptr {
-                *ptr = ptr.fill_variable(id, solution.clone());
+                *ptr = ptr.fill_variable(id, solution.clone().into()).into();
             }
         }
         for ptr in ctx.new_canonical_types.values_mut() {
-            *ptr = ptr.fill_variable(id, solution.clone()).into();
+            *ptr = ptr.fill_variable(id, solution.clone().into()).into();
         }
     }
 }
@@ -217,6 +275,9 @@ fn get_solution(constraints: &[TypeConstraint]) -> Option<AnyInferredLangType> {
     }
 
     let lone_equals_constraint = if let TypeConstraint::EqualTo(equal) = &constraints[0] {
+        if let InferredType::InferenceVariable(_) = equal {
+            return None;
+        }
         equal
     } else {
         return None;

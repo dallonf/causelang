@@ -70,8 +70,8 @@ impl<T> InferredType<T> {
     }
 }
 
-type LangTypeResult<T> = Result<T, Arc<LangError>>;
-type AnyLangTypeResult = LangTypeResult<Arc<LangType>>;
+pub type LangTypeResult<T> = Result<T, Arc<LangError>>;
+pub type AnyLangTypeResult = LangTypeResult<Arc<LangType>>;
 
 impl<T> From<LangError> for InferredType<T> {
     fn from(value: LangError) -> Self {

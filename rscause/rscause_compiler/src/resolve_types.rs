@@ -1041,7 +1041,7 @@ impl ResolveTypes for ast::OneOfTypeNode {
                 ctx.constraints.push((
                     referenced_type_var,
                     TypeConstraint::ReferencedType(InferredType::InferenceVariable(
-                        referenced_type_var,
+                        type_reference_var,
                     )),
                     ConstraintDiagnostic::Resolver(it.breadcrumbs().clone(), "oneof option".into()),
                 ));

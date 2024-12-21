@@ -116,7 +116,9 @@ object LangTypeRustSerialization {
                 return LangErrorRustSerialization.deserializeErrorLangType(it)
             }
 
-            // TODO: Pending
+            anyInferredLangType["InferenceVariable"]?.let {
+                return ValueLangType.Pending
+            }
         }
 
         throw AssertionError("Unrecognized AnyInferredLangType: $anyInferredLangType")
