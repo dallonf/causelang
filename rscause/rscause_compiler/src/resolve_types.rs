@@ -229,9 +229,9 @@ pub fn resolve_types(
 /// a function parameter must fit the function definition.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TypeEdict {
-    breadcrumbs: Breadcrumbs,
-    rule: TypeEdictRule,
-    diagnostic: String,
+    pub breadcrumbs: Breadcrumbs,
+    pub rule: TypeEdictRule,
+    pub diagnostic: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

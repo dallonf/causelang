@@ -16,7 +16,7 @@ use crate::{
         CompilerBugError, ErrorPosition, LangError, SourcePosition, ValueUsedAsConstraintError,
     },
     lang_types::{AnyInferredLangType, AnyLangTypeResult, HasInference, InferredType, LangType},
-    resolve_types::{ResolveTypesContext, TypeConstraint},
+    resolve_types::{ResolveTypesContext, TypeConstraint, TypeEdictRule},
 };
 
 pub fn infer_types(ctx: &mut ResolveTypesContext) {
@@ -265,6 +265,14 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
         }
         for ptr in ctx.new_canonical_types.values_mut() {
             *ptr = ptr.fill_variable(id, solution.clone().into()).into();
+        }
+        for ptr in ctx.edicts.iter_mut() {
+            ptr.rule = match &ptr.rule {
+                TypeEdictRule::AssignableTo(inferred_type) => TypeEdictRule::AssignableTo(
+                    inferred_type.fill_variable(id, solution.clone().into()),
+                ),
+                TypeEdictRule::MustBeTypeReference => TypeEdictRule::MustBeTypeReference,
+            };
         }
     }
 }
