@@ -215,8 +215,7 @@ object RustCompiler {
         }
     }
 
-    private val otherUnsupportedNodeTypes: List<String> =
-        listOf<KClass<out Any>>(IsBranchOptionNode::class).mapNotNull { it.simpleName }
+    private val otherUnsupportedNodeTypes: List<String> = listOf<KClass<out Any>>().mapNotNull { it.simpleName }
 
     private fun getIncompatibleNodeTypes(ast: FileNode): Sequence<String> {
         val allNodes = ast.allDescendants()

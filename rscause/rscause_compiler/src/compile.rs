@@ -9,7 +9,9 @@ use crate::breadcrumbs::HasBreadcrumbs;
 use crate::compiled_file::{
     CompiledConstant, EffectProcedureIdentity, ErrorConst, ProcedureInstructionMapping,
 };
-use crate::error_types::{CompilerBugError, ErrorPosition, LangError, SourcePosition};
+use crate::error_types::{
+    CompilerBugError, ErrorPosition, LangError, MissingElseBranchError, SourcePosition,
+};
 use crate::find_tag;
 use crate::instructions::{
     CallFunctionInstruction, CauseInstruction, ConstructInstruction, DefineFunctionInstruction,
@@ -1088,7 +1090,49 @@ fn compile_branch_expression(
             .get(expression.breadcrumbs())
             .cloned()
             .ok_or(anyhow!("no type found for branch expression"))?;
-        todo!("error reporting in branch expression with no else");
+        let error = return_type.try_as_error_ref().cloned().unwrap_or_else(|| {
+            LangError::MissingElseBranch(MissingElseBranchError { options: None }).pipe(Arc::new)
+        });
+        let error_const = procedure.add_constant(CompiledConstant::Error(ErrorConst {
+            source_position: ErrorPosition::Source(SourcePosition {
+                path: ctx.path.clone(),
+                breadcrumbs: expression.breadcrumbs().clone(),
+                position: expression.info.position,
+            }),
+            error: error,
+        }));
+
+        // If we're supposed to return an Action or NeverContinues, then this should be an immediate error
+        // because the BadValue has nowhere to go
+        let return_one_of = return_type
+            .try_as_known_ref()
+            .and_then(|it| it.try_as_one_of_ref())
+            .cloned();
+        let should_report_error = return_one_of
+            .map(|return_one_of| {
+                return_one_of.options.iter().all(|option| {
+                    matches!(option, InferredType::InferenceVariable(_))
+                        || matches!(option, InferredType::Error(_))
+                        || option
+                            .try_as_known_ref()
+                            .map(|option| {
+                                matches!(option.as_ref(), LangType::Action)
+                                    || matches!(option.as_ref(), LangType::NeverContinues)
+                            })
+                            .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false);
+        if should_report_error {
+            compile_type_error(error_const, procedure);
+        } else {
+            procedure.write_instruction(
+                Instruction::Literal(LiteralInstruction {
+                    constant: error_const,
+                }),
+                Some(&expression.info),
+            );
+        }
     }
 
     for jump in remaining_branch_jumps {

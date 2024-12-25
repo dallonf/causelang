@@ -52,10 +52,10 @@ async function generateLangErrorRustSerializationKt() {
   function getDeserializeExpression(
     field: FieldType,
     name: string,
-    { nullable = true } = {}
+    { ktNullable = true } = {}
   ): string {
     if (typeof field === "string") {
-      const assertedName = nullable ? `${name}!!` : name;
+      const assertedName = ktNullable ? `${name}!!` : name;
       switch (field) {
         case "string":
           return `(${name} as JsonPrimitive).content`;
@@ -69,20 +69,20 @@ async function generateLangErrorRustSerializationKt() {
     switch (field.kind) {
       case "arc":
       case "box":
-        return getDeserializeExpression(field.type, name, { nullable });
+        return getDeserializeExpression(field.type, name, { ktNullable });
       case "diverged":
-        return getDeserializeExpression(field.kotlin, name, { nullable });
+        return getDeserializeExpression(field.kotlin, name, { ktNullable });
       case "list": {
         const innerType = getDeserializeExpression(field.type, "it", {
-          nullable: false,
+          ktNullable: false,
         });
         return `(${name} as JsonArray).map { ${innerType} }`;
       }
       case "optional": {
         const innerType = getDeserializeExpression(field.type, "it", {
-          nullable: false,
+          ktNullable: false,
         });
-        return `${name}?.let { ${innerType} }`;
+        return `${name}?.let { if (${name} is JsonNull) { null } else { ${innerType} } }`;
       }
       default:
         return field satisfies never;

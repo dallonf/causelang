@@ -98,13 +98,13 @@ object LangErrorRustSerialization {
   fun deserializeMissingElseBranchErrorLangType(error: JsonElement): ErrorLangType.MissingElseBranch {
     require(error is JsonObject)
     return ErrorLangType.MissingElseBranch(
-      error["options"]?.let { deserializeOptionValueLangType(it) },
+      error["options"]?.let { if (error["options"] is JsonNull) { null } else { deserializeOptionValueLangType(it) } },
     )
   }
   fun deserializeUnreachableBranchErrorLangType(error: JsonElement): ErrorLangType.UnreachableBranch {
     require(error is JsonObject)
     return ErrorLangType.UnreachableBranch(
-      error["options"]?.let { deserializeOptionValueLangType(it) },
+      error["options"]?.let { if (error["options"] is JsonNull) { null } else { deserializeOptionValueLangType(it) } },
     )
   }
   fun deserializeConstraintUsedAsValueErrorLangType(error: JsonElement): ErrorLangType.ConstraintUsedAsValue {
