@@ -212,7 +212,12 @@ impl LangType {
             // at least until generics become a thing.
             LangType::TypeReference(_other_type_reference) => false,
 
-            LangType::Action => self == &LangType::Action,
+            LangType::Action => {
+                self == &LangType::Action
+                    // Action is a sort of unique type; a "reference" to it is equivalent
+                    // to an Action value
+                    || self == &LangType::TypeReference(LangType::Action.into())
+            }
             LangType::Instance(other_instance) => {
                 let self_canonical_id = self.get_canonical_id_for_instance();
                 match self_canonical_id {

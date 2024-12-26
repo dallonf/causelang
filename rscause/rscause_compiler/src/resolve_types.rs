@@ -222,7 +222,7 @@ pub fn resolve_types(
                             branch
                                 .result
                                 .to_result_assuming_inferred_ref()
-                                .map(|it| it.as_ref() == &LangType::Action)
+                                .map(|it| it.as_ref().is_assignable_to(&LangType::Action))
                                 .unwrap_or(false)
                         })
                         .collect_vec();
@@ -232,7 +232,7 @@ pub fn resolve_types(
                             branch
                                 .result
                                 .try_as_known_ref()
-                                .map(|it| it.as_ref() != &LangType::Action)
+                                .map(|it| !it.as_ref().is_assignable_to(&LangType::Action))
                                 .unwrap_or(true)
                         })
                         .collect_vec();
