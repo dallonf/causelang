@@ -234,10 +234,6 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                 solved_this_iteration.push(*id);
             }
         }
-        println!(
-            "Solved variables this iteration: {:#?}",
-            solved_this_iteration
-        );
         variables = variables
             .into_iter()
             .filter_map(|(id, constraints)| {
@@ -249,12 +245,10 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                     solved_this_iteration
                         .iter()
                         .fold(inferred_type, |inferred_type, solved_id| {
-                            dbg!(&inferred_type);
-                            dbg!(solved_id);
-                            dbg!(inferred_type.fill_variable(
+                            inferred_type.fill_variable(
                                 *solved_id,
                                 solved_variables[solved_id].clone().into(),
-                            ))
+                            )
                         })
                 };
 
