@@ -213,7 +213,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                         oneof = oneof.narrow(&known);
                     }
                 }
-                new_constraints.push(TypeConstraint::EqualTo(oneof.into()));
+                new_constraints.push(TypeConstraint::EqualTo(oneof.simplify_to_value().into()));
                 new_constraints.append(
                     &mut pending_constraints
                         .iter()

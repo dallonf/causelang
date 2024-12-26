@@ -19,11 +19,11 @@ use crate::lang_types::{
 use crate::prelude::*;
 use crate::tags::NodeTag;
 use serde::{Deserialize, Serialize};
-use strum::EnumTryAs;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
+use strum::EnumTryAs;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExternalFileDescriptor {
@@ -174,12 +174,13 @@ pub fn resolve_types(
                                 .and_then(|it| it.try_as_known_ref()),
                             branch.pattern.as_ref().and_then(|it| it.try_as_known_ref()),
                         ) {
-                            if pattern.is_assignable_to(&with_value) {
+                            if !pattern.is_assignable_to(&with_value) {
                                 errors.push(ResolverError::new(
                                     branch_source_position,
                                     LangError::UnreachableBranch(UnreachableBranchError {
                                         options: Some(
                                             OneOfLangType::new_with_one(with_value.clone().into())
+                                                .simplify()
                                                 .into(),
                                         ),
                                     }),
@@ -1194,23 +1195,7 @@ impl ResolveTypes for ast::BranchExpressionNode {
             return Some(LangType::Action.into());
         }
 
-        // let mut with_value = self
-        //     .with_value
-        //     .as_ref()
-        //     .and_then(|it| ctx.get_resolved_type(it))
-        //     .unwrap_or(LangType::Anything.into())
-        //     .pipe(|it| OneOfLangType::new_with_one(it.into()));
-
-        // #[derive(Debug)]
-        // struct PossibleResultValue {
-        //     value: AnyInferredLangType,
-        //     source: Option<SourcePosition>,
-        // }
-        // let mut possible_return_values = Vec::<PossibleResultValue>::new();
-
         let mut branches = Vec::<ValidateBranchExpressionTypeEdictBranch>::new();
-
-        let result_value_var = ctx.add_inference_variable();
         let mut with_value_var = if let Some(with_value_node) = &self.with_value {
             let var = ctx.add_inference_variable();
             ctx.constraints.push((
