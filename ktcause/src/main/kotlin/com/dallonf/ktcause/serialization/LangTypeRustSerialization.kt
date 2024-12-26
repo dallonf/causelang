@@ -76,16 +76,19 @@ object LangTypeRustSerialization {
         }
 
         if (langType is JsonPrimitive) {
-            if (langType.content == "Action") {
-                return ActionValueLangType
-            }
-
-            if (langType.content == "Anything") {
-                return AnythingValueLangType
-            }
-
-            if (langType.content == "AnySignal") {
-                return AnySignalValueLangType
+            when (langType.content) {
+                "Action" -> {
+                    return ActionValueLangType
+                }
+                "Anything" -> {
+                    return AnythingValueLangType
+                }
+                "AnySignal" -> {
+                    return AnySignalValueLangType
+                }
+                "NeverContinues" -> {
+                    return NeverContinuesValueLangType
+                }
             }
         }
 

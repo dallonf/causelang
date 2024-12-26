@@ -222,7 +222,9 @@ pub fn resolve_types(
                             branch
                                 .result
                                 .to_result_assuming_inferred_ref()
-                                .map(|it| it.as_ref().is_assignable_to(&LangType::Action))
+                                // sneaky little inversion here -
+                                // NeverContinues returns will be excluded with this logic
+                                .map(|it| LangType::Action.is_assignable_to(it.as_ref()))
                                 .unwrap_or(false)
                         })
                         .collect_vec();
