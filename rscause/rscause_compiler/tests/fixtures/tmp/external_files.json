@@ -21,8 +21,16 @@
         }
       },
       "NeverContinues": "Action",
-      "Anything": "Action",
-      "AnySignal": "Action",
+      "Anything": {
+        "TypeReference": {
+          "Known": "Anything"
+        }
+      },
+      "AnySignal": {
+        "TypeReference": {
+          "Known": "AnySignal"
+        }
+      },
       "True": "Action",
       "False": "Action",
       "Debug": {
@@ -41,6 +49,20 @@
       "equals": {
         "Function": {
           "name": "equals",
+          "params": [
+            {
+              "name": "this",
+              "value_type": {
+                "Known": "Anything"
+              }
+            },
+            {
+              "name": "other",
+              "value_type": {
+                "Known": "Anything"
+              }
+            }
+          ],
           "return_type": {
             "Known": {
               "OneOf": {

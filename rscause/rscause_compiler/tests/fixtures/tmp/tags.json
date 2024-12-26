@@ -92,6 +92,36 @@
       "ScopeContainsDeclaration": {
         "declaration": "declarations.1"
       }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.2"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.3"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.4"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.5"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.6"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.7"
+      }
     }
   ],
   "declarations.0.mappings.1": [
@@ -239,7 +269,12 @@
     },
     {
       "ValueGoesTo": {
-        "destination": "declarations.1.body.statements.0.expression.signal.callee"
+        "destination": "declarations.7.body.statements.0.expression.branches.0.body.statement.expression.signal.callee"
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.7.body.statements.0.expression.branches.1.body.statement.expression.signal.callee"
       }
     }
   ],
@@ -341,12 +376,163 @@
     },
     {
       "TopLevelDeclaration": {
+        "name": "Hearts"
+      }
+    },
+    {
+      "CanonicalIdInfo": {
+        "parent_name": null,
+        "index": 0
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.5.options.0"
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.7.body.statements.0.expression.branches.0.pattern.type_reference"
+      }
+    }
+  ],
+  "declarations.2": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "Diamonds"
+      }
+    },
+    {
+      "CanonicalIdInfo": {
+        "parent_name": null,
+        "index": 0
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.5.options.1"
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.7.body.statements.0.expression.branches.1.pattern.type_reference"
+      }
+    }
+  ],
+  "declarations.3": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "Spades"
+      }
+    },
+    {
+      "CanonicalIdInfo": {
+        "parent_name": null,
+        "index": 0
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.5.options.2"
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.6.body.statements.0.expression.parameters.0.value"
+      }
+    }
+  ],
+  "declarations.4": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "Clubs"
+      }
+    },
+    {
+      "CanonicalIdInfo": {
+        "parent_name": null,
+        "index": 0
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.5.options.3"
+      }
+    }
+  ],
+  "declarations.5": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "Suit"
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.7.params.0.type_reference"
+      }
+    }
+  ],
+  "declarations.6": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
         "name": "main"
       }
     },
     {
       "FunctionCanReturnTypeOf": {
-        "return_expression_value": "declarations.1.body"
+        "return_expression_value": "declarations.6.body"
+      }
+    }
+  ],
+  "declarations.7": [
+    {
+      "DeclarationForScope": {
+        "scope": ""
+      }
+    },
+    {
+      "TopLevelDeclaration": {
+        "name": "process_suit"
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.6.body.statements.0.expression.callee"
+      }
+    },
+    {
+      "ScopeContainsDeclaration": {
+        "declaration": "declarations.7.params.0"
+      }
+    },
+    {
+      "FunctionCanReturnTypeOf": {
+        "return_expression_value": "declarations.7.body"
       }
     }
   ],
@@ -358,34 +544,200 @@
       }
     }
   ],
-  "declarations.1.body": [
-    {
-      "ReturnsFromFunction": {
-        "function": "declarations.1"
-      }
-    }
-  ],
-  "declarations.1.body.statements.0.expression": [
-    {
-      "ValueGoesTo": {
-        "destination": "declarations.1.body.statements.0"
-      }
-    }
-  ],
-  "declarations.1.body.statements.0": [
+  "declarations.5.options.0": [
     {
       "ValueComesFrom": {
-        "source": "declarations.1.body.statements.0.expression"
+        "source": "declarations.1"
       }
     }
   ],
-  "declarations.1.body.statements.0.expression.signal.callee": [
+  "declarations.5.options.1": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.2"
+      }
+    }
+  ],
+  "declarations.5.options.2": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.3"
+      }
+    }
+  ],
+  "declarations.5.options.3": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.4"
+      }
+    }
+  ],
+  "declarations.6.body": [
+    {
+      "ReturnsFromFunction": {
+        "function": "declarations.6"
+      }
+    }
+  ],
+  "declarations.6.body.statements.0.expression": [
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.6.body.statements.0"
+      }
+    }
+  ],
+  "declarations.6.body.statements.0": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.6.body.statements.0.expression"
+      }
+    }
+  ],
+  "declarations.6.body.statements.0.expression.callee": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.7"
+      }
+    }
+  ],
+  "declarations.6.body.statements.0.expression.parameters.0.value": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.3"
+      }
+    }
+  ],
+  "declarations.6.body.statements.0.expression.parameters.0": [
+  ],
+  "declarations.7.params.0.type_reference": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.5"
+      }
+    }
+  ],
+  "declarations.7.params.0": [
+    {
+      "DeclarationForScope": {
+        "scope": "declarations.7"
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.7.body.statements.0.expression.with_value"
+      }
+    }
+  ],
+  "declarations.7.body": [
+    {
+      "ReturnsFromFunction": {
+        "function": "declarations.7"
+      }
+    }
+  ],
+  "declarations.7.body.statements.0.expression": [
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.7.body.statements.0"
+      }
+    }
+  ],
+  "declarations.7.body.statements.0": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.7.body.statements.0.expression"
+      }
+    }
+  ],
+  "declarations.7.body.statements.0.expression.with_value": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.7.params.0"
+      }
+    }
+  ],
+  "declarations.7.body.statements.0.expression.branches.0.pattern.type_reference": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.1"
+      }
+    }
+  ],
+  "declarations.7.body.statements.0.expression.branches.0.body.statement.expression": [
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.7.body.statements.0.expression.branches.0.body.statement"
+      }
+    }
+  ],
+  "declarations.7.body.statements.0.expression.branches.0.body.statement": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.7.body.statements.0.expression.branches.0.body.statement.expression"
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.7.body.statements.0.expression.branches.0.body"
+      }
+    }
+  ],
+  "declarations.7.body.statements.0.expression.branches.0.body.statement.expression.signal.callee": [
     {
       "ValueComesFrom": {
         "source": "declarations.0.mappings.8"
       }
     }
   ],
-  "declarations.1.body.statements.0.expression.signal.parameters.0": [
+  "declarations.7.body.statements.0.expression.branches.0.body.statement.expression.signal.parameters.0": [
+  ],
+  "declarations.7.body.statements.0.expression.branches.0.body": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.7.body.statements.0.expression.branches.0.body.statement"
+      }
+    }
+  ],
+  "declarations.7.body.statements.0.expression.branches.1.pattern.type_reference": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.2"
+      }
+    }
+  ],
+  "declarations.7.body.statements.0.expression.branches.1.body.statement.expression": [
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.7.body.statements.0.expression.branches.1.body.statement"
+      }
+    }
+  ],
+  "declarations.7.body.statements.0.expression.branches.1.body.statement": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.7.body.statements.0.expression.branches.1.body.statement.expression"
+      }
+    },
+    {
+      "ValueGoesTo": {
+        "destination": "declarations.7.body.statements.0.expression.branches.1.body"
+      }
+    }
+  ],
+  "declarations.7.body.statements.0.expression.branches.1.body.statement.expression.signal.callee": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.0.mappings.8"
+      }
+    }
+  ],
+  "declarations.7.body.statements.0.expression.branches.1.body.statement.expression.signal.parameters.0": [
+  ],
+  "declarations.7.body.statements.0.expression.branches.1.body": [
+    {
+      "ValueComesFrom": {
+        "source": "declarations.7.body.statements.0.expression.branches.1.body.statement"
+      }
+    }
   ]
 }

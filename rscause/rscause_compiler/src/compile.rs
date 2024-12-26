@@ -22,7 +22,7 @@ use crate::instructions::{
     ReadLocalInstruction, ReadLocalThroughEffectScopeInstruction, RegisterEffectInstruction,
     RejectSignalInstruction, ReturnInstruction,
 };
-use crate::lang_types::AnyInferredLangType;
+use crate::lang_types::{AnyInferredLangType, OneOfLangType};
 use crate::prelude::*;
 use crate::resolve_types::ResolverError;
 use crate::tags::{ReferencesFileNodeTag, TopLevelDeclarationNodeTag};
@@ -1104,25 +1104,19 @@ fn compile_branch_expression(
 
         // If we're supposed to return an Action or NeverContinues, then this should be an immediate error
         // because the BadValue has nowhere to go
-        let return_one_of = return_type
-            .try_as_known_ref()
-            .and_then(|it| it.try_as_one_of_ref())
-            .cloned();
-        let should_report_error = return_one_of
-            .map(|return_one_of| {
-                return_one_of.options.iter().all(|option| {
-                    matches!(option, InferredType::InferenceVariable(_))
-                        || matches!(option, InferredType::Error(_))
-                        || option
-                            .try_as_known_ref()
-                            .map(|option| {
-                                matches!(option.as_ref(), LangType::Action)
-                                    || matches!(option.as_ref(), LangType::NeverContinues)
-                            })
-                            .unwrap_or(false)
-                })
-            })
-            .unwrap_or(false);
+        let return_one_of = OneOfLangType::new_with_one(return_type.into());
+        let should_report_error = return_one_of.options.len() == 0
+            || return_one_of.options.iter().all(|option| {
+                matches!(option, InferredType::InferenceVariable(_))
+                    || matches!(option, InferredType::Error(_))
+                    || option
+                        .try_as_known_ref()
+                        .map(|option| {
+                            matches!(option.as_ref(), LangType::Action)
+                                || matches!(option.as_ref(), LangType::NeverContinues)
+                        })
+                        .unwrap_or(false)
+            });
         if should_report_error {
             compile_type_error(error_const, procedure);
         } else {
