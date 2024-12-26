@@ -19,8 +19,8 @@ use crate::{
         AnyInferredLangType, AnyLangTypeResult, HasInference, InferredType, LangType, OneOfLangType,
     },
     resolve_types::{
-        ResolveTypesContext, TypeConstraint, TypeEdictRule, ValidateBranchExpressionTypeEdict,
-        ValidateBranchExpressionTypeEdictBranch,
+        NarrowedConstraint, ResolveTypesContext, TypeConstraint, TypeEdictRule,
+        ValidateBranchExpressionTypeEdict, ValidateBranchExpressionTypeEdictBranch,
     },
 };
 
@@ -67,9 +67,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
             let mut pending_constraints: Vec<TypeConstraint> = vec![];
             for constraint in constraints.borrow().clone() {
                 match constraint {
-                    TypeConstraint::EqualTo(_)
-                    | TypeConstraint::AssignableTo(_)
-                    | TypeConstraint::Narrowed(_) => {
+                    TypeConstraint::EqualTo(_) | TypeConstraint::AssignableTo(_) => {
                         // these can't be simplified individually
                         pending_constraints.push(constraint)
                     }
@@ -190,48 +188,37 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                             }
                         }
                     }
+
+                    TypeConstraint::Narrowed(narrowed) => {
+                        let result = match &narrowed.base {
+                            InferredType::Known(base) => match &narrowed.narrow {
+                                InferredType::Known(narrow) => {
+                                    let oneof = OneOfLangType::new_with_one(base.clone().into());
+                                    let oneof = oneof.narrow(&narrow.clone());
+                                    TypeConstraint::EqualTo(oneof.simplify_to_value().into())
+                                }
+                                InferredType::Error(_) => {
+                                    // This ignores any error in the narrowing type.
+                                    // Maybe that's fine? Hopefully it would be reported elsewhere.
+                                    TypeConstraint::EqualTo(base.clone().into())
+                                }
+                                InferredType::InferenceVariable(_) => {
+                                    TypeConstraint::Narrowed(narrowed)
+                                }
+                            },
+                            InferredType::Error(lang_error) => {
+                                TypeConstraint::EqualTo(InferredType::Error(lang_error.clone()))
+                            }
+                            InferredType::InferenceVariable(_) => {
+                                TypeConstraint::Narrowed(narrowed)
+                            }
+                        };
+                        new_constraints.push(result);
+                    }
                 }
             }
 
-            let is_equal_to_constraints = pending_constraints
-                .iter()
-                .filter_map(|it| it.try_as_equal_to_ref())
-                .collect_vec();
-            let narrowed_constraints = pending_constraints
-                .iter()
-                .filter_map(|it| it.try_as_narrowed_ref())
-                .filter(|it| !it.has_pending())
-                .collect_vec();
-            if is_equal_to_constraints.len() == 1
-                && !narrowed_constraints.is_empty()
-                && !is_equal_to_constraints[0].has_pending()
-            {
-                let equal_to_constraint = is_equal_to_constraints[0].clone();
-                let mut oneof = OneOfLangType::new_with_one(equal_to_constraint.clone());
-                for narrowed_constraint in &narrowed_constraints {
-                    if let Some(known) = narrowed_constraint.try_as_known_ref() {
-                        oneof = oneof.narrow(&known);
-                    }
-                }
-                new_constraints.push(TypeConstraint::EqualTo(oneof.simplify_to_value().into()));
-                new_constraints.append(
-                    &mut pending_constraints
-                        .iter()
-                        .filter(|pending| match pending {
-                            TypeConstraint::EqualTo(inferred_type) => {
-                                !is_equal_to_constraints.iter().contains(&inferred_type)
-                            }
-                            TypeConstraint::Narrowed(inferred_type) => {
-                                !narrowed_constraints.iter().contains(&inferred_type)
-                            }
-                            _ => true,
-                        })
-                        .cloned()
-                        .collect(),
-                );
-            } else {
-                new_constraints.append(&mut pending_constraints);
-            }
+            new_constraints.append(&mut pending_constraints);
             constraints.replace(new_constraints);
         }
 
@@ -290,8 +277,11 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                         TypeConstraint::ResolveFrom(breadcrumbs) => {
                             TypeConstraint::ResolveFrom(breadcrumbs)
                         }
-                        TypeConstraint::Narrowed(inferred_type) => {
-                            TypeConstraint::Narrowed(fill_solved_variables(inferred_type))
+                        TypeConstraint::Narrowed(narrowed) => {
+                            TypeConstraint::Narrowed(NarrowedConstraint {
+                                base: fill_solved_variables(narrowed.base),
+                                narrow: fill_solved_variables(narrowed.narrow),
+                            })
                         }
                     })
                     .collect();

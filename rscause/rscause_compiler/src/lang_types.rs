@@ -430,13 +430,13 @@ impl OneOfLangType {
     }
 
     pub fn narrow(&self, pattern_type: &LangType) -> OneOfLangType {
+        let options = self.simplify().options;
         let possible_values = match pattern_type {
             LangType::OneOf(pattern_one_of) => pattern_one_of.simplify().options.clone(),
             other => vec![other.clone().into()],
         };
 
-        let remaining_options = self
-            .options
+        let remaining_options = options
             .iter()
             .cloned()
             .filter(|option| {
@@ -445,7 +445,7 @@ impl OneOfLangType {
                         if let InferredType::Known(possible_value) = possible_value {
                             option.is_assignable_to(&possible_value)
                         } else {
-                            // don't count error or pending
+                            // don't narrow with error or pending
                             false
                         }
                     })

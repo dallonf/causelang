@@ -206,6 +206,7 @@ pub fn resolve_types(
                                         OneOfLangType::new_with_one(
                                             final_with_value.clone().into(),
                                         )
+                                        .simplify()
                                         .into(),
                                     ),
                                 }),
@@ -375,7 +376,13 @@ pub enum TypeConstraint {
     MemberOf(AnyInferredLangType, Arc<String>),
     ReferencedType(AnyInferredLangType),
     ResolveFrom(Breadcrumbs),
-    Narrowed(AnyInferredLangType),
+    Narrowed(NarrowedConstraint),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NarrowedConstraint {
+    pub base: AnyInferredLangType,
+    pub narrow: AnyInferredLangType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1223,7 +1230,7 @@ impl ResolveTypes for ast::BranchExpressionNode {
             })
             .collect::<Vec<_>>();
         for branch in branches_before_else.iter().copied() {
-            let mut resolved_type = ctx.get_resolved_type_proxying_errors(branch.body());
+            let resolved_type = ctx.get_resolved_type_proxying_errors(branch.body());
             match branch {
                 ast::BranchOptionNode::If(_) => {
                     branches.push(ValidateBranchExpressionTypeEdictBranch {
@@ -1244,10 +1251,14 @@ impl ResolveTypes for ast::BranchExpressionNode {
                         result: resolved_type.clone(),
                     });
                     if let Some(with_value_var) = &mut with_value_var {
+                        let prev_with_value_var = *with_value_var;
                         *with_value_var = ctx.add_inference_variable();
                         ctx.constraints.push((
                             *with_value_var,
-                            TypeConstraint::Narrowed(pattern_type.clone()),
+                            TypeConstraint::Narrowed(NarrowedConstraint {
+                                base: InferredType::InferenceVariable(prev_with_value_var),
+                                narrow: pattern_type.clone(),
+                            }),
                             ConstraintDiagnostic::Resolver(
                                 branch.breadcrumbs().to_owned(),
                                 "narrowing with-value after is-branch".into(),
