@@ -137,8 +137,14 @@ object LangErrorRustSerialization {
   private fun deserializeActionIncompatibleWithValueTypesErrorLangType(error: JsonElement): ErrorLangType {
     require(error is JsonObject)
     return ErrorLangType.ActionIncompatibleWithValueTypes(
-      (error["actions"] as JsonArray).map { deserializeSourcePosition(it) },
-      emptyList(),
+      (error["actions"] as JsonArray).map { deserializeSourcePositionSource(it) },
+      (error["types"] as JsonArray).map {
+        require(it is JsonObject)
+        ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+          deserializeResolvedValueLangType(it["type"]!!),
+          deserializeSourcePositionSource(it["position"]!!),
+        )
+      },
     )
   }
 }

@@ -126,6 +126,7 @@ object RustCompiler {
                     is ErrorLangType.NotCausable -> null
                     is ErrorLangType.MismatchedType -> null
                     is ErrorLangType.MissingElseBranch -> null
+                    is ErrorLangType.ActionIncompatibleWithValueTypes -> null
                     else -> it
                 }
             }

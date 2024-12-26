@@ -60,6 +60,7 @@ pub struct UnreachableBranchError {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ActionIncompatibleWithValueTypesError {
     pub actions: Vec<SourcePosition>,
+    pub types: Option<Vec<ActionIncompatibleWithValueTypesValueType>>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ConstraintUsedAsValueError {
@@ -73,3 +74,10 @@ pub struct ValueUsedAsConstraintError {
 pub struct CompilerBugError {
     pub description: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ActionIncompatibleWithValueTypesValueType {
+    pub r#type: Arc<lang_types::LangType>,
+    pub position: SourcePosition,
+}
+

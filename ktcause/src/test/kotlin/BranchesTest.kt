@@ -313,7 +313,23 @@ class BranchesTest {
             assertEquals(RuntimeValue.Text("Clubs"), it.values[0])
         }
 
-        vm.resumeExecution(RuntimeValue.Action).let { TestUtils.expectTypeError(it, vm) }
+        vm.resumeExecution(RuntimeValue.Action).let {
+            val signal = it.expectCausedSignal()
+            when (signal.typeDescriptor.id) {
+                vm.codeBundle.getTypeId("core/builtin.cau", "TypeError") -> {
+                    // all good (this is how the Kotlin implementation behaves)
+                }
+
+                vm.codeBundle.getTypeId("core/builtin.cau", "Debug") -> {
+                    // Debugs with a BadValue
+                    assert(signal.getValue("value") is RuntimeValue.BadValue)
+                }
+
+                else -> {
+                    throw AssertionError("Unexpected result: ${signal.debug()}")
+                }
+            }
+        }
     }
 
     @Test

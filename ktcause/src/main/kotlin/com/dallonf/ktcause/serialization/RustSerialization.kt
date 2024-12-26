@@ -60,7 +60,7 @@ object RustSerialization {
         return NodeInfo(position, breadcrumbs)
     }
 
-    fun deserializeSourcePosition(errorPosition: JsonElement): SourcePosition.Source {
+    fun deserializeSourcePosition(errorPosition: JsonElement): SourcePosition {
         if (errorPosition is JsonObject) {
             errorPosition["Source"]?.let {
                 return deserializeSourcePositionSource(it)

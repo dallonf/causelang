@@ -15,3 +15,10 @@ pub struct {{name}}Error {
 }
 {{/if}}
 {{/each}}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ActionIncompatibleWithValueTypesValueType {
+    pub r#type: Arc<lang_types::LangType>,
+    pub position: SourcePosition,
+}
+

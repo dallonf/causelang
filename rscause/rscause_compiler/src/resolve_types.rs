@@ -4,7 +4,8 @@ use crate::ast::{
 };
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
-    compiler_bug_error, ActionIncompatibleWithValueTypesError, CompilerBugError, ErrorPosition,
+    compiler_bug_error, ActionIncompatibleWithValueTypesError,
+    ActionIncompatibleWithValueTypesValueType, CompilerBugError, ErrorPosition,
     ExcessParametersError, ImplementationTodoError, LangError, MismatchedTypeError,
     MissingElseBranchError, MissingParametersError, SourcePosition, UnreachableBranchError,
     ValueUsedAsConstraintError,
@@ -230,7 +231,7 @@ pub fn resolve_types(
                         .filter(|branch| {
                             branch
                                 .result
-                                .to_result_assuming_inferred_ref()
+                                .try_as_known_ref()
                                 .map(|it| it.as_ref() != &LangType::Action)
                                 .unwrap_or(true)
                         })
@@ -246,6 +247,21 @@ pub fn resolve_types(
                                             ctx.get_source_position_for_breadcrumbs(&it.breadcrumbs)
                                         })
                                         .collect(),
+                                    types: Some(
+                                        non_action_returns
+                                            .into_iter()
+                                            .map(|it| ActionIncompatibleWithValueTypesValueType {
+                                                r#type: it
+                                                    .result
+                                                    .try_as_known_ref()
+                                                    .expect("filtered to only known types above")
+                                                    .to_owned(),
+                                                position: ctx.get_source_position_for_breadcrumbs(
+                                                    &it.breadcrumbs,
+                                                ),
+                                            })
+                                            .collect(),
+                                    ),
                                 },
                             ),
                         ));

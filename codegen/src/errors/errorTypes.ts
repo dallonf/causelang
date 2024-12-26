@@ -103,12 +103,19 @@ export const errorTypes: ErrorTypeDeclaration[] = [
   },
   {
     name: "ActionIncompatibleWithValueTypes",
-    manualMapping: true,
+    manualMapping: true, // the ValueType struct is hard to translate
     fields: {
       actions: listOf(
         diverged({ rust: "SourcePosition", kotlin: "SourcePosition.Source" })
       ),
-      // NOTE: removing `types` for now because it's hard to translate
+      types: optional(
+        listOf(
+          diverged({
+            rust: "ActionIncompatibleWithValueTypesValueType",
+            kotlin: "ActionIncompatibleWithValueTypes.ValueType",
+          })
+        )
+      ),
     },
   },
   {
