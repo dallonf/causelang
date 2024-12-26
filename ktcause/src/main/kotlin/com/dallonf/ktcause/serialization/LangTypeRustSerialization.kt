@@ -22,6 +22,7 @@ object LangTypeRustSerialization {
             }
 
             is ActionValueLangType -> JsonPrimitive("Action")
+            is NeverContinuesValueLangType -> JsonPrimitive("NeverContinues")
 
             is InstanceValueLangType -> buildJsonObject {
                 put("Instance", serializeInstanceLangType(resolvedValueLangType))
