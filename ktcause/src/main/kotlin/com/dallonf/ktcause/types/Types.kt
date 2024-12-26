@@ -54,18 +54,20 @@ class CanonicalLangTypeIdSerializer : KSerializer<CanonicalLangTypeId> {
 @Serializable
 sealed interface CanonicalLangType {
     val id: CanonicalLangTypeId
+    val fields: List<ObjectField>
 
     fun isPending(canonicalTypes: Map<CanonicalLangTypeId, CanonicalLangType>): Boolean
     fun getError(): ErrorLangType?
 
     fun isUnique(): Boolean
 
+
     @Serializable
     @SerialName("Signal")
     data class SignalCanonicalLangType(
         override val id: CanonicalLangTypeId,
         val name: String,
-        val fields: List<ObjectField>,
+        override val fields: List<ObjectField>,
         val result: ConstraintReference,
     ) : CanonicalLangType {
         override fun isUnique() = fields.isEmpty()
@@ -98,12 +100,14 @@ sealed interface CanonicalLangType {
             return (result.getError()
                 ?: fields.firstNotNullOfOrNull { it.valueConstraint.getError() }).also { recursiveError -= 1 }
         }
+
+
     }
 
     @Serializable
     @SerialName("Object")
     data class ObjectCanonicalLangType(
-        override val id: CanonicalLangTypeId, val name: String, val fields: List<ObjectField>
+        override val id: CanonicalLangTypeId, val name: String, override val fields: List<ObjectField>
     ) : CanonicalLangType {
         init {
             if (id.category != CanonicalLangTypeId.CanonicalLangTypeIdCategory.OBJECT) {
@@ -215,6 +219,13 @@ sealed interface ErrorLangType : ValueLangType {
     override fun getError() = this
 
     fun friendlyMessage(ctx: Debug.DebugContext? = null): String
+
+    fun getActualErrorIfProxied(): ErrorLangType {
+        return when (this) {
+            is ProxyError -> this.actualError
+            else -> this
+        }
+    }
 
     @Serializable
     @SerialName("NeverResolved")

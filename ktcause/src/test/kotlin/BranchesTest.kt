@@ -5,6 +5,7 @@ import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
+import kotlin.math.sign
 import kotlin.test.assertEquals
 
 class BranchesTest {
@@ -191,90 +192,36 @@ class BranchesTest {
             )
         }
 
-        vm.executeFunction("project/test.cau", "main", listOf()).expectCausedSignal().let {
+        vm.executeFunction("project/test.cau", "main", listOf()).expectCausedSignal().let { signal ->
+            // Rust and Kotlin implementations differ on how they report this error,
+            // but both are fine (Rust is even slightly preferable)
+            assertEquals("core/builtin.cau:Debug", signal.typeDescriptor.id.toString())
+            val value = signal.getValue("value") as RuntimeValue.BadValue
+            val error = value.error.getActualErrorIfProxied()
             assertEquals(
                 """
                 {
-                    "#type": "core/builtin.cau:Debug",
-                    "value": {
-                        "#type": "BadValue",
-                        "position": {
-                            "#type": "SourcePosition",
-                            "path": "project/test.cau",
-                            "breadcrumbs": "declarations.6.body.statements.1.expression.signal.parameters.0",
-                            "position": "9:16-9:22"
-                        },
-                        "error": {
-                            "#type": "ProxyError",
-                            "actualError": {
-                                "#type": "MissingElseBranch",
-                                "options": {
-                                    "options": [
-                                        {
-                                            "#type": "Resolved",
-                                            "valueType": {
-                                                "#type": "Instance",
-                                                "canonicalType": "project/test.cau:Spades"
-                                            }
-                                        },
-                                        {
-                                            "#type": "Resolved",
-                                            "valueType": {
-                                                "#type": "Instance",
-                                                "canonicalType": "project/test.cau:Clubs"
-                                            }
-                                        }
-                                    ]
+                    "#type": "MissingElseBranch",
+                    "options": {
+                        "options": [
+                            {
+                                "#type": "Resolved",
+                                "valueType": {
+                                    "#type": "Instance",
+                                    "canonicalType": "project/test.cau:Spades"
                                 }
                             },
-                            "proxyChain": [
-                                {
-                                    "#type": "SourcePosition",
-                                    "path": "project/test.cau",
-                                    "breadcrumbs": "declarations.6.body.statements.1.expression.signal.parameters.0.value",
-                                    "position": "9:16-9:22"
-                                },
-                                {
-                                    "#type": "SourcePosition",
-                                    "path": "project/test.cau",
-                                    "breadcrumbs": "declarations.6.body.statements.0.declaration",
-                                    "position": "8:4-8:39"
-                                },
-                                {
-                                    "#type": "SourcePosition",
-                                    "path": "project/test.cau",
-                                    "breadcrumbs": "declarations.6.body.statements.0.declaration.value",
-                                    "position": "8:17-8:39"
-                                },
-                                {
-                                    "#type": "SourcePosition",
-                                    "path": "project/test.cau",
-                                    "breadcrumbs": "declarations.6.body.statements.0.declaration.value.callee",
-                                    "position": "8:17-8:31"
-                                },
-                                {
-                                    "#type": "SourcePosition",
-                                    "path": "project/test.cau",
-                                    "breadcrumbs": "declarations.7.body",
-                                    "position": "12:36-17:1"
-                                },
-                                {
-                                    "#type": "SourcePosition",
-                                    "path": "project/test.cau",
-                                    "breadcrumbs": "declarations.7.body.statements.0",
-                                    "position": "13:4-16:5"
-                                },
-                                {
-                                    "#type": "SourcePosition",
-                                    "path": "project/test.cau",
-                                    "breadcrumbs": "declarations.7.body.statements.0.expression",
-                                    "position": "13:4-16:5"
+                            {
+                                "#type": "Resolved",
+                                "valueType": {
+                                    "#type": "Instance",
+                                    "canonicalType": "project/test.cau:Clubs"
                                 }
-                            ]
-                        }
+                            }
+                        ]
                     }
                 }
-                """.trimIndent(), it.debug()
+                """.trimIndent(), error.debug()
             )
         }
     }

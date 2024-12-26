@@ -53,6 +53,14 @@ sealed class RuntimeValue {
     // TODO: probably want to make it harder to make an invalid RuntimeObject
     data class RuntimeObject(val typeDescriptor: CanonicalLangType, val values: List<RuntimeValue>) : RuntimeValue() {
         override fun typeOf() = InstanceValueLangType(typeDescriptor.id)
+
+        fun getValue(fieldName: String): RuntimeValue {
+            val fieldIndex = typeDescriptor.fields.indexOfLast { it.name == fieldName }
+            if (fieldIndex == -1) {
+                throw IllegalArgumentException("Tried to access $fieldName field on ${typeDescriptor.id}")
+            }
+            return values[fieldIndex]
+        }
     }
 
     data class RuntimeTypeConstraint(val valueType: ResolvedValueLangType) : RuntimeValue() {
