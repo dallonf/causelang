@@ -459,8 +459,8 @@ impl OneOfLangType {
         return OneOfLangType::new(remaining_options);
     }
 
-    pub fn expand(&self, pattern_type: &LangType) -> OneOfLangType {
-        let new_values = vec![self.options.clone(), vec![pattern_type.clone().into()]].concat();
+    pub fn expand(&self, pattern_type: &AnyInferredLangType) -> OneOfLangType {
+        let new_values = vec![self.options.clone(), vec![pattern_type.clone()]].concat();
         return OneOfLangType::new(new_values).simplify();
     }
 
@@ -520,6 +520,8 @@ impl OneOfLangType {
         let simplified = self.simplify();
         if simplified.options.len() == 1 {
             simplified.options[0].clone()
+        } else if simplified.options.len() == 0 {
+            LangType::NeverContinues.into()
         } else {
             simplified.into()
         }

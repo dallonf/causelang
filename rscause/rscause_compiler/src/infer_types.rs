@@ -15,8 +15,13 @@ use crate::{
     error_types::{
         CompilerBugError, ErrorPosition, LangError, SourcePosition, ValueUsedAsConstraintError,
     },
-    lang_types::{AnyInferredLangType, AnyLangTypeResult, HasInference, InferredType, LangType},
-    resolve_types::{ResolveTypesContext, TypeConstraint, TypeEdictRule},
+    lang_types::{
+        AnyInferredLangType, AnyLangTypeResult, HasInference, InferredType, LangType, OneOfLangType,
+    },
+    resolve_types::{
+        ResolveTypesContext, TypeConstraint, TypeEdictRule, ValidateBranchExpressionTypeEdict,
+        ValidateBranchExpressionTypeEdictBranch,
+    },
 };
 
 pub fn infer_types(ctx: &mut ResolveTypesContext) {
@@ -59,11 +64,14 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
     while !variables.is_empty() {
         for (_id, constraints) in variables.iter() {
             let mut new_constraints: Vec<TypeConstraint> = vec![];
+            let mut pending_constraints: Vec<TypeConstraint> = vec![];
             for constraint in constraints.borrow().clone() {
                 match constraint {
-                    TypeConstraint::EqualTo(_) | TypeConstraint::AssignableTo(_) => {
+                    TypeConstraint::EqualTo(_)
+                    | TypeConstraint::AssignableTo(_)
+                    | TypeConstraint::Narrowed(_) => {
                         // these can't be simplified individually
-                        new_constraints.push(constraint)
+                        pending_constraints.push(constraint)
                     }
                     TypeConstraint::ResolveFrom(breadcrumbs) => {
                         let value_type = ctx
@@ -184,6 +192,46 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                     }
                 }
             }
+
+            let is_equal_to_constraints = pending_constraints
+                .iter()
+                .filter_map(|it| it.try_as_equal_to_ref())
+                .collect_vec();
+            let narrowed_constraints = pending_constraints
+                .iter()
+                .filter_map(|it| it.try_as_narrowed_ref())
+                .filter(|it| !it.has_pending())
+                .collect_vec();
+            if is_equal_to_constraints.len() == 1
+                && !narrowed_constraints.is_empty()
+                && !is_equal_to_constraints[0].has_pending()
+            {
+                let equal_to_constraint = is_equal_to_constraints[0].clone();
+                let mut oneof = OneOfLangType::new_with_one(equal_to_constraint.clone());
+                for narrowed_constraint in &narrowed_constraints {
+                    if let Some(known) = narrowed_constraint.try_as_known_ref() {
+                        oneof = oneof.narrow(&known);
+                    }
+                }
+                new_constraints.push(TypeConstraint::EqualTo(oneof.into()));
+                new_constraints.append(
+                    &mut pending_constraints
+                        .iter()
+                        .filter(|pending| match pending {
+                            TypeConstraint::EqualTo(inferred_type) => {
+                                !is_equal_to_constraints.iter().contains(&inferred_type)
+                            }
+                            TypeConstraint::Narrowed(inferred_type) => {
+                                !narrowed_constraints.iter().contains(&inferred_type)
+                            }
+                            _ => true,
+                        })
+                        .cloned()
+                        .collect(),
+                );
+            } else {
+                new_constraints.append(&mut pending_constraints);
+            }
             constraints.replace(new_constraints);
         }
 
@@ -242,6 +290,9 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                         TypeConstraint::ResolveFrom(breadcrumbs) => {
                             TypeConstraint::ResolveFrom(breadcrumbs)
                         }
+                        TypeConstraint::Narrowed(inferred_type) => {
+                            TypeConstraint::Narrowed(fill_solved_variables(inferred_type))
+                        }
                     })
                     .collect();
 
@@ -272,6 +323,44 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                     inferred_type.fill_variable(id, solution.clone().into()),
                 ),
                 TypeEdictRule::MustBeTypeReference => TypeEdictRule::MustBeTypeReference,
+                TypeEdictRule::ValidateBranchExpression(edict) => {
+                    TypeEdictRule::ValidateBranchExpression(ValidateBranchExpressionTypeEdict {
+                        branches: edict
+                            .branches
+                            .iter()
+                            .map(|branch| ValidateBranchExpressionTypeEdictBranch {
+                                breadcrumbs: branch.breadcrumbs.clone(),
+                                remaining_with_value: branch
+                                    .remaining_with_value
+                                    .as_ref()
+                                    .map(|it| it.fill_variable(id, solution.clone().into())),
+                                pattern: branch
+                                    .pattern
+                                    .as_ref()
+                                    .map(|it| it.fill_variable(id, solution.clone().into())),
+                                result: branch.result.fill_variable(id, solution.clone().into()),
+                            })
+                            .collect(),
+                        else_branch: edict.else_branch.as_ref().map(|branch| {
+                            ValidateBranchExpressionTypeEdictBranch {
+                                breadcrumbs: branch.breadcrumbs.clone(),
+                                remaining_with_value: branch
+                                    .remaining_with_value
+                                    .as_ref()
+                                    .map(|it| it.fill_variable(id, solution.clone().into())),
+                                pattern: branch
+                                    .pattern
+                                    .as_ref()
+                                    .map(|it| it.fill_variable(id, solution.clone().into())),
+                                result: branch.result.fill_variable(id, solution.clone().into()),
+                            }
+                        }),
+                        final_with_value: edict
+                            .final_with_value
+                            .as_ref()
+                            .map(|it| it.fill_variable(id, solution.clone().into())),
+                    })
+                }
             };
         }
     }
