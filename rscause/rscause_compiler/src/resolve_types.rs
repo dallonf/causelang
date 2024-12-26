@@ -238,6 +238,22 @@ pub struct TypeEdict {
 pub enum TypeEdictRule {
     AssignableTo(AnyInferredLangType),
     MustBeTypeReference,
+    ValidateBranchExpression(ValidateBranchExpressionTypeEdict),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ValidateBranchExpressionTypeEdict {
+    branches: Vec<ValidateBranchExpressionTypeEdictBranch>,
+    else_branch: Option<ValidateBranchExpressionTypeEdictBranch>,
+    final_with_value: Option<AnyInferredLangType>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ValidateBranchExpressionTypeEdictBranch {
+    breadcrumbs: Breadcrumbs,
+    remaining_with_value: Option<AnyInferredLangType>,
+    pattern: Option<AnyInferredLangType>,
+    result: AnyInferredLangType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -247,6 +263,7 @@ pub enum TypeConstraint {
     MemberOf(AnyInferredLangType, Arc<String>),
     ReferencedType(AnyInferredLangType),
     ResolveFrom(Breadcrumbs),
+    Narrowed(AnyInferredLangType),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1072,6 +1089,24 @@ impl ResolveTypes for ast::BranchExpressionNode {
         }
         let mut possible_return_values = Vec::<PossibleResultValue>::new();
 
+        let mut branches = Vec::<ValidateBranchExpressionTypeEdictBranch>::new();
+
+        let result_value_var = ctx.add_inference_variable();
+        let mut with_value_var = if let Some(with_value_node) = &self.with_value {
+            let var = ctx.add_inference_variable();
+            ctx.constraints.push((
+                var,
+                TypeConstraint::ResolveFrom(with_value_node.breadcrumbs().to_owned()),
+                ConstraintDiagnostic::Resolver(
+                    with_value_node.breadcrumbs().to_owned(),
+                    "branch expression with-value".into(),
+                ),
+            ));
+            Some(var)
+        } else {
+            None
+        };
+
         let branches_before_else = self
             .branches
             .iter()
@@ -1087,6 +1122,12 @@ impl ResolveTypes for ast::BranchExpressionNode {
             let mut resolved_type = ctx.get_resolved_type_proxying_errors(branch.body());
             match branch {
                 ast::BranchOptionNode::If(_) => {
+                    branches.push(ValidateBranchExpressionTypeEdictBranch {
+                        breadcrumbs: branch.breadcrumbs().to_owned(),
+                        pattern: None,
+                        remaining_with_value: with_value_var.map(InferredType::InferenceVariable),
+                        result: resolved_type.clone(),
+                    });
                     if with_value.is_empty() {
                         resolved_type = LangError::UnreachableBranch(UnreachableBranchError {
                             options: Some(with_value.clone()),
@@ -1095,7 +1136,27 @@ impl ResolveTypes for ast::BranchExpressionNode {
                     }
                 }
                 ast::BranchOptionNode::Is(branch) => {
+                    // TODO: it's probably an error to have an is-branch
+                    // without a with-value
                     let pattern_type = ctx.get_resolved_type_proxying_errors(&branch.pattern);
+                    branches.push(ValidateBranchExpressionTypeEdictBranch {
+                        breadcrumbs: branch.breadcrumbs().to_owned(),
+                        pattern: Some(pattern_type.clone()),
+                        remaining_with_value: with_value_var.map(InferredType::InferenceVariable),
+                        result: resolved_type.clone(),
+                    });
+                    if let Some(with_value_var) = &mut with_value_var {
+                        *with_value_var = ctx.add_inference_variable();
+                        ctx.constraints.push((
+                            *with_value_var,
+                            TypeConstraint::Narrowed(pattern_type.clone()),
+                            ConstraintDiagnostic::Resolver(
+                                branch.breadcrumbs().to_owned(),
+                                "narrowing with-value after is-branch".into(),
+                            ),
+                        ));
+                    }
+
                     if let InferredType::Known(pattern_type) = pattern_type {
                         if with_value.is_superset_of(&pattern_type) {
                             with_value = with_value.narrow(&pattern_type);
@@ -1121,9 +1182,29 @@ impl ResolveTypes for ast::BranchExpressionNode {
             ast::BranchOptionNode::Else(branch) => Some(branch),
             _ => None,
         });
+        let mut else_branch_info = None;
         if let Some(else_branch) = else_branch {
-            with_value = OneOfLangType::new(vec![]);
             let resolved_type = ctx.get_resolved_type_proxying_errors(&else_branch.body);
+            else_branch_info = Some(ValidateBranchExpressionTypeEdictBranch {
+                breadcrumbs: else_branch.breadcrumbs().to_owned(),
+                remaining_with_value: with_value_var.map(InferredType::InferenceVariable),
+                pattern: None,
+                result: resolved_type.clone(),
+            });
+            with_value_var = with_value_var.map(|_| {
+                let var = ctx.add_inference_variable();
+                ctx.constraints.push((
+                    var,
+                    TypeConstraint::EqualTo(LangType::NeverContinues.into()),
+                    ConstraintDiagnostic::Resolver(
+                        else_branch.breadcrumbs().to_owned(),
+                        "with-value becomes unaccessible after else-branch".into(),
+                    ),
+                ));
+                var
+            });
+
+            with_value = OneOfLangType::new(vec![]);
             possible_return_values.push(PossibleResultValue {
                 value: resolved_type,
                 source: ctx.get_source_position(else_branch.as_ref()).into(),
@@ -1152,6 +1233,16 @@ impl ResolveTypes for ast::BranchExpressionNode {
                 source: None,
             })
         }
+
+        ctx.edicts.push(TypeEdict {
+            breadcrumbs: self.breadcrumbs().to_owned(),
+            rule: TypeEdictRule::ValidateBranchExpression(ValidateBranchExpressionTypeEdict {
+                branches,
+                else_branch: else_branch_info,
+                final_with_value: with_value_var.map(InferredType::InferenceVariable),
+            }),
+            diagnostic: "Branch expression".into(),
+        });
 
         let action_returns = possible_return_values
             .iter()
