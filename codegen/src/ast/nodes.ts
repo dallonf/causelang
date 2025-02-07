@@ -172,6 +172,14 @@ export const nodes: NodeDeclaration[] = [
       body: "Body",
     },
   },
+  {
+    name: "SetStatement",
+    category: "Statement",
+    fields: {
+      identifier: "Identifier",
+      expression: "Expression",
+    },
+  },
 
   {
     name: "BranchExpression",

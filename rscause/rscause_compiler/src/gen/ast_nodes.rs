@@ -35,6 +35,8 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "declaration",
     "pattern",
     "body",
+    "identifier",
+    "expression",
     "with_value",
     "branches",
     "condition",
@@ -74,6 +76,7 @@ pub enum AnyAstNode {
     ExpressionStatement(Arc<ExpressionStatementNode>),
     DeclarationStatement(Arc<DeclarationStatementNode>),
     EffectStatement(Arc<EffectStatementNode>),
+    SetStatement(Arc<SetStatementNode>),
     BranchExpression(Arc<BranchExpressionNode>),
     IfBranchOption(Arc<IfBranchOptionNode>),
     IsBranchOption(Arc<IsBranchOptionNode>),
@@ -108,6 +111,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::ExpressionStatement(node) => node.children(),
             AnyAstNode::DeclarationStatement(node) => node.children(),
             AnyAstNode::EffectStatement(node) => node.children(),
+            AnyAstNode::SetStatement(node) => node.children(),
             AnyAstNode::BranchExpression(node) => node.children(),
             AnyAstNode::IfBranchOption(node) => node.children(),
             AnyAstNode::IsBranchOption(node) => node.children(),
@@ -142,6 +146,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::ExpressionStatement(node) => node.info(),
             AnyAstNode::DeclarationStatement(node) => node.info(),
             AnyAstNode::EffectStatement(node) => node.info(),
+            AnyAstNode::SetStatement(node) => node.info(),
             AnyAstNode::BranchExpression(node) => node.info(),
             AnyAstNode::IfBranchOption(node) => node.info(),
             AnyAstNode::IsBranchOption(node) => node.info(),
@@ -178,6 +183,7 @@ impl HasBreadcrumbs for AnyAstNode {
             AnyAstNode::ExpressionStatement(node) => node.breadcrumbs(),
             AnyAstNode::DeclarationStatement(node) => node.breadcrumbs(),
             AnyAstNode::EffectStatement(node) => node.breadcrumbs(),
+            AnyAstNode::SetStatement(node) => node.breadcrumbs(),
             AnyAstNode::BranchExpression(node) => node.breadcrumbs(),
             AnyAstNode::IfBranchOption(node) => node.breadcrumbs(),
             AnyAstNode::IsBranchOption(node) => node.breadcrumbs(),
@@ -335,6 +341,7 @@ pub enum StatementNode {
     Expression(Arc<ExpressionStatementNode>),
     Declaration(Arc<DeclarationStatementNode>),
     Effect(Arc<EffectStatementNode>),
+    Set(Arc<SetStatementNode>),
 }
 impl AstNode for StatementNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
@@ -342,6 +349,7 @@ impl AstNode for StatementNode {
             StatementNode::Expression(node) => node.children(),
             StatementNode::Declaration(node) => node.children(),
             StatementNode::Effect(node) => node.children(),
+            StatementNode::Set(node) => node.children(),
         }
     }
     fn info(&self) -> &NodeInfo {
@@ -349,6 +357,7 @@ impl AstNode for StatementNode {
             StatementNode::Expression(node) => node.info(),
             StatementNode::Declaration(node) => node.info(),
             StatementNode::Effect(node) => node.info(),
+            StatementNode::Set(node) => node.info(),
         }
     }
 }
@@ -363,6 +372,7 @@ impl From<StatementNode> for AnyAstNode {
             StatementNode::Expression(node) => AnyAstNode::ExpressionStatement(node),
             StatementNode::Declaration(node) => AnyAstNode::DeclarationStatement(node),
             StatementNode::Effect(node) => AnyAstNode::EffectStatement(node),
+            StatementNode::Set(node) => AnyAstNode::SetStatement(node),
         }
     }
 }
@@ -372,6 +382,7 @@ impl HasBreadcrumbs for StatementNode {
             StatementNode::Expression(node) => node.breadcrumbs(),
             StatementNode::Declaration(node) => node.breadcrumbs(),
             StatementNode::Effect(node) => node.breadcrumbs(),
+            StatementNode::Set(node) => node.breadcrumbs(),
         }
     }
 }
@@ -1230,6 +1241,45 @@ impl AstNode for EffectStatementNode {
     }
 }
 impl HasBreadcrumbs for EffectStatementNode {
+    fn breadcrumbs(&self) -> &Breadcrumbs {
+        &self.info.breadcrumbs
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SetStatementNode {
+    pub info: NodeInfo,
+    pub identifier: Arc<IdentifierNode>,
+    pub expression: ExpressionNode,
+}
+impl From<&Arc<SetStatementNode>> for AnyAstNode {
+    fn from(value: &Arc<SetStatementNode>) -> Self {
+        AnyAstNode::SetStatement(value.clone())
+    }
+}
+impl From<Arc<SetStatementNode>> for AnyAstNode {
+    fn from(value: Arc<SetStatementNode>) -> Self {
+        AnyAstNode::SetStatement(value.clone())
+    }
+}
+impl AstNode for SetStatementNode {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("identifier"),
+            (&self.identifier).into(),
+        );
+        result.insert(
+            BreadcrumbName::new("expression"),
+            (&self.expression).into(),
+        );
+        result
+    }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
+}
+impl HasBreadcrumbs for SetStatementNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.info.breadcrumbs
     }

@@ -25,6 +25,12 @@ object TagsRustSerialization {
       is NodeTag.ValueComesFrom -> buildJsonObject {
         put("ValueComesFrom", serializeValueComesFromTag(tag))
       }
+      is NodeTag.SetsVariable -> buildJsonObject {
+        put("SetsVariable", serializeSetsVariableTag(tag))
+      }
+      is NodeTag.VariableSetBy -> buildJsonObject {
+        put("VariableSetBy", serializeVariableSetByTag(tag))
+      }
       is NodeTag.FunctionCanReturnTypeOf -> buildJsonObject {
         put("FunctionCanReturnTypeOf", serializeFunctionCanReturnTypeOfTag(tag))
       }
@@ -82,6 +88,16 @@ object TagsRustSerialization {
   fun serializeValueComesFromTag(tag: NodeTag.ValueComesFrom): JsonElement {
     return buildJsonObject {
       put("source", RustSerialization.serializeBreadcrumbs(tag.source))
+    }
+  }
+  fun serializeSetsVariableTag(tag: NodeTag.SetsVariable): JsonElement {
+    return buildJsonObject {
+      put("variable", RustSerialization.serializeBreadcrumbs(tag.variable))
+    }
+  }
+  fun serializeVariableSetByTag(tag: NodeTag.VariableSetBy): JsonElement {
+    return buildJsonObject {
+      put("statement", RustSerialization.serializeBreadcrumbs(tag.statement))
     }
   }
   fun serializeFunctionCanReturnTypeOfTag(tag: NodeTag.FunctionCanReturnTypeOf): JsonElement {

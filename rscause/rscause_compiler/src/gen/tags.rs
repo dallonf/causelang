@@ -6,6 +6,8 @@ pub enum NodeTag {
     TopLevelDeclaration(TopLevelDeclarationNodeTag),
     ValueGoesTo(ValueGoesToNodeTag),
     ValueComesFrom(ValueComesFromNodeTag),
+    SetsVariable(SetsVariableNodeTag),
+    VariableSetBy(VariableSetByNodeTag),
     FunctionCanReturnTypeOf(FunctionCanReturnTypeOfNodeTag),
     ReturnsFromFunction(ReturnsFromFunctionNodeTag),
     FunctionCanReturnAction(FunctionCanReturnActionNodeTag),
@@ -24,6 +26,8 @@ impl NodeTag {
         NodeTag::TopLevelDeclaration(_) => None,
         NodeTag::ValueGoesTo(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::ValueComesFrom(tag) => Some(tag.inverse(breadcrumbs).into()),
+        NodeTag::SetsVariable(tag) => Some(tag.inverse(breadcrumbs).into()),
+        NodeTag::VariableSetBy(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::FunctionCanReturnTypeOf(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::ReturnsFromFunction(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::FunctionCanReturnAction(tag) => Some(tag.inverse(breadcrumbs).into()),
@@ -83,6 +87,38 @@ impl ValueComesFromNodeTag {
 impl From<ValueComesFromNodeTag> for NodeTag {
   fn from(tag: ValueComesFromNodeTag) -> Self {
     NodeTag::ValueComesFrom(tag)
+  }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SetsVariableNodeTag {
+    pub variable: Breadcrumbs,
+}
+impl SetsVariableNodeTag {
+  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> VariableSetByNodeTag {
+    VariableSetByNodeTag {
+      statement: breadcrumbs.clone(),
+    }
+  }
+}
+impl From<SetsVariableNodeTag> for NodeTag {
+  fn from(tag: SetsVariableNodeTag) -> Self {
+    NodeTag::SetsVariable(tag)
+  }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VariableSetByNodeTag {
+    pub statement: Breadcrumbs,
+}
+impl VariableSetByNodeTag {
+  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> SetsVariableNodeTag {
+    SetsVariableNodeTag {
+      variable: breadcrumbs.clone(),
+    }
+  }
+}
+impl From<VariableSetByNodeTag> for NodeTag {
+  fn from(tag: VariableSetByNodeTag) -> Self {
+    NodeTag::VariableSetBy(tag)
   }
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

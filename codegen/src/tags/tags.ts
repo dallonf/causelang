@@ -16,6 +16,9 @@ export const tags: NodeTag[] = [
   twoWayNodeTag(["source", "ValueGoesTo", "destination"], {
     inverseName: "ValueComesFrom",
   }),
+  twoWayNodeTag(["statement", "SetsVariable", "variable"], {
+    inverseName: "VariableSetBy",
+  }),
   twoWayNodeTag(
     ["function", "FunctionCanReturnTypeOf", "returnExpressionValue"],
     {

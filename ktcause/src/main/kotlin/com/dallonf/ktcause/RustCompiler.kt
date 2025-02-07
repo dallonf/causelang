@@ -210,6 +210,8 @@ object RustCompiler {
                 is NodeTag.CanonicalIdInfo -> true
                 is NodeTag.FunctionCapturesValue -> true
                 is NodeTag.ValueCapturedByFunction -> true
+                is NodeTag.SetsVariable -> true
+                is NodeTag.VariableSetBy -> true
                 else -> false
             }
         }
