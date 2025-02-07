@@ -1,7 +1,8 @@
 use crate::breadcrumbs::{BreadcrumbEntry, BreadcrumbName, Breadcrumbs, HasBreadcrumbs};
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Borrow, collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
+use strum::EnumTryAs;
 
 include!("gen/ast_nodes.rs");
 

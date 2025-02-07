@@ -54,7 +54,7 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "value",
 ];
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumTryAs)]
 pub enum AnyAstNode {
     Identifier(Arc<IdentifierNode>),
     IdentifierTypeReference(Arc<IdentifierTypeReferenceNode>),

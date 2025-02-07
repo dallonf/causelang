@@ -49,6 +49,9 @@ object TagsRustSerialization {
       is NodeTag.ScopeContainsDeclaration -> buildJsonObject {
         put("ScopeContainsDeclaration", serializeScopeContainsDeclarationTag(tag))
       }
+      is NodeTag.UsesCapturedValue -> buildJsonObject {
+        put("UsesCapturedValue", serializeUsesCapturedValueTag(tag))
+      }
       is NodeTag.ValueCapturedByFunction -> buildJsonObject {
         put("ValueCapturedByFunction", serializeValueCapturedByFunctionTag(tag))
       }
@@ -128,6 +131,11 @@ object TagsRustSerialization {
   fun serializeScopeContainsDeclarationTag(tag: NodeTag.ScopeContainsDeclaration): JsonElement {
     return buildJsonObject {
       put("declaration", RustSerialization.serializeBreadcrumbs(tag.declaration))
+    }
+  }
+  fun serializeUsesCapturedValueTag(tag: NodeTag.UsesCapturedValue): JsonElement {
+    return buildJsonObject {
+      put("parent_function", RustSerialization.serializeBreadcrumbs(tag.parentFunction))
     }
   }
   fun serializeValueCapturedByFunctionTag(tag: NodeTag.ValueCapturedByFunction): JsonElement {

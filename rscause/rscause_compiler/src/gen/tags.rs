@@ -14,6 +14,7 @@ pub enum NodeTag {
     ActionReturn(ActionReturnNodeTag),
     DeclarationForScope(DeclarationForScopeNodeTag),
     ScopeContainsDeclaration(ScopeContainsDeclarationNodeTag),
+    UsesCapturedValue(UsesCapturedValueNodeTag),
     ValueCapturedByFunction(ValueCapturedByFunctionNodeTag),
     FunctionCapturesValue(FunctionCapturesValueNodeTag),
 }
@@ -34,6 +35,7 @@ impl NodeTag {
         NodeTag::ActionReturn(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::DeclarationForScope(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::ScopeContainsDeclaration(tag) => Some(tag.inverse(breadcrumbs).into()),
+        NodeTag::UsesCapturedValue(_) => None,
         NodeTag::ValueCapturedByFunction(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::FunctionCapturesValue(tag) => Some(tag.inverse(breadcrumbs).into()),
     }
@@ -216,6 +218,10 @@ impl From<ScopeContainsDeclarationNodeTag> for NodeTag {
   fn from(tag: ScopeContainsDeclarationNodeTag) -> Self {
     NodeTag::ScopeContainsDeclaration(tag)
   }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UsesCapturedValueNodeTag {
+    pub parent_function: Breadcrumbs,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValueCapturedByFunctionNodeTag {

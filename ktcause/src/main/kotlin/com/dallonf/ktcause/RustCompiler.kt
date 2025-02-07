@@ -208,6 +208,7 @@ object RustCompiler {
                 is NodeTag.ScopeContainsDeclaration -> true
                 is NodeTag.TopLevelDeclaration -> true
                 is NodeTag.CanonicalIdInfo -> true
+                is NodeTag.UsesCapturedValue -> true
                 is NodeTag.FunctionCapturesValue -> true
                 is NodeTag.ValueCapturedByFunction -> true
                 is NodeTag.SetsVariable -> true

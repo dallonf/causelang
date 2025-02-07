@@ -609,6 +609,7 @@ impl ResolveTypes for AnyAstNode {
             Self::DeclarationStatement(node) => node.compute_type(ctx),
             Self::ExpressionStatement(node) => node.compute_type(ctx),
             Self::EffectStatement(node) => node.compute_type(ctx),
+            Self::SetStatement(node) => node.compute_type(ctx),
             Self::CauseExpression(node) => node.compute_type(ctx),
             Self::CallExpression(node) => node.compute_type(ctx),
             Self::MemberExpression(node) => node.compute_type(ctx),
@@ -793,6 +794,48 @@ impl ResolveTypes for ast::EffectStatementNode {
             breadcrumbs: self.body.info().breadcrumbs.clone().into(),
             rule: TypeEdictRule::AssignableTo(result_type),
             diagnostic: "Result of effect handler must be assignable to effect's result".into(),
+        });
+
+        return Some(LangType::Action.into());
+    }
+}
+
+impl ResolveTypes for ast::SetStatementNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        let tags = ctx.get_tags(self);
+        let tag = match find_tag!(&tags, NodeTag::SetsVariable) {
+            Some(tag) => tag,
+            None => return Some(LangError::NotInScope.into()),
+        };
+        let variable_breadcrumbs = tag.variable;
+        let variable = ctx
+            .root_node
+            .clone()
+            .conv::<AnyAstNode>()
+            .node_at_path(&variable_breadcrumbs)
+            .expect("Couldn't find SetsVariable.variable breadcrumbs");
+        match variable.try_as_named_value() {
+            Some(variable) if variable.is_variable => {}
+            _ => return Some(LangError::NotVariable.into()),
+        }
+
+        if find_tag!(&tags, NodeTag::UsesCapturedValue).is_some() {
+            return Some(LangError::OuterVariable.into());
+        }
+
+        let expected_type_var = ctx.add_inference_variable();
+        ctx.constraints.push((
+            expected_type_var,
+            TypeConstraint::ResolveFrom(variable_breadcrumbs.clone()),
+            ConstraintDiagnostic::Resolver(
+                variable_breadcrumbs.clone(),
+                "set statement variable".into(),
+            ),
+        ));
+        ctx.edicts.push(TypeEdict {
+            breadcrumbs: self.expression.breadcrumbs().clone(),
+            rule: TypeEdictRule::AssignableTo(InferredType::InferenceVariable(expected_type_var)),
+            diagnostic: "expression assignable to variable".into(),
         });
 
         return Some(LangType::Action.into());

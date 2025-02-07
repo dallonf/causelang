@@ -4,7 +4,7 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     {{/each}}
 ];
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumTryAs)]
 pub enum AnyAstNode {
     {{#each nodes}}
     {{this.variantName}}(Arc<{{this.name}}>),
