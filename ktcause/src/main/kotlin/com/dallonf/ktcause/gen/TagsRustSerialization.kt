@@ -43,6 +43,12 @@ object TagsRustSerialization {
       is NodeTag.ScopeContainsDeclaration -> buildJsonObject {
         put("ScopeContainsDeclaration", serializeScopeContainsDeclarationTag(tag))
       }
+      is NodeTag.ValueCapturedByFunction -> buildJsonObject {
+        put("ValueCapturedByFunction", serializeValueCapturedByFunctionTag(tag))
+      }
+      is NodeTag.FunctionCapturesValue -> buildJsonObject {
+        put("FunctionCapturesValue", serializeFunctionCapturesValueTag(tag))
+      }
       else -> TODO("Unknown tag type: ${tag::class.simpleName}")
     }
   }
@@ -106,6 +112,16 @@ object TagsRustSerialization {
   fun serializeScopeContainsDeclarationTag(tag: NodeTag.ScopeContainsDeclaration): JsonElement {
     return buildJsonObject {
       put("declaration", RustSerialization.serializeBreadcrumbs(tag.declaration))
+    }
+  }
+  fun serializeValueCapturedByFunctionTag(tag: NodeTag.ValueCapturedByFunction): JsonElement {
+    return buildJsonObject {
+      put("function", RustSerialization.serializeBreadcrumbs(tag.function))
+    }
+  }
+  fun serializeFunctionCapturesValueTag(tag: NodeTag.FunctionCapturesValue): JsonElement {
+    return buildJsonObject {
+      put("value", RustSerialization.serializeBreadcrumbs(tag.value))
     }
   }
 }

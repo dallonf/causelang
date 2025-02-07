@@ -28,4 +28,7 @@ export const tags: NodeTag[] = [
   twoWayNodeTag(["declaration", "DeclarationForScope", "scope"], {
     inverseName: "ScopeContainsDeclaration",
   }),
+  twoWayNodeTag(["value", "ValueCapturedByFunction", "function"], {
+    inverseName: "FunctionCapturesValue",
+  }),
 ];

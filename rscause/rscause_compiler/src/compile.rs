@@ -12,7 +12,6 @@ use crate::compiled_file::{
 use crate::error_types::{
     CompilerBugError, ErrorPosition, LangError, MissingElseBranchError, SourcePosition,
 };
-use crate::find_tag;
 use crate::instructions::{
     CallFunctionInstruction, CauseInstruction, ConstructInstruction, DefineFunctionInstruction,
     FinishEffectInstruction, GetMemberInstruction, ImportInstruction, ImportSameFileInstruction,
@@ -36,6 +35,7 @@ use crate::{
     resolve_types::ResolveTypesResult,
     tags::NodeTag,
 };
+use crate::{find_tag, find_tags};
 use anyhow::{anyhow, Result};
 use num::{BigInt, BigRational};
 use tap::Pipe;
@@ -421,7 +421,11 @@ fn compile_function(
             Some(node_info),
         );
     }
-    // TODO: handle closure captures
+    let tags = ctx.get_tags(&node_info.breadcrumbs);
+    let captured_value_tags = find_tags!(&tags, NodeTag::FunctionCapturesValue);
+    for captured in captured_value_tags {
+        ctx.add_to_scope(&captured.value)?;
+    }
 
     compile_body(&mut procedure, ctx)?;
     assert_eq!(

@@ -12,6 +12,8 @@ pub enum NodeTag {
     ActionReturn(ActionReturnNodeTag),
     DeclarationForScope(DeclarationForScopeNodeTag),
     ScopeContainsDeclaration(ScopeContainsDeclarationNodeTag),
+    ValueCapturedByFunction(ValueCapturedByFunctionNodeTag),
+    FunctionCapturesValue(FunctionCapturesValueNodeTag),
 }
 impl NodeTag {
   pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> Option<NodeTag> {
@@ -28,6 +30,8 @@ impl NodeTag {
         NodeTag::ActionReturn(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::DeclarationForScope(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::ScopeContainsDeclaration(tag) => Some(tag.inverse(breadcrumbs).into()),
+        NodeTag::ValueCapturedByFunction(tag) => Some(tag.inverse(breadcrumbs).into()),
+        NodeTag::FunctionCapturesValue(tag) => Some(tag.inverse(breadcrumbs).into()),
     }
   }
 }
@@ -175,5 +179,37 @@ impl ScopeContainsDeclarationNodeTag {
 impl From<ScopeContainsDeclarationNodeTag> for NodeTag {
   fn from(tag: ScopeContainsDeclarationNodeTag) -> Self {
     NodeTag::ScopeContainsDeclaration(tag)
+  }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ValueCapturedByFunctionNodeTag {
+    pub function: Breadcrumbs,
+}
+impl ValueCapturedByFunctionNodeTag {
+  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> FunctionCapturesValueNodeTag {
+    FunctionCapturesValueNodeTag {
+      value: breadcrumbs.clone(),
+    }
+  }
+}
+impl From<ValueCapturedByFunctionNodeTag> for NodeTag {
+  fn from(tag: ValueCapturedByFunctionNodeTag) -> Self {
+    NodeTag::ValueCapturedByFunction(tag)
+  }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FunctionCapturesValueNodeTag {
+    pub value: Breadcrumbs,
+}
+impl FunctionCapturesValueNodeTag {
+  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> ValueCapturedByFunctionNodeTag {
+    ValueCapturedByFunctionNodeTag {
+      function: breadcrumbs.clone(),
+    }
+  }
+}
+impl From<FunctionCapturesValueNodeTag> for NodeTag {
+  fn from(tag: FunctionCapturesValueNodeTag) -> Self {
+    NodeTag::FunctionCapturesValue(tag)
   }
 }
