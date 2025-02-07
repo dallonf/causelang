@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::ast::{AnyAstNode, AstNode, NodeInfo};
@@ -21,7 +20,7 @@ use crate::instructions::{
     ReadLocalInstruction, ReadLocalThroughEffectScopeInstruction, RegisterEffectInstruction,
     RejectSignalInstruction, ReturnInstruction,
 };
-use crate::lang_types::{AnyInferredLangType, OneOfLangType};
+use crate::lang_types::OneOfLangType;
 use crate::prelude::*;
 use crate::resolve_types::ResolverError;
 use crate::tags::{ReferencesFileNodeTag, TopLevelDeclarationNodeTag};
@@ -599,7 +598,11 @@ fn compile_local_declaration(
         }
 
         ast::DeclarationNode::Function(function) => {
-            // TODO: captured values
+            let tags = ctx.get_tags(function.breadcrumbs());
+            let captured_values = find_tags!(&tags, NodeTag::FunctionCapturesValue).collect_vec();
+            for captured in &captured_values {
+                compile_value_reference(&function.info, &captured.value, procedure, ctx)?;
+            }
             let new_procedure = compile_function_declaration(&function, ctx)?;
 
             if let Some(error) = ctx.check_for_badtype_error(function.breadcrumbs())? {
@@ -619,11 +622,12 @@ fn compile_local_declaration(
                     Instruction::DefineFunction(DefineFunctionInstruction {
                         type_constant,
                         procedure_index: ctx.procedures.len() as u32 - 1,
-                        captured_values: 0,
+                        captured_values: captured_values.len() as u32,
                     }),
                     Some(function.info()),
                 )
             }
+            ctx.add_to_scope(function.breadcrumbs())?;
             let name_constant =
                 procedure.add_constant(CompiledConstant::String(function.name.text.clone()));
             procedure.write_instruction(

@@ -132,15 +132,11 @@ object RustCompiler {
             }
         }
         yieldAll(typeErrorsOnlyKtResolverWouldFind.map { "Found type error that the Rust resolver can't output yet: $it" })
-
-        val nestedFunctions = ast.allDescendants().filter {
-            it is FunctionNode && it.allAncestors(ast).any { ancestor -> ancestor is FunctionNode }
-        }
-        yieldAll(nestedFunctions.map { "Found a nested function at ${it.info.breadcrumbs}" })
     }
 
     val supportedCoreImports = setOf("core/builtin.cau", "core/math", "core/text")
-    private val supportedCoreBuiltins = setOf("Debug", "AssumptionBroken", "Action", "Anything", "AnySignal", "Text", "Number", "equals")
+    private val supportedCoreBuiltins =
+        setOf("Debug", "AssumptionBroken", "Action", "Anything", "AnySignal", "Text", "Number", "equals")
     private val unsupportedIdentifiers: Set<String> = setOf()
 
     fun compile(
