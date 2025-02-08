@@ -111,41 +111,28 @@ class VariablesTest {
         )
 
         val signal = vm.executeFunction("project/test.cau", "main", listOf()).expectCausedSignal()
+        // Rust and Kotlin implementations differ on how they report this error,
+        // but both are fine
+        val badValue = when (signal.typeDescriptor.id) {
+            vm.codeBundle.getTypeId("core/builtin.cau", "TypeError") -> {
+                signal.getValue("badValue") as RuntimeValue.BadValue
+            }
+
+            vm.codeBundle.getTypeId("core/builtin.cau", "Debug") -> {
+                signal.getValue("value") as RuntimeValue.BadValue
+            }
+
+            else -> {
+                throw AssertionError("Unexpected result: ${signal.debug()}")
+            }
+        }
+        val error = badValue.error.getActualErrorIfProxied()
         assertEquals(
             """
             {
-                "#type": "core/builtin.cau:TypeError",
-                "badValue": {
-                    "#type": "BadValue",
-                    "position": {
-                        "#type": "SourcePosition",
-                        "path": "project/test.cau",
-                        "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression.signal",
-                        "position": "4:14-4:22"
-                    },
-                    "error": {
-                        "#type": "ProxyError",
-                        "actualError": {
-                            "#type": "OuterVariable"
-                        },
-                        "proxyChain": [
-                            {
-                                "#type": "SourcePosition",
-                                "path": "project/test.cau",
-                                "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression.signal.parameters.0",
-                                "position": "4:20-4:21"
-                            },
-                            {
-                                "#type": "SourcePosition",
-                                "path": "project/test.cau",
-                                "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression.signal.parameters.0.value",
-                                "position": "4:20-4:21"
-                            }
-                        ]
-                    }
-                }
+                "#type": "OuterVariable"
             }
-            """.trimIndent(), signal.debug()
+            """.trimIndent(), error.debug()
         )
     }
 

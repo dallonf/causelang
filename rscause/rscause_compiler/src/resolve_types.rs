@@ -1,5 +1,5 @@
 use crate::ast::{
-    self, AnyAstNode, AstNode, BreadcrumbTreeNode, FunctionSignatureParameterNode,
+    self, AnyAstNode, AstNode, BreadcrumbTreeNode, FunctionSignatureParameterNode, NamedValueNode,
     SingleStatementBodyNode,
 };
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
@@ -1011,27 +1011,56 @@ impl ResolveTypes for ast::MemberExpressionNode {
 
 impl ResolveTypes for ast::IdentifierExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        let tags = self.get_tags(ctx);
-        let reference_tag = find_tag!(&tags, NodeTag::ValueComesFrom);
-        let referenced_type = reference_tag
-            .ok_or(compiler_bug_error("No reference tag found for identifier"))
-            .and_then(|reference_tag| {
-                AnyAstNode::from(&ctx.root_node)
-                    .node_at_path(&reference_tag.source)
-                    .map_err(|err| {
-                        LangError::CompilerBug(CompilerBugError {
-                            description: err.to_string(),
-                        })
-                    })
-                    .and_then(|node| {
-                        node.get_resolved_type_proxying_errors(ctx)
-                            .ok_or(compiler_bug_error(format!(
-                                "no type found for reference: {}",
-                                reference_tag.source
-                            )))
-                    })
-            });
-        Some(referenced_type.unwrap_or_else(|err| InferredType::Error(err.into())))
+        let tags = self.get_tags(ctx).as_ref().to_owned();
+
+        let comes_from_tag = match find_tag!(&tags, NodeTag::ValueComesFrom) {
+            Some(it) => it,
+            None => return Some(LangError::NotInScope.into()),
+        };
+
+        if find_tag!(&tags, NodeTag::UsesCapturedValue).is_some() {
+            let source_node = ctx
+                .root_node
+                .clone()
+                .conv::<AnyAstNode>()
+                .node_at_path(&comes_from_tag.source);
+            let source_node = match source_node {
+                Ok(it) => it,
+                Err(err) => return Some(LangError::compiler_bug(err.to_string()).into()),
+            };
+            match source_node {
+                AnyAstNode::NamedValue(source_node) if source_node.is_variable => {
+                    return Some(LangError::OuterVariable.into())
+                }
+                _ => {}
+            }
+        };
+
+        let resolved_type = AnyAstNode::from(&ctx.root_node)
+            .node_at_path(&comes_from_tag.source)
+            .map_err(|err| LangError::compiler_bug(err.to_string()))
+            .and_then(|node| {
+                node.get_resolved_type_proxying_errors(ctx)
+                    .ok_or(LangError::compiler_bug(format!(
+                        "no type found for identifier reference: {}",
+                        comes_from_tag.source
+                    )))
+            })
+            .unwrap_or_else(|err| err.into());
+
+        // special case: using `Action` as a keyword creates an Action value,
+        // not a reference to the `Action` type
+        let is_action_reference = resolved_type
+            .try_as_known_ref()
+            .and_then(|it| it.try_as_type_reference_ref())
+            .and_then(|it| it.try_as_known_ref())
+            .map(|it| matches!(it.as_ref(), LangType::Action))
+            .unwrap_or(false);
+        if is_action_reference {
+            return Some(LangType::Action.into());
+        }
+
+        return Some(resolved_type);
     }
 }
 

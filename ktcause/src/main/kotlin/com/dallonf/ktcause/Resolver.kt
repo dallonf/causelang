@@ -865,8 +865,6 @@ object Resolver {
                             }
                             val variableBreadcrumbs = tag.variable
 
-                            // TODO: left off here
-
                             val variable = fileNode.findNode(variableBreadcrumbs)
                             if (variable !is NamedValueNode || !variable.isVariable) {
                                 resolveWith(ErrorLangType.NotVariable)
