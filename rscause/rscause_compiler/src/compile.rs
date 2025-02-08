@@ -18,7 +18,8 @@ use crate::instructions::{
     JumpInstruction, LiteralInstruction, NameValueInstruction, NoOpInstruction,
     PopEffectsInstruction, PopInstruction, PopScopeInstruction, PushActionInstruction,
     ReadLocalInstruction, ReadLocalThroughEffectScopeInstruction, RegisterEffectInstruction,
-    RejectSignalInstruction, ReturnInstruction,
+    RejectSignalInstruction, ReturnInstruction, WriteLocalInstruction,
+    WriteLocalThroughEffectScopeInstruction,
 };
 use crate::lang_types::OneOfLangType;
 use crate::prelude::*;
@@ -37,6 +38,7 @@ use crate::{
 use crate::{find_tag, find_tags};
 use anyhow::{anyhow, Result};
 use num::{BigInt, BigRational};
+use serde::de::value;
 use tap::Pipe;
 use thiserror::Error;
 
@@ -540,6 +542,17 @@ fn compile_statement(
                 );
             }
         }
+        ast::StatementNode::Set(statement) => {
+            compile_set_statement(statement, procedure, ctx)?;
+
+            if is_last_statement {
+                procedure.write_instruction_with_phase(
+                    Instruction::PushAction(PushActionInstruction {}),
+                    Some(&statement.info),
+                    InstructionPhase::Cleanup,
+                );
+            }
+        }
     }
     Ok(())
 }
@@ -756,6 +769,61 @@ fn compile_effect_statement(
         }),
         Some(statement.info()),
     );
+
+    Ok(())
+}
+
+fn compile_set_statement(
+    statement: &ast::SetStatementNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    compile_expression(&statement.expression, procedure, ctx)?;
+
+    if let Some(error) = ctx.check_for_badtype_error(statement.breadcrumbs())? {
+        procedure.write_instruction(
+            Instruction::Pop(PopInstruction { number: 1 }),
+            Some(&statement.info),
+        );
+        let error_const = add_error_constant(
+            error.clone(),
+            &AnyAstNode::SetStatement(statement.clone().into()),
+            procedure,
+            ctx,
+        );
+        match error.as_ref() {
+            // MismatchedType errors are recoverable at runtime;
+            // put a BadValue on the stack and keep going
+            LangError::MismatchedType(_) => procedure.write_instruction(
+                Instruction::Literal(LiteralInstruction {
+                    constant: error_const,
+                }),
+                Some(&statement.info),
+            ),
+
+            _ => compile_type_error(error_const, procedure),
+        }
+    }
+
+    let tags = ctx.get_tags(statement.breadcrumbs());
+    let tag = find_tag!(&tags, NodeTag::SetsVariable).ok_or(anyhow!("Missing SetsVariable tag"))?;
+    let value_reference = find_value_reference(&tag.variable, ctx)?;
+    if value_reference.effect_depth > 0 {
+        procedure.write_instruction(
+            Instruction::WriteLocalThroughEffectScope(WriteLocalThroughEffectScopeInstruction {
+                effect_depth: value_reference.effect_depth as u32,
+                index: value_reference.found_index as u32,
+            }),
+            Some(&statement.info),
+        );
+    } else {
+        procedure.write_instruction(
+            Instruction::WriteLocal(WriteLocalInstruction {
+                index: value_reference.found_index as u32,
+            }),
+            Some(&statement.info),
+        );
+    }
 
     Ok(())
 }
