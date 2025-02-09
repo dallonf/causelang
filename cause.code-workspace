@@ -20,7 +20,7 @@
   "settings": {
     "deno.enable": true,
     "deno.lint": true,
-    "deno.unstable": false,
-    "rust-analyzer.showUnlinkedFileNotification": false
+    "rust-analyzer.showUnlinkedFileNotification": false,
+    "typescript.tsserver.experimental.enableProjectDiagnostics": false
   }
 }

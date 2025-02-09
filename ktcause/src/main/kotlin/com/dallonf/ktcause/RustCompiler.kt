@@ -2,6 +2,7 @@ package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.*
 import com.dallonf.ktcause.gen.AstRustSerialization
+import com.dallonf.ktcause.gen.TagsRustSerialization
 import com.dallonf.ktcause.gen.rustCompilerSupportedTypes
 import com.dallonf.ktcause.serialization.CompilerResultRustSerialization.deserializeRustCompilerResult
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization
@@ -195,29 +196,7 @@ object RustCompiler {
         }
 
     fun getFilteredTags(tags: Map<Breadcrumbs, List<NodeTag>>) = tags.mapValues { (breadcrumbs, tags) ->
-        // TODO: automate this with codegen
-        tags.filter {
-            when (it) {
-                is NodeTag.ReferencesFile -> true
-                is NodeTag.BadFileReference -> true
-                is NodeTag.ValueGoesTo -> true
-                is NodeTag.ValueComesFrom -> true
-                is NodeTag.FunctionCanReturnTypeOf -> true
-                is NodeTag.ReturnsFromFunction -> true
-                is NodeTag.FunctionCanReturnAction -> true
-                is NodeTag.ActionReturn -> true
-                is NodeTag.DeclarationForScope -> true
-                is NodeTag.ScopeContainsDeclaration -> true
-                is NodeTag.TopLevelDeclaration -> true
-                is NodeTag.CanonicalIdInfo -> true
-                is NodeTag.UsesCapturedValue -> true
-                is NodeTag.FunctionCapturesValue -> true
-                is NodeTag.ValueCapturedByFunction -> true
-                is NodeTag.SetsVariable -> true
-                is NodeTag.VariableSetBy -> true
-                else -> false
-            }
-        }
+        tags.filter { TagsRustSerialization.isNodeTagSupported(it) }
     }
 
     private val otherUnsupportedNodeTypes: List<String> = listOf<KClass<out Any>>().mapNotNull { it.simpleName }

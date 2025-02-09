@@ -16,6 +16,15 @@ object TagsRustSerialization {
     }
   }
 
+  fun isNodeTagSupported(tag: NodeTag): Boolean {
+    return when (tag) {
+      {{#each tags}}
+      is NodeTag.{{this.name}} -> true
+      {{/each}}
+      else -> false
+    }
+  }
+
   {{#each tags}}
   fun serialize{{this.name}}Tag(tag: NodeTag.{{this.name}}): JsonElement {
     return buildJsonObject {

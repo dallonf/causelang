@@ -62,6 +62,29 @@ object TagsRustSerialization {
     }
   }
 
+  fun isNodeTagSupported(tag: NodeTag): Boolean {
+    return when (tag) {
+      is NodeTag.ReferencesFile -> true
+      is NodeTag.CanonicalIdInfo -> true
+      is NodeTag.BadFileReference -> true
+      is NodeTag.TopLevelDeclaration -> true
+      is NodeTag.ValueGoesTo -> true
+      is NodeTag.ValueComesFrom -> true
+      is NodeTag.SetsVariable -> true
+      is NodeTag.VariableSetBy -> true
+      is NodeTag.FunctionCanReturnTypeOf -> true
+      is NodeTag.ReturnsFromFunction -> true
+      is NodeTag.FunctionCanReturnAction -> true
+      is NodeTag.ActionReturn -> true
+      is NodeTag.DeclarationForScope -> true
+      is NodeTag.ScopeContainsDeclaration -> true
+      is NodeTag.UsesCapturedValue -> true
+      is NodeTag.ValueCapturedByFunction -> true
+      is NodeTag.FunctionCapturesValue -> true
+      else -> false
+    }
+  }
+
   fun serializeReferencesFileTag(tag: NodeTag.ReferencesFile): JsonElement {
     return buildJsonObject {
       put("path", tag.path)
