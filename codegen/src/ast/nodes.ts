@@ -213,6 +213,13 @@ export const nodes: NodeDeclaration[] = [
     },
   },
   {
+    name: "LoopExpression",
+    category: "Expression",
+    fields: {
+      body: "Body",
+    },
+  },
+  {
     name: "CauseExpression",
     category: "Expression",
     fields: {

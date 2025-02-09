@@ -45,6 +45,7 @@ object AstRustSerialization {
     fun serializeExpression(node: ExpressionNode): JsonElement {
         return when (node) {
             is BranchExpressionNode -> buildJsonObject { put("Branch", serializeBranchExpression(node)) }
+            is LoopExpressionNode -> buildJsonObject { put("Loop", serializeLoopExpression(node)) }
             is CauseExpressionNode -> buildJsonObject { put("Cause", serializeCauseExpression(node)) }
             is CallExpressionNode -> buildJsonObject { put("Call", serializeCallExpression(node)) }
             is MemberExpressionNode -> buildJsonObject { put("Member", serializeMemberExpression(node)) }
@@ -254,6 +255,13 @@ object AstRustSerialization {
     }
 
     fun serializeElseBranchOption(node: ElseBranchOptionNode): JsonElement {
+        return buildJsonObject {
+            put("info", RustSerialization.serializeNodeInfo(node.info))
+            put("body", serializeBody(node.body))
+        }
+    }
+
+    fun serializeLoopExpression(node: LoopExpressionNode): JsonElement {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
             put("body", serializeBody(node.body))

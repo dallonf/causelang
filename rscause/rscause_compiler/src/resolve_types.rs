@@ -1,6 +1,6 @@
 use crate::ast::{
-    self, AnyAstNode, AstNode, BreadcrumbTreeNode, FunctionSignatureParameterNode, NamedValueNode,
-    SingleStatementBodyNode,
+    self, AnyAstNode, AstNode, BreadcrumbTreeNode, FunctionSignatureParameterNode,
+    LoopExpressionNode, NamedValueNode, SingleStatementBodyNode,
 };
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
@@ -639,6 +639,7 @@ impl ResolveTypes for AnyAstNode {
             Self::IfBranchOption(_) => None,
             Self::IsBranchOption(_) => None,
             Self::ElseBranchOption(_) => None,
+            Self::LoopExpression(node) => node.compute_type(ctx),
         }
     }
 }
@@ -1425,6 +1426,14 @@ impl ResolveTypes for ast::BranchExpressionNode {
             result = result.expand(&else_branch_info.result);
         }
         return Some(result.simplify_to_value());
+    }
+}
+
+impl ResolveTypes for LoopExpressionNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        // TODO: breaks
+
+        Some(LangType::NeverContinues.into())
     }
 }
 

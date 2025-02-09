@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -12,14 +12,14 @@ use crate::error_types::{
     CompilerBugError, ErrorPosition, LangError, MissingElseBranchError, SourcePosition,
 };
 use crate::instructions::{
-    CallFunctionInstruction, CauseInstruction, ConstructInstruction, DefineFunctionInstruction,
-    FinishEffectInstruction, GetMemberInstruction, ImportInstruction, ImportSameFileInstruction,
-    Instruction, InstructionPhase, IsAssignableToInstruction, JumpIfFalseInstruction,
-    JumpInstruction, LiteralInstruction, NameValueInstruction, NoOpInstruction,
-    PopEffectsInstruction, PopInstruction, PopScopeInstruction, PushActionInstruction,
-    ReadLocalInstruction, ReadLocalThroughEffectScopeInstruction, RegisterEffectInstruction,
-    RejectSignalInstruction, ReturnInstruction, WriteLocalInstruction,
-    WriteLocalThroughEffectScopeInstruction,
+    CallFunctionInstruction, CauseInstruction, ConstructInstruction, ContinueLoopInstruction,
+    DefineFunctionInstruction, FinishEffectInstruction, GetMemberInstruction, ImportInstruction,
+    ImportSameFileInstruction, Instruction, InstructionPhase, IsAssignableToInstruction,
+    JumpIfFalseInstruction, JumpInstruction, LiteralInstruction, NameValueInstruction,
+    NoOpInstruction, PopEffectsInstruction, PopInstruction, PopScopeInstruction,
+    PushActionInstruction, ReadLocalInstruction, ReadLocalThroughEffectScopeInstruction,
+    RegisterEffectInstruction, RejectSignalInstruction, ReturnInstruction, StartLoopInstruction,
+    WriteLocalInstruction, WriteLocalThroughEffectScopeInstruction,
 };
 use crate::lang_types::OneOfLangType;
 use crate::prelude::*;
@@ -131,6 +131,12 @@ impl CompilerScope {
         }
     }
 
+    fn new_with_loop(scope_root: Breadcrumbs, scope_type: ScopeType, open_loop: OpenLoop) -> Self {
+        let mut result = Self::new(scope_root, scope_type);
+        result.open_loop = Some(open_loop);
+        return result;
+    }
+
     fn size(&self) -> usize {
         self.named_value_indices.len()
     }
@@ -224,6 +230,29 @@ impl Procedure {
             index,
             make_instruction: Box::new(|instruction| {
                 Instruction::JumpIfFalse(JumpIfFalseInstruction { instruction })
+            }),
+        }
+    }
+
+    fn write_start_loop_placeholder(
+        &mut self,
+        node_info: &NodeInfo,
+        phase: InstructionPhase,
+    ) -> JumpPlaceholder {
+        self.instructions
+            .push(Instruction::NoOp(NoOpInstruction {}));
+        if let Some(source_map) = &mut self.source_map {
+            source_map.push(Some(ProcedureInstructionMapping {
+                node_info: node_info.clone(),
+                phase,
+            }));
+        }
+        JumpPlaceholder {
+            index: self.instructions.len() - 1,
+            make_instruction: Box::new(|instruction| {
+                Instruction::StartLoop(StartLoopInstruction {
+                    end_instruction: instruction,
+                })
             }),
         }
     }
@@ -838,6 +867,9 @@ fn compile_expression(
         ast::ExpressionNode::Branch(expression) => {
             compile_branch_expression(&expression, procedure, ctx)?;
         }
+        ast::ExpressionNode::Loop(expression) => {
+            compile_loop_expression(&expression, procedure, ctx)?;
+        }
         ast::ExpressionNode::Cause(expression) => {
             compile_cause_expression(expression.clone(), procedure, ctx)?;
         }
@@ -1227,6 +1259,29 @@ fn compile_branch_expression(
 
     // TODO: error handling
     Ok(())
+}
+
+fn compile_loop_expression(
+    expression: &ast::LoopExpressionNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    let start_loop_placeholder =
+        procedure.write_start_loop_placeholder(&expression.info, InstructionPhase::Execute);
+    let open_loop = OpenLoop(expression.info.breadcrumbs.clone());
+    ctx.scope_stack.push_back(
+        CompilerScope::new_with_loop(expression.breadcrumbs().clone(), ScopeType::Body, open_loop)
+            .pipe(|it| Rc::new(RefCell::new(it))),
+    );
+    compile_body(&expression.body, procedure, ctx)?;
+    ctx.scope_stack.pop_back();
+    procedure.write_instruction(
+        Instruction::ContinueLoop(ContinueLoopInstruction {}),
+        Some(&expression.info),
+    );
+    start_loop_placeholder.fill_latest(procedure);
+
+    return Ok(());
 }
 
 fn compile_value_flow_reference(
