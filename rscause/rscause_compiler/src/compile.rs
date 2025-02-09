@@ -803,6 +803,7 @@ fn compile_set_statement(
 
             _ => compile_type_error(error_const, procedure),
         }
+        return Ok(());
     }
 
     let tags = ctx.get_tags(statement.breadcrumbs());
