@@ -165,6 +165,13 @@ export const nodes: NodeDeclaration[] = [
     },
   },
   {
+    name: "BlockExpression",
+    category: "Expression",
+    fields: {
+      block: "BlockBody",
+    },
+  },
+  {
     name: "EffectStatement",
     category: "Statement",
     fields: {

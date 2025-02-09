@@ -607,6 +607,7 @@ impl ResolveTypes for AnyAstNode {
             Self::OneOfType(node) => node.compute_type(ctx),
             Self::BlockBody(node) => node.compute_type(ctx),
             Self::DeclarationStatement(node) => node.compute_type(ctx),
+            Self::BlockExpression(node) => node.block.compute_type(ctx),
             Self::ExpressionStatement(node) => node.compute_type(ctx),
             Self::EffectStatement(node) => node.compute_type(ctx),
             Self::SetStatement(node) => node.compute_type(ctx),
