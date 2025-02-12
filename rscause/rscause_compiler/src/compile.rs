@@ -1311,12 +1311,7 @@ fn compile_break_expression(
             Instruction::Pop(PopInstruction { number: 1 }),
             Some(expression.info()),
         );
-        compile_bad_value(
-            expression.into(),
-            error,
-            procedure,
-            ctx,
-        )?;
+        compile_bad_value(expression.into(), error, procedure, ctx)?;
         return Ok(());
     }
 
@@ -1327,7 +1322,7 @@ fn compile_break_expression(
         .scope_stack
         .iter()
         .rev()
-        .filter(|it| it.borrow().open_loop.is_none())
+        .filter(|it| it.borrow().open_loop.is_some())
         .enumerate()
         .find_map(|(i, scope)| {
             if scope.borrow().scope_root == break_tag.r#loop {
