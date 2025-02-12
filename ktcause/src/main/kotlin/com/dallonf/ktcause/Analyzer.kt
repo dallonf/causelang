@@ -584,7 +584,7 @@ object Analyzer {
             is BranchExpressionNode -> analyzeBranchExpressionNode(expression, output, ctx)
             is LoopExpressionNode -> analyzeLoopExpressionNode(expression, output, ctx)
             is ReturnExpression -> analyzeReturnExpression(expression, output, ctx)
-            is BreakExpression -> analyzeBreakExpression(expression, output, ctx)
+            is BreakExpressionNode -> analyzeBreakExpression(expression, output, ctx)
 
             is IdentifierExpressionNode -> analyzeIdentifierExpression(expression, output, ctx)
             is StringLiteralExpressionNode -> {}
@@ -719,7 +719,7 @@ object Analyzer {
     }
 
     private fun analyzeBreakExpression(
-        expression: BreakExpression, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: BreakExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         expression.withValue?.let { analyzeExpression(it, output, ctx) }
         ctx.currentLoop?.let { loop ->

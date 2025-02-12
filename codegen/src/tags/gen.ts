@@ -85,7 +85,7 @@ interface FlattenedTag {
 }
 
 interface FlattenedTagParam {
-  snakeCaseName: string;
+  rustSyntaxName: string;
   camelCaseName: string;
   type: NodeTagParam;
   rustType: string;
@@ -100,7 +100,7 @@ function flattenTags(): FlattenedTag[] {
             name: tag.name,
             params: Object.entries(tag.params).map(([paramName, param]) => {
               return {
-                snakeCaseName: changeCase.snakeCase(paramName),
+                rustSyntaxName: getRustSyntaxName(paramName),
                 camelCaseName: paramName,
                 type: param,
                 rustType: getParamRustType(param),
@@ -114,20 +114,20 @@ function flattenTags(): FlattenedTag[] {
           tag.extraParams
         ).map(([paramName, param]) => {
           return {
-            snakeCaseName: changeCase.snakeCase(paramName),
+            rustSyntaxName: getRustSyntaxName(paramName),
             camelCaseName: paramName,
             type: param,
             rustType: getParamRustType(param),
           };
         });
         const breadcrumb2Param: FlattenedTagParam = {
-          snakeCaseName: changeCase.snakeCase(tag.interface.breadcrumb2),
+          rustSyntaxName: getRustSyntaxName(tag.interface.breadcrumb2),
           camelCaseName: tag.interface.breadcrumb2,
           type: { type: "breadcrumbs" as const },
           rustType: "Breadcrumbs",
         };
         const breadcrumb1Param: FlattenedTagParam = {
-          snakeCaseName: changeCase.snakeCase(tag.interface.breadcrumb1),
+          rustSyntaxName: getRustSyntaxName(tag.interface.breadcrumb1),
           camelCaseName: tag.interface.breadcrumb1,
           type: { type: "breadcrumbs" as const },
           rustType: "Breadcrumbs",
@@ -137,7 +137,7 @@ function flattenTags(): FlattenedTag[] {
             name: tag.interface.forwardName,
             params: [breadcrumb2Param].concat(extraParams),
             inverse: true,
-            inverseParam: changeCase.snakeCase(tag.interface.breadcrumb1),
+            inverseParam: getRustSyntaxName(tag.interface.breadcrumb1),
             inverseExtraParams: extraParams,
             inverseName: tag.interface.inverseName,
           },
@@ -145,7 +145,7 @@ function flattenTags(): FlattenedTag[] {
             name: tag.interface.inverseName,
             params: [breadcrumb1Param].concat(extraParams),
             inverse: true,
-            inverseParam: changeCase.snakeCase(tag.interface.breadcrumb2),
+            inverseParam: getRustSyntaxName(tag.interface.breadcrumb2),
             inverseExtraParams: extraParams,
             inverseName: tag.interface.forwardName,
           },
@@ -175,4 +175,15 @@ function getParamRustType(param: NodeTagParam) {
   if (param.nullable) type = `Option<${type}>`;
 
   return type;
+}
+
+function getRustSyntaxName(camelCaseName: string) {
+  const snakeCase = changeCase.snakeCase(camelCaseName);
+
+  // deal with reserved words
+  if (snakeCase === "loop") {
+    return `r#${snakeCase}`;
+  }
+
+  return snakeCase;
 }

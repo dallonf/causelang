@@ -710,7 +710,7 @@ object Resolver {
                             } else {
                                 val breakTypes = breaks.map {
                                     val breakExpression =
-                                        fileNode.findNode(it.breakExpression) as BreakExpression
+                                        fileNode.findNode(it.breakExpression) as BreakExpressionNode
                                     breakExpression to if (breakExpression.withValue != null) {
                                         getResolvedTypeOf(breakExpression.withValue)
                                     } else {
@@ -750,7 +750,7 @@ object Resolver {
                             resolveWith(NeverContinuesValueLangType)
                         }
 
-                        is BreakExpression -> {
+                        is BreakExpressionNode -> {
                             val breakTag = pendingNodeTags.firstNotNullOfOrNull { it as? NodeTag.BreaksLoop }
                             if (breakTag != null) {
                                 resolveWith(NeverContinuesValueLangType)

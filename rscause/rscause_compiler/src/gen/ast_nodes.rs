@@ -54,6 +54,7 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "identifier",
     "text",
     "value",
+    "with_value",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumTryAs)]
@@ -91,6 +92,7 @@ pub enum AnyAstNode {
     IdentifierExpression(Arc<IdentifierExpressionNode>),
     StringLiteralExpression(Arc<StringLiteralExpressionNode>),
     NumberLiteralExpression(Arc<NumberLiteralExpressionNode>),
+    BreakExpression(Arc<BreakExpressionNode>),
 }
 impl AstNode for AnyAstNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
@@ -128,6 +130,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::IdentifierExpression(node) => node.children(),
             AnyAstNode::StringLiteralExpression(node) => node.children(),
             AnyAstNode::NumberLiteralExpression(node) => node.children(),
+            AnyAstNode::BreakExpression(node) => node.children(),
         }
     }
     fn info(&self) -> &NodeInfo {
@@ -165,6 +168,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::IdentifierExpression(node) => node.info(),
             AnyAstNode::StringLiteralExpression(node) => node.info(),
             AnyAstNode::NumberLiteralExpression(node) => node.info(),
+            AnyAstNode::BreakExpression(node) => node.info(),
         }
     }
 }
@@ -204,6 +208,7 @@ impl HasBreadcrumbs for AnyAstNode {
             AnyAstNode::IdentifierExpression(node) => node.breadcrumbs(),
             AnyAstNode::StringLiteralExpression(node) => node.breadcrumbs(),
             AnyAstNode::NumberLiteralExpression(node) => node.breadcrumbs(),
+            AnyAstNode::BreakExpression(node) => node.breadcrumbs(),
         }
     }
 }
@@ -408,6 +413,7 @@ pub enum ExpressionNode {
     Identifier(Arc<IdentifierExpressionNode>),
     StringLiteral(Arc<StringLiteralExpressionNode>),
     NumberLiteral(Arc<NumberLiteralExpressionNode>),
+    Break(Arc<BreakExpressionNode>),
 }
 impl AstNode for ExpressionNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
@@ -421,6 +427,7 @@ impl AstNode for ExpressionNode {
             ExpressionNode::Identifier(node) => node.children(),
             ExpressionNode::StringLiteral(node) => node.children(),
             ExpressionNode::NumberLiteral(node) => node.children(),
+            ExpressionNode::Break(node) => node.children(),
         }
     }
     fn info(&self) -> &NodeInfo {
@@ -434,6 +441,7 @@ impl AstNode for ExpressionNode {
             ExpressionNode::Identifier(node) => node.info(),
             ExpressionNode::StringLiteral(node) => node.info(),
             ExpressionNode::NumberLiteral(node) => node.info(),
+            ExpressionNode::Break(node) => node.info(),
         }
     }
 }
@@ -454,6 +462,7 @@ impl From<ExpressionNode> for AnyAstNode {
             ExpressionNode::Identifier(node) => AnyAstNode::IdentifierExpression(node),
             ExpressionNode::StringLiteral(node) => AnyAstNode::StringLiteralExpression(node),
             ExpressionNode::NumberLiteral(node) => AnyAstNode::NumberLiteralExpression(node),
+            ExpressionNode::Break(node) => AnyAstNode::BreakExpression(node),
         }
     }
 }
@@ -469,6 +478,7 @@ impl HasBreadcrumbs for ExpressionNode {
             ExpressionNode::Identifier(node) => node.breadcrumbs(),
             ExpressionNode::StringLiteral(node) => node.breadcrumbs(),
             ExpressionNode::NumberLiteral(node) => node.breadcrumbs(),
+            ExpressionNode::Break(node) => node.breadcrumbs(),
         }
     }
 }
@@ -1723,6 +1733,40 @@ impl AstNode for NumberLiteralExpressionNode {
     }
 }
 impl HasBreadcrumbs for NumberLiteralExpressionNode {
+    fn breadcrumbs(&self) -> &Breadcrumbs {
+        &self.info.breadcrumbs
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BreakExpressionNode {
+    pub info: NodeInfo,
+    pub with_value: Option<ExpressionNode>,
+}
+impl From<&Arc<BreakExpressionNode>> for AnyAstNode {
+    fn from(value: &Arc<BreakExpressionNode>) -> Self {
+        AnyAstNode::BreakExpression(value.clone())
+    }
+}
+impl From<Arc<BreakExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<BreakExpressionNode>) -> Self {
+        AnyAstNode::BreakExpression(value.clone())
+    }
+}
+impl AstNode for BreakExpressionNode {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("with_value"),
+            (&self.with_value).into(),
+        );
+        result
+    }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
+}
+impl HasBreadcrumbs for BreakExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.info.breadcrumbs
     }

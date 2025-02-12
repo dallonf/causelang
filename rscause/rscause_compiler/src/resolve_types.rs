@@ -1,6 +1,6 @@
 use crate::ast::{
-    self, AnyAstNode, AstNode, BreadcrumbTreeNode, FunctionSignatureParameterNode,
-    LoopExpressionNode, NamedValueNode, SingleStatementBodyNode,
+    self, AnyAstNode, AstNode, BreadcrumbTreeNode, BreakExpressionNode,
+    FunctionSignatureParameterNode, LoopExpressionNode, NamedValueNode, SingleStatementBodyNode,
 };
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
@@ -641,6 +641,7 @@ impl ResolveTypes for AnyAstNode {
             Self::IsBranchOption(_) => None,
             Self::ElseBranchOption(_) => None,
             Self::LoopExpression(node) => node.compute_type(ctx),
+            Self::BreakExpression(node) => node.compute_type(ctx),
         }
     }
 }
@@ -1435,6 +1436,18 @@ impl ResolveTypes for LoopExpressionNode {
         // TODO: breaks
 
         Some(LangType::NeverContinues.into())
+    }
+}
+
+impl ResolveTypes for ast::BreakExpressionNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        let tags = ctx.get_tags(self);
+        let break_tag = find_tag!(&tags, NodeTag::BreaksLoop);
+        if break_tag.is_some() {
+            return Some(LangType::NeverContinues.into());
+        } else {
+            return Some(LangError::CannotBreakHere.into());
+        }
     }
 }
 

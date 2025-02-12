@@ -52,7 +52,7 @@ object RustCompiler {
         ASSERT_SUPPORTED,
     }
 
-    private val MODE = Mode.IF_SUPPORTED
+    private val MODE = Mode.ASSERT_SUPPORTED
     private const val OUTPUT_TMP = false
 
     init {

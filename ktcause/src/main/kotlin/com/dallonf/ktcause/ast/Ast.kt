@@ -506,7 +506,7 @@ data class ReturnExpression(override val info: NodeInfo, val value: ExpressionNo
     }
 }
 
-data class BreakExpression(override val info: NodeInfo, val withValue: ExpressionNode? = null) : ExpressionNode {
+data class BreakExpressionNode(override val info: NodeInfo, val withValue: ExpressionNode? = null) : ExpressionNode {
     override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, AstNode.BreadcrumbWalkChild> = buildMap {
         withValue?.let { put("withValue", it) }
     }

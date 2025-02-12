@@ -17,6 +17,8 @@ pub enum NodeTag {
     UsesCapturedValue(UsesCapturedValueNodeTag),
     ValueCapturedByFunction(ValueCapturedByFunctionNodeTag),
     FunctionCapturesValue(FunctionCapturesValueNodeTag),
+    BreaksLoop(BreaksLoopNodeTag),
+    LoopBreaksAt(LoopBreaksAtNodeTag),
 }
 impl NodeTag {
   pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> Option<NodeTag> {
@@ -38,6 +40,8 @@ impl NodeTag {
         NodeTag::UsesCapturedValue(_) => None,
         NodeTag::ValueCapturedByFunction(tag) => Some(tag.inverse(breadcrumbs).into()),
         NodeTag::FunctionCapturesValue(tag) => Some(tag.inverse(breadcrumbs).into()),
+        NodeTag::BreaksLoop(tag) => Some(tag.inverse(breadcrumbs).into()),
+        NodeTag::LoopBreaksAt(tag) => Some(tag.inverse(breadcrumbs).into()),
     }
   }
 }
@@ -253,5 +257,37 @@ impl FunctionCapturesValueNodeTag {
 impl From<FunctionCapturesValueNodeTag> for NodeTag {
   fn from(tag: FunctionCapturesValueNodeTag) -> Self {
     NodeTag::FunctionCapturesValue(tag)
+  }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BreaksLoopNodeTag {
+    pub r#loop: Breadcrumbs,
+}
+impl BreaksLoopNodeTag {
+  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> LoopBreaksAtNodeTag {
+    LoopBreaksAtNodeTag {
+      break_expression: breadcrumbs.clone(),
+    }
+  }
+}
+impl From<BreaksLoopNodeTag> for NodeTag {
+  fn from(tag: BreaksLoopNodeTag) -> Self {
+    NodeTag::BreaksLoop(tag)
+  }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LoopBreaksAtNodeTag {
+    pub break_expression: Breadcrumbs,
+}
+impl LoopBreaksAtNodeTag {
+  pub fn inverse(&self, breadcrumbs: &Breadcrumbs) -> BreaksLoopNodeTag {
+    BreaksLoopNodeTag {
+      r#loop: breadcrumbs.clone(),
+    }
+  }
+}
+impl From<LoopBreaksAtNodeTag> for NodeTag {
+  fn from(tag: LoopBreaksAtNodeTag) -> Self {
+    NodeTag::LoopBreaksAt(tag)
   }
 }

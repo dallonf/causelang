@@ -12,14 +12,15 @@ use crate::error_types::{
     CompilerBugError, ErrorPosition, LangError, MissingElseBranchError, SourcePosition,
 };
 use crate::instructions::{
-    CallFunctionInstruction, CauseInstruction, ConstructInstruction, ContinueLoopInstruction,
-    DefineFunctionInstruction, FinishEffectInstruction, GetMemberInstruction, ImportInstruction,
-    ImportSameFileInstruction, Instruction, InstructionPhase, IsAssignableToInstruction,
-    JumpIfFalseInstruction, JumpInstruction, LiteralInstruction, NameValueInstruction,
-    NoOpInstruction, PopEffectsInstruction, PopInstruction, PopScopeInstruction,
-    PushActionInstruction, ReadLocalInstruction, ReadLocalThroughEffectScopeInstruction,
-    RegisterEffectInstruction, RejectSignalInstruction, ReturnInstruction, StartLoopInstruction,
-    WriteLocalInstruction, WriteLocalThroughEffectScopeInstruction,
+    BreakLoopInstruction, CallFunctionInstruction, CauseInstruction, ConstructInstruction,
+    ContinueLoopInstruction, DefineFunctionInstruction, FinishEffectInstruction,
+    GetMemberInstruction, ImportInstruction, ImportSameFileInstruction, Instruction,
+    InstructionPhase, IsAssignableToInstruction, JumpIfFalseInstruction, JumpInstruction,
+    LiteralInstruction, NameValueInstruction, NoOpInstruction, PopEffectsInstruction,
+    PopInstruction, PopScopeInstruction, PushActionInstruction, ReadLocalInstruction,
+    ReadLocalThroughEffectScopeInstruction, RegisterEffectInstruction, RejectSignalInstruction,
+    ReturnInstruction, StartLoopInstruction, WriteLocalInstruction,
+    WriteLocalThroughEffectScopeInstruction,
 };
 use crate::lang_types::OneOfLangType;
 use crate::prelude::*;
@@ -873,6 +874,9 @@ fn compile_expression(
         ast::ExpressionNode::Loop(expression) => {
             compile_loop_expression(&expression, procedure, ctx)?;
         }
+        ast::ExpressionNode::Break(expression) => {
+            compile_break_expression(&expression, procedure, ctx)?;
+        }
         ast::ExpressionNode::Cause(expression) => {
             compile_cause_expression(expression.clone(), procedure, ctx)?;
         }
@@ -1283,6 +1287,65 @@ fn compile_loop_expression(
         Some(&expression.info),
     );
     start_loop_placeholder.fill_latest(procedure);
+
+    return Ok(());
+}
+
+fn compile_break_expression(
+    expression: &ast::BreakExpressionNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    if let Some(with_value) = &expression.with_value {
+        compile_expression(with_value, procedure, ctx)?;
+    } else {
+        procedure.write_instruction_with_phase(
+            Instruction::PushAction(PushActionInstruction {}),
+            Some(expression.info()),
+            InstructionPhase::Setup,
+        );
+    }
+
+    if let Some(error) = ctx.check_for_badtype_error(expression.breadcrumbs())? {
+        procedure.write_instruction(
+            Instruction::Pop(PopInstruction { number: 1 }),
+            Some(expression.info()),
+        );
+        compile_bad_value(
+            expression.clone().pipe(Arc::new).into(),
+            error,
+            procedure,
+            ctx,
+        )?;
+        return Ok(());
+    }
+
+    let tags = ctx.get_tags(expression.breadcrumbs());
+    let break_tag =
+        find_tag!(&tags, NodeTag::BreaksLoop).ok_or(anyhow!("Could not find BreaksLoop tag"))?;
+    let loop_index = ctx
+        .scope_stack
+        .iter()
+        .rev()
+        .filter(|it| it.borrow().open_loop.is_none())
+        .enumerate()
+        .find_map(|(i, scope)| {
+            if scope.borrow().scope_root == break_tag.r#loop {
+                Some(i)
+            } else {
+                None
+            }
+        })
+        .ok_or(anyhow!(
+            "Couldn't find an open loop (shouldn't have gotten this far)"
+        ))?;
+
+    procedure.write_instruction(
+        Instruction::BreakLoop(BreakLoopInstruction {
+            levels: (loop_index + 1) as i32,
+        }),
+        Some(expression.info()),
+    );
 
     return Ok(());
 }

@@ -37,5 +37,6 @@ val rustCompilerSupportedTypes = setOf(
         IdentifierExpressionNode::class,
         StringLiteralExpressionNode::class,
         NumberLiteralExpressionNode::class,
+        BreakExpressionNode::class,
     ).mapNotNull { it.simpleName }.toTypedArray()
 )

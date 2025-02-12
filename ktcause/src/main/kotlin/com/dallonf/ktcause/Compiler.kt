@@ -449,7 +449,7 @@ object Compiler {
             is LoopExpressionNode -> compileLoopExpression(expression, procedure, ctx)
             is CauseExpressionNode -> compileCauseExpression(expression, procedure, ctx)
             is ReturnExpression -> compileReturnExpression(expression, procedure, ctx)
-            is BreakExpression -> compileBreakExpression(expression, procedure, ctx)
+            is BreakExpressionNode -> compileBreakExpression(expression, procedure, ctx)
 
             is CallExpressionNode -> compileCallExpression(expression, procedure, ctx)
             is MemberExpressionNode -> compileMemberExpression(expression, procedure, ctx)
@@ -939,7 +939,7 @@ object Compiler {
     }
 
     private fun compileBreakExpression(
-        expression: BreakExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        expression: BreakExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         if (expression.withValue != null) {
             compileExpression(expression.withValue, procedure, ctx)

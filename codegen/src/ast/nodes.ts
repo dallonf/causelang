@@ -270,4 +270,11 @@ export const nodes: NodeDeclaration[] = [
       value: primitive("bigdecimal"),
     },
   },
+  {
+    name: "BreakExpression",
+    category: "Expression",
+    fields: {
+      withValue: optional("Expression"),
+    },
+  },
 ];

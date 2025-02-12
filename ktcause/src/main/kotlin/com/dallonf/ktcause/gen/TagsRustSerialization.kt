@@ -58,6 +58,12 @@ object TagsRustSerialization {
       is NodeTag.FunctionCapturesValue -> buildJsonObject {
         put("FunctionCapturesValue", serializeFunctionCapturesValueTag(tag))
       }
+      is NodeTag.BreaksLoop -> buildJsonObject {
+        put("BreaksLoop", serializeBreaksLoopTag(tag))
+      }
+      is NodeTag.LoopBreaksAt -> buildJsonObject {
+        put("LoopBreaksAt", serializeLoopBreaksAtTag(tag))
+      }
       else -> TODO("Unknown tag type: ${tag::class.simpleName}")
     }
   }
@@ -81,6 +87,8 @@ object TagsRustSerialization {
       is NodeTag.UsesCapturedValue -> true
       is NodeTag.ValueCapturedByFunction -> true
       is NodeTag.FunctionCapturesValue -> true
+      is NodeTag.BreaksLoop -> true
+      is NodeTag.LoopBreaksAt -> true
       else -> false
     }
   }
@@ -169,6 +177,16 @@ object TagsRustSerialization {
   fun serializeFunctionCapturesValueTag(tag: NodeTag.FunctionCapturesValue): JsonElement {
     return buildJsonObject {
       put("value", RustSerialization.serializeBreadcrumbs(tag.value))
+    }
+  }
+  fun serializeBreaksLoopTag(tag: NodeTag.BreaksLoop): JsonElement {
+    return buildJsonObject {
+      put("loop", RustSerialization.serializeBreadcrumbs(tag.loop))
+    }
+  }
+  fun serializeLoopBreaksAtTag(tag: NodeTag.LoopBreaksAt): JsonElement {
+    return buildJsonObject {
+      put("break_expression", RustSerialization.serializeBreadcrumbs(tag.breakExpression))
     }
   }
 }

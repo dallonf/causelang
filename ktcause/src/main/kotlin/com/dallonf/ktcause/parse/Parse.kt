@@ -506,9 +506,9 @@ private fun parseReturnExpression(
 
 private fun parseBreakExpression(
     expression: BreakExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): BreakExpression {
+): BreakExpressionNode {
     val withValue = expression.expression()?.let { parseExpression(it, breadcrumbs.appendName("withValue"), ctx) }
-    return BreakExpression(NodeInfo(expression.getRange(), breadcrumbs), withValue)
+    return BreakExpressionNode(NodeInfo(expression.getRange(), breadcrumbs), withValue)
 }
 
 private fun parseStringLiteralExpression(

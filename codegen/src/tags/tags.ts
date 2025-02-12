@@ -37,4 +37,7 @@ export const tags: NodeTag[] = [
   twoWayNodeTag(["value", "ValueCapturedByFunction", "function"], {
     inverseName: "FunctionCapturesValue",
   }),
+  twoWayNodeTag(["breakExpression", "BreaksLoop", "loop"], {
+    inverseName: "LoopBreaksAt",
+  }),
 ];
