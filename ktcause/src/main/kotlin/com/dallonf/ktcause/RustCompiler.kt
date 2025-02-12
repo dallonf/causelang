@@ -130,6 +130,7 @@ object RustCompiler {
                     is ErrorLangType.ActionIncompatibleWithValueTypes -> null
                     is ErrorLangType.NotVariable -> null
                     is ErrorLangType.OuterVariable -> null
+                    is ErrorLangType.CannotBreakHere -> null
                     else -> it
                 }
             }
@@ -143,6 +144,7 @@ object RustCompiler {
             "Debug",
             "AssumptionBroken",
             "Action",
+            "NeverContinues",
             "Anything",
             "AnySignal",
             "Text",

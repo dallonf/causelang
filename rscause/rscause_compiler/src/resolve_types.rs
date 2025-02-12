@@ -235,7 +235,7 @@ pub fn resolve_types(
                                 .result
                                 .try_as_known_ref()
                                 .map(|it| !it.as_ref().is_assignable_to(&LangType::Action))
-                                .unwrap_or(true)
+                                .unwrap_or(false)
                         })
                         .collect_vec();
                     if !action_returns.is_empty() && !non_action_returns.is_empty() {
@@ -256,7 +256,7 @@ pub fn resolve_types(
                                                 r#type: it
                                                     .result
                                                     .try_as_known_ref()
-                                                    .expect("filtered to only known types above")
+                                                    .expect(&format!("should be a Known type (already filtered above), but found {:?}", &it.result))
                                                     .to_owned(),
                                                 position: ctx.get_source_position_for_breadcrumbs(
                                                     &it.breadcrumbs,
