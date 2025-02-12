@@ -1312,7 +1312,7 @@ fn compile_break_expression(
             Some(expression.info()),
         );
         compile_bad_value(
-            expression.clone().pipe(Arc::new).into(),
+            expression.into(),
             error,
             procedure,
             ctx,

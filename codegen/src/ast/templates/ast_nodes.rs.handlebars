@@ -93,6 +93,11 @@ pub struct {{this.name}} {
     pub {{this.name}}: {{this.type}},
     {{/each}}
 }
+impl From<&{{this.name}}> for AnyAstNode {
+    fn from(value: &{{this.name}}) -> Self {
+        AnyAstNode::{{this.variantName}}(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<{{this.name}}>> for AnyAstNode {
     fn from(value: &Arc<{{this.name}}>) -> Self {
         AnyAstNode::{{this.variantName}}(value.clone())

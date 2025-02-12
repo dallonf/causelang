@@ -10,7 +10,6 @@ use crate::error_types::{
     MissingElseBranchError, MissingParametersError, SourcePosition, UnreachableBranchError,
     ValueUsedAsConstraintError,
 };
-use crate::find_tag;
 use crate::infer_types::infer_types;
 use crate::lang_types::{
     AnyInferredLangType, CanonicalLangType, CanonicalLangTypeCategory, CanonicalLangTypeId,
@@ -19,6 +18,7 @@ use crate::lang_types::{
 };
 use crate::prelude::*;
 use crate::tags::NodeTag;
+use crate::{find_tag, find_tags};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -1433,9 +1433,50 @@ impl ResolveTypes for ast::BranchExpressionNode {
 
 impl ResolveTypes for LoopExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        // TODO: breaks
+        let tags = ctx.get_tags(self);
+        let breaks = find_tags!(&tags, NodeTag::LoopBreaksAt).collect_vec();
 
-        Some(LangType::NeverContinues.into())
+        if breaks.is_empty() {
+            return Some(LangType::NeverContinues.into());
+        }
+
+        let break_types = breaks
+            .iter()
+            .map(|it| {
+                let break_expression = ctx.node_at_path(&it.break_expression);
+                let break_expression_type = break_expression
+                    .and_then(|break_expression| {
+                        break_expression.try_as_break_expression().ok_or(
+                            LangError::compiler_bug(
+                                "LoopBreaksAt.break_expression didn't point at a BreakExpression",
+                            )
+                            .into(),
+                        )
+                    })
+                    .map(|break_expression| {
+                        if let Some(with_value) = &break_expression.with_value {
+                            ctx.get_resolved_type_proxying_errors(with_value)
+                        } else {
+                            LangType::Action.into()
+                        }
+                    })
+                    .unwrap_or_else(|it| it.into());
+
+                return (it.break_expression.clone(), break_expression_type);
+            })
+            .collect_vec();
+
+        // TODO: assert that all or no break types are Action
+
+        let loop_result_type = OneOfLangType::new(
+            break_types
+                .into_iter()
+                .map(|(_, return_type)| return_type)
+                .collect(),
+        )
+        .simplify_to_value();
+
+        Some(loop_result_type)
     }
 }
 

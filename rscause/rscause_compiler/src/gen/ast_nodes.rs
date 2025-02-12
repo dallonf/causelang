@@ -535,6 +535,11 @@ pub struct IdentifierNode {
     pub info: NodeInfo,
     pub text: Arc<String>,
 }
+impl From<&IdentifierNode> for AnyAstNode {
+    fn from(value: &IdentifierNode) -> Self {
+        AnyAstNode::Identifier(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<IdentifierNode>> for AnyAstNode {
     fn from(value: &Arc<IdentifierNode>) -> Self {
         AnyAstNode::Identifier(value.clone())
@@ -563,6 +568,11 @@ impl HasBreadcrumbs for IdentifierNode {
 pub struct IdentifierTypeReferenceNode {
     pub info: NodeInfo,
     pub identifier: Arc<IdentifierNode>,
+}
+impl From<&IdentifierTypeReferenceNode> for AnyAstNode {
+    fn from(value: &IdentifierTypeReferenceNode) -> Self {
+        AnyAstNode::IdentifierTypeReference(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<IdentifierTypeReferenceNode>> for AnyAstNode {
     fn from(value: &Arc<IdentifierTypeReferenceNode>) -> Self {
@@ -598,6 +608,11 @@ pub struct PatternNode {
     pub info: NodeInfo,
     pub name: Option<Arc<IdentifierNode>>,
     pub type_reference: TypeReferenceNode,
+}
+impl From<&PatternNode> for AnyAstNode {
+    fn from(value: &PatternNode) -> Self {
+        AnyAstNode::Pattern(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<PatternNode>> for AnyAstNode {
     fn from(value: &Arc<PatternNode>) -> Self {
@@ -638,6 +653,11 @@ pub struct FunctionSignatureParameterNode {
     pub name: Arc<IdentifierNode>,
     pub type_reference: Option<TypeReferenceNode>,
 }
+impl From<&FunctionSignatureParameterNode> for AnyAstNode {
+    fn from(value: &FunctionSignatureParameterNode) -> Self {
+        AnyAstNode::FunctionSignatureParameter(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<FunctionSignatureParameterNode>> for AnyAstNode {
     fn from(value: &Arc<FunctionSignatureParameterNode>) -> Self {
         AnyAstNode::FunctionSignatureParameter(value.clone())
@@ -676,6 +696,11 @@ pub struct FunctionCallParameterNode {
     pub info: NodeInfo,
     pub value: ExpressionNode,
 }
+impl From<&FunctionCallParameterNode> for AnyAstNode {
+    fn from(value: &FunctionCallParameterNode) -> Self {
+        AnyAstNode::FunctionCallParameter(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<FunctionCallParameterNode>> for AnyAstNode {
     fn from(value: &Arc<FunctionCallParameterNode>) -> Self {
         AnyAstNode::FunctionCallParameter(value.clone())
@@ -709,6 +734,11 @@ impl HasBreadcrumbs for FunctionCallParameterNode {
 pub struct FileNode {
     pub info: NodeInfo,
     pub declarations: Vec<DeclarationNode>,
+}
+impl From<&FileNode> for AnyAstNode {
+    fn from(value: &FileNode) -> Self {
+        AnyAstNode::File(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<FileNode>> for AnyAstNode {
     fn from(value: &Arc<FileNode>) -> Self {
@@ -744,6 +774,11 @@ pub struct ImportNode {
     pub info: NodeInfo,
     pub path: Arc<ImportPathNode>,
     pub mappings: Vec<Arc<ImportMappingNode>>,
+}
+impl From<&ImportNode> for AnyAstNode {
+    fn from(value: &ImportNode) -> Self {
+        AnyAstNode::Import(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<ImportNode>> for AnyAstNode {
     fn from(value: &Arc<ImportNode>) -> Self {
@@ -783,6 +818,11 @@ pub struct ImportPathNode {
     pub info: NodeInfo,
     pub path: Arc<String>,
 }
+impl From<&ImportPathNode> for AnyAstNode {
+    fn from(value: &ImportPathNode) -> Self {
+        AnyAstNode::ImportPath(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<ImportPathNode>> for AnyAstNode {
     fn from(value: &Arc<ImportPathNode>) -> Self {
         AnyAstNode::ImportPath(value.clone())
@@ -812,6 +852,11 @@ pub struct ImportMappingNode {
     pub info: NodeInfo,
     pub source_name: Arc<IdentifierNode>,
     pub rename: Option<Arc<IdentifierNode>>,
+}
+impl From<&ImportMappingNode> for AnyAstNode {
+    fn from(value: &ImportMappingNode) -> Self {
+        AnyAstNode::ImportMapping(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<ImportMappingNode>> for AnyAstNode {
     fn from(value: &Arc<ImportMappingNode>) -> Self {
@@ -853,6 +898,11 @@ pub struct FunctionNode {
     pub params: Vec<Arc<FunctionSignatureParameterNode>>,
     pub body: BodyNode,
     pub return_type: Option<TypeReferenceNode>,
+}
+impl From<&FunctionNode> for AnyAstNode {
+    fn from(value: &FunctionNode) -> Self {
+        AnyAstNode::Function(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<FunctionNode>> for AnyAstNode {
     fn from(value: &Arc<FunctionNode>) -> Self {
@@ -903,6 +953,11 @@ pub struct NamedValueNode {
     pub value: ExpressionNode,
     pub is_variable: bool,
 }
+impl From<&NamedValueNode> for AnyAstNode {
+    fn from(value: &NamedValueNode) -> Self {
+        AnyAstNode::NamedValue(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<NamedValueNode>> for AnyAstNode {
     fn from(value: &Arc<NamedValueNode>) -> Self {
         AnyAstNode::NamedValue(value.clone())
@@ -946,6 +1001,11 @@ pub struct ObjectTypeNode {
     pub name: Arc<IdentifierNode>,
     pub fields: Vec<Arc<ObjectFieldNode>>,
 }
+impl From<&ObjectTypeNode> for AnyAstNode {
+    fn from(value: &ObjectTypeNode) -> Self {
+        AnyAstNode::ObjectType(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<ObjectTypeNode>> for AnyAstNode {
     fn from(value: &Arc<ObjectTypeNode>) -> Self {
         AnyAstNode::ObjectType(value.clone())
@@ -985,6 +1045,11 @@ pub struct SignalTypeNode {
     pub name: Arc<IdentifierNode>,
     pub fields: Vec<Arc<ObjectFieldNode>>,
     pub result: Option<TypeReferenceNode>,
+}
+impl From<&SignalTypeNode> for AnyAstNode {
+    fn from(value: &SignalTypeNode) -> Self {
+        AnyAstNode::SignalType(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<SignalTypeNode>> for AnyAstNode {
     fn from(value: &Arc<SignalTypeNode>) -> Self {
@@ -1029,6 +1094,11 @@ pub struct ObjectFieldNode {
     pub name: Arc<IdentifierNode>,
     pub type_annotation: TypeReferenceNode,
 }
+impl From<&ObjectFieldNode> for AnyAstNode {
+    fn from(value: &ObjectFieldNode) -> Self {
+        AnyAstNode::ObjectField(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<ObjectFieldNode>> for AnyAstNode {
     fn from(value: &Arc<ObjectFieldNode>) -> Self {
         AnyAstNode::ObjectField(value.clone())
@@ -1068,6 +1138,11 @@ pub struct OneOfTypeNode {
     pub name: Arc<IdentifierNode>,
     pub options: Vec<TypeReferenceNode>,
 }
+impl From<&OneOfTypeNode> for AnyAstNode {
+    fn from(value: &OneOfTypeNode) -> Self {
+        AnyAstNode::OneOfType(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<OneOfTypeNode>> for AnyAstNode {
     fn from(value: &Arc<OneOfTypeNode>) -> Self {
         AnyAstNode::OneOfType(value.clone())
@@ -1106,6 +1181,11 @@ pub struct BlockBodyNode {
     pub info: NodeInfo,
     pub statements: Vec<StatementNode>,
 }
+impl From<&BlockBodyNode> for AnyAstNode {
+    fn from(value: &BlockBodyNode) -> Self {
+        AnyAstNode::BlockBody(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<BlockBodyNode>> for AnyAstNode {
     fn from(value: &Arc<BlockBodyNode>) -> Self {
         AnyAstNode::BlockBody(value.clone())
@@ -1139,6 +1219,11 @@ impl HasBreadcrumbs for BlockBodyNode {
 pub struct SingleStatementBodyNode {
     pub info: NodeInfo,
     pub statement: StatementNode,
+}
+impl From<&SingleStatementBodyNode> for AnyAstNode {
+    fn from(value: &SingleStatementBodyNode) -> Self {
+        AnyAstNode::SingleStatementBody(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<SingleStatementBodyNode>> for AnyAstNode {
     fn from(value: &Arc<SingleStatementBodyNode>) -> Self {
@@ -1174,6 +1259,11 @@ pub struct ExpressionStatementNode {
     pub info: NodeInfo,
     pub expression: ExpressionNode,
 }
+impl From<&ExpressionStatementNode> for AnyAstNode {
+    fn from(value: &ExpressionStatementNode) -> Self {
+        AnyAstNode::ExpressionStatement(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<ExpressionStatementNode>> for AnyAstNode {
     fn from(value: &Arc<ExpressionStatementNode>) -> Self {
         AnyAstNode::ExpressionStatement(value.clone())
@@ -1207,6 +1297,11 @@ impl HasBreadcrumbs for ExpressionStatementNode {
 pub struct DeclarationStatementNode {
     pub info: NodeInfo,
     pub declaration: DeclarationNode,
+}
+impl From<&DeclarationStatementNode> for AnyAstNode {
+    fn from(value: &DeclarationStatementNode) -> Self {
+        AnyAstNode::DeclarationStatement(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<DeclarationStatementNode>> for AnyAstNode {
     fn from(value: &Arc<DeclarationStatementNode>) -> Self {
@@ -1242,6 +1337,11 @@ pub struct BlockExpressionNode {
     pub info: NodeInfo,
     pub block: Arc<BlockBodyNode>,
 }
+impl From<&BlockExpressionNode> for AnyAstNode {
+    fn from(value: &BlockExpressionNode) -> Self {
+        AnyAstNode::BlockExpression(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<BlockExpressionNode>> for AnyAstNode {
     fn from(value: &Arc<BlockExpressionNode>) -> Self {
         AnyAstNode::BlockExpression(value.clone())
@@ -1276,6 +1376,11 @@ pub struct EffectStatementNode {
     pub info: NodeInfo,
     pub pattern: Arc<PatternNode>,
     pub body: BodyNode,
+}
+impl From<&EffectStatementNode> for AnyAstNode {
+    fn from(value: &EffectStatementNode) -> Self {
+        AnyAstNode::EffectStatement(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<EffectStatementNode>> for AnyAstNode {
     fn from(value: &Arc<EffectStatementNode>) -> Self {
@@ -1316,6 +1421,11 @@ pub struct SetStatementNode {
     pub identifier: Arc<IdentifierNode>,
     pub expression: ExpressionNode,
 }
+impl From<&SetStatementNode> for AnyAstNode {
+    fn from(value: &SetStatementNode) -> Self {
+        AnyAstNode::SetStatement(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<SetStatementNode>> for AnyAstNode {
     fn from(value: &Arc<SetStatementNode>) -> Self {
         AnyAstNode::SetStatement(value.clone())
@@ -1354,6 +1464,11 @@ pub struct BranchExpressionNode {
     pub info: NodeInfo,
     pub with_value: Option<ExpressionNode>,
     pub branches: Vec<BranchOptionNode>,
+}
+impl From<&BranchExpressionNode> for AnyAstNode {
+    fn from(value: &BranchExpressionNode) -> Self {
+        AnyAstNode::BranchExpression(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<BranchExpressionNode>> for AnyAstNode {
     fn from(value: &Arc<BranchExpressionNode>) -> Self {
@@ -1394,6 +1509,11 @@ pub struct IfBranchOptionNode {
     pub condition: ExpressionNode,
     pub body: BodyNode,
 }
+impl From<&IfBranchOptionNode> for AnyAstNode {
+    fn from(value: &IfBranchOptionNode) -> Self {
+        AnyAstNode::IfBranchOption(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<IfBranchOptionNode>> for AnyAstNode {
     fn from(value: &Arc<IfBranchOptionNode>) -> Self {
         AnyAstNode::IfBranchOption(value.clone())
@@ -1433,6 +1553,11 @@ pub struct IsBranchOptionNode {
     pub pattern: Arc<PatternNode>,
     pub body: BodyNode,
 }
+impl From<&IsBranchOptionNode> for AnyAstNode {
+    fn from(value: &IsBranchOptionNode) -> Self {
+        AnyAstNode::IsBranchOption(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<IsBranchOptionNode>> for AnyAstNode {
     fn from(value: &Arc<IsBranchOptionNode>) -> Self {
         AnyAstNode::IsBranchOption(value.clone())
@@ -1471,6 +1596,11 @@ pub struct ElseBranchOptionNode {
     pub info: NodeInfo,
     pub body: BodyNode,
 }
+impl From<&ElseBranchOptionNode> for AnyAstNode {
+    fn from(value: &ElseBranchOptionNode) -> Self {
+        AnyAstNode::ElseBranchOption(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<ElseBranchOptionNode>> for AnyAstNode {
     fn from(value: &Arc<ElseBranchOptionNode>) -> Self {
         AnyAstNode::ElseBranchOption(value.clone())
@@ -1504,6 +1634,11 @@ impl HasBreadcrumbs for ElseBranchOptionNode {
 pub struct LoopExpressionNode {
     pub info: NodeInfo,
     pub body: BodyNode,
+}
+impl From<&LoopExpressionNode> for AnyAstNode {
+    fn from(value: &LoopExpressionNode) -> Self {
+        AnyAstNode::LoopExpression(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<LoopExpressionNode>> for AnyAstNode {
     fn from(value: &Arc<LoopExpressionNode>) -> Self {
@@ -1539,6 +1674,11 @@ pub struct CauseExpressionNode {
     pub info: NodeInfo,
     pub signal: ExpressionNode,
 }
+impl From<&CauseExpressionNode> for AnyAstNode {
+    fn from(value: &CauseExpressionNode) -> Self {
+        AnyAstNode::CauseExpression(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<CauseExpressionNode>> for AnyAstNode {
     fn from(value: &Arc<CauseExpressionNode>) -> Self {
         AnyAstNode::CauseExpression(value.clone())
@@ -1573,6 +1713,11 @@ pub struct CallExpressionNode {
     pub info: NodeInfo,
     pub callee: ExpressionNode,
     pub parameters: Vec<Arc<FunctionCallParameterNode>>,
+}
+impl From<&CallExpressionNode> for AnyAstNode {
+    fn from(value: &CallExpressionNode) -> Self {
+        AnyAstNode::CallExpression(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<CallExpressionNode>> for AnyAstNode {
     fn from(value: &Arc<CallExpressionNode>) -> Self {
@@ -1613,6 +1758,11 @@ pub struct MemberExpressionNode {
     pub object_expression: ExpressionNode,
     pub member_identifier: Arc<IdentifierNode>,
 }
+impl From<&MemberExpressionNode> for AnyAstNode {
+    fn from(value: &MemberExpressionNode) -> Self {
+        AnyAstNode::MemberExpression(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<MemberExpressionNode>> for AnyAstNode {
     fn from(value: &Arc<MemberExpressionNode>) -> Self {
         AnyAstNode::MemberExpression(value.clone())
@@ -1651,6 +1801,11 @@ pub struct IdentifierExpressionNode {
     pub info: NodeInfo,
     pub identifier: Arc<IdentifierNode>,
 }
+impl From<&IdentifierExpressionNode> for AnyAstNode {
+    fn from(value: &IdentifierExpressionNode) -> Self {
+        AnyAstNode::IdentifierExpression(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<IdentifierExpressionNode>> for AnyAstNode {
     fn from(value: &Arc<IdentifierExpressionNode>) -> Self {
         AnyAstNode::IdentifierExpression(value.clone())
@@ -1685,6 +1840,11 @@ pub struct StringLiteralExpressionNode {
     pub info: NodeInfo,
     pub text: Arc<String>,
 }
+impl From<&StringLiteralExpressionNode> for AnyAstNode {
+    fn from(value: &StringLiteralExpressionNode) -> Self {
+        AnyAstNode::StringLiteralExpression(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<StringLiteralExpressionNode>> for AnyAstNode {
     fn from(value: &Arc<StringLiteralExpressionNode>) -> Self {
         AnyAstNode::StringLiteralExpression(value.clone())
@@ -1714,6 +1874,11 @@ pub struct NumberLiteralExpressionNode {
     pub info: NodeInfo,
     pub value: rust_decimal::Decimal,
 }
+impl From<&NumberLiteralExpressionNode> for AnyAstNode {
+    fn from(value: &NumberLiteralExpressionNode) -> Self {
+        AnyAstNode::NumberLiteralExpression(Arc::new(value.to_owned()))
+    }
+}
 impl From<&Arc<NumberLiteralExpressionNode>> for AnyAstNode {
     fn from(value: &Arc<NumberLiteralExpressionNode>) -> Self {
         AnyAstNode::NumberLiteralExpression(value.clone())
@@ -1742,6 +1907,11 @@ impl HasBreadcrumbs for NumberLiteralExpressionNode {
 pub struct BreakExpressionNode {
     pub info: NodeInfo,
     pub with_value: Option<ExpressionNode>,
+}
+impl From<&BreakExpressionNode> for AnyAstNode {
+    fn from(value: &BreakExpressionNode) -> Self {
+        AnyAstNode::BreakExpression(Arc::new(value.to_owned()))
+    }
 }
 impl From<&Arc<BreakExpressionNode>> for AnyAstNode {
     fn from(value: &Arc<BreakExpressionNode>) -> Self {
