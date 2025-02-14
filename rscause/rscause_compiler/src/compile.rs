@@ -1311,7 +1311,8 @@ fn compile_break_expression(
             Instruction::Pop(PopInstruction { number: 1 }),
             Some(expression.info()),
         );
-        compile_bad_value(expression.into(), error, procedure, ctx)?;
+        let error_const = add_error_constant(error.clone(), &expression.into(), procedure, ctx);
+        compile_type_error(error_const, procedure);
         return Ok(());
     }
 
