@@ -271,6 +271,13 @@ export const nodes: NodeDeclaration[] = [
     },
   },
   {
+    name: "ReturnExpression",
+    category: "Expression",
+    fields: {
+      value: optional("Expression"),
+    },
+  },
+  {
     name: "BreakExpression",
     category: "Expression",
     fields: {

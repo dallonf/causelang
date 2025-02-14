@@ -53,6 +53,7 @@ object AstRustSerialization {
             is IdentifierExpressionNode -> buildJsonObject { put("Identifier", serializeIdentifierExpression(node)) }
             is StringLiteralExpressionNode -> buildJsonObject { put("StringLiteral", serializeStringLiteralExpression(node)) }
             is NumberLiteralExpressionNode -> buildJsonObject { put("NumberLiteral", serializeNumberLiteralExpression(node)) }
+            is ReturnExpressionNode -> buildJsonObject { put("Return", serializeReturnExpression(node)) }
             is BreakExpressionNode -> buildJsonObject { put("Break", serializeBreakExpression(node)) }
             else -> TODO("Unknown node type: ${node::class.simpleName}")
         }
@@ -318,6 +319,13 @@ object AstRustSerialization {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
             put("value", node.value.toPlainString())
+        }
+    }
+
+    fun serializeReturnExpression(node: ReturnExpressionNode): JsonElement {
+        return buildJsonObject {
+            put("info", RustSerialization.serializeNodeInfo(node.info))
+            put("value", node.value?.let { serializeExpression(it)} ?: JsonNull)
         }
     }
 

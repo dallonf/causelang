@@ -583,7 +583,7 @@ object Analyzer {
             is CauseExpressionNode -> analyzeCauseExpression(expression, output, ctx)
             is BranchExpressionNode -> analyzeBranchExpressionNode(expression, output, ctx)
             is LoopExpressionNode -> analyzeLoopExpressionNode(expression, output, ctx)
-            is ReturnExpression -> analyzeReturnExpression(expression, output, ctx)
+            is ReturnExpressionNode -> analyzeReturnExpression(expression, output, ctx)
             is BreakExpressionNode -> analyzeBreakExpression(expression, output, ctx)
 
             is IdentifierExpressionNode -> analyzeIdentifierExpression(expression, output, ctx)
@@ -707,7 +707,7 @@ object Analyzer {
 
 
     private fun analyzeReturnExpression(
-        expression: ReturnExpression, output: AnalyzedNode, ctx: AnalyzerContext
+        expression: ReturnExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
         val value = expression.value
         if (value != null) {

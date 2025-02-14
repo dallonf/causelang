@@ -448,7 +448,7 @@ object Compiler {
             is BranchExpressionNode -> compileBranchExpression(expression, procedure, ctx)
             is LoopExpressionNode -> compileLoopExpression(expression, procedure, ctx)
             is CauseExpressionNode -> compileCauseExpression(expression, procedure, ctx)
-            is ReturnExpression -> compileReturnExpression(expression, procedure, ctx)
+            is ReturnExpressionNode -> compileReturnExpression(expression, procedure, ctx)
             is BreakExpressionNode -> compileBreakExpression(expression, procedure, ctx)
 
             is CallExpressionNode -> compileCallExpression(expression, procedure, ctx)
@@ -927,7 +927,7 @@ object Compiler {
     }
 
     private fun compileReturnExpression(
-        expression: ReturnExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        expression: ReturnExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         if (expression.value != null) {
             compileExpression(expression.value, procedure, ctx)

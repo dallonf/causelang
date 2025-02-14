@@ -641,6 +641,7 @@ impl ResolveTypes for AnyAstNode {
             Self::IsBranchOption(_) => None,
             Self::ElseBranchOption(_) => None,
             Self::LoopExpression(node) => node.compute_type(ctx),
+            Self::ReturnExpression(_) => Some(LangType::NeverContinues.into()),
             Self::BreakExpression(node) => node.compute_type(ctx),
         }
     }

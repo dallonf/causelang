@@ -499,7 +499,7 @@ private fun parseLoopExpression(
 private fun parseReturnExpression(
     expression: ReturnExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): ExpressionNode {
-    return ReturnExpression(
+    return ReturnExpressionNode(
         NodeInfo(expression.getRange(), breadcrumbs),
         expression.expression()?.let { parseExpression(it, breadcrumbs.appendName("value"), ctx) })
 }

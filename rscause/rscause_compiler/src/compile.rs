@@ -874,6 +874,9 @@ fn compile_expression(
         ast::ExpressionNode::Loop(expression) => {
             compile_loop_expression(&expression, procedure, ctx)?;
         }
+        ast::ExpressionNode::Return(expression) => {
+            compile_return_expression(&expression, procedure, ctx)?;
+        }
         ast::ExpressionNode::Break(expression) => {
             compile_break_expression(&expression, procedure, ctx)?;
         }
@@ -1289,6 +1292,29 @@ fn compile_loop_expression(
     start_loop_placeholder.fill_latest(procedure);
 
     return Ok(());
+}
+
+fn compile_return_expression(
+    expression: &ast::ReturnExpressionNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    if let Some(value) = &expression.value {
+        compile_expression(value, procedure, ctx)?;
+    } else {
+        procedure.write_instruction_with_phase(
+            Instruction::PushAction(PushActionInstruction {}),
+            Some(expression.info()),
+            InstructionPhase::Setup,
+        );
+    }
+
+    procedure.write_instruction(
+        Instruction::Return(ReturnInstruction {}),
+        Some(expression.info()),
+    );
+
+    Ok(())
 }
 
 fn compile_break_expression(

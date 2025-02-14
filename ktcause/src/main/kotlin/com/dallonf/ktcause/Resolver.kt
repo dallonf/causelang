@@ -746,7 +746,7 @@ object Resolver {
                             }
                         }
 
-                        is ReturnExpression -> {
+                        is ReturnExpressionNode -> {
                             resolveWith(NeverContinuesValueLangType)
                         }
 
