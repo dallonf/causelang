@@ -122,6 +122,23 @@ pub fn resolve_types(
                         vec![]
                     }
                 }
+                TypeEdictRule::ImplicitValueAssignableTo(rule) => {
+                    if let (InferredType::Known(implicit_value), InferredType::Known(assignable_to)) = (&rule.implicit_value, &rule.assignable_to) {
+                        if !implicit_value.is_assignable_to(&assignable_to) {
+                            vec![ResolverError::new(
+                                source_position,
+                                LangError::MismatchedType(MismatchedTypeError {
+                                    expected: assignable_to.as_ref().clone(),
+                                    actual: actual_type,
+                                }),
+                            )]
+                        } else {
+                            vec![]
+                        }
+                    } else {
+                        vec![]
+                    }
+                }
                 TypeEdictRule::MustBeTypeReference => {
                     if let LangType::TypeReference(_) = actual_type.as_ref() {
                         vec![]
@@ -368,8 +385,16 @@ pub struct TypeEdict {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TypeEdictRule {
     AssignableTo(AnyInferredLangType),
+    ImplicitValueAssignableTo(ImplicitValueAssignableToTypeEdict),
     MustBeTypeReference,
     ValidateBranchExpression(ValidateBranchExpressionTypeEdict),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+
+pub struct ImplicitValueAssignableToTypeEdict {
+    pub implicit_value: AnyInferredLangType,
+    pub assignable_to: AnyInferredLangType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -709,6 +734,26 @@ impl ResolveTypes for ast::FunctionNode {
             let type_reference = ctx.get_resolved_type_proxying_errors(it);
             type_reference.and_then(|type_reference| type_reference.get_referenced_value_type())
         });
+
+        let tags = ctx.get_tags(self).as_ref().to_owned();
+        let can_return = tags
+            .iter()
+            .filter_map(|tag| match tag {
+                NodeTag::FunctionCanReturnTypeOf(tag) => {
+                    let expression_node = ctx
+                        .node_at_path(&tag.return_expression_value)
+                        .expect("FunctionCanReturnTypeOf tag did not point to a node");
+                    let resolved_type = ctx.get_resolved_type_proxying_errors(&expression_node);
+                    Some((tag.return_expression_value.clone(), resolved_type))
+                }
+                NodeTag::FunctionCanReturnAction(tag) => Some((
+                    tag.return_expression.clone(),
+                    AnyInferredLangType::from(LangType::Action),
+                )),
+                _ => None,
+            })
+            .collect_vec();
+
         let params: Vec<_> = self
             .params
             .iter()
@@ -726,6 +771,19 @@ impl ResolveTypes for ast::FunctionNode {
             })
             .collect();
         if let Some(explicit_return_type) = &explicit_return_type {
+            for possible_return in &can_return {
+                ctx.edicts.push(TypeEdict {
+                    breadcrumbs: possible_return.0.to_owned(),
+                    rule: TypeEdictRule::ImplicitValueAssignableTo(
+                        ImplicitValueAssignableToTypeEdict {
+                            implicit_value: LangType::Action.into(),
+                            assignable_to: explicit_return_type.to_owned(),
+                        },
+                    ),
+                    diagnostic: "return expression must be assignable to function's return type"
+                        .into(),
+                });
+            }
             ctx.edicts.push(TypeEdict {
                 breadcrumbs: self.body.breadcrumbs().clone(),
                 rule: TypeEdictRule::AssignableTo(explicit_return_type.clone()),
@@ -733,7 +791,11 @@ impl ResolveTypes for ast::FunctionNode {
                     .into(),
             });
         }
-        let get_inferred_return_type = || ctx.get_resolved_type_proxying_errors(&self.body);
+        let get_inferred_return_type = || {
+            let body_type = ctx.get_resolved_type_proxying_errors(&self.body);
+            let explicit_returns = can_return.iter().map(|it| it.1.clone()).collect();
+            OneOfLangType::new(vec![vec![body_type], explicit_returns].concat()).simplify_to_value()
+        };
         let return_type = explicit_return_type.unwrap_or_else(get_inferred_return_type);
 
         let function_type = FunctionLangType {

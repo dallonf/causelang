@@ -19,8 +19,9 @@ use crate::{
         AnyInferredLangType, AnyLangTypeResult, HasInference, InferredType, LangType, OneOfLangType,
     },
     resolve_types::{
-        NarrowedConstraint, ResolveTypesContext, TypeConstraint, TypeEdictRule,
-        ValidateBranchExpressionTypeEdict, ValidateBranchExpressionTypeEdictBranch,
+        ImplicitValueAssignableToTypeEdict, NarrowedConstraint, ResolveTypesContext,
+        TypeConstraint, TypeEdictRule, ValidateBranchExpressionTypeEdict,
+        ValidateBranchExpressionTypeEdictBranch,
     },
 };
 
@@ -306,6 +307,16 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                 TypeEdictRule::AssignableTo(inferred_type) => TypeEdictRule::AssignableTo(
                     inferred_type.fill_variable(id, solution.clone().into()),
                 ),
+                TypeEdictRule::ImplicitValueAssignableTo(rule) => {
+                    TypeEdictRule::ImplicitValueAssignableTo(ImplicitValueAssignableToTypeEdict {
+                        assignable_to: rule
+                            .assignable_to
+                            .fill_variable(id, solution.clone().into()),
+                        implicit_value: rule
+                            .implicit_value
+                            .fill_variable(id, solution.clone().into()),
+                    })
+                }
                 TypeEdictRule::MustBeTypeReference => TypeEdictRule::MustBeTypeReference,
                 TypeEdictRule::ValidateBranchExpression(edict) => {
                     TypeEdictRule::ValidateBranchExpression(ValidateBranchExpressionTypeEdict {
