@@ -43,6 +43,8 @@ object LangTypeRustSerialization {
                 put("OneOf", serializeOneOfLangType(resolvedValueLangType))
             }
 
+            is BadValueLangType -> JsonPrimitive("BadValue")
+
             else -> TODO("Unsupported lang type: ${resolvedValueLangType::class.simpleName}")
         }
     }
@@ -80,12 +82,15 @@ object LangTypeRustSerialization {
                 "Action" -> {
                     return ActionValueLangType
                 }
+
                 "Anything" -> {
                     return AnythingValueLangType
                 }
+
                 "AnySignal" -> {
                     return AnySignalValueLangType
                 }
+
                 "NeverContinues" -> {
                     return NeverContinuesValueLangType
                 }

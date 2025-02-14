@@ -52,7 +52,7 @@ object RustCompiler {
         ASSERT_SUPPORTED,
     }
 
-    private val MODE = Mode.ASSERT_SUPPORTED
+    private val MODE = Mode.IF_SUPPORTED
     private const val OUTPUT_TMP = false
 
     init {
@@ -139,21 +139,6 @@ object RustCompiler {
     }
 
     val supportedCoreImports = setOf("core/builtin.cau", "core/math", "core/text")
-    private val supportedCoreBuiltins =
-        setOf(
-            "Debug",
-            "AssumptionBroken",
-            "Action",
-            "NeverContinues",
-            "Anything",
-            "AnySignal",
-            "Text",
-            "Number",
-            "equals",
-            "True",
-            "False",
-            "TrueOrFalse"
-        )
     private val unsupportedIdentifiers: Set<String> = setOf()
 
     fun compile(
@@ -191,23 +176,7 @@ object RustCompiler {
     }
 
     fun getFilteredExternalFiles(externalFiles: Map<String, Resolver.ExternalFileDescriptor>) =
-        externalFiles.mapValues { (key, value) ->
-            if (key == "core/builtin.cau") {
-                val filteredExports = value.exports.mapValues { (exportKey, exportValue) ->
-                    // only supported core exports for now
-                    // all others are just Actions
-                    if (supportedCoreBuiltins.contains(exportKey)) {
-                        exportValue
-                    } else {
-                        ActionValueLangType
-                    }
-                }
-                val filteredTypes = value.types.filter { supportedCoreBuiltins.contains(it.key.name) }
-                Resolver.ExternalFileDescriptor(filteredExports, filteredTypes)
-            } else {
-                value
-            }
-        }
+        externalFiles.mapValues { (key, value) -> value }
 
     fun getFilteredTags(tags: Map<Breadcrumbs, List<NodeTag>>) = tags.mapValues { (breadcrumbs, tags) ->
         tags.filter { TagsRustSerialization.isNodeTagSupported(it) }

@@ -132,6 +132,8 @@ pub enum LangType {
     AnySignal,
     OneOf(OneOfLangType),
     NeverContinues,
+    // BadValue should only exist at runtime
+    BadValue,
 }
 
 pub trait HasInference {
@@ -273,6 +275,7 @@ impl LangType {
             LangType::OneOf(other_one_of) => other_one_of.is_superset_of(self),
 
             LangType::NeverContinues => self == &LangType::NeverContinues,
+            LangType::BadValue => self == &LangType::BadValue,
         }
     }
 }
@@ -289,6 +292,7 @@ impl HasInference for LangType {
             LangType::AnySignal => vec![],
             LangType::OneOf(one_of_lang_type) => one_of_lang_type.recursive_inferred_types(),
             LangType::NeverContinues => vec![],
+            LangType::BadValue => vec![],
         }
     }
 
@@ -311,6 +315,7 @@ impl HasInference for LangType {
                 LangType::OneOf(one_of_lang_type.fill_variable(id, value))
             }
             LangType::NeverContinues => LangType::NeverContinues,
+            LangType::BadValue => LangType::BadValue,
         }
     }
 }
