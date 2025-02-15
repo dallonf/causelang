@@ -1137,7 +1137,7 @@ fn compile_function_expression(
             Some(&expression.info),
         );
     }
-    todo!()
+    Ok(())
 }
 
 fn compile_branch_expression(
