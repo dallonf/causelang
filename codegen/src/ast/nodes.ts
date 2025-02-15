@@ -165,6 +165,13 @@ export const nodes: NodeDeclaration[] = [
     },
   },
   {
+    name: "GroupExpression",
+    category: "Expression",
+    fields: {
+      expression: "Expression",
+    },
+  },
+  {
     name: "BlockExpression",
     category: "Expression",
     fields: {

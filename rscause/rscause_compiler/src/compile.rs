@@ -865,6 +865,9 @@ fn compile_expression(
     ctx: &mut CompilerContext,
 ) -> Result<()> {
     match expression {
+        ast::ExpressionNode::Group(expression) => {
+            compile_expression(&expression.expression, procedure, ctx)?
+        }
         ast::ExpressionNode::Block(expression) => {
             compile_block(&expression.block, procedure, ctx)?;
         }

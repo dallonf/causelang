@@ -44,6 +44,7 @@ object AstRustSerialization {
 
     fun serializeExpression(node: ExpressionNode): JsonElement {
         return when (node) {
+            is GroupExpressionNode -> buildJsonObject { put("Group", serializeGroupExpression(node)) }
             is BlockExpressionNode -> buildJsonObject { put("Block", serializeBlockExpression(node)) }
             is BranchExpressionNode -> buildJsonObject { put("Branch", serializeBranchExpression(node)) }
             is LoopExpressionNode -> buildJsonObject { put("Loop", serializeLoopExpression(node)) }
@@ -214,6 +215,13 @@ object AstRustSerialization {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
             put("declaration", serializeDeclaration(node.declaration))
+        }
+    }
+
+    fun serializeGroupExpression(node: GroupExpressionNode): JsonElement {
+        return buildJsonObject {
+            put("info", RustSerialization.serializeNodeInfo(node.info))
+            put("expression", serializeExpression(node.expression))
         }
     }
 

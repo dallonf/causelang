@@ -632,6 +632,9 @@ impl ResolveTypes for AnyAstNode {
             Self::OneOfType(node) => node.compute_type(ctx),
             Self::BlockBody(node) => node.compute_type(ctx),
             Self::DeclarationStatement(node) => node.compute_type(ctx),
+            Self::GroupExpression(node) => {
+                Some(ctx.get_resolved_type_proxying_errors(&node.expression))
+            }
             Self::BlockExpression(node) => node.block.compute_type(ctx),
             Self::ExpressionStatement(node) => node.compute_type(ctx),
             Self::EffectStatement(node) => node.compute_type(ctx),
@@ -786,8 +789,7 @@ impl ResolveTypes for ast::FunctionNode {
                             assignable_to: explicit_return_type.to_owned(),
                         },
                     ),
-                    diagnostic: "return value must be assignable to function's return type"
-                        .into(),
+                    diagnostic: "return value must be assignable to function's return type".into(),
                 });
             }
         }

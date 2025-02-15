@@ -33,6 +33,7 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "statement",
     "expression",
     "declaration",
+    "expression",
     "block",
     "pattern",
     "body",
@@ -79,6 +80,7 @@ pub enum AnyAstNode {
     SingleStatementBody(Arc<SingleStatementBodyNode>),
     ExpressionStatement(Arc<ExpressionStatementNode>),
     DeclarationStatement(Arc<DeclarationStatementNode>),
+    GroupExpression(Arc<GroupExpressionNode>),
     BlockExpression(Arc<BlockExpressionNode>),
     EffectStatement(Arc<EffectStatementNode>),
     SetStatement(Arc<SetStatementNode>),
@@ -118,6 +120,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::SingleStatementBody(node) => node.children(),
             AnyAstNode::ExpressionStatement(node) => node.children(),
             AnyAstNode::DeclarationStatement(node) => node.children(),
+            AnyAstNode::GroupExpression(node) => node.children(),
             AnyAstNode::BlockExpression(node) => node.children(),
             AnyAstNode::EffectStatement(node) => node.children(),
             AnyAstNode::SetStatement(node) => node.children(),
@@ -157,6 +160,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::SingleStatementBody(node) => node.info(),
             AnyAstNode::ExpressionStatement(node) => node.info(),
             AnyAstNode::DeclarationStatement(node) => node.info(),
+            AnyAstNode::GroupExpression(node) => node.info(),
             AnyAstNode::BlockExpression(node) => node.info(),
             AnyAstNode::EffectStatement(node) => node.info(),
             AnyAstNode::SetStatement(node) => node.info(),
@@ -198,6 +202,7 @@ impl HasBreadcrumbs for AnyAstNode {
             AnyAstNode::SingleStatementBody(node) => node.breadcrumbs(),
             AnyAstNode::ExpressionStatement(node) => node.breadcrumbs(),
             AnyAstNode::DeclarationStatement(node) => node.breadcrumbs(),
+            AnyAstNode::GroupExpression(node) => node.breadcrumbs(),
             AnyAstNode::BlockExpression(node) => node.breadcrumbs(),
             AnyAstNode::EffectStatement(node) => node.breadcrumbs(),
             AnyAstNode::SetStatement(node) => node.breadcrumbs(),
@@ -409,6 +414,7 @@ impl HasBreadcrumbs for StatementNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ExpressionNode {
+    Group(Arc<GroupExpressionNode>),
     Block(Arc<BlockExpressionNode>),
     Branch(Arc<BranchExpressionNode>),
     Loop(Arc<LoopExpressionNode>),
@@ -424,6 +430,7 @@ pub enum ExpressionNode {
 impl AstNode for ExpressionNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         match self {
+            ExpressionNode::Group(node) => node.children(),
             ExpressionNode::Block(node) => node.children(),
             ExpressionNode::Branch(node) => node.children(),
             ExpressionNode::Loop(node) => node.children(),
@@ -439,6 +446,7 @@ impl AstNode for ExpressionNode {
     }
     fn info(&self) -> &NodeInfo {
         match self {
+            ExpressionNode::Group(node) => node.info(),
             ExpressionNode::Block(node) => node.info(),
             ExpressionNode::Branch(node) => node.info(),
             ExpressionNode::Loop(node) => node.info(),
@@ -461,6 +469,7 @@ impl From<&ExpressionNode> for AnyAstNode {
 impl From<ExpressionNode> for AnyAstNode {
     fn from(value: ExpressionNode) -> Self {
         match value {
+            ExpressionNode::Group(node) => AnyAstNode::GroupExpression(node),
             ExpressionNode::Block(node) => AnyAstNode::BlockExpression(node),
             ExpressionNode::Branch(node) => AnyAstNode::BranchExpression(node),
             ExpressionNode::Loop(node) => AnyAstNode::LoopExpression(node),
@@ -478,6 +487,7 @@ impl From<ExpressionNode> for AnyAstNode {
 impl HasBreadcrumbs for ExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
+            ExpressionNode::Group(node) => node.breadcrumbs(),
             ExpressionNode::Block(node) => node.breadcrumbs(),
             ExpressionNode::Branch(node) => node.breadcrumbs(),
             ExpressionNode::Loop(node) => node.breadcrumbs(),
@@ -1337,6 +1347,45 @@ impl AstNode for DeclarationStatementNode {
     }
 }
 impl HasBreadcrumbs for DeclarationStatementNode {
+    fn breadcrumbs(&self) -> &Breadcrumbs {
+        &self.info.breadcrumbs
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GroupExpressionNode {
+    pub info: NodeInfo,
+    pub expression: ExpressionNode,
+}
+impl From<&GroupExpressionNode> for AnyAstNode {
+    fn from(value: &GroupExpressionNode) -> Self {
+        AnyAstNode::GroupExpression(Arc::new(value.to_owned()))
+    }
+}
+impl From<&Arc<GroupExpressionNode>> for AnyAstNode {
+    fn from(value: &Arc<GroupExpressionNode>) -> Self {
+        AnyAstNode::GroupExpression(value.clone())
+    }
+}
+impl From<Arc<GroupExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<GroupExpressionNode>) -> Self {
+        AnyAstNode::GroupExpression(value.clone())
+    }
+}
+impl AstNode for GroupExpressionNode {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("expression"),
+            (&self.expression).into(),
+        );
+        result
+    }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
+}
+impl HasBreadcrumbs for GroupExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.info.breadcrumbs
     }
