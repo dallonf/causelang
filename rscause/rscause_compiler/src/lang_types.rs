@@ -208,6 +208,20 @@ impl LangType {
         if self == &LangType::NeverContinues {
             return true;
         }
+        if let LangType::OneOf(one_of) = self {
+            // special case: self is an unsimplified OneOfLangType
+            let assignable_to_simplified = one_of
+                .simplify_to_value()
+                .try_as_known()
+                // if it simplifies still to a OneOf, then the rest of the
+                // function is still correct
+                .filter(|it| it.try_as_one_of_ref().is_none())
+                .map(|it| it.is_assignable_to(other_type))
+                .unwrap_or(false);
+            if assignable_to_simplified {
+                return true;
+            }
+        }
 
         match other_type {
             // Type references aren't assignable to other type references
@@ -919,6 +933,14 @@ mod test {
                 simplified,
                 LangType::Primitive(PrimitiveLangType::Number).into()
             )
+        }
+
+        #[test]
+        fn test_single_value_assignable() {
+            let one_of =
+                OneOfLangType::new(vec![LangType::Primitive(PrimitiveLangType::Number).into()]);
+            let primitive = LangType::Primitive(PrimitiveLangType::Number);
+            assert!(LangType::OneOf(one_of).is_assignable_to(&primitive));
         }
     }
 }
