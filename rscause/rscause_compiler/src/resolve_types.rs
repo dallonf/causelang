@@ -740,11 +740,17 @@ impl ResolveTypes for ast::FunctionNode {
             .iter()
             .filter_map(|tag| match tag {
                 NodeTag::FunctionCanReturnTypeOf(tag) => {
-                    let expression_node = ctx
-                        .node_at_path(&tag.return_expression_value)
-                        .expect("FunctionCanReturnTypeOf tag did not point to a node");
-                    let resolved_type = ctx.get_resolved_type_proxying_errors(&expression_node);
-                    Some((tag.return_expression_value.clone(), resolved_type))
+                    let return_type_var = ctx.add_inference_variable();
+                    ctx.constraints.push((
+                        return_type_var,
+                        TypeConstraint::ResolveFrom(tag.return_expression_value.to_owned()),
+                        ConstraintDiagnostic::Resolver(
+                            tag.return_expression_value.to_owned(),
+                            "Function return value".to_owned(),
+                        ),
+                    ));
+                    let return_type = AnyInferredLangType::InferenceVariable(return_type_var);
+                    Some((tag.return_expression_value.clone(), return_type))
                 }
                 NodeTag::FunctionCanReturnAction(tag) => Some((
                     tag.return_expression.clone(),
@@ -780,21 +786,14 @@ impl ResolveTypes for ast::FunctionNode {
                             assignable_to: explicit_return_type.to_owned(),
                         },
                     ),
-                    diagnostic: "return expression must be assignable to function's return type"
+                    diagnostic: "return value must be assignable to function's return type"
                         .into(),
                 });
             }
-            ctx.edicts.push(TypeEdict {
-                breadcrumbs: self.body.breadcrumbs().clone(),
-                rule: TypeEdictRule::AssignableTo(explicit_return_type.clone()),
-                diagnostic: "Result of function body must be assignable to function's return type"
-                    .into(),
-            });
         }
         let get_inferred_return_type = || {
-            let body_type = ctx.get_resolved_type_proxying_errors(&self.body);
             let explicit_returns = can_return.iter().map(|it| it.1.clone()).collect();
-            OneOfLangType::new(vec![vec![body_type], explicit_returns].concat()).simplify_to_value()
+            OneOfLangType::new(explicit_returns).simplify_to_value()
         };
         let return_type = explicit_return_type.unwrap_or_else(get_inferred_return_type);
 
