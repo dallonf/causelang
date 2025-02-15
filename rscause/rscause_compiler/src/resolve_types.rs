@@ -129,7 +129,7 @@ pub fn resolve_types(
                                 source_position,
                                 LangError::MismatchedType(MismatchedTypeError {
                                     expected: assignable_to.as_ref().clone(),
-                                    actual: actual_type,
+                                    actual: implicit_value.clone(),
                                 }),
                             )]
                         } else {
@@ -776,7 +776,7 @@ impl ResolveTypes for ast::FunctionNode {
                     breadcrumbs: possible_return.0.to_owned(),
                     rule: TypeEdictRule::ImplicitValueAssignableTo(
                         ImplicitValueAssignableToTypeEdict {
-                            implicit_value: LangType::Action.into(),
+                            implicit_value: possible_return.1.to_owned(),
                             assignable_to: explicit_return_type.to_owned(),
                         },
                     ),
