@@ -510,8 +510,8 @@ impl OneOfLangType {
                         .into_iter()
                         .filter(|existing_type| {
                             !OneOfLangType::is_mergeable(
-                                &possible_type.clone().into(),
                                 existing_type,
+                                &possible_type.clone().into(),
                             )
                         })
                         .collect();
@@ -886,4 +886,39 @@ impl HasInference for SignalCanonicalLangType {
 pub struct CanonicalTypeField {
     pub name: Arc<String>,
     pub value_type: AnyInferredLangType,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    mod one_of {
+        use super::*;
+
+        #[test]
+        fn test_collapse_nevercontinues_first() {
+            let one_of = OneOfLangType::new(vec![
+                LangType::NeverContinues.into(),
+                LangType::Primitive(PrimitiveLangType::Number).into(),
+            ]);
+            let simplified = one_of.simplify_to_value();
+            assert_eq!(
+                simplified,
+                LangType::Primitive(PrimitiveLangType::Number).into()
+            )
+        }
+
+        #[test]
+        fn test_collapse_nevercontinues_second() {
+            let one_of = OneOfLangType::new(vec![
+                LangType::Primitive(PrimitiveLangType::Number).into(),
+                LangType::NeverContinues.into(),
+            ]);
+            let simplified = one_of.simplify_to_value();
+            assert_eq!(
+                simplified,
+                LangType::Primitive(PrimitiveLangType::Number).into()
+            )
+        }
+    }
 }
