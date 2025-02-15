@@ -632,10 +632,6 @@ impl ResolveTypes for AnyAstNode {
             Self::OneOfType(node) => node.compute_type(ctx),
             Self::BlockBody(node) => node.compute_type(ctx),
             Self::DeclarationStatement(node) => node.compute_type(ctx),
-            Self::GroupExpression(node) => {
-                Some(ctx.get_resolved_type_proxying_errors(&node.expression))
-            }
-            Self::BlockExpression(node) => node.block.compute_type(ctx),
             Self::ExpressionStatement(node) => node.compute_type(ctx),
             Self::EffectStatement(node) => node.compute_type(ctx),
             Self::SetStatement(node) => node.compute_type(ctx),
@@ -664,6 +660,11 @@ impl ResolveTypes for AnyAstNode {
                 Some(value_type)
             }
             Self::SingleStatementBody(node) => node.compute_type(ctx),
+            Self::GroupExpression(node) => {
+                Some(ctx.get_resolved_type_proxying_errors(&node.expression))
+            }
+            Self::BlockExpression(node) => node.block.compute_type(ctx),
+            Self::FunctionExpression(node) => node.compute_type(ctx),
             Self::BranchExpression(node) => node.compute_type(ctx),
             Self::IfBranchOption(_) => None,
             Self::IsBranchOption(_) => None,
@@ -730,81 +731,96 @@ impl ResolveTypes for ast::ImportMappingNode {
     }
 }
 
+fn compute_function_type(
+    name_node: Option<&ast::IdentifierNode>,
+    param_nodes: &[Arc<FunctionSignatureParameterNode>],
+    return_type_node: Option<&ast::TypeReferenceNode>,
+    tags: &Vec<NodeTag>,
+    ctx: &mut ResolveTypesContext,
+) -> Option<AnyInferredLangType> {
+    let name = name_node.map(|it| it.text.clone());
+    let explicit_return_type = return_type_node.map(|it| {
+        let type_reference = ctx.get_resolved_type_proxying_errors(it);
+        type_reference.and_then(|type_reference| type_reference.get_referenced_value_type())
+    });
+
+    let can_return = tags
+        .iter()
+        .filter_map(|tag| match tag {
+            NodeTag::FunctionCanReturnTypeOf(tag) => {
+                let return_type_var = ctx.add_inference_variable();
+                ctx.constraints.push((
+                    return_type_var,
+                    TypeConstraint::ResolveFrom(tag.return_expression_value.to_owned()),
+                    ConstraintDiagnostic::Resolver(
+                        tag.return_expression_value.to_owned(),
+                        "Function return value".to_owned(),
+                    ),
+                ));
+                let return_type = AnyInferredLangType::InferenceVariable(return_type_var);
+                Some((tag.return_expression_value.clone(), return_type))
+            }
+            NodeTag::FunctionCanReturnAction(tag) => Some((
+                tag.return_expression.clone(),
+                AnyInferredLangType::from(LangType::Action),
+            )),
+            _ => None,
+        })
+        .collect_vec();
+
+    let params: Vec<_> = param_nodes
+        .iter()
+        .map(|param_node| {
+            let value_type = param_node
+                .type_reference
+                .as_ref()
+                .map(|it| ctx.get_resolved_type_proxying_errors(it))
+                .unwrap_or_else(|| LangError::NeverResolved.into())
+                .and_then(|it| it.get_referenced_value_type());
+            LangParameter {
+                name: param_node.name.text.clone(),
+                value_type,
+            }
+        })
+        .collect();
+    if let Some(explicit_return_type) = &explicit_return_type {
+        for possible_return in &can_return {
+            ctx.edicts.push(TypeEdict {
+                breadcrumbs: possible_return.0.to_owned(),
+                rule: TypeEdictRule::ImplicitValueAssignableTo(
+                    ImplicitValueAssignableToTypeEdict {
+                        implicit_value: possible_return.1.to_owned(),
+                        assignable_to: explicit_return_type.to_owned(),
+                    },
+                ),
+                diagnostic: "return value must be assignable to function's return type".into(),
+            });
+        }
+    }
+    let get_inferred_return_type = || {
+        let explicit_returns = can_return.iter().map(|it| it.1.clone()).collect();
+        OneOfLangType::new(explicit_returns).simplify_to_value()
+    };
+    let return_type = explicit_return_type.unwrap_or_else(get_inferred_return_type);
+
+    let function_type = FunctionLangType {
+        name,
+        params,
+        return_type,
+    };
+    Some(function_type.into())
+}
+
 impl ResolveTypes for ast::FunctionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        let name = self.name.text.clone();
-        let explicit_return_type = self.return_type.as_ref().map(|it| {
-            let type_reference = ctx.get_resolved_type_proxying_errors(it);
-            type_reference.and_then(|type_reference| type_reference.get_referenced_value_type())
-        });
-
         let tags = ctx.get_tags(self).as_ref().to_owned();
-        let can_return = tags
-            .iter()
-            .filter_map(|tag| match tag {
-                NodeTag::FunctionCanReturnTypeOf(tag) => {
-                    let return_type_var = ctx.add_inference_variable();
-                    ctx.constraints.push((
-                        return_type_var,
-                        TypeConstraint::ResolveFrom(tag.return_expression_value.to_owned()),
-                        ConstraintDiagnostic::Resolver(
-                            tag.return_expression_value.to_owned(),
-                            "Function return value".to_owned(),
-                        ),
-                    ));
-                    let return_type = AnyInferredLangType::InferenceVariable(return_type_var);
-                    Some((tag.return_expression_value.clone(), return_type))
-                }
-                NodeTag::FunctionCanReturnAction(tag) => Some((
-                    tag.return_expression.clone(),
-                    AnyInferredLangType::from(LangType::Action),
-                )),
-                _ => None,
-            })
-            .collect_vec();
-
-        let params: Vec<_> = self
-            .params
-            .iter()
-            .map(|param_node| {
-                let value_type = param_node
-                    .type_reference
-                    .as_ref()
-                    .map(|it| ctx.get_resolved_type_proxying_errors(it))
-                    .unwrap_or_else(|| LangError::NeverResolved.into())
-                    .and_then(|it| it.get_referenced_value_type());
-                LangParameter {
-                    name: param_node.name.text.clone(),
-                    value_type,
-                }
-            })
-            .collect();
-        if let Some(explicit_return_type) = &explicit_return_type {
-            for possible_return in &can_return {
-                ctx.edicts.push(TypeEdict {
-                    breadcrumbs: possible_return.0.to_owned(),
-                    rule: TypeEdictRule::ImplicitValueAssignableTo(
-                        ImplicitValueAssignableToTypeEdict {
-                            implicit_value: possible_return.1.to_owned(),
-                            assignable_to: explicit_return_type.to_owned(),
-                        },
-                    ),
-                    diagnostic: "return value must be assignable to function's return type".into(),
-                });
-            }
-        }
-        let get_inferred_return_type = || {
-            let explicit_returns = can_return.iter().map(|it| it.1.clone()).collect();
-            OneOfLangType::new(explicit_returns).simplify_to_value()
-        };
-        let return_type = explicit_return_type.unwrap_or_else(get_inferred_return_type);
-
-        let function_type = FunctionLangType {
-            name,
-            params,
-            return_type,
-        };
-        Some(function_type.into())
+        compute_function_type(
+            Some(&self.name),
+            &self.params,
+            self.return_type.as_ref(),
+            &tags,
+            ctx,
+        )
     }
 }
 
@@ -1350,6 +1366,13 @@ impl ResolveTypes for ast::OneOfTypeNode {
             })
             .collect_vec();
         Some(LangType::TypeReference(LangType::OneOf(OneOfLangType { options }).into()).into())
+    }
+}
+
+impl ResolveTypes for ast::FunctionExpressionNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        let tags = ctx.get_tags(self).as_ref().to_owned();
+        compute_function_type(None, &self.params, self.return_type.as_ref(), &tags, ctx)
     }
 }
 

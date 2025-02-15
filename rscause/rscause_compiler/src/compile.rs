@@ -395,7 +395,7 @@ fn compile_function_declaration(
     ctx: &mut CompilerContext,
 ) -> Result<Procedure> {
     compile_function(
-        function.name.text.clone(),
+        Some(function.name.text.clone()),
         &function.params,
         &function.info,
         ctx,
@@ -410,7 +410,7 @@ fn compile_function_declaration(
 }
 
 fn compile_function(
-    name: Arc<String>,
+    name: Option<Arc<String>>,
     params: &[Arc<ast::FunctionSignatureParameterNode>],
     node_info: &NodeInfo,
     ctx: &mut CompilerContext,
@@ -871,6 +871,9 @@ fn compile_expression(
         ast::ExpressionNode::Block(expression) => {
             compile_block(&expression.block, procedure, ctx)?;
         }
+        ast::ExpressionNode::Function(expression) => {
+            compile_function_expression(&expression, procedure, ctx)?;
+        }
         ast::ExpressionNode::Branch(expression) => {
             compile_branch_expression(&expression, procedure, ctx)?;
         }
@@ -1086,6 +1089,55 @@ fn compile_member_expression(
     );
 
     Ok(())
+}
+
+fn compile_function_expression(
+    expression: &ast::FunctionExpressionNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    let tags = ctx.get_tags(expression.breadcrumbs());
+    let captured_values = find_tags!(&tags, NodeTag::FunctionCapturesValue).collect_vec();
+    for captured in &captured_values {
+        compile_value_reference(&expression.info, &captured.value, procedure, ctx)?;
+    }
+
+    let function_procedure = compile_function(
+        None,
+        &expression.params,
+        &expression.info,
+        ctx,
+        |function_procedure, ctx| compile_expression(&expression.body, function_procedure, ctx),
+    )?;
+
+    if let Some(error) = ctx.check_for_badtype_error(expression.breadcrumbs())? {
+        compile_bad_value(expression.into(), error, procedure, ctx)?
+    } else {
+        ctx.procedures.push(function_procedure);
+        let function_type = ctx
+            .types
+            .value_types
+            .get(expression.breadcrumbs())
+            .ok_or_else(|| anyhow!("Type not found for {}", expression.breadcrumbs()))?
+            .to_result_assuming_inferred_ref()
+            .map_err(|err| {
+                anyhow!(
+                    "Function type must be Known when getting to this codepath - actually was {:?}",
+                    err
+                )
+            })?;
+        let function_type_constant =
+            procedure.add_constant(CompiledConstant::Type(function_type.clone()));
+        procedure.write_instruction(
+            Instruction::DefineFunction(DefineFunctionInstruction {
+                procedure_index: (ctx.procedures.len() - 1) as u32,
+                type_constant: function_type_constant,
+                captured_values: captured_values.len() as u32,
+            }),
+            Some(&expression.info),
+        );
+    }
+    todo!()
 }
 
 fn compile_branch_expression(

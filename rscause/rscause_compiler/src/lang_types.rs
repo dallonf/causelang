@@ -336,7 +336,7 @@ impl HasInference for LangType {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct FunctionLangType {
-    pub name: Arc<String>,
+    pub name: Option<Arc<String>>,
     pub params: Vec<LangParameter>,
     pub return_type: AnyInferredLangType,
 }

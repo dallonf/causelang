@@ -46,6 +46,7 @@ object AstRustSerialization {
         return when (node) {
             is GroupExpressionNode -> buildJsonObject { put("Group", serializeGroupExpression(node)) }
             is BlockExpressionNode -> buildJsonObject { put("Block", serializeBlockExpression(node)) }
+            is FunctionExpressionNode -> buildJsonObject { put("Function", serializeFunctionExpression(node)) }
             is BranchExpressionNode -> buildJsonObject { put("Branch", serializeBranchExpression(node)) }
             is LoopExpressionNode -> buildJsonObject { put("Loop", serializeLoopExpression(node)) }
             is CauseExpressionNode -> buildJsonObject { put("Cause", serializeCauseExpression(node)) }
@@ -218,6 +219,22 @@ object AstRustSerialization {
         }
     }
 
+    fun serializeEffectStatement(node: EffectStatementNode): JsonElement {
+        return buildJsonObject {
+            put("info", RustSerialization.serializeNodeInfo(node.info))
+            put("pattern", serializePattern(node.pattern))
+            put("body", serializeBody(node.body))
+        }
+    }
+
+    fun serializeSetStatement(node: SetStatementNode): JsonElement {
+        return buildJsonObject {
+            put("info", RustSerialization.serializeNodeInfo(node.info))
+            put("identifier", serializeIdentifier(node.identifier))
+            put("expression", serializeExpression(node.expression))
+        }
+    }
+
     fun serializeGroupExpression(node: GroupExpressionNode): JsonElement {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
@@ -232,19 +249,12 @@ object AstRustSerialization {
         }
     }
 
-    fun serializeEffectStatement(node: EffectStatementNode): JsonElement {
+    fun serializeFunctionExpression(node: FunctionExpressionNode): JsonElement {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
-            put("pattern", serializePattern(node.pattern))
-            put("body", serializeBody(node.body))
-        }
-    }
-
-    fun serializeSetStatement(node: SetStatementNode): JsonElement {
-        return buildJsonObject {
-            put("info", RustSerialization.serializeNodeInfo(node.info))
-            put("identifier", serializeIdentifier(node.identifier))
-            put("expression", serializeExpression(node.expression))
+            put("params", JsonArray(node.params.map { serializeFunctionSignatureParameter(it) }))
+            put("body", serializeExpression(node.body))
+            put("return_type", node.returnType?.let { serializeTypeReference(it)} ?: JsonNull)
         }
     }
 

@@ -36,7 +36,7 @@ pub enum ProcedureIdentity {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FunctionProcedureIdentity {
-    pub name: Arc<String>,
+    pub name: Option<Arc<String>>,
     pub declaration: NodeInfo,
 }
 

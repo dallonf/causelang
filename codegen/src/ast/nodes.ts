@@ -165,20 +165,6 @@ export const nodes: NodeDeclaration[] = [
     },
   },
   {
-    name: "GroupExpression",
-    category: "Expression",
-    fields: {
-      expression: "Expression",
-    },
-  },
-  {
-    name: "BlockExpression",
-    category: "Expression",
-    fields: {
-      block: "BlockBody",
-    },
-  },
-  {
     name: "EffectStatement",
     category: "Statement",
     fields: {
@@ -195,6 +181,29 @@ export const nodes: NodeDeclaration[] = [
     },
   },
 
+  {
+    name: "GroupExpression",
+    category: "Expression",
+    fields: {
+      expression: "Expression",
+    },
+  },
+  {
+    name: "BlockExpression",
+    category: "Expression",
+    fields: {
+      block: "BlockBody",
+    },
+  },
+  {
+    name: "FunctionExpression",
+    category: "Expression",
+    fields: {
+      params: listOf("FunctionSignatureParameter"),
+      body: "Expression",
+      returnType: optional("TypeReference"),
+    },
+  },
   {
     name: "BranchExpression",
     category: "Expression",
