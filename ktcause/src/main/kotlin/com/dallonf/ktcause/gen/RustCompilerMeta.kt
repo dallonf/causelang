@@ -6,6 +6,7 @@ val rustCompilerSupportedTypes = setOf(
     *listOf(
         IdentifierNode::class,
         IdentifierTypeReferenceNode::class,
+        FunctionTypeReferenceNode::class,
         PatternNode::class,
         FunctionSignatureParameterNode::class,
         FunctionCallParameterNode::class,

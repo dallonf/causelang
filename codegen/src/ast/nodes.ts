@@ -31,6 +31,14 @@ export const nodes: NodeDeclaration[] = [
       identifier: "Identifier",
     },
   },
+  {
+    name: "FunctionTypeReference",
+    category: "TypeReference",
+    fields: {
+      params: listOf("FunctionSignatureParameter"),
+      returnType: "TypeReference",
+    },
+  },
 
   {
     name: "Pattern",

@@ -53,7 +53,7 @@ object RustCompiler {
     }
 
     private val MODE = Mode.IF_SUPPORTED
-    private const val OUTPUT_TMP = false
+    private const val OUTPUT_TMP = true
 
     init {
         System.loadLibrary("rscause_jni")

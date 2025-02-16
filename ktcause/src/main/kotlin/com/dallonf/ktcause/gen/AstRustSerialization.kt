@@ -8,6 +8,7 @@ object AstRustSerialization {
     fun serializeTypeReference(node: TypeReferenceNode): JsonElement {
         return when (node) {
             is IdentifierTypeReferenceNode -> buildJsonObject { put("Identifier", serializeIdentifierTypeReference(node)) }
+            is FunctionTypeReferenceNode -> buildJsonObject { put("Function", serializeFunctionTypeReference(node)) }
             else -> TODO("Unknown node type: ${node::class.simpleName}")
         }
     }
@@ -82,6 +83,14 @@ object AstRustSerialization {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
             put("identifier", serializeIdentifier(node.identifier))
+        }
+    }
+
+    fun serializeFunctionTypeReference(node: FunctionTypeReferenceNode): JsonElement {
+        return buildJsonObject {
+            put("info", RustSerialization.serializeNodeInfo(node.info))
+            put("params", JsonArray(node.params.map { serializeFunctionSignatureParameter(it) }))
+            put("return_type", serializeTypeReference(node.returnType))
         }
     }
 

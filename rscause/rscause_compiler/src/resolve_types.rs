@@ -642,6 +642,7 @@ impl ResolveTypes for AnyAstNode {
             Self::StringLiteralExpression(node) => node.compute_type(ctx),
             Self::NumberLiteralExpression(node) => node.compute_type(ctx),
             Self::IdentifierTypeReference(node) => resolve_identifier_type_reference(node, ctx),
+            Self::FunctionTypeReference(node) => node.compute_type(ctx),
             Self::Pattern(node) => {
                 let referenced_type = ctx
                     .get_resolved_type_proxying_errors(&node.type_reference)
@@ -697,6 +698,39 @@ fn resolve_identifier_type_reference(
         diagnostic: "An IdentifierTypeReference must refer to a type".into(),
     });
     Some(source_node_type)
+}
+
+impl ResolveTypes for ast::FunctionTypeReferenceNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        let return_type = ctx.get_resolved_type_proxying_errors(self);
+        let params = self
+            .params
+            .iter()
+            .map(|param| {
+                let param_type = param
+                    .type_reference
+                    .as_ref()
+                    .map(|it| ctx.get_resolved_type_proxying_errors(it))
+                    .unwrap_or_else(|| {
+                        let inference_var = ctx.add_inference_variable();
+                        InferredType::InferenceVariable(inference_var).into()
+                    });
+                LangParameter {
+                    name: param.name.text.clone(),
+                    value_type: param_type,
+                }
+            })
+            .collect();
+
+        Some(
+            FunctionLangType {
+                name: None,
+                params,
+                return_type,
+            }
+            .into(),
+        )
+    }
 }
 
 impl ResolveTypes for ast::ImportMappingNode {
