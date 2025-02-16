@@ -702,7 +702,7 @@ fn resolve_identifier_type_reference(
 
 impl ResolveTypes for ast::FunctionTypeReferenceNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        let return_type = ctx.get_resolved_type_proxying_errors(self);
+        let return_type = ctx.get_resolved_type_proxying_errors(&self.return_type);
         let params = self
             .params
             .iter()
@@ -723,11 +723,14 @@ impl ResolveTypes for ast::FunctionTypeReferenceNode {
             .collect();
 
         Some(
-            FunctionLangType {
-                name: None,
-                params,
-                return_type,
-            }
+            LangType::TypeReference(
+                FunctionLangType {
+                    name: None,
+                    params,
+                    return_type,
+                }
+                .into(),
+            )
             .into(),
         )
     }

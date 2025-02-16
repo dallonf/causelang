@@ -976,16 +976,30 @@ fn compile_call_expression(
         }
     }
 
-    // TODO: handle an error preventing the call
-
     let callee_type = ctx
         .types
         .value_types
         .get(expression.callee.breadcrumbs())
         .cloned()
         .ok_or_else(|| anyhow!("No type for callee at {}", expression.callee.breadcrumbs()))?
-        .to_result_assuming_inferred()
-        .map_err(|_| anyhow!("Callee type is an error"))?;
+        .to_result_assuming_inferred();
+
+    let callee_type = match callee_type {
+        Ok(it) => it,
+        Err(err) => {
+            procedure.write_instruction_with_phase(
+                Instruction::Pop(PopInstruction {
+                    // all params and the callee
+                    number: (expression.parameters.len() + 1) as u32,
+                }),
+                Some(&expression.info),
+                InstructionPhase::Cleanup,
+            );
+            let error_const = add_error_constant(err, &expression.into(), procedure, ctx);
+            compile_type_error(error_const, procedure);
+            return Ok(());
+        }
+    };
 
     match callee_type.as_ref() {
         LangType::TypeReference(type_reference) => {
