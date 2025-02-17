@@ -1446,7 +1446,10 @@ fn compile_value_flow_reference(
     procedure: &mut Procedure,
     ctx: &mut CompilerContext,
 ) -> Result<()> {
-    // TODO: check for errors/badvalue
+    if let Some(error) = ctx.check_for_badtype_error(node.breadcrumbs())? {
+        compile_bad_value(node, error, procedure, ctx)?;
+        return Ok(());
+    }
 
     let node_tags = ctx.get_tags(node.breadcrumbs());
     let comes_from = find_tag!(&node_tags, NodeTag::ValueComesFrom)

@@ -53,7 +53,7 @@ object RustCompiler {
     }
 
     private val MODE = Mode.IF_SUPPORTED
-    private const val OUTPUT_TMP = true
+    private const val OUTPUT_TMP = false
 
     init {
         System.loadLibrary("rscause_jni")
@@ -131,6 +131,7 @@ object RustCompiler {
                     is ErrorLangType.NotVariable -> null
                     is ErrorLangType.OuterVariable -> null
                     is ErrorLangType.CannotBreakHere -> null
+                    is ErrorLangType.NotInScope -> null
                     else -> it
                 }
             }
