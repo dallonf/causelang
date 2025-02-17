@@ -18,12 +18,6 @@ object RustCompiler {
         System.loadLibrary("rscause_jni")
     }
 
-    fun shouldRunRustCompiler(
-        path: String, ast: FileNode, analyzed: AnalyzedNode, otherFiles: Map<String, Resolver.ExternalFileDescriptor>
-    ): Boolean {
-        return true
-    }
-
 
     fun compile(
         path: String,
