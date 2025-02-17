@@ -1,4 +1,4 @@
-// Generated from C:/Users/dallo/devroot/causelang/ktcause/src/main/resources\Cause.g4 by ANTLR 4.10.1
+// Generated from C:/Users/dallo/devroot/causelang/ktcause/src/main/resources/Cause.g4 by ANTLR 4.13.2
 package com.dallonf.ktcause.antlr;
 import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor;
 
@@ -10,6 +10,7 @@ import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor;
  * @param <T> The return type of the visit operation. Use {@link Void} for
  * operations with no return type.
  */
+@SuppressWarnings("CheckReturnValue")
 public class CauseBaseVisitor<T> extends AbstractParseTreeVisitor<T> implements CauseVisitor<T> {
 	/**
 	 * {@inheritDoc}
