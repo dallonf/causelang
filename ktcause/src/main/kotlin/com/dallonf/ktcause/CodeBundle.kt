@@ -130,6 +130,8 @@ class CodeBundleBuilder {
             compilePending(file, file.analyzed.filesReferenced.mapNotNull { path -> finalCompiledFiles[path] })
         }
 
+        finalCompileErrors.sortWith(compareBy({ it.position.path }, { it.position.breadcrumbs.toString() }))
+
         return CodeBundle(finalCompiledFiles, finalCompileErrors, inputFiles)
     }
 }

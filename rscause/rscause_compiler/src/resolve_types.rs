@@ -756,6 +756,15 @@ impl ResolveTypes for ast::FunctionTypeReferenceNode {
 impl ResolveTypes for ast::ImportMappingNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let tags = self.get_tags(ctx);
+
+        let comes_from_tag = find_tag!(&tags, NodeTag::ValueComesFrom);
+        let bad_file_tag = comes_from_tag
+            .and_then(|comes_from_tag| ctx.node_tags.get(&comes_from_tag.source))
+            .and_then(|source_tags| find_tag!(&source_tags, NodeTag::BadFileReference));
+        if bad_file_tag.is_some() {
+            return Some(LangError::ImportPathInvalid.into());
+        }
+
         let reference_file_tag = find_tag!(&tags, NodeTag::ReferencesFile);
         let export = reference_file_tag
             .ok_or_else(|| {

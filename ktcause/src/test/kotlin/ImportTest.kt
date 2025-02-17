@@ -78,9 +78,9 @@ class ImportTest {
             [
                 {
                     "position": {
-                        "path": "project/test.cau",
+                        "path": "project/a.cau",
                         "breadcrumbs": "declarations.1.mappings.0",
-                        "position": "1:18-1:31"
+                        "position": "1:19-1:27"
                     },
                     "error": {
                         "#type": "FileNotFound"
@@ -88,9 +88,9 @@ class ImportTest {
                 },
                 {
                     "position": {
-                        "path": "project/a.cau",
+                        "path": "project/test.cau",
                         "breadcrumbs": "declarations.1.mappings.0",
-                        "position": "1:19-1:27"
+                        "position": "1:18-1:31"
                     },
                     "error": {
                         "#type": "FileNotFound"
