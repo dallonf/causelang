@@ -17,7 +17,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.antlr:antlr4-runtime:4.10.1")
+    implementation("org.antlr:antlr4-runtime:4.13.2")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.0-RC")
     testImplementation(kotlin("test"))
     implementation("com.github.hiking93:grapheme-splitter-lite:0.0.1")

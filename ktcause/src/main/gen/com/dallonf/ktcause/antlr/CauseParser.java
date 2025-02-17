@@ -1,4 +1,4 @@
-// Generated from C:/Users/dallo/devroot/causelang/ktcause/src/main/resources\Cause.g4 by ANTLR 4.10.1
+// Generated from C:/Users/dallo/devroot/causelang/ktcause/src/main/resources/Cause.g4 by ANTLR 4.13.2
 package com.dallonf.ktcause.antlr;
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Iterator;
 import java.util.ArrayList;
 
-@SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast"})
+@SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast", "CheckReturnValue", "this-escape"})
 public class CauseParser extends Parser {
-	static { RuntimeMetaData.checkVersion("4.10.1", RuntimeMetaData.VERSION); }
+	static { RuntimeMetaData.checkVersion("4.13.2", RuntimeMetaData.VERSION); }
 
 	protected static final DFA[] _decisionToDFA;
 	protected static final PredictionContextCache _sharedContextCache =
@@ -66,10 +66,10 @@ public class CauseParser extends Parser {
 	private static String[] makeLiteralNames() {
 		return new String[] {
 			null, null, null, null, "'\\n'", "','", "':'", "'=>'", "'='", "'>>'", 
-			"'('", "')'", "'{'", "'}'", "'_'", "'.'", null, null, "'as'", "'branch'", 
-			"'break'", "'cause'", "'effect'", "'else'", "'fn'", "'for'", "'function'", 
-			"'Function'", "'if'", "'is'", "'import'", "'let'", "'loop'", "'object'", 
-			"'option'", "'return'", "'set'", "'signal'", "'variable'", "'with'"
+			"'('", "')'", "'{'", "'}'", "'_'", "'.'", null, null, "'#as'", "'#branch'", 
+			"'#break'", "'#cause'", "'#effect'", "'#else'", "'#fn'", "'#for'", "'#function'", 
+			"'Function'", "'#if'", "'#is'", "'#import'", "'#let'", "'#loop'", "'#object'", 
+			"'#option'", "'#return'", "'#set'", "'#signal'", "'#variable'", "'#with'"
 		};
 	}
 	private static final String[] _LITERAL_NAMES = makeLiteralNames();
@@ -134,6 +134,7 @@ public class CauseParser extends Parser {
 		_interp = new ParserATNSimulator(this,_ATN,_decisionToDFA,_sharedContextCache);
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class FileContext extends ParserRuleContext {
 		public TerminalNode EOF() { return getToken(CauseParser.EOF, 0); }
 		public List<TerminalNode> NEWLINE() { return getTokens(CauseParser.NEWLINE); }
@@ -192,7 +193,7 @@ public class CauseParser extends Parser {
 			setState(122);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
-			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << FUNCTION) | (1L << IMPORT) | (1L << LET) | (1L << OBJECT) | (1L << OPTION) | (1L << SIGNAL))) != 0)) {
+			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 166497091584L) != 0)) {
 				{
 				setState(110);
 				declaration();
@@ -258,6 +259,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class TypeReferenceContext extends ParserRuleContext {
 		public FunctionTypeReferenceContext functionTypeReference() {
 			return getRuleContext(FunctionTypeReferenceContext.class,0);
@@ -320,6 +322,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class IdentifierTypeReferenceContext extends ParserRuleContext {
 		public TerminalNode IDENTIFIER() { return getToken(CauseParser.IDENTIFIER, 0); }
 		public IdentifierTypeReferenceContext(ParserRuleContext parent, int invokingState) {
@@ -362,6 +365,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class FunctionTypeReferenceContext extends ParserRuleContext {
 		public TerminalNode FUNCTION_CAMEL() { return getToken(CauseParser.FUNCTION_CAMEL, 0); }
 		public TerminalNode PAREN_OPEN() { return getToken(CauseParser.PAREN_OPEN, 0); }
@@ -573,6 +577,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class FunctionTypeReferenceReturnValueContext extends ParserRuleContext {
 		public TerminalNode COLON() { return getToken(CauseParser.COLON, 0); }
 		public TypeReferenceContext typeReference() {
@@ -639,6 +644,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class FunctionSignatureParamContext extends ParserRuleContext {
 		public TerminalNode IDENTIFIER() { return getToken(CauseParser.IDENTIFIER, 0); }
 		public List<TerminalNode> NEWLINE() { return getTokens(CauseParser.NEWLINE); }
@@ -733,6 +739,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class DeclarationContext extends ParserRuleContext {
 		public ImportDeclarationContext importDeclaration() {
 			return getRuleContext(ImportDeclarationContext.class,0);
@@ -835,6 +842,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class ImportDeclarationContext extends ParserRuleContext {
 		public TerminalNode IMPORT() { return getToken(CauseParser.IMPORT, 0); }
 		public TerminalNode PATH() { return getToken(CauseParser.PATH, 0); }
@@ -952,6 +960,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class ImportMappingsContext extends ParserRuleContext {
 		public List<ImportMappingContext> importMapping() {
 			return getRuleContexts(ImportMappingContext.class);
@@ -1083,6 +1092,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class ImportMappingContext extends ParserRuleContext {
 		public List<TerminalNode> IDENTIFIER() { return getTokens(CauseParser.IDENTIFIER); }
 		public TerminalNode IDENTIFIER(int i) {
@@ -1174,6 +1184,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class FunctionDeclarationContext extends ParserRuleContext {
 		public TerminalNode FUNCTION() { return getToken(CauseParser.FUNCTION, 0); }
 		public TerminalNode IDENTIFIER() { return getToken(CauseParser.IDENTIFIER, 0); }
@@ -1431,6 +1442,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class FunctionReturnValueContext extends ParserRuleContext {
 		public TerminalNode COLON() { return getToken(CauseParser.COLON, 0); }
 		public TypeReferenceContext typeReference() {
@@ -1497,6 +1509,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class NamedValueDeclarationContext extends ParserRuleContext {
 		public TerminalNode LET() { return getToken(CauseParser.LET, 0); }
 		public TerminalNode IDENTIFIER() { return getToken(CauseParser.IDENTIFIER, 0); }
@@ -1669,6 +1682,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class ObjectDeclarationContext extends ParserRuleContext {
 		public TerminalNode OBJECT() { return getToken(CauseParser.OBJECT, 0); }
 		public TerminalNode IDENTIFIER() { return getToken(CauseParser.IDENTIFIER, 0); }
@@ -1763,6 +1777,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class SignalDeclarationContext extends ParserRuleContext {
 		public TerminalNode SIGNAL() { return getToken(CauseParser.SIGNAL, 0); }
 		public TerminalNode IDENTIFIER() { return getToken(CauseParser.IDENTIFIER, 0); }
@@ -1903,6 +1918,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class ObjectFieldsContext extends ParserRuleContext {
 		public TerminalNode PAREN_OPEN() { return getToken(CauseParser.PAREN_OPEN, 0); }
 		public TerminalNode PAREN_CLOSE() { return getToken(CauseParser.PAREN_CLOSE, 0); }
@@ -2080,6 +2096,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class ObjectFieldContext extends ParserRuleContext {
 		public TerminalNode IDENTIFIER() { return getToken(CauseParser.IDENTIFIER, 0); }
 		public TerminalNode COLON() { return getToken(CauseParser.COLON, 0); }
@@ -2163,6 +2180,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class OptionDeclarationContext extends ParserRuleContext {
 		public TerminalNode OPTION() { return getToken(CauseParser.OPTION, 0); }
 		public TerminalNode IDENTIFIER() { return getToken(CauseParser.IDENTIFIER, 0); }
@@ -2372,6 +2390,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class BodyContext extends ParserRuleContext {
 		public BlockContext block() {
 			return getRuleContext(BlockContext.class,0);
@@ -2434,6 +2453,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class BlockContext extends ParserRuleContext {
 		public TerminalNode CURLY_OPEN() { return getToken(CauseParser.CURLY_OPEN, 0); }
 		public TerminalNode CURLY_CLOSE() { return getToken(CauseParser.CURLY_CLOSE, 0); }
@@ -2495,7 +2515,7 @@ public class CauseParser extends Parser {
 			setState(636);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
-			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << PAREN_OPEN) | (1L << CURLY_OPEN) | (1L << STRING_LITERAL) | (1L << NUMBER_LITERAL) | (1L << BRANCH) | (1L << BREAK) | (1L << CAUSE) | (1L << EFFECT) | (1L << FN) | (1L << FUNCTION) | (1L << IMPORT) | (1L << LET) | (1L << LOOP) | (1L << OBJECT) | (1L << OPTION) | (1L << RETURN) | (1L << SET) | (1L << SIGNAL) | (1L << IDENTIFIER))) != 0)) {
+			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 2472919372800L) != 0)) {
 				{
 				setState(624);
 				statement();
@@ -2561,6 +2581,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class SingleStatementBodyContext extends ParserRuleContext {
 		public TerminalNode THICK_ARROW() { return getToken(CauseParser.THICK_ARROW, 0); }
 		public StatementContext statement() {
@@ -2627,6 +2648,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class StatementContext extends ParserRuleContext {
 		public EffectStatementContext effectStatement() {
 			return getRuleContext(EffectStatementContext.class,0);
@@ -2724,6 +2746,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class ExpressionStatementContext extends ParserRuleContext {
 		public ExpressionContext expression() {
 			return getRuleContext(ExpressionContext.class,0);
@@ -2768,6 +2791,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class DeclarationStatementContext extends ParserRuleContext {
 		public DeclarationContext declaration() {
 			return getRuleContext(DeclarationContext.class,0);
@@ -2812,6 +2836,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class EffectStatementContext extends ParserRuleContext {
 		public TerminalNode EFFECT() { return getToken(CauseParser.EFFECT, 0); }
 		public TerminalNode FOR() { return getToken(CauseParser.FOR, 0); }
@@ -2914,6 +2939,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class SetStatementContext extends ParserRuleContext {
 		public TerminalNode SET() { return getToken(CauseParser.SET, 0); }
 		public TerminalNode IDENTIFIER() { return getToken(CauseParser.IDENTIFIER, 0); }
@@ -3014,6 +3040,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class ExpressionContext extends ParserRuleContext {
 		public GroupExpressionContext groupExpression() {
 			return getRuleContext(GroupExpressionContext.class,0);
@@ -3181,6 +3208,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class GroupExpressionContext extends ParserRuleContext {
 		public TerminalNode PAREN_OPEN() { return getToken(CauseParser.PAREN_OPEN, 0); }
 		public ExpressionContext expression() {
@@ -3264,6 +3292,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class BlockExpressionContext extends ParserRuleContext {
 		public BlockContext block() {
 			return getRuleContext(BlockContext.class,0);
@@ -3308,6 +3337,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class FunctionExpressionContext extends ParserRuleContext {
 		public TerminalNode FN() { return getToken(CauseParser.FN, 0); }
 		public TerminalNode PAREN_OPEN() { return getToken(CauseParser.PAREN_OPEN, 0); }
@@ -3548,6 +3578,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class BranchExpressionContext extends ParserRuleContext {
 		public TerminalNode BRANCH() { return getToken(CauseParser.BRANCH, 0); }
 		public TerminalNode CURLY_OPEN() { return getToken(CauseParser.CURLY_OPEN, 0); }
@@ -3655,7 +3686,7 @@ public class CauseParser extends Parser {
 			setState(852);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
-			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << ELSE) | (1L << IF) | (1L << IS))) != 0)) {
+			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 813694976L) != 0)) {
 				{
 				setState(840);
 				branchOption();
@@ -3721,6 +3752,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class BranchWithContext extends ParserRuleContext {
 		public TerminalNode WITH() { return getToken(CauseParser.WITH, 0); }
 		public ExpressionContext expression() {
@@ -3787,6 +3819,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class LoopExpressionContext extends ParserRuleContext {
 		public TerminalNode LOOP() { return getToken(CauseParser.LOOP, 0); }
 		public BodyContext body() {
@@ -3853,6 +3886,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class CauseExpressionContext extends ParserRuleContext {
 		public TerminalNode CAUSE() { return getToken(CauseParser.CAUSE, 0); }
 		public ExpressionContext expression() {
@@ -3919,6 +3953,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class ReturnExpressionContext extends ParserRuleContext {
 		public TerminalNode RETURN() { return getToken(CauseParser.RETURN, 0); }
 		public ExpressionContext expression() {
@@ -3974,6 +4009,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class BreakExpressionContext extends ParserRuleContext {
 		public TerminalNode BREAK() { return getToken(CauseParser.BREAK, 0); }
 		public TerminalNode WITH() { return getToken(CauseParser.WITH, 0); }
@@ -4051,6 +4087,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class StringLiteralExpressionContext extends ParserRuleContext {
 		public TerminalNode STRING_LITERAL() { return getToken(CauseParser.STRING_LITERAL, 0); }
 		public StringLiteralExpressionContext(ParserRuleContext parent, int invokingState) {
@@ -4093,6 +4130,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class NumberLiteralExpressionContext extends ParserRuleContext {
 		public TerminalNode NUMBER_LITERAL() { return getToken(CauseParser.NUMBER_LITERAL, 0); }
 		public NumberLiteralExpressionContext(ParserRuleContext parent, int invokingState) {
@@ -4135,6 +4173,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class IdentifierExpressionContext extends ParserRuleContext {
 		public TerminalNode IDENTIFIER() { return getToken(CauseParser.IDENTIFIER, 0); }
 		public IdentifierExpressionContext(ParserRuleContext parent, int invokingState) {
@@ -4177,6 +4216,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class ExpressionSuffixContext extends ParserRuleContext {
 		public CallExpressionSuffixContext callExpressionSuffix() {
 			return getRuleContext(CallExpressionSuffixContext.class,0);
@@ -4247,6 +4287,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class CallExpressionSuffixContext extends ParserRuleContext {
 		public TerminalNode PAREN_OPEN() { return getToken(CauseParser.PAREN_OPEN, 0); }
 		public TerminalNode PAREN_CLOSE() { return getToken(CauseParser.PAREN_CLOSE, 0); }
@@ -4312,7 +4353,7 @@ public class CauseParser extends Parser {
 			setState(951);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
-			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << PAREN_OPEN) | (1L << CURLY_OPEN) | (1L << STRING_LITERAL) | (1L << NUMBER_LITERAL) | (1L << BRANCH) | (1L << BREAK) | (1L << CAUSE) | (1L << FN) | (1L << LOOP) | (1L << RETURN) | (1L << IDENTIFIER))) != 0)) {
+			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 2237698610176L) != 0)) {
 				{
 				setState(922);
 				callParam();
@@ -4422,6 +4463,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class CallParamContext extends ParserRuleContext {
 		public CallPositionalParameterContext callPositionalParameter() {
 			return getRuleContext(CallPositionalParameterContext.class,0);
@@ -4466,6 +4508,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class CallPositionalParameterContext extends ParserRuleContext {
 		public ExpressionContext expression() {
 			return getRuleContext(ExpressionContext.class,0);
@@ -4510,6 +4553,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class MemberExpressionSuffixContext extends ParserRuleContext {
 		public TerminalNode DOT() { return getToken(CauseParser.DOT, 0); }
 		public TerminalNode IDENTIFIER() { return getToken(CauseParser.IDENTIFIER, 0); }
@@ -4588,6 +4632,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class PipeCallExpressionSuffixContext extends ParserRuleContext {
 		public TerminalNode PIPELINE() { return getToken(CauseParser.PIPELINE, 0); }
 		public ExpressionContext expression() {
@@ -4703,7 +4748,7 @@ public class CauseParser extends Parser {
 			setState(1036);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
-			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << PAREN_OPEN) | (1L << CURLY_OPEN) | (1L << STRING_LITERAL) | (1L << NUMBER_LITERAL) | (1L << BRANCH) | (1L << BREAK) | (1L << CAUSE) | (1L << FN) | (1L << LOOP) | (1L << RETURN) | (1L << IDENTIFIER))) != 0)) {
+			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 2237698610176L) != 0)) {
 				{
 				setState(1007);
 				callParam();
@@ -4813,6 +4858,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class BranchOptionContext extends ParserRuleContext {
 		public IfBranchOptionContext ifBranchOption() {
 			return getRuleContext(IfBranchOptionContext.class,0);
@@ -4885,6 +4931,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class IfBranchOptionContext extends ParserRuleContext {
 		public TerminalNode IF() { return getToken(CauseParser.IF, 0); }
 		public ExpressionContext expression() {
@@ -4937,6 +4984,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class IsBranchOptionContext extends ParserRuleContext {
 		public TerminalNode IS() { return getToken(CauseParser.IS, 0); }
 		public PatternContext pattern() {
@@ -4989,6 +5037,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class ElseBranchOptionContext extends ParserRuleContext {
 		public TerminalNode ELSE() { return getToken(CauseParser.ELSE, 0); }
 		public BodyContext body() {
@@ -5036,6 +5085,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class PatternContext extends ParserRuleContext {
 		public CaptureValuePatternContext captureValuePattern() {
 			return getRuleContext(CaptureValuePatternContext.class,0);
@@ -5096,6 +5146,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class CaptureValuePatternContext extends ParserRuleContext {
 		public TypeReferenceContext typeReference() {
 			return getRuleContext(TypeReferenceContext.class,0);
@@ -5179,6 +5230,7 @@ public class CauseParser extends Parser {
 		return _localctx;
 	}
 
+	@SuppressWarnings("CheckReturnValue")
 	public static class TypeReferencePatternContext extends ParserRuleContext {
 		public TypeReferenceContext typeReference() {
 			return getRuleContext(TypeReferenceContext.class,0);

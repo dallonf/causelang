@@ -11,8 +11,8 @@ internal class HelloWorldTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """
-                    function main() {
-                        cause Debug("Hello world!")
+                    #function main() {
+                        #cause Debug("Hello world!")
                     }
                 """.trimIndent()
             )
@@ -45,9 +45,9 @@ internal class HelloWorldTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """
-                    function main() {
-                        let greeting = "Hello, world!"
-                        cause Debug(greeting)
+                    #function main() {
+                        #let greeting = "Hello, world!"
+                        #cause Debug(greeting)
                     }
                 """.trimIndent()
             )
