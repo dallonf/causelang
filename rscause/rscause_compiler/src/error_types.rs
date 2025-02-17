@@ -33,7 +33,7 @@ impl LangError {
                 proxy_chain,
             }) => {
                 let mut proxy_chain = proxy_chain.clone();
-                proxy_chain.push(position);
+                proxy_chain.insert(0, position);
                 LangError::ProxyError(ProxyErrorError {
                     actual_error: actual_error.clone(),
                     proxy_chain,
