@@ -78,7 +78,7 @@ class MathTest {
                 "project/test.cau", """
                     import core/math (divide, multiply)
                     
-                    function main(): Number {
+                    function main() returns Number {
                         let value = divide(1, 3)
                         multiply(value, 6)
                     }
@@ -100,7 +100,7 @@ class MathTest {
                 import core/text (number_to_text)
                 import core/math (remainder)
                 
-                function fizz_buzz(input: Number): Text { 
+                function fizz_buzz(input: Number) returns Text { 
                     branch {
                         if equals(remainder(input, 15), 0) => "FizzBuzz"
                         if equals(remainder(input, 3), 0) => "Fizz"

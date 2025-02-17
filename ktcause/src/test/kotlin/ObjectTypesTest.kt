@@ -15,7 +15,7 @@ class ObjectTypesTest {
                     rank: Number,
                 )
                 
-                function main(): Card {
+                function main() returns Card {
                     Card("hearts", 3)
                 }
             """.trimIndent()
@@ -45,7 +45,7 @@ class ObjectTypesTest {
                         rank: Number,
                     )
                     
-                    function main(): Text {
+                    function main() returns Text {
                         let card = Card("spades", 7)
                         card.suit
                     }

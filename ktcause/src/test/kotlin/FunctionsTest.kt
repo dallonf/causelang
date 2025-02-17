@@ -94,11 +94,11 @@ class FunctionsTest {
                 "project/test.cau", """
                 import core/text (append)
                 
-                function main(): Text {
+                function main() returns Text {
                     formatGreeting("Hello", "World")
                 }
                 
-                function formatGreeting(greeting: Text, name: Text): Text {
+                function formatGreeting(greeting: Text, name: Text) returns Text {
                     append(greeting, append(", ", name))
                 }
             """.trimIndent()
@@ -117,7 +117,7 @@ class FunctionsTest {
                 "project/test.cau", """
                     import core/math (add)                   
                                     
-                    function main(): Number {
+                    function main() returns Number {
                         let base = 1.0
                         function next() {
                             add(base, 2.0)
@@ -140,7 +140,7 @@ class FunctionsTest {
                 "project/test.cau", """
                     import core/math (add)                   
                                     
-                    function main(): Number {
+                    function main() returns Number {
                         let base = 1.0
                         function x() {
                             function y() {
@@ -166,7 +166,7 @@ class FunctionsTest {
                 "project/test.cau", """
                     import core/math (add)                   
                                     
-                    function main(): Number {
+                    function main() returns Number {
                         let base = 1.0
                         (fn() (fn() add(base, 2.0))())()
                     }
@@ -186,7 +186,7 @@ class FunctionsTest {
                 "project/test.cau", """
                     import core/math (add)                   
                                     
-                    function main(): Number {
+                    function main() returns Number {
                         let base = 1.0
                         function next(other: Number) {
                             add(base, other)
@@ -209,7 +209,7 @@ class FunctionsTest {
                 "project/test.cau", """
                     import core/math (add)                   
                                     
-                    function main(): Number {
+                    function main() returns Number {
                         let base = 1.0
                         let next = fn(other: Number) add(base, other)
                         next(2.0)
@@ -230,7 +230,7 @@ class FunctionsTest {
                 "project/test.cau", """
                     import core/math (add)          
                                     
-                    function main(): Number {
+                    function main() returns Number {
                         let x = 1
                         function inner() {
                             let y = 2
@@ -259,7 +259,7 @@ class FunctionsTest {
                 "project/test.cau", """
                     import core/math (add, multiply)
                     
-                    function single_map(this: Number, callback: Function(it: Number): Number) {
+                    function single_map(this: Number, callback: Function(it: Number) returns Number) {
                         cause Debug(callback(this))
                     }
                                     
@@ -284,7 +284,7 @@ class FunctionsTest {
                 "project/test.cau", """
                     import core/math (add, multiply)
                     
-                    function single_map(this: Number, callback: Function(it: Number): Number) {
+                    function single_map(this: Number, callback: Function(it: Number) returns Number) {
                         cause Debug(callback(this))
                     }
                                     
@@ -309,7 +309,7 @@ class FunctionsTest {
                     import core/math (add)
                                     
                     function main() {
-                        let func: Function(it: Number): Anything = fn(it: Number) add(it, 1) 
+                        let func: Function(it: Number) returns Anything = fn(it: Number) add(it, 1) 
                         func(2)
                     }
                 """.trimIndent()
@@ -362,7 +362,7 @@ class FunctionsTest {
                 "project/test.cau", """
                     import core/math (subtract)
                     
-                    function count_down(number: Number): Number {
+                    function count_down(number: Number) returns Number {
                         cause Debug(number)
                         branch {
                             if equals(number, 0) => number
@@ -397,8 +397,8 @@ class FunctionsTest {
                 "project/test.cau", """
                     import core/math (subtract)
                     
-                    function count_down_from_3(): Number {
-                        function count_down(number: Number): Number {
+                    function count_down_from_3() returns Number {
+                        function count_down(number: Number) returns Number {
                             cause Debug(number)
                             branch {
                                 if equals(number, 0) => number
@@ -434,11 +434,11 @@ class FunctionsTest {
             addFile(
                 "project/test.cau", """
                     function main() {
-                        function x(done: TrueOrFalse): Action {
+                        function x(done: TrueOrFalse) returns Action {
                             cause Debug("x")
-                            function y(done: TrueOrFalse): Action {
+                            function y(done: TrueOrFalse) returns Action {
                                 cause Debug("y")
-                                function z(done: TrueOrFalse): Action {
+                                function z(done: TrueOrFalse) returns Action {
                                     cause Debug("z")
                                     branch {
                                         if done => {}
@@ -474,7 +474,7 @@ class FunctionsTest {
                       } 
                     }
                     
-                    function as_number_with_explicit_type(this: Anything): Number {
+                    function as_number_with_explicit_type(this: Anything) returns Number {
                       branch with this {
                         is Number as this => return this
                         else => cause AssumptionBroken("expected number")
@@ -488,7 +488,7 @@ class FunctionsTest {
                       } 
                     }
                     
-                    function as_number_without_early_return_and_with_explicit_type(this: Anything): Number {
+                    function as_number_without_early_return_and_with_explicit_type(this: Anything) returns Number {
                       branch with this {
                         is Number as this => this
                         else => cause AssumptionBroken("expected number")
@@ -535,7 +535,7 @@ class FunctionsTest {
                       } 
                     }
                     
-                    function log_if_number_with_explicit_type(this: Anything): Action {
+                    function log_if_number_with_explicit_type(this: Anything) returns Action {
                       branch with this {
                         is Number as this => {
                             cause Debug(this)
@@ -552,7 +552,7 @@ class FunctionsTest {
                       } 
                     }
                     
-                    function log_if_number_without_early_return_and_with_explicit_type(this: Anything): Action {
+                    function log_if_number_without_early_return_and_with_explicit_type(this: Anything) returns Action {
                       branch with this {
                         is Number as this => cause Debug(this)
                         else => cause AssumptionBroken("expected number")

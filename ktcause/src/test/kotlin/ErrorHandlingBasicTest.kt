@@ -350,7 +350,7 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """
-                    function main(): Number {
+                    function main() returns Number {
                         "oh no that's not a number"
                     }
                 """.trimIndent()
@@ -363,7 +363,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body",
-                        "position": "1:24-3:1"
+                        "position": "1:31-3:1"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -394,7 +394,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.1.body",
-                    "position": "1:24-3:1"
+                    "position": "1:31-3:1"
                 },
                 "error": {
                     "#type": "MismatchedType",
@@ -456,7 +456,7 @@ internal class ErrorHandlingBasicTest {
                     object NotThat
                     object OrThat
                     
-                    function main(): MainReturn {
+                    function main() returns MainReturn {
                         branch {
                             if equals(2, 2) => return NotThat
                             if equals(1, 2) => return OrThat
@@ -602,7 +602,7 @@ internal class ErrorHandlingBasicTest {
             addFile(
                 "project/hello.cau", """                    
                     function main() {
-                        let test = fn(): Number "not a number"
+                        let test = fn() returns Number "not a number"
                         test()
                     }
                 """.trimIndent()
@@ -615,7 +615,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body",
-                        "position": "2:28-2:42"
+                        "position": "2:35-2:49"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -644,7 +644,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body",
-                    "position": "2:28-2:42"
+                    "position": "2:35-2:49"
                 },
                 "error": {
                     "#type": "MismatchedType",
@@ -670,7 +670,7 @@ internal class ErrorHandlingBasicTest {
             addFile(
                 "project/hello.cau", """                    
                     function main() {
-                        let test = fn(): Number {
+                        let test = fn() returns Number {
                             return "not a number"
                         }
                         test()
@@ -743,7 +743,7 @@ internal class ErrorHandlingBasicTest {
                     object Wrapped(next: MaybeWrapped)
                     option MaybeWrapped(Nothing, Wrapped)
                     
-                    function maybe_wrap(): MaybeWrapped {
+                    function maybe_wrap() returns MaybeWrapped {
                         "nah"
                     }
                 """.trimIndent()
@@ -756,7 +756,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.4.body",
-                        "position": "5:36-7:1"
+                        "position": "5:43-7:1"
                     },
                     "error": {
                         "#type": "MismatchedType",

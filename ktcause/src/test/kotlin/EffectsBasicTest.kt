@@ -162,7 +162,7 @@ class EffectsBasicTest {
                     
                     signal Greet(name: Text)
                     
-                    function main(): Action {
+                    function main() returns Action {
                         effect for Greet as s {
                             cause Debug(append("Howdy, ", s.name))
                         }

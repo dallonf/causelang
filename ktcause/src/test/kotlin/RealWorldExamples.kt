@@ -10,7 +10,7 @@ class RealWorldExamples {
                     import core/math (add, greater_than)
                     import core/text (append, number_to_text)
     
-                    function count_inclusive(from: Number, to: Number, callback: Function(i: Number): Action): Action {
+                    function count_inclusive(from: Number, to: Number, callback: Function(i: Number) returns Action) returns Action {
                       let variable current = from
                       loop {
                         branch {

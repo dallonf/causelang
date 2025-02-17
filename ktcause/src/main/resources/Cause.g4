@@ -37,6 +37,7 @@ LOOP : 'loop' ;
 OBJECT : 'object' ;
 OPTION : 'option' ;
 RETURN : 'return' ;
+RETURNS : 'returns' ;
 SET : 'set' ;
 SIGNAL : 'signal' ;
 VARIABLE : 'variable' ;
@@ -52,7 +53,7 @@ functionTypeReference : FUNCTION_CAMEL NEWLINE* PAREN_OPEN NEWLINE*
     (functionSignatureParam NEWLINE* (COMMA NEWLINE* functionSignatureParam NEWLINE*)* COMMA?)?
     NEWLINE* PAREN_CLOSE NEWLINE* functionTypeReferenceReturnValue
 ;
-    functionTypeReferenceReturnValue : COLON NEWLINE* typeReference ;
+    functionTypeReferenceReturnValue : RETURNS NEWLINE* typeReference ;
 
 functionSignatureParam : IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference)? ;
 
@@ -66,7 +67,7 @@ functionDeclaration : FUNCTION NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE*
     (functionSignatureParam NEWLINE* (COMMA NEWLINE* functionSignatureParam NEWLINE*)* COMMA?)?
     NEWLINE* PAREN_CLOSE NEWLINE* functionReturnValue?
     NEWLINE* body ;
-functionReturnValue : COLON NEWLINE* typeReference ;
+functionReturnValue : RETURNS NEWLINE* typeReference ;
 
 namedValueDeclaration : LET NEWLINE* VARIABLE? NEWLINE* IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference NEWLINE*)? EQUALS NEWLINE* expression ;
 
