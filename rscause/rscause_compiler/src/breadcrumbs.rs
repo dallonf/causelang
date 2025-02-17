@@ -1,12 +1,10 @@
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
-use std::string;
 
 use anyhow::anyhow;
-use serde::de::{self, Visitor};
+use serde::de;
 use serde::{Deserialize, Serialize};
 
 use crate::ast::BREADCRUMB_NAMES;

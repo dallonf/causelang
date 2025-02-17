@@ -1,4 +1,4 @@
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -39,7 +39,6 @@ use crate::{
 use crate::{find_tag, find_tags};
 use anyhow::{anyhow, Result};
 use num::{BigInt, BigRational};
-use serde::de::value;
 use tap::Pipe;
 use thiserror::Error;
 
@@ -144,7 +143,7 @@ impl CompilerScope {
 }
 
 #[derive(Debug)]
-struct OpenLoop(Breadcrumbs);
+struct OpenLoop;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum ScopeType {
@@ -1487,9 +1486,8 @@ fn compile_loop_expression(
 ) -> Result<()> {
     let start_loop_placeholder =
         procedure.write_start_loop_placeholder(&expression.info, InstructionPhase::Execute);
-    let open_loop = OpenLoop(expression.info.breadcrumbs.clone());
     ctx.scope_stack.push_back(
-        CompilerScope::new_with_loop(expression.breadcrumbs().clone(), ScopeType::Body, open_loop)
+        CompilerScope::new_with_loop(expression.breadcrumbs().clone(), ScopeType::Body, OpenLoop)
             .pipe(|it| Rc::new(RefCell::new(it))),
     );
     compile_body(&expression.body, procedure, ctx)?;

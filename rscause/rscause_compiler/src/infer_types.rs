@@ -2,7 +2,6 @@ use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
     hash::{DefaultHasher, Hash, Hasher},
-    str::FromStr,
     sync::Arc,
 };
 
@@ -11,7 +10,6 @@ use tap::Conv;
 
 use crate::{
     ast::{AnyAstNode, AstNode},
-    breadcrumbs::{self, Breadcrumbs},
     error_types::{
         CompilerBugError, ErrorPosition, LangError, SourcePosition, ValueUsedAsConstraintError,
     },
@@ -124,7 +122,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                                         lang_error,
                                     ));
                                 }
-                                InferredType::InferenceVariable(var) => {
+                                InferredType::InferenceVariable(_) => {
                                     break 'result TypeConstraint::ReferencedType(type_reference)
                                 }
                             };
@@ -386,17 +384,6 @@ fn is_solved(constraints: &[TypeConstraint]) -> bool {
     return get_solution(constraints).is_some();
 }
 
-fn has_pending(ctx: &mut ResolveTypesContext) -> bool {
-    return ctx
-        .value_types
-        .values()
-        .any(|it| it.as_ref().map(|it| it.has_pending()).unwrap_or(false))
-        || ctx
-            .new_canonical_types
-            .values()
-            .any(|it| it.as_ref().has_pending());
-}
-
 /// Hashes the variables for the purposes of determining if anything has changed
 /// from the previous inference iteration
 fn hash_variables(variables: &HashMap<u64, RefCell<Vec<TypeConstraint>>>) -> u64 {
@@ -407,28 +394,5 @@ fn hash_variables(variables: &HashMap<u64, RefCell<Vec<TypeConstraint>>>) -> u64
         .collect_vec();
     values.sort_by_key(|a| a.0);
     values.hash(&mut hasher);
-    return hasher.finish();
-}
-
-fn hash_ctx(ctx: &ResolveTypesContext) -> u64 {
-    let mut hasher = DefaultHasher::new();
-
-    let mut all_breadcrumbs = ctx.value_types.keys().collect_vec();
-    all_breadcrumbs.sort();
-    hasher.write_usize(all_breadcrumbs.len());
-    for breadcrumb in all_breadcrumbs {
-        ctx.value_types.get(breadcrumb).unwrap().hash(&mut hasher);
-    }
-
-    let mut all_canonical_type_ids = ctx.new_canonical_types.keys().collect_vec();
-    all_canonical_type_ids.sort();
-    hasher.write_usize(all_canonical_type_ids.len());
-    for type_id in all_canonical_type_ids {
-        ctx.new_canonical_types
-            .get(type_id)
-            .unwrap()
-            .hash(&mut hasher);
-    }
-
     return hasher.finish();
 }
