@@ -9,6 +9,10 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.*
 
 object RustSerialization {
+    // Type Mapping Notes:
+    //  kt SourcePosition -> rs ErrorPosition
+    //  kt SourcePosition.Source -> rs ErrorPosition::Source/SourcePosition
+
     @OptIn(ExperimentalSerializationApi::class)
     val encoder by lazy {
         Json {
@@ -69,12 +73,30 @@ object RustSerialization {
         throw AssertionError("Can't deserialize source position: $errorPosition")
     }
 
+    fun serializeErrorPosition(sourcePosition: SourcePosition): JsonElement {
+        return when (sourcePosition) {
+            is SourcePosition.Source -> buildJsonObject {
+                put("Source", serializeSourcePosition(sourcePosition))
+            }
+
+            is SourcePosition.Export -> TODO("Serialize SourcePosition.Export not yet implement")
+        }
+    }
+
     fun deserializeSourcePositionSource(sourcePosition: JsonElement): SourcePosition.Source {
         require(sourcePosition is JsonObject)
         val path = (sourcePosition["path"] as JsonPrimitive).content
         val breadcrumbs = deserializeBreadcrumbs(sourcePosition["breadcrumbs"]!!)
         val position = deserializeDocumentRange(sourcePosition["position"]!!)
         return SourcePosition.Source(path, breadcrumbs, position)
+    }
+
+    fun serializeSourcePosition(sourcePositionSource: SourcePosition.Source): JsonElement {
+        return buildJsonObject {
+            put("path", sourcePositionSource.path)
+            put("breadcrumbs", serializeBreadcrumbs(sourcePositionSource.breadcrumbs))
+            put("position", serializeDocumentRange(sourcePositionSource.position))
+        }
     }
 
     fun serializeDocumentRange(dp: DocumentRange): JsonElement {

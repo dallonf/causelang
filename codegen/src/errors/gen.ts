@@ -89,6 +89,36 @@ async function generateLangErrorRustSerializationKt() {
     }
   }
 
+  function getSerializeExpression(field: FieldType, name: string): string {
+    if (typeof field === "string") {
+      switch (field) {
+        case "string":
+        case "u32":
+          return `JsonPrimitive(${name})`;
+        default:
+          return `serialize${field.replace(/^.+::/g, "")}(${name})`;
+      }
+    }
+
+    switch (field.kind) {
+      case "arc":
+      case "box":
+        return getSerializeExpression(field.type, name);
+      case "diverged":
+        return getSerializeExpression(field.rust, name);
+      case "list": {
+        const innerType = getSerializeExpression(field.type, "it");
+        return `JsonArray(${name}.map { ${innerType} })`;
+      }
+      case "optional": {
+        const innerType = getSerializeExpression(field.type, "it");
+        return `${name}?.let { ${innerType} } ?: JsonNull`;
+      }
+      default:
+        return field satisfies never;
+    }
+  }
+
   const errorTypesForTemplate = errorTypes.map((error) => {
     return {
       ...error,
@@ -100,6 +130,10 @@ async function generateLangErrorRustSerializationKt() {
           deserializeExpression: getDeserializeExpression(
             type,
             `error["${rsName}"]`
+          ),
+          serializeExpression: getSerializeExpression(
+            type,
+            `errorLangType.${name}`
           ),
         };
       }),

@@ -2,73 +2,120 @@ package com.dallonf.ktcause.gen
 
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeConstraintValueLangType
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeOptionValueLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeOneOfLangType
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeResolvedValueLangType
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeValueLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeAnyInferredLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeLangType
 import com.dallonf.ktcause.serialization.RustSerialization.deserializeSourcePosition
+import com.dallonf.ktcause.serialization.RustSerialization.serializeErrorPosition
 import com.dallonf.ktcause.serialization.RustSerialization.deserializeSourcePositionSource
+import com.dallonf.ktcause.serialization.RustSerialization.serializeSourcePosition
 import com.dallonf.ktcause.types.ErrorLangType
 import kotlinx.serialization.json.*
 
 object LangErrorRustSerialization {
-  fun deserializeErrorLangType(langError: JsonElement): ErrorLangType {
-    if (langError is JsonObject) {
-      {{#each errorTypes}}
-      {{#if this.hasFields}}
-      langError["{{this.name}}"]?.let {
-        return deserialize{{this.name}}ErrorLangType(it)
-      }
-      {{/if}}
-      {{/each}}
+    fun deserializeErrorLangType(langError: JsonElement): ErrorLangType {
+        if (langError is JsonObject) {
+            {{#each errorTypes}}
+            {{#if this.hasFields}}
+            langError["{{this.name}}"]?.let {
+                return deserialize{{this.name}}ErrorLangType(it)
+            }
+            {{/if}}
+            {{/each}}
+        }
+
+        if (langError is JsonPrimitive) {
+            val errorName = langError.content
+            return when (errorName) {
+                {{#each errorTypes}}
+                {{#unless this.hasFields}}
+                "{{this.name}}" -> ErrorLangType.{{this.name}}
+                {{/unless}}
+                {{/each}}
+                else -> throw AssertionError("Unknown error type: $errorName")
+            }
+        }
+
+        throw AssertionError("Can't parse as an error: $langError")
     }
 
-    if (langError is JsonPrimitive) {
-      val errorName = langError.content
-      return when (errorName) {
-        {{#each errorTypes}}
-        {{#unless this.hasFields}}
-        "{{this.name}}" -> ErrorLangType.{{this.name}}
-        {{/unless}}
-        {{/each}}
-        else -> throw AssertionError("Unknown error type: $errorName")
-      }
+    fun serializeLangError(errorLangType: ErrorLangType): JsonElement {
+        return when (errorLangType) {
+            {{#each errorTypes}}
+            is ErrorLangType.{{this.name}} -> {{#if this.hasFields}} buildJsonObject {
+                put("{{this.name}}", serializeLangError{{this.name}}(errorLangType))
+            } {{else}} JsonPrimitive("{{this.name}}") {{/if}}
+            {{/each}}
+        }
     }
 
-    throw AssertionError("Can't parse as an error: $langError")
-  }
-  {{#each errorTypes}}
-  {{#unless this.manualMapping}}
-  {{#if this.hasFields}}
-  fun deserialize{{this.name}}ErrorLangType(error: JsonElement): ErrorLangType.{{this.name}} {
-    require(error is JsonObject)
-    return ErrorLangType.{{this.name}}(
-      {{#each this.fields}}
-      {{this.deserializeExpression}},
-      {{/each}}
-    )
-  }
-  {{/if}}
-  {{/unless}}
-  {{/each}}
-
-  fun deserializeMismatchedTypeErrorLangType(error: JsonElement): ErrorLangType {
-    require(error is JsonObject)
-    return ErrorLangType.MismatchedType(
-      deserializeResolvedValueLangType(error["expected"]!!).toConstraint(),
-      deserializeResolvedValueLangType(error["actual"]!!),
-    )
-  }
-
-  private fun deserializeActionIncompatibleWithValueTypesErrorLangType(error: JsonElement): ErrorLangType {
-    require(error is JsonObject)
-    return ErrorLangType.ActionIncompatibleWithValueTypes(
-      (error["actions"] as JsonArray).map { deserializeSourcePositionSource(it) },
-      (error["types"] as JsonArray).map {
-        require(it is JsonObject)
-        ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
-          deserializeResolvedValueLangType(it["type"]!!),
-          deserializeSourcePositionSource(it["position"]!!),
+    {{#each errorTypes}}
+    {{#unless this.manualMapping}}
+    {{#if this.hasFields}}
+    fun deserialize{{this.name}}ErrorLangType(error: JsonElement): ErrorLangType.{{this.name}} {
+        require(error is JsonObject)
+        return ErrorLangType.{{this.name}}(
+            {{#each this.fields}}
+            {{this.deserializeExpression}},
+            {{/each}}
         )
-      },
-    )
-  }
+    }
+
+    fun serializeLangError{{this.name}}(errorLangType: ErrorLangType.{{this.name}}): JsonElement {
+        return buildJsonObject {
+            {{#each this.fields}}
+            put("{{this.rsName}}", {{this.serializeExpression}})
+            {{/each}}
+        }
+    }
+    {{/if}}
+    {{/unless}}
+    {{/each}}
+
+    fun deserializeMismatchedTypeErrorLangType(error: JsonElement): ErrorLangType {
+        require(error is JsonObject)
+        return ErrorLangType.MismatchedType(
+            deserializeResolvedValueLangType(error["expected"]!!).toConstraint(),
+            deserializeResolvedValueLangType(error["actual"]!!),
+        )
+    }
+
+    fun serializeLangErrorMismatchedType(errorLangType: ErrorLangType.MismatchedType): JsonElement {
+        return buildJsonObject {
+            put("expected",  serializeLangType(errorLangType.expected.valueType))
+            put("actual",  serializeLangType(errorLangType.actual))
+        }
+    }
+
+    private fun deserializeActionIncompatibleWithValueTypesErrorLangType(error: JsonElement): ErrorLangType {
+        require(error is JsonObject)
+        return ErrorLangType.ActionIncompatibleWithValueTypes(
+            (error["actions"] as JsonArray).map { deserializeSourcePositionSource(it) },
+            (error["types"] as JsonArray).map {
+                require(it is JsonObject)
+                ErrorLangType.ActionIncompatibleWithValueTypes.ValueType(
+                    deserializeResolvedValueLangType(it["type"]!!),
+                    deserializeSourcePositionSource(it["position"]!!),
+                )
+            },
+        )
+    }
+
+    private fun serializeLangErrorActionIncompatibleWithValueTypes(errorLangType: ErrorLangType.ActionIncompatibleWithValueTypes): JsonElement {
+        return buildJsonObject {
+            put("actions", JsonArray(errorLangType.actions.map {
+                serializeSourcePosition(it)
+            }))
+            errorLangType.types?.let { types ->
+                put("types", JsonArray(types.map {
+                    buildJsonObject {
+                        put("type", serializeAnyInferredLangType(it.type))
+                        put("position", serializeSourcePosition(it.position))
+                    }
+                }))
+            }
+        }
+    }
 }

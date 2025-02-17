@@ -1,6 +1,7 @@
 package com.dallonf.ktcause.serialization
 
 import com.dallonf.ktcause.gen.LangErrorRustSerialization
+import com.dallonf.ktcause.gen.LangErrorRustSerialization.serializeLangError
 import com.dallonf.ktcause.types.*
 import kotlinx.serialization.json.*
 
@@ -142,11 +143,6 @@ object LangTypeRustSerialization {
         }
 
         throw AssertionError("Unrecognized AnyInferredLangType: $anyInferredLangType")
-    }
-
-
-    fun serializeLangError(errorLangType: ErrorLangType): JsonElement {
-        return JsonPrimitive("TODO")
     }
 
 
