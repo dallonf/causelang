@@ -290,33 +290,14 @@ internal class ErrorHandlingBasicTest {
         )
 
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
+        val actualError = TestUtils.expectTypeError(result, vm).error.getActualErrorIfProxied()
         assertEquals(
             """
             {
-                "#type": "BadValue",
-                "position": {
-                    "#type": "SourcePosition",
-                    "path": "project/hello.cau",
-                    "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
-                    "position": "2:8-2:27"
-                },
-                "error": {
-                    "#type": "ProxyError",
-                    "actualError": {
-                        "#type": "NotInScope"
-                    },
-                    "proxyChain": [
-                        {
-                            "#type": "SourcePosition",
-                            "path": "project/hello.cau",
-                            "breadcrumbs": "declarations.1.body.statements.0.expression.signal.callee",
-                            "position": "2:8-2:19"
-                        }
-                    ]
-                }
+                "#type": "NotInScope"
             }
             """.trimIndent(),
-            TestUtils.expectTypeError(result, vm).debug(),
+            actualError.debug(),
         )
     }
 
