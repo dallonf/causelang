@@ -132,6 +132,8 @@ pub enum LangType {
     AnySignal,
     OneOf(OneOfLangType),
     NeverContinues,
+    StopgapDictionary,
+    StopgapList,
     // BadValue should only exist at runtime
     BadValue,
 }
@@ -298,6 +300,10 @@ impl LangType {
             LangType::OneOf(other_one_of) => other_one_of.is_superset_of(self),
 
             LangType::NeverContinues => self == &LangType::NeverContinues,
+
+            LangType::StopgapDictionary => self == &LangType::StopgapDictionary,
+            LangType::StopgapList => self == &LangType::StopgapList,
+
             LangType::BadValue => self == &LangType::BadValue,
         }
     }
@@ -315,6 +321,8 @@ impl HasInference for LangType {
             LangType::AnySignal => vec![],
             LangType::OneOf(one_of_lang_type) => one_of_lang_type.recursive_inferred_types(),
             LangType::NeverContinues => vec![],
+            LangType::StopgapDictionary => vec![],
+            LangType::StopgapList => vec![],
             LangType::BadValue => vec![],
         }
     }
@@ -338,6 +346,8 @@ impl HasInference for LangType {
                 LangType::OneOf(one_of_lang_type.fill_variable(id, value))
             }
             LangType::NeverContinues => LangType::NeverContinues,
+            LangType::StopgapDictionary => LangType::StopgapDictionary,
+            LangType::StopgapList => LangType::StopgapList,
             LangType::BadValue => LangType::BadValue,
         }
     }

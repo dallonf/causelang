@@ -1007,24 +1007,33 @@ fn compile_call_expression(
     match callee_type.as_ref() {
         LangType::TypeReference(type_reference) => {
             // TODO: handle unique types
-            let canonical_type = type_reference
+            type_reference
                 .clone()
                 .to_result_assuming_inferred()
-                .map_err(|_| anyhow!("Callee type is a reference to an error or unique type"))
-                .and_then(|instance_type| match instance_type.as_ref() {
-                    LangType::Instance(instance) => {
-                        ctx.canonical_types.get(&instance.type_id).ok_or(anyhow!(
-                            "No canonical type found for {:?}",
-                            &instance.type_id
-                        ))
-                    }
-                    _ => Err(anyhow!("Can't construct a {instance_type:?}")),
+                .map_err(|_| anyhow!("Callee type is a reference to an error or unique type"))?
+                .pipe(|instance_type| {
+                    Ok(match instance_type.as_ref() {
+                        LangType::Instance(instance) => {
+                            let canonical_type = ctx.canonical_types.get(&instance.type_id).ok_or(
+                                anyhow!("No canonical type found for {:?}", &instance.type_id),
+                            )?;
+                            let arity = canonical_type.fields().len() as u32;
+                            procedure.write_instruction(
+                                Instruction::Construct(ConstructInstruction { arity }),
+                                Some(&expression.info),
+                            );
+                        }
+                        LangType::StopgapDictionary | LangType::StopgapList => {
+                            procedure.write_instruction(
+                                Instruction::Construct(ConstructInstruction {
+                                    arity: expression.parameters.len() as u32,
+                                }),
+                                Some(&expression.info),
+                            );
+                        }
+                        _ => return Err(anyhow!("Can't construct a {instance_type:?}")),
+                    })
                 })?;
-            let arity = canonical_type.fields().len() as u32;
-            procedure.write_instruction(
-                Instruction::Construct(ConstructInstruction { arity }),
-                Some(&expression.info),
-            )
         }
         LangType::Function(_) => procedure.write_instruction(
             Instruction::CallFunction(CallFunctionInstruction {

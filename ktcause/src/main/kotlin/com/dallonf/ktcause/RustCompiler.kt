@@ -139,7 +139,7 @@ object RustCompiler {
         yieldAll(typeErrorsOnlyKtResolverWouldFind.map { "Found type error that the Rust resolver can't output yet: $it" })
     }
 
-    val supportedCoreImports = setOf("core/builtin.cau", "core/math", "core/text")
+    val supportedCoreImports = setOf("core/builtin.cau", "core/math", "core/text", "core/stopgap/collections")
     private val unsupportedIdentifiers: Set<String> = setOf()
 
     fun compile(

@@ -43,6 +43,9 @@ object LangTypeRustSerialization {
                 put("OneOf", serializeOneOfLangType(resolvedValueLangType))
             }
 
+            is StopgapDictionaryLangType -> JsonPrimitive("StopgapDictionary")
+            is StopgapListLangType -> JsonPrimitive("StopgapList")
+
             is BadValueLangType -> JsonPrimitive("BadValue")
 
             else -> TODO("Unsupported lang type: ${resolvedValueLangType::class.simpleName}")
@@ -93,6 +96,14 @@ object LangTypeRustSerialization {
 
                 "NeverContinues" -> {
                     return NeverContinuesValueLangType
+                }
+
+                "StopgapDictionary" -> {
+                    return StopgapDictionaryLangType
+                }
+
+                "StopgapList" -> {
+                    return StopgapListLangType
                 }
             }
         }

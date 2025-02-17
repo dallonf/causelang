@@ -1073,12 +1073,10 @@ fn resolve_call_expression(
         LangType::TypeReference(referenced_type) => referenced_type
             .clone()
             .to_result_assuming_inferred()
-            .and_then(|referenced_type| {
-                let instance_type = match referenced_type.as_ref() {
-                    LangType::Instance(instance) => Ok(instance),
-                    _ => Err(LangError::NotCallable),
-                }?;
-                Ok(instance_type.clone().into())
+            .and_then(|referenced_type| match referenced_type.as_ref() {
+                LangType::Instance(instance) => Ok(instance.clone().into()),
+                LangType::StopgapDictionary | LangType::StopgapList => Ok(referenced_type.into()),
+                _ => Err(LangError::NotCallable.into()),
             }),
         _ => Err(LangError::NotCallable.into()),
     };
@@ -1101,25 +1099,26 @@ fn resolve_call_expression(
         LangType::TypeReference(referenced_type) => referenced_type
             .clone()
             .to_result_assuming_inferred()
-            .and_then(|referenced_type| {
-                let instance_type = match referenced_type.as_ref() {
-                    LangType::Instance(instance) => Ok(instance),
-                    _ => Err(LangError::NotCallable),
-                }?;
-                let canonical_type = ctx.get_canonical_type(&instance_type.type_id).ok_or(
-                    LangError::compiler_bug(format!(
-                        "Missing canonical type: {}",
-                        instance_type.type_id.to_string()
-                    )),
-                )?;
-                Ok(canonical_type
-                    .fields()
-                    .iter()
-                    .map(|it| ExpectedCallParameter {
-                        name: it.name.clone(),
-                        value_type: it.value_type.clone(),
-                    })
-                    .collect_vec())
+            .and_then(|referenced_type| match referenced_type.as_ref() {
+                LangType::Instance(instance) => {
+                    let instance_type = instance;
+                    let canonical_type = ctx.get_canonical_type(&instance_type.type_id).ok_or(
+                        LangError::compiler_bug(format!(
+                            "Missing canonical type: {}",
+                            instance_type.type_id.to_string()
+                        )),
+                    )?;
+                    Ok(canonical_type
+                        .fields()
+                        .iter()
+                        .map(|it| ExpectedCallParameter {
+                            name: it.name.clone(),
+                            value_type: it.value_type.clone(),
+                        })
+                        .collect_vec())
+                }
+                LangType::StopgapDictionary | LangType::StopgapList => Ok(vec![]),
+                _ => Err(LangError::NotCallable.into()),
             }),
         _ => Err(LangError::NotCallable.into()),
     };
