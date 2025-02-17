@@ -702,22 +702,38 @@ fn resolve_identifier_type_reference(
 
 impl ResolveTypes for ast::FunctionTypeReferenceNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        let return_type_var = ctx.add_inference_variable();
         let return_type = ctx.get_resolved_type_proxying_errors(&self.return_type);
+        ctx.constraints.push((
+            return_type_var,
+            TypeConstraint::ReferencedType(return_type),
+            ConstraintDiagnostic::Resolver(
+                self.breadcrumbs().clone(),
+                "Function type reference return type".into(),
+            ),
+        ));
         let params = self
             .params
             .iter()
             .map(|param| {
+                let inference_var = ctx.add_inference_variable();
                 let param_type = param
                     .type_reference
                     .as_ref()
-                    .map(|it| ctx.get_resolved_type_proxying_errors(it))
-                    .unwrap_or_else(|| {
-                        let inference_var = ctx.add_inference_variable();
-                        InferredType::InferenceVariable(inference_var).into()
-                    });
+                    .map(|it| ctx.get_resolved_type_proxying_errors(it));
+                if let Some(param_type) = param_type {
+                    ctx.constraints.push((
+                        inference_var,
+                        TypeConstraint::ReferencedType(param_type),
+                        ConstraintDiagnostic::Resolver(
+                            param.breadcrumbs().clone(),
+                            "Function type reference parameter type".into(),
+                        ),
+                    ));
+                }
                 LangParameter {
                     name: param.name.text.clone(),
-                    value_type: param_type,
+                    value_type: InferredType::InferenceVariable(inference_var).into(),
                 }
             })
             .collect();
@@ -727,7 +743,7 @@ impl ResolveTypes for ast::FunctionTypeReferenceNode {
                 FunctionLangType {
                     name: None,
                     params,
-                    return_type,
+                    return_type: InferredType::InferenceVariable(return_type_var).into(),
                 }
                 .into(),
             )

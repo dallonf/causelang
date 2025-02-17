@@ -252,12 +252,21 @@ impl LangType {
                                 // names can be different, but types can't be
                                 // at least until we work out variance
                                 // or named arguments
-                                self_param == other_param
+                                &self_param.value_type == &other_param.value_type
                             });
 
                     let return_type_matches = {
-                        // also don't allow any variance for now
-                        self_function.return_type == other_function.return_type
+                        if let (
+                            InferredType::Known(self_function_return),
+                            InferredType::Known(other_function_return),
+                        ) = (&self_function.return_type, &other_function.return_type)
+                        {
+                            // I have a hunch this isn't sound variance,
+                            // but it works for now
+                            self_function_return.is_assignable_to(other_function_return)
+                        } else {
+                            false
+                        }
                     };
 
                     params_match && return_type_matches
@@ -941,6 +950,27 @@ mod test {
                 OneOfLangType::new(vec![LangType::Primitive(PrimitiveLangType::Number).into()]);
             let primitive = LangType::Primitive(PrimitiveLangType::Number);
             assert!(LangType::OneOf(one_of).is_assignable_to(&primitive));
+        }
+    }
+
+    mod functions {
+        use super::*;
+
+        #[test]
+        fn test_function_with_specific_return_type_assignable_to_function_with_anything_return() {
+            let function_constraint = FunctionLangType {
+                name: None,
+                params: vec![],
+                return_type: LangType::Anything.into(),
+            };
+            let actual_function = FunctionLangType {
+                name: None,
+                params: vec![],
+                return_type: LangType::Primitive(PrimitiveLangType::Number).into(),
+            };
+            assert!(
+                LangType::Function(actual_function).is_assignable_to(&function_constraint.into())
+            );
         }
     }
 }
