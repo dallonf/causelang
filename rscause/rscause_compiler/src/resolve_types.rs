@@ -637,6 +637,7 @@ impl ResolveTypes for AnyAstNode {
             Self::SetStatement(node) => node.compute_type(ctx),
             Self::CauseExpression(node) => node.compute_type(ctx),
             Self::CallExpression(node) => node.compute_type(ctx),
+            Self::PipeCallExpression(node) => node.compute_type(ctx),
             Self::MemberExpression(node) => node.compute_type(ctx),
             Self::IdentifierExpression(node) => node.compute_type(ctx),
             Self::StringLiteralExpression(node) => node.compute_type(ctx),
@@ -1123,6 +1124,130 @@ impl ResolveTypes for ast::CallExpressionNode {
                         "Function call param must be assignable to function definition param type"
                             .into(),
                 });
+                }
+            }
+            Err(err) => return Some(InferredType::Error(err.into())),
+        }
+
+        Some(result_type.unwrap_or_else(|err| InferredType::Error(err.into())))
+    }
+}
+
+impl ResolveTypes for ast::PipeCallExpressionNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        // TODO: deduplicate between this and CallExpressionNode
+        let callee_type = ctx.get_resolved_type_proxying_errors(&self.callee);
+        let callee_type = match callee_type.to_result_assuming_inferred() {
+            Ok(it) => it,
+            Err(err) => return Some(InferredType::Error(err.into())),
+        };
+
+        let result_type = match callee_type.as_ref() {
+            LangType::Function(function_type) => Ok(function_type.return_type.clone()),
+            LangType::TypeReference(referenced_type) => referenced_type
+                .clone()
+                .to_result_assuming_inferred()
+                .and_then(|referenced_type| {
+                    let instance_type = match referenced_type.as_ref() {
+                        LangType::Instance(instance) => Ok(instance),
+                        _ => Err(LangError::NotCallable),
+                    }?;
+                    Ok(instance_type.clone().into())
+                }),
+            _ => Err(LangError::NotCallable.into()),
+        };
+
+        #[derive(Debug, Clone, Eq, PartialEq)]
+        struct ExpectedCallParameter {
+            name: Arc<String>,
+            value_type: AnyInferredLangType,
+        }
+
+        let expected_parameters = match callee_type.as_ref() {
+            LangType::Function(function_type) => Ok(function_type
+                .params
+                .iter()
+                .map(|it| ExpectedCallParameter {
+                    name: it.name.clone(),
+                    value_type: it.value_type.clone(),
+                })
+                .collect_vec()),
+            LangType::TypeReference(referenced_type) => referenced_type
+                .clone()
+                .to_result_assuming_inferred()
+                .and_then(|referenced_type| {
+                    let instance_type = match referenced_type.as_ref() {
+                        LangType::Instance(instance) => Ok(instance),
+                        _ => Err(LangError::NotCallable),
+                    }?;
+                    let canonical_type = ctx.get_canonical_type(&instance_type.type_id).ok_or(
+                        LangError::compiler_bug(format!(
+                            "Missing canonical type: {}",
+                            instance_type.type_id.to_string()
+                        )),
+                    )?;
+                    Ok(canonical_type
+                        .fields()
+                        .iter()
+                        .map(|it| ExpectedCallParameter {
+                            name: it.name.clone(),
+                            value_type: it.value_type.clone(),
+                        })
+                        .collect_vec())
+                }),
+            _ => Err(LangError::NotCallable.into()),
+        };
+
+        #[derive(Debug, Clone, Eq, PartialEq)]
+        struct ActualCallParameter {
+            expression_breadcrumbs: Breadcrumbs,
+        }
+
+        let actual_parameters = vec![
+            vec![ActualCallParameter {
+                expression_breadcrumbs: self.subject.breadcrumbs().clone(),
+            }],
+            self.parameters
+                .iter()
+                .map(|it| ActualCallParameter {
+                    expression_breadcrumbs: it.value.breadcrumbs().clone(),
+                })
+                .collect(),
+        ].concat();
+
+        match expected_parameters {
+            Ok(parameters) => {
+                match actual_parameters.len().cmp(&parameters.len()) {
+                    std::cmp::Ordering::Less => {
+                        return Some(
+                            LangError::MissingParameters(MissingParametersError {
+                                names: parameters[actual_parameters.len()..]
+                                    .into_iter()
+                                    .map(|it| it.name.as_ref().to_owned())
+                                    .collect(),
+                            })
+                            .into(),
+                        )
+                    }
+                    std::cmp::Ordering::Greater => {
+                        return Some(
+                            LangError::ExcessParameters(ExcessParametersError {
+                                expected: parameters.len() as u32,
+                            })
+                            .into(),
+                        )
+                    }
+                    std::cmp::Ordering::Equal => {}
+                }
+
+                for (lang_param, param_node) in parameters.iter().zip(actual_parameters.iter()) {
+                    ctx.edicts.push(TypeEdict {
+                        breadcrumbs: param_node.expression_breadcrumbs.clone(),
+                        rule: TypeEdictRule::AssignableTo(lang_param.value_type.clone()),
+                        diagnostic:
+                            "Function call param must be assignable to function definition param type"
+                                .into(),
+                    });
                 }
             }
             Err(err) => return Some(InferredType::Error(err.into())),

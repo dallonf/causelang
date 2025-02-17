@@ -615,7 +615,7 @@ private fun parsePipeCallExpressionSuffix(
         }
     }
 
-    return PipeCallExpression(
+    return PipeCallExpressionNode(
         NodeInfo(suffix.getRange(), breadcrumbs),
         subjectExpression,
         callee,

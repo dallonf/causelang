@@ -36,6 +36,7 @@ val rustCompilerSupportedTypes = setOf(
         LoopExpressionNode::class,
         CauseExpressionNode::class,
         CallExpressionNode::class,
+        PipeCallExpressionNode::class,
         MemberExpressionNode::class,
         IdentifierExpressionNode::class,
         StringLiteralExpressionNode::class,

@@ -19,7 +19,7 @@ use crate::instructions::{
     LiteralInstruction, NameValueInstruction, NoOpInstruction, PopEffectsInstruction,
     PopInstruction, PopScopeInstruction, PushActionInstruction, ReadLocalInstruction,
     ReadLocalThroughEffectScopeInstruction, RegisterEffectInstruction, RejectSignalInstruction,
-    ReturnInstruction, StartLoopInstruction, WriteLocalInstruction,
+    ReturnInstruction, StartLoopInstruction, SwapInstruction, WriteLocalInstruction,
     WriteLocalThroughEffectScopeInstruction,
 };
 use crate::lang_types::OneOfLangType;
@@ -892,6 +892,9 @@ fn compile_expression(
         ast::ExpressionNode::Call(expression) => {
             compile_call_expression(expression, procedure, ctx)?;
         }
+        ast::ExpressionNode::PipeCall(expression) => {
+            compile_pipe_call_expression(expression, procedure, ctx)?;
+        }
         ast::ExpressionNode::Member(expression) => {
             compile_member_expression(expression.clone(), procedure, ctx)?
         }
@@ -1026,6 +1029,92 @@ fn compile_call_expression(
         LangType::Function(_) => procedure.write_instruction(
             Instruction::CallFunction(CallFunctionInstruction {
                 arity: expression.parameters.len() as u32,
+            }),
+            Some(&expression.info),
+        ),
+        _ => return Err(anyhow!("Callee {callee_type:?} is not callable")),
+    }
+
+    Ok(())
+}
+
+fn compile_pipe_call_expression(
+    expression: &ast::PipeCallExpressionNode,
+    procedure: &mut Procedure,
+    ctx: &mut CompilerContext,
+) -> Result<()> {
+    // TODO: pretty much all of this is the same as compile_call_expression
+    compile_expression(&expression.subject, procedure, ctx)?;
+    compile_expression(&expression.callee, procedure, ctx)?;
+
+    procedure.write_instruction_with_phase(
+        Instruction::Swap(SwapInstruction {}),
+        Some(&expression.info),
+        InstructionPhase::Plumbing,
+    );
+
+    for param in &expression.parameters {
+        compile_expression(&param.value, procedure, ctx)?;
+        let badvalue = ctx.check_for_badtype_error(param.breadcrumbs())?;
+        if let Some(badvalue) = badvalue {
+            procedure.write_instruction(
+                Instruction::Pop(PopInstruction { number: 1 }),
+                Some(&param.info),
+            );
+            compile_bad_value(param.into(), badvalue, procedure, ctx)?;
+        }
+    }
+
+    let callee_type = ctx
+        .types
+        .value_types
+        .get(expression.callee.breadcrumbs())
+        .cloned()
+        .ok_or_else(|| anyhow!("No type for callee at {}", expression.callee.breadcrumbs()))?
+        .to_result_assuming_inferred();
+
+    let callee_type = match callee_type {
+        Ok(it) => it,
+        Err(err) => {
+            procedure.write_instruction_with_phase(
+                Instruction::Pop(PopInstruction {
+                    // the subject, all params and the callee
+                    number: (expression.parameters.len() + 2) as u32,
+                }),
+                Some(&expression.info),
+                InstructionPhase::Cleanup,
+            );
+            let error_const = add_error_constant(err, &expression.into(), procedure, ctx);
+            compile_type_error(error_const, procedure);
+            return Ok(());
+        }
+    };
+
+    match callee_type.as_ref() {
+        LangType::TypeReference(type_reference) => {
+            // TODO: handle unique types
+            let canonical_type = type_reference
+                .clone()
+                .to_result_assuming_inferred()
+                .map_err(|_| anyhow!("Callee type is a reference to an error or unique type"))
+                .and_then(|instance_type| match instance_type.as_ref() {
+                    LangType::Instance(instance) => {
+                        ctx.canonical_types.get(&instance.type_id).ok_or(anyhow!(
+                            "No canonical type found for {:?}",
+                            &instance.type_id
+                        ))
+                    }
+                    _ => Err(anyhow!("Can't construct a {instance_type:?}")),
+                })?;
+            let arity = canonical_type.fields().len() as u32;
+            procedure.write_instruction(
+                Instruction::Construct(ConstructInstruction { arity }),
+                Some(&expression.info),
+            )
+        }
+        LangType::Function(_) => procedure.write_instruction(
+            Instruction::CallFunction(CallFunctionInstruction {
+                arity: (expression.parameters.len() + 1) as u32,
             }),
             Some(&expression.info),
         ),

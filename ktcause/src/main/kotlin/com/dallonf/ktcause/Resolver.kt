@@ -170,7 +170,7 @@ object Resolver {
                             }
                         }
 
-                        is PipeCallExpression -> {
+                        is PipeCallExpressionNode -> {
                             track(INFERRED)
                             track(INFERRED, node.callee)
                             for (param in node.parameters) {
@@ -534,7 +534,7 @@ object Resolver {
                             resolveCall(node.callee.info.breadcrumbs, node.parameters.map { it.info.breadcrumbs })
                         }
 
-                        is PipeCallExpression -> {
+                        is PipeCallExpressionNode -> {
                             // TODO: it could be a warning to use this syntax where the first parameter isn't named "this" or "it"
                             resolveCall(node.callee.info.breadcrumbs,
                                 listOf(node.subject.info.breadcrumbs) + node.parameters.map { it.info.breadcrumbs })

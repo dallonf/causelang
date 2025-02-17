@@ -55,6 +55,9 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "signal",
     "callee",
     "parameters",
+    "subject",
+    "callee",
+    "parameters",
     "object_expression",
     "member_identifier",
     "identifier",
@@ -98,6 +101,7 @@ pub enum AnyAstNode {
     LoopExpression(Arc<LoopExpressionNode>),
     CauseExpression(Arc<CauseExpressionNode>),
     CallExpression(Arc<CallExpressionNode>),
+    PipeCallExpression(Arc<PipeCallExpressionNode>),
     MemberExpression(Arc<MemberExpressionNode>),
     IdentifierExpression(Arc<IdentifierExpressionNode>),
     StringLiteralExpression(Arc<StringLiteralExpressionNode>),
@@ -140,6 +144,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::LoopExpression(node) => node.children(),
             AnyAstNode::CauseExpression(node) => node.children(),
             AnyAstNode::CallExpression(node) => node.children(),
+            AnyAstNode::PipeCallExpression(node) => node.children(),
             AnyAstNode::MemberExpression(node) => node.children(),
             AnyAstNode::IdentifierExpression(node) => node.children(),
             AnyAstNode::StringLiteralExpression(node) => node.children(),
@@ -182,6 +187,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::LoopExpression(node) => node.info(),
             AnyAstNode::CauseExpression(node) => node.info(),
             AnyAstNode::CallExpression(node) => node.info(),
+            AnyAstNode::PipeCallExpression(node) => node.info(),
             AnyAstNode::MemberExpression(node) => node.info(),
             AnyAstNode::IdentifierExpression(node) => node.info(),
             AnyAstNode::StringLiteralExpression(node) => node.info(),
@@ -226,6 +232,7 @@ impl HasBreadcrumbs for AnyAstNode {
             AnyAstNode::LoopExpression(node) => node.breadcrumbs(),
             AnyAstNode::CauseExpression(node) => node.breadcrumbs(),
             AnyAstNode::CallExpression(node) => node.breadcrumbs(),
+            AnyAstNode::PipeCallExpression(node) => node.breadcrumbs(),
             AnyAstNode::MemberExpression(node) => node.breadcrumbs(),
             AnyAstNode::IdentifierExpression(node) => node.breadcrumbs(),
             AnyAstNode::StringLiteralExpression(node) => node.breadcrumbs(),
@@ -439,6 +446,7 @@ pub enum ExpressionNode {
     Loop(Arc<LoopExpressionNode>),
     Cause(Arc<CauseExpressionNode>),
     Call(Arc<CallExpressionNode>),
+    PipeCall(Arc<PipeCallExpressionNode>),
     Member(Arc<MemberExpressionNode>),
     Identifier(Arc<IdentifierExpressionNode>),
     StringLiteral(Arc<StringLiteralExpressionNode>),
@@ -456,6 +464,7 @@ impl AstNode for ExpressionNode {
             ExpressionNode::Loop(node) => node.children(),
             ExpressionNode::Cause(node) => node.children(),
             ExpressionNode::Call(node) => node.children(),
+            ExpressionNode::PipeCall(node) => node.children(),
             ExpressionNode::Member(node) => node.children(),
             ExpressionNode::Identifier(node) => node.children(),
             ExpressionNode::StringLiteral(node) => node.children(),
@@ -473,6 +482,7 @@ impl AstNode for ExpressionNode {
             ExpressionNode::Loop(node) => node.info(),
             ExpressionNode::Cause(node) => node.info(),
             ExpressionNode::Call(node) => node.info(),
+            ExpressionNode::PipeCall(node) => node.info(),
             ExpressionNode::Member(node) => node.info(),
             ExpressionNode::Identifier(node) => node.info(),
             ExpressionNode::StringLiteral(node) => node.info(),
@@ -497,6 +507,7 @@ impl From<ExpressionNode> for AnyAstNode {
             ExpressionNode::Loop(node) => AnyAstNode::LoopExpression(node),
             ExpressionNode::Cause(node) => AnyAstNode::CauseExpression(node),
             ExpressionNode::Call(node) => AnyAstNode::CallExpression(node),
+            ExpressionNode::PipeCall(node) => AnyAstNode::PipeCallExpression(node),
             ExpressionNode::Member(node) => AnyAstNode::MemberExpression(node),
             ExpressionNode::Identifier(node) => AnyAstNode::IdentifierExpression(node),
             ExpressionNode::StringLiteral(node) => AnyAstNode::StringLiteralExpression(node),
@@ -516,6 +527,7 @@ impl HasBreadcrumbs for ExpressionNode {
             ExpressionNode::Loop(node) => node.breadcrumbs(),
             ExpressionNode::Cause(node) => node.breadcrumbs(),
             ExpressionNode::Call(node) => node.breadcrumbs(),
+            ExpressionNode::PipeCall(node) => node.breadcrumbs(),
             ExpressionNode::Member(node) => node.breadcrumbs(),
             ExpressionNode::Identifier(node) => node.breadcrumbs(),
             ExpressionNode::StringLiteral(node) => node.breadcrumbs(),
@@ -1922,6 +1934,55 @@ impl AstNode for CallExpressionNode {
     }
 }
 impl HasBreadcrumbs for CallExpressionNode {
+    fn breadcrumbs(&self) -> &Breadcrumbs {
+        &self.info.breadcrumbs
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PipeCallExpressionNode {
+    pub info: NodeInfo,
+    pub subject: ExpressionNode,
+    pub callee: ExpressionNode,
+    pub parameters: Vec<Arc<FunctionCallParameterNode>>,
+}
+impl From<&PipeCallExpressionNode> for AnyAstNode {
+    fn from(value: &PipeCallExpressionNode) -> Self {
+        AnyAstNode::PipeCallExpression(Arc::new(value.to_owned()))
+    }
+}
+impl From<&Arc<PipeCallExpressionNode>> for AnyAstNode {
+    fn from(value: &Arc<PipeCallExpressionNode>) -> Self {
+        AnyAstNode::PipeCallExpression(value.clone())
+    }
+}
+impl From<Arc<PipeCallExpressionNode>> for AnyAstNode {
+    fn from(value: Arc<PipeCallExpressionNode>) -> Self {
+        AnyAstNode::PipeCallExpression(value.clone())
+    }
+}
+impl AstNode for PipeCallExpressionNode {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("subject"),
+            (&self.subject).into(),
+        );
+        result.insert(
+            BreadcrumbName::new("callee"),
+            (&self.callee).into(),
+        );
+        result.insert(
+            BreadcrumbName::new("parameters"),
+            (&self.parameters).into(),
+        );
+        result
+    }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
+}
+impl HasBreadcrumbs for PipeCallExpressionNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.info.breadcrumbs
     }

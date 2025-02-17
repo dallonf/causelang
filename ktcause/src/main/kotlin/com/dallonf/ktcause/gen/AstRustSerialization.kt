@@ -52,6 +52,7 @@ object AstRustSerialization {
             is LoopExpressionNode -> buildJsonObject { put("Loop", serializeLoopExpression(node)) }
             is CauseExpressionNode -> buildJsonObject { put("Cause", serializeCauseExpression(node)) }
             is CallExpressionNode -> buildJsonObject { put("Call", serializeCallExpression(node)) }
+            is PipeCallExpressionNode -> buildJsonObject { put("PipeCall", serializePipeCallExpression(node)) }
             is MemberExpressionNode -> buildJsonObject { put("Member", serializeMemberExpression(node)) }
             is IdentifierExpressionNode -> buildJsonObject { put("Identifier", serializeIdentifierExpression(node)) }
             is StringLiteralExpressionNode -> buildJsonObject { put("StringLiteral", serializeStringLiteralExpression(node)) }
@@ -315,6 +316,15 @@ object AstRustSerialization {
     fun serializeCallExpression(node: CallExpressionNode): JsonElement {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
+            put("callee", serializeExpression(node.callee))
+            put("parameters", JsonArray(node.parameters.map { serializeFunctionCallParameter(it) }))
+        }
+    }
+
+    fun serializePipeCallExpression(node: PipeCallExpressionNode): JsonElement {
+        return buildJsonObject {
+            put("info", RustSerialization.serializeNodeInfo(node.info))
+            put("subject", serializeExpression(node.subject))
             put("callee", serializeExpression(node.callee))
             put("parameters", JsonArray(node.parameters.map { serializeFunctionCallParameter(it) }))
         }

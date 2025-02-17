@@ -453,7 +453,7 @@ object Compiler {
 
             is CallExpressionNode -> compileCallExpression(expression, procedure, ctx)
             is MemberExpressionNode -> compileMemberExpression(expression, procedure, ctx)
-            is PipeCallExpression -> compilePipeCallExpression(expression, procedure, ctx)
+            is PipeCallExpressionNode -> compilePipeCallExpression(expression, procedure, ctx)
 
             is IdentifierExpressionNode -> compileIdentifierExpression(expression, procedure, ctx)
             is StringLiteralExpressionNode -> procedure.writeLiteral(
@@ -836,7 +836,7 @@ object Compiler {
     }
 
     private fun compilePipeCallExpression(
-        expression: PipeCallExpression, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
+        expression: PipeCallExpressionNode, procedure: CompiledFile.MutableProcedure, ctx: CompilerContext
     ) {
         // TODO: pretty much all of this is the same as compileCallExpression
         compileExpression(expression.subject, procedure, ctx)

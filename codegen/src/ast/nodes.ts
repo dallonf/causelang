@@ -266,6 +266,15 @@ export const nodes: NodeDeclaration[] = [
     },
   },
   {
+    name: "PipeCallExpression",
+    category: "Expression",
+    fields: {
+      subject: "Expression",
+      callee: "Expression",
+      parameters: listOf("FunctionCallParameter"),
+    },
+  },
+  {
     name: "MemberExpression",
     category: "Expression",
     fields: {

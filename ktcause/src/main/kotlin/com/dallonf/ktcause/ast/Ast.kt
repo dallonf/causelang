@@ -474,11 +474,9 @@ data class CallExpressionNode(
         put("callee", callee)
         put("parameters", parameters)
     }
-
-
 }
 
-data class PipeCallExpression(
+data class PipeCallExpressionNode(
     override val info: NodeInfo,
     val subject: ExpressionNode,
     val callee: ExpressionNode,
