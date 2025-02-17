@@ -47,7 +47,7 @@ class VariablesTest {
                     "position": {
                         "path": "project/test.cau",
                         "breadcrumbs": "declarations.1.body.statements.1",
-                        "position": "3:4-3:13"
+                        "position": "3:4-3:14"
                     },
                     "error": {
                         "#type": "NotVariable"
@@ -66,7 +66,7 @@ class VariablesTest {
                     "#type": "SourcePosition",
                     "path": "project/test.cau",
                     "breadcrumbs": "declarations.1.body.statements.1",
-                    "position": "3:4-3:13"
+                    "position": "3:4-3:14"
                 },
                 "error": {
                     "#type": "NotVariable"
@@ -100,7 +100,7 @@ class VariablesTest {
                     "position": {
                         "path": "project/test.cau",
                         "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression.signal.parameters.0.value",
-                        "position": "4:20-4:21"
+                        "position": "4:21-4:22"
                     },
                     "error": {
                         "#type": "OuterVariable"
@@ -159,7 +159,7 @@ class VariablesTest {
                     "position": {
                         "path": "project/test.cau",
                         "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0",
-                        "position": "4:8-4:17"
+                        "position": "4:8-4:18"
                     },
                     "error": {
                         "#type": "OuterVariable"
@@ -178,7 +178,7 @@ class VariablesTest {
                     "#type": "SourcePosition",
                     "path": "project/test.cau",
                     "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0",
-                    "position": "4:8-4:17"
+                    "position": "4:8-4:18"
                 },
                 "error": {
                     "#type": "OuterVariable"

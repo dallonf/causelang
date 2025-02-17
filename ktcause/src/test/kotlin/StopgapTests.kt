@@ -11,23 +11,23 @@ class StopgapTests {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                import core/stopgap/collections (Dictionary, get_item, with_item_at_key, without_key, list_entries)
+                #import core/stopgap/collections (Dictionary, get_item, with_item_at_key, without_key, list_entries)
                 
-                function main() {
-                    let dictionary = Dictionary()
-                    let dictionary = with_item_at_key(dictionary, "batman", "Bruce Wayne")
-                    cause Debug(get_item(dictionary, "batman"))
-                    cause Debug(get_item(dictionary, "superman"))
+                #function main() {
+                    #let dictionary = Dictionary()
+                    #let dictionary = with_item_at_key(dictionary, "batman", "Bruce Wayne")
+                    #cause Debug(get_item(dictionary, "batman"))
+                    #cause Debug(get_item(dictionary, "superman"))
                     
-                    let dictionary = with_item_at_key(dictionary, "spider-man", "Peter Parker")
-                    cause Debug(get_item(dictionary, "spider-man"))
-                    let dictionary = with_item_at_key(dictionary, "spider-man", "Miles Morales")
-                    cause Debug(get_item(dictionary, "spider-man"))
+                    #let dictionary = with_item_at_key(dictionary, "spider-man", "Peter Parker")
+                    #cause Debug(get_item(dictionary, "spider-man"))
+                    #let dictionary = with_item_at_key(dictionary, "spider-man", "Miles Morales")
+                    #cause Debug(get_item(dictionary, "spider-man"))
                     
-                    let dictionary = with_item_at_key(dictionary, "flash", "Barry Allen")
-                    let dictionary = without_key(dictionary, "spider-man")
+                    #let dictionary = with_item_at_key(dictionary, "flash", "Barry Allen")
+                    #let dictionary = without_key(dictionary, "spider-man")
                     
-                    cause Debug(list_entries(dictionary))
+                    #cause Debug(list_entries(dictionary))
                 }
                 """.trimIndent()
             )
@@ -74,29 +74,29 @@ class StopgapTests {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/stopgap/collections (List, count, at_index, nth, nth_last, append, with_item_at_index, with_nth_item, insert_at_index, insert_nth_item)
+                    #import core/stopgap/collections (List, count, at_index, nth, nth_last, append, with_item_at_index, with_nth_item, insert_at_index, insert_nth_item)
                     
-                    signal ExpectEqual(expected: Anything, actual: Anything): Action
+                    #signal ExpectEqual(expected: Anything, actual: Anything): Action
                     
-                    function main() {
-                        let list = List()
-                        let list = list>>append("hello")>>append("world")
-                        cause ExpectEqual(2, list>>count())
-                        cause ExpectEqual("hello", list>>nth(1))
-                        cause ExpectEqual("world", list>>at_index(1))
+                    #function main() {
+                        #let list = List()
+                        #let list = list>>append("hello")>>append("world")
+                        #cause ExpectEqual(2, list>>count())
+                        #cause ExpectEqual("hello", list>>nth(1))
+                        #cause ExpectEqual("world", list>>at_index(1))
                         
-                        let list = list>>insert_at_index(1, "there")
-                        cause ExpectEqual(3, list>>count()) // hello there world
-                        cause ExpectEqual("there", list>>nth_last(2))
-                        cause ExpectEqual("world", list>>nth_last(1))
+                        #let list = list>>insert_at_index(1, "there")
+                        #cause ExpectEqual(3, list>>count()) // hello there world
+                        #cause ExpectEqual("there", list>>nth_last(2))
+                        #cause ExpectEqual("world", list>>nth_last(1))
                         
-                        let list = list>>insert_nth_item(1, "oh") // oh hello there world
-                        cause ExpectEqual(4, list>>count()) // hello there world
-                        cause ExpectEqual("oh", list>>nth(1))
-                        cause ExpectEqual("hello", list>>nth(2))
+                        #let list = list>>insert_nth_item(1, "oh") // oh hello there world
+                        #cause ExpectEqual(4, list>>count()) // hello there world
+                        #cause ExpectEqual("oh", list>>nth(1))
+                        #cause ExpectEqual("hello", list>>nth(2))
                         
-                        let list = list>>with_nth_item(2, "hi")>>with_item_at_index(3, "universe")
-                        cause ExpectEqual(
+                        #let list = list>>with_nth_item(2, "hi")>>with_item_at_index(3, "universe")
+                        #cause ExpectEqual(
                             List()>>append("oh")>>append("hi")>>append("there")>>append("universe"),
                             list,
                         )

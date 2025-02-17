@@ -114,7 +114,7 @@ class OptionsAndUniqueObjects {
                     "position": {
                         "path": "project/test.cau",
                         "breadcrumbs": "declarations.3.body.statements.1.declaration.value",
-                        "position": "6:23-6:28"
+                        "position": "6:24-6:29"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -207,7 +207,7 @@ class OptionsAndUniqueObjects {
                     "position": {
                         "path": "project/test.cau",
                         "breadcrumbs": "declarations.4.body.statements.0.declaration.value",
-                        "position": "10:26-10:27"
+                        "position": "10:27-10:28"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -249,7 +249,7 @@ class OptionsAndUniqueObjects {
                     "#type": "SourcePosition",
                     "path": "project/test.cau",
                     "breadcrumbs": "declarations.4.body.statements.0.declaration.value",
-                    "position": "10:26-10:27"
+                    "position": "10:27-10:28"
                 },
                 "error": {
                     "#type": "MismatchedType",
@@ -317,7 +317,7 @@ class OptionsAndUniqueObjects {
                     #signal UniqueSignal: Action
                     
                     #function main() {
-                        #effect for UniqueSignal as s {
+                        #effect #for UniqueSignal #as s {
                             #cause Debug("unique signal intercepted")
                             #cause s
                         }

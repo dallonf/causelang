@@ -20,21 +20,21 @@ internal class ErrorHandlingBasicTest {
 
         assertEquals(
             """
-                [
-                    {
-                        "position": {
-                            "path": "project/hello.cau",
-                            "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
-                            "position": "2:10-2:17"
-                        },
-                        "error": {
-                            "#type": "MissingParameters",
-                            "names": [
-                                "value"
-                            ]
-                        }
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
+                        "position": "2:11-2:18"
+                    },
+                    "error": {
+                        "#type": "MissingParameters",
+                        "names": [
+                            "value"
+                        ]
                     }
-                ]
+                }
+            ]
             """.trimIndent(),
             vm.codeBundle.compileErrors.debug(),
         )
@@ -49,7 +49,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.1.body.statements.0.expression.signal",
-                    "position": "2:10-2:17"
+                    "position": "2:11-2:18"
                 },
                 "error": {
                     "#type": "MissingParameters",
@@ -84,7 +84,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.2.body.statements.0.expression.signal.parameters.0",
-                        "position": "4:21-4:22"
+                        "position": "4:22-4:23"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -114,7 +114,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.2.body.statements.0.expression.signal.parameters.0",
-                    "position": "4:21-4:22"
+                    "position": "4:22-4:23"
                 },
                 "error": {
                     "#type": "MismatchedType",
@@ -230,7 +230,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body.statements.0.expression",
-                        "position": "2:4-2:16"
+                        "position": "2:4-2:17"
                     },
                     "error": {
                         "#type": "NotCausable"
@@ -250,7 +250,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.1.body.statements.0.expression",
-                    "position": "2:4-2:16"
+                    "position": "2:4-2:17"
                 },
                 "error": {
                     "#type": "NotCausable"
@@ -279,7 +279,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body.statements.0.expression.signal.callee",
-                        "position": "2:8-2:19"
+                        "position": "2:9-2:20"
                     },
                     "error": {
                         "#type": "NotInScope"
@@ -307,7 +307,7 @@ internal class ErrorHandlingBasicTest {
             addFile(
                 "project/hello.cau", """
                     #function main() {
-                        let name: Text = 5
+                        #let name: Text = 5
                     }
                 """.trimIndent()
             )
@@ -319,7 +319,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body.statements.0.declaration.value",
-                        "position": "2:21-2:22"
+                        "position": "2:22-2:23"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -363,7 +363,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body",
-                        "position": "1:24-3:1"
+                        "position": "1:25-3:1"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -394,7 +394,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.1.body",
-                    "position": "1:24-3:1"
+                    "position": "1:25-3:1"
                 },
                 "error": {
                     "#type": "MismatchedType",
@@ -452,15 +452,15 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """                    
-                    option MainReturn(Number, Text)
-                    object NotThat
-                    object OrThat
+                    #option MainReturn(Number, Text)
+                    #object NotThat
+                    #object OrThat
                     
                     #function main(): MainReturn {
-                        branch {
-                            if equals(2, 2) => return NotThat
-                            if equals(1, 2) => return OrThat
-                            else => "maybe"
+                        #branch {
+                            #if equals(2, 2) => #return NotThat
+                            #if equals(1, 2) => #return OrThat
+                            #else => "maybe"
                         }
                     }
                 """.trimIndent()
@@ -473,7 +473,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.4.body.statements.0.expression.branches.0.body.statement.expression.value",
-                        "position": "7:34-7:41"
+                        "position": "7:36-7:43"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -511,7 +511,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.4.body.statements.0.expression.branches.1.body.statement.expression.value",
-                        "position": "8:34-8:40"
+                        "position": "8:36-8:42"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -558,7 +558,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.4.body.statements.0.expression.branches.0.body.statement.expression.value",
-                    "position": "7:34-7:41"
+                    "position": "7:36-7:43"
                 },
                 "error": {
                     "#type": "MismatchedType",
@@ -602,7 +602,7 @@ internal class ErrorHandlingBasicTest {
             addFile(
                 "project/hello.cau", """                    
                     #function main() {
-                        let test = fn(): Number "not a number"
+                        #let test = #fn(): Number "not a number"
                         test()
                     }
                 """.trimIndent()
@@ -615,7 +615,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body",
-                        "position": "2:28-2:42"
+                        "position": "2:30-2:44"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -644,7 +644,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body",
-                    "position": "2:28-2:42"
+                    "position": "2:30-2:44"
                 },
                 "error": {
                     "#type": "MismatchedType",
@@ -670,8 +670,8 @@ internal class ErrorHandlingBasicTest {
             addFile(
                 "project/hello.cau", """                    
                     #function main() {
-                        let test = fn(): Number {
-                            return "not a number"
+                        #let test = #fn(): Number {
+                            #return "not a number"
                         }
                         test()
                     }
@@ -685,7 +685,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body.block.statements.0.expression.value",
-                        "position": "3:15-3:29"
+                        "position": "3:16-3:30"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -714,7 +714,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body.block.statements.0.expression.value",
-                    "position": "3:15-3:29"
+                    "position": "3:16-3:30"
                 },
                 "error": {
                     "#type": "MismatchedType",
@@ -739,9 +739,9 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """
-                    object Nothing
-                    object Wrapped(next: MaybeWrapped)
-                    option MaybeWrapped(Nothing, Wrapped)
+                    #object Nothing
+                    #object Wrapped(next: MaybeWrapped)
+                    #option MaybeWrapped(Nothing, Wrapped)
                     
                     #function maybe_wrap(): MaybeWrapped {
                         "nah"
@@ -756,7 +756,7 @@ internal class ErrorHandlingBasicTest {
                     "position": {
                         "path": "project/hello.cau",
                         "breadcrumbs": "declarations.4.body",
-                        "position": "5:36-7:1"
+                        "position": "5:37-7:1"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -845,7 +845,7 @@ internal class ErrorHandlingBasicTest {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
                     "breadcrumbs": "declarations.1.body",
-                    "position": "1:16-3:1"
+                    "position": "1:17-3:1"
                 },
                 "error": {
                     "#type": "ProxyError",

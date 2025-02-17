@@ -8,12 +8,12 @@ class TextTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/text ( count_characters )
+                    #import core/text ( count_characters )
                     
-                    function main() {
-                        cause Debug(count_characters("howdy"))
-                        cause Debug(count_characters("😀"))
-                        cause Debug(count_characters("👨‍👩‍👧‍👦"))
+                    #function main() {
+                        #cause Debug(count_characters("howdy"))
+                        #cause Debug(count_characters("😀"))
+                        #cause Debug(count_characters("👨‍👩‍👧‍👦"))
                     }
                 """.trimIndent()
             )
@@ -33,15 +33,15 @@ class TextTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/text ( slice_index, slice_nth )
+                    #import core/text ( slice_index, slice_nth )
                     
-                    function main() {
-                        cause Debug(slice_index("hello world", 0, 5))
-                        cause Debug(slice_nth("hello world", 1, 5))
-                        cause Debug(slice_index("earth", 1, 4))
-                        cause Debug(slice_nth("earth", 2, 4))
-                        cause Debug(slice_index("🤣😂😁", 1, 2))
-                        cause Debug(slice_nth("🤣😂😁", 2, 2))
+                    #function main() {
+                        #cause Debug(slice_index("hello world", 0, 5))
+                        #cause Debug(slice_nth("hello world", 1, 5))
+                        #cause Debug(slice_index("earth", 1, 4))
+                        #cause Debug(slice_nth("earth", 2, 4))
+                        #cause Debug(slice_index("🤣😂😁", 1, 2))
+                        #cause Debug(slice_nth("🤣😂😁", 2, 2))
                     }
                 """.trimIndent()
             )

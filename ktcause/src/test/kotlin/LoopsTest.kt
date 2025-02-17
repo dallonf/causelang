@@ -76,7 +76,7 @@ class LoopsTest {
                     "position": {
                         "path": "project/test.cau",
                         "breadcrumbs": "declarations.2.body.statements.1.expression.body.statements.1.declaration.body.statements.0.expression.branches.0.body.statement.expression",
-                        "position": "10:37-10:42"
+                        "position": "10:38-10:44"
                     },
                     "error": {
                         "#type": "CannotBreakHere"
@@ -105,7 +105,7 @@ class LoopsTest {
                             
                             #set i = add(i, 1)
                             
-                            #effect for BreakMainLoop {
+                            #effect #for BreakMainLoop {
                                 #break
                             }
                             
@@ -217,9 +217,9 @@ class LoopsTest {
                         #let #variable currentWrapper = wrapper 
                         #let inner = #loop {
                             #set count = add(count, 1)
-                            #branch with currentWrapper.item {
-                                #is Number as number => #break with number
-                                #is Wrapper as wrapper => #set currentWrapper = wrapper
+                            #branch #with currentWrapper.item {
+                                #is Number #as number => #break #with number
+                                #is Wrapper #as wrapper => #set currentWrapper = wrapper
                             }
                         }
                         #cause Debug(inner)

@@ -16,9 +16,9 @@ class CommentsTest {
                      * probably not how inline docs would actually work
                      * but it should work syntactically
                      */
-                    function main() {
+                    #function main() {
                         // more comments
-                        cause Debug(/* inline comment */ "Hello world!")
+                        #cause Debug(/* inline comment */ "Hello world!")
                         // even more
                     }
                 """.trimIndent()

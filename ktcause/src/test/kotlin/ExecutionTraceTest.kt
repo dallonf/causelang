@@ -8,19 +8,19 @@ class ExecutionTraceTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    function x() {
+                    #function x() {
                         y()
                     }
                     
-                    function y() {
+                    #function y() {
                         z()
                     }
                     
-                    function z() {
-                        cause AssumptionBroken("Kaboom!")
+                    #function z() {
+                        #cause AssumptionBroken("Kaboom!")
                     }
                     
-                    function main() {
+                    #function main() {
                         x()
                     }
                 """.trimIndent()

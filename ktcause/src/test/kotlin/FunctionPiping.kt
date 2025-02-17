@@ -11,9 +11,9 @@ class FunctionPiping {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/text (append, number_to_text)
+                    #import core/text (append, number_to_text)
                     
-                    function main(name: Text, favorite_number: Number) {
+                    #function main(name: Text, favorite_number: Number) {
                         "hello">>append(", ")>>append(name)>>append("!")
                             >>append(" ")
                             >>append("My favorite number is")
@@ -39,13 +39,13 @@ class FunctionPiping {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/text (append, number_to_text)
+                    #import core/text (append, number_to_text)
                     
-                    function append_number(it: Text, number: Number) {
+                    #function append_number(it: Text, number: Number) {
                         it>>append(number>>number_to_text())
                     }
                     
-                    function main() {
+                    #function main() {
                         "hello, ">>append_number(42)                        
                     }
                 """.trimIndent()
@@ -64,13 +64,13 @@ class FunctionPiping {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/text (append, number_to_text)
+                    #import core/text (append, number_to_text)
                     
-                    function exclaim(it: Text) {
+                    #function exclaim(it: Text) {
                         it>>append("!")
                     }
                     
-                    function main() {
+                    #function main() {
                         "hello">>exclaim()                        
                     }
                 """.trimIndent()
@@ -89,7 +89,7 @@ class FunctionPiping {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """                 
-                    function main() {
+                    #function main() {
                         "hello">>greet("world")
                     }
                 """.trimIndent()
@@ -124,13 +124,13 @@ class FunctionPiping {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/text (append)
+                    #import core/text (append)
                     
-                    function greet(it: Text) {
+                    #function greet(it: Text) {
                         "Hello, ">>append(it)
                     }
                     
-                    function main() {
+                    #function main() {
                         42>>greet()
                     }
                 """.trimIndent()
@@ -203,13 +203,13 @@ class FunctionPiping {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    object SomeType(value: Text)
+                    #object SomeType(value: Text)
                     
-                    function print_some_type(some_type: SomeType) {
-                        cause Debug(some_type.value)
+                    #function print_some_type(some_type: SomeType) {
+                        #cause Debug(some_type.value)
                     }
                     
-                    function main() {
+                    #function main() {
                         SomeType>>print_some_type()
                     }
                 """.trimIndent()

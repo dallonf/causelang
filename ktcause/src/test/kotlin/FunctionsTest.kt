@@ -264,8 +264,8 @@ class FunctionsTest {
                     }
                                     
                     #function main() {
-                        single_map(1, fn(it: Number) add(it, 2))
-                        single_map(2, fn(it: Number) multiply(it, 2))
+                        single_map(1, #fn(it: Number) add(it, 2))
+                        single_map(2, #fn(it: Number) multiply(it, 2))
                     }
                 """.trimIndent()
             )
@@ -289,7 +289,7 @@ class FunctionsTest {
                     }
                                     
                     #function main() {
-                        single_map(1, fn(x: Number) add(x, 2))
+                        single_map(1, #fn(x: Number) add(x, 2))
                     }
                 """.trimIndent()
             )
@@ -309,7 +309,7 @@ class FunctionsTest {
                     #import core/math (add)
                                     
                     #function main() {
-                        let func: Function(it: Number): Anything = fn(it: Number) add(it, 1) 
+                        #let func: Function(it: Number): Anything = #fn(it: Number) add(it, 1) 
                         func(2)
                     }
                 """.trimIndent()
@@ -328,8 +328,8 @@ class FunctionsTest {
             addFile(
                 "project/test.cau", """
                     #function main() {
-                        non_existent(3, fn() {
-                            cause Debug("oh no")
+                        non_existent(3, #fn() {
+                            #cause Debug("oh no")
                         })
                     }
                 """.trimIndent()
@@ -364,15 +364,15 @@ class FunctionsTest {
                     
                     #function count_down(number: Number): Number {
                         #cause Debug(number)
-                        branch {
-                            if equals(number, 0) => number
-                            else => count_down(subtract(number, 1))
+                        #branch {
+                            #if equals(number, 0) => number
+                            #else => count_down(subtract(number, 1))
                         }
                     }
                     
                     #function main() {
-                        let result: Number = count_down(3)
-                        cause Debug(result)
+                        #let result: Number = count_down(3)
+                        #cause Debug(result)
                     }
                 """.trimIndent()
             )
@@ -400,17 +400,17 @@ class FunctionsTest {
                     #function count_down_from_3(): Number {
                         #function count_down(number: Number): Number {
                             #cause Debug(number)
-                            branch {
-                                if equals(number, 0) => number
-                                else => count_down(subtract(number, 1))
+                            #branch {
+                                #if equals(number, 0) => number
+                                #else => count_down(subtract(number, 1))
                             }
                         }
                         count_down(3)
                     }
                     
                     #function main() {
-                        let result = count_down_from_3()
-                        cause Debug(result)
+                        #let result = count_down_from_3()
+                        #cause Debug(result)
                     }
                 """.trimIndent()
             )
@@ -434,15 +434,15 @@ class FunctionsTest {
             addFile(
                 "project/test.cau", """
                     #function main() {
-                        function x(done: TrueOrFalse): Action {
-                            cause Debug("x")
-                            function y(done: TrueOrFalse): Action {
-                                cause Debug("y")
-                                function z(done: TrueOrFalse): Action {
-                                    cause Debug("z")
-                                    branch {
-                                        if done => {}
-                                        else => x(True)
+                        #function x(done: TrueOrFalse): Action {
+                            #cause Debug("x")
+                            #function y(done: TrueOrFalse): Action {
+                                #cause Debug("y")
+                                #function z(done: TrueOrFalse): Action {
+                                    #cause Debug("z")
+                                    #branch {
+                                        #if done => {}
+                                        #else => x(True)
                                     }
                                 }
                                 z(done)
@@ -468,35 +468,35 @@ class FunctionsTest {
             addFile(
                 "project/test.cau", """
                     #function as_number(this: Anything) {
-                      branch with this {
-                        is Number as this => return this
-                        else => cause AssumptionBroken("expected number")
+                      #branch #with this {
+                        #is Number #as this => #return this
+                        #else => #cause AssumptionBroken("expected number")
                       } 
                     }
                     
                     #function as_number_with_explicit_type(this: Anything): Number {
-                      branch with this {
-                        is Number as this => return this
-                        else => cause AssumptionBroken("expected number")
+                      #branch #with this {
+                        #is Number #as this => #return this
+                        #else => #cause AssumptionBroken("expected number")
                       } 
                     }
                     
                     #function as_number_without_early_return(this: Anything) {
-                      branch with this {
-                        is Number as this => this
-                        else => cause AssumptionBroken("expected number")
+                      #branch #with this {
+                        #is Number #as this => this
+                        #else => #cause AssumptionBroken("expected number")
                       } 
                     }
                     
                     #function as_number_without_early_return_and_with_explicit_type(this: Anything): Number {
-                      branch with this {
-                        is Number as this => this
-                        else => cause AssumptionBroken("expected number")
+                      #branch #with this {
+                        #is Number #as this => this
+                        #else => #cause AssumptionBroken("expected number")
                       } 
                     }
                     
                     #function log_number(it: Number) {
-                        cause(Debug(it))
+                        #cause(Debug(it))
                     }
                     
                     #function main() {
@@ -526,36 +526,36 @@ class FunctionsTest {
             addFile(
                 "project/test.cau", """
                     #function log_if_number(this: Anything) {
-                      branch with this {
-                        is Number as this => {
-                            cause Debug(this)
-                            return
+                      #branch #with this {
+                        #is Number #as this => {
+                            #cause Debug(this)
+                            #return
                         }
-                        else => cause AssumptionBroken("expected number")
+                        #else => #cause AssumptionBroken("expected number")
                       } 
                     }
                     
                     #function log_if_number_with_explicit_type(this: Anything): Action {
-                      branch with this {
-                        is Number as this => {
-                            cause Debug(this)
-                            return
+                      #branch #with this {
+                        #is Number #as this => {
+                            #cause Debug(this)
+                            #return
                         }
-                        else => cause AssumptionBroken("expected number")
+                        #else => #cause AssumptionBroken("expected number")
                       } 
                     }
                     
                     #function log_if_number_without_early_return(this: Anything) {
-                      branch with this {
-                        is Number as this => cause Debug(this)
-                        else => cause AssumptionBroken("expected number")
+                      #branch #with this {
+                        #is Number #as this => #cause Debug(this)
+                        #else => #cause AssumptionBroken("expected number")
                       } 
                     }
                     
                     #function log_if_number_without_early_return_and_with_explicit_type(this: Anything): Action {
-                      branch with this {
-                        is Number as this => cause Debug(this)
-                        else => cause AssumptionBroken("expected number")
+                      #branch #with this {
+                        #is Number #as this => #cause Debug(this)
+                        #else => #cause AssumptionBroken("expected number")
                       } 
                     }
                     

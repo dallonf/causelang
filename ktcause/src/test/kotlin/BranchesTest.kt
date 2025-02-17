@@ -269,12 +269,12 @@ class BranchesTest {
                             {
                                 "path": "project/test.cau",
                                 "breadcrumbs": "declarations.7.body.statements.0.expression.branches.1",
-                                "position": "15:8-15:46"
+                                "position": "15:8-15:48"
                             },
                             {
                                 "path": "project/test.cau",
                                 "breadcrumbs": "declarations.7.body.statements.0.expression.branches.3",
-                                "position": "17:8-17:40"
+                                "position": "17:8-17:42"
                             }
                         ],
                         "types": [
@@ -286,7 +286,7 @@ class BranchesTest {
                                 "position": {
                                     "path": "project/test.cau",
                                     "breadcrumbs": "declarations.7.body.statements.0.expression.branches.0",
-                                    "position": "14:8-14:29"
+                                    "position": "14:8-14:30"
                                 }
                             },
                             {
@@ -297,7 +297,7 @@ class BranchesTest {
                                 "position": {
                                     "path": "project/test.cau",
                                     "breadcrumbs": "declarations.7.body.statements.0.expression.branches.2",
-                                    "position": "16:8-16:29"
+                                    "position": "16:8-16:30"
                                 }
                             }
                         ]

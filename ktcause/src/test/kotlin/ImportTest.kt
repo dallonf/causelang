@@ -80,7 +80,7 @@ class ImportTest {
                     "position": {
                         "path": "project/a.cau",
                         "breadcrumbs": "declarations.1.mappings.0",
-                        "position": "1:19-1:27"
+                        "position": "1:20-1:28"
                     },
                     "error": {
                         "#type": "FileNotFound"
@@ -90,7 +90,7 @@ class ImportTest {
                     "position": {
                         "path": "project/test.cau",
                         "breadcrumbs": "declarations.1.mappings.0",
-                        "position": "1:18-1:31"
+                        "position": "1:19-1:32"
                     },
                     "error": {
                         "#type": "FileNotFound"
@@ -197,7 +197,7 @@ class ImportTest {
                     "position": {
                         "path": "project/inner/a.cau",
                         "breadcrumbs": "declarations.1.mappings.0",
-                        "position": "1:24-1:27"
+                        "position": "1:25-1:28"
                     },
                     "error": {
                         "#type": "ImportPathInvalid"
@@ -207,7 +207,7 @@ class ImportTest {
                     "position": {
                         "path": "project/inner/a.cau",
                         "breadcrumbs": "declarations.2.mappings.0",
-                        "position": "2:28-2:32"
+                        "position": "2:29-2:33"
                     },
                     "error": {
                         "#type": "ImportPathInvalid"
@@ -217,7 +217,7 @@ class ImportTest {
                     "position": {
                         "path": "project/test.cau",
                         "breadcrumbs": "declarations.1.mappings.0",
-                        "position": "1:21-1:29"
+                        "position": "1:22-1:30"
                     },
                     "error": {
                         "#type": "ImportPathInvalid"
@@ -233,7 +233,7 @@ class ImportTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    #import core/text (append as append_text)
+                    #import core/text (append #as append_text)
                     
                     #function append() {
                         #cause Debug("append function")
