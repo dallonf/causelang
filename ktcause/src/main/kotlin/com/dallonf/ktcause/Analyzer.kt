@@ -96,10 +96,6 @@ sealed class NodeTag {
         override fun inverse(breadcrumbs: Breadcrumbs) = Pair(loop, LoopBreaksAt(breakExpression = breadcrumbs))
     }
 
-    object ReferenceNotInScope : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
     data class DeclarationForScope(val scope: Breadcrumbs) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) =
             Pair(scope, ScopeContainsDeclaration(declaration = breadcrumbs))
@@ -110,10 +106,6 @@ sealed class NodeTag {
     }
 
     data class TopLevelDeclaration(val name: String) : NodeTag() {
-        override fun inverse(breadcrumbs: Breadcrumbs) = null
-    }
-
-    data class ParameterForCall(val callExpression: Breadcrumbs, val index: UInt) : NodeTag() {
         override fun inverse(breadcrumbs: Breadcrumbs) = null
     }
 
@@ -254,8 +246,6 @@ object Analyzer {
                     if (scopeItem is CapturedValueScopeItem) {
                         captureValue(scopeItem.origin, typeReference.info.breadcrumbs, output, ctx)
                     }
-                } else {
-                    output.addTag(typeReference.info.breadcrumbs, NodeTag.ReferenceNotInScope)
                 }
             }
 
@@ -563,9 +553,7 @@ object Analyzer {
     ) {
         analyzeExpression(statementNode.expression, output, ctx)
         val variable = ctx.currentScope.items[statementNode.identifier.text]
-        if (variable == null) {
-            output.addTag(statementNode.info.breadcrumbs, NodeTag.ReferenceNotInScope)
-        } else {
+        if (variable != null) {
             output.addTag(statementNode.info.breadcrumbs, NodeTag.SetsVariable(variable.origin))
             if (variable is CapturedValueScopeItem) {
                 output.addTag(statementNode.info.breadcrumbs, NodeTag.UsesCapturedValue(ctx.currentFunction!!))
@@ -656,8 +644,6 @@ object Analyzer {
             if (foundItem is CapturedValueScopeItem) {
                 captureValue(foundItem.origin, expression.info.breadcrumbs, output, ctx)
             }
-        } else {
-            output.addTag(expression.info.breadcrumbs, NodeTag.ReferenceNotInScope)
         }
     }
 
@@ -674,10 +660,6 @@ object Analyzer {
 
         for ((i, parameterNode) in expression.parameters.withIndex()) {
             analyzeExpression(parameterNode.value, output, ctx)
-            output.addTag(
-                parameterNode.info.breadcrumbs,
-                NodeTag.ParameterForCall(expression.info.breadcrumbs, i.toUInt())
-            )
         }
     }
 
@@ -696,12 +678,6 @@ object Analyzer {
 
         for ((i, parameterNode) in expression.parameters.withIndex()) {
             analyzeExpression(parameterNode.value, output, ctx)
-            output.addTag(
-                parameterNode.info.breadcrumbs, NodeTag.ParameterForCall(
-                    expression.info.breadcrumbs,
-                    (i + 1).toUInt()
-                )
-            )
         }
     }
 

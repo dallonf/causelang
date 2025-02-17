@@ -965,7 +965,6 @@ fn compile_call_expression(
     procedure: &mut Procedure,
     ctx: &mut CompilerContext,
 ) -> Result<()> {
-    dbg!(&expression);
     compile_expression(&expression.callee, procedure, ctx)?;
 
     for param in &expression.parameters {
@@ -987,10 +986,7 @@ fn compile_call_expression(
         .cloned()
         .ok_or_else(|| anyhow!("No type for callee at {}", expression.callee.breadcrumbs()))?;
 
-    dbg!(&callee_type);
-
     let runtime_errors = ctx.check_for_badtype_error(expression.breadcrumbs())?;
-    dbg!(&runtime_errors);
 
     let error_preventing_call = runtime_errors
         .and_then(|runtime_errors| {
