@@ -44,12 +44,12 @@ class IoTest {
             addCompiledFile(ioFile())
             addFile(
                 "project/test.cau", """
-                    import core/text ( append )
-                    import test/io ( Print, Prompt )
+                    #import core/text ( append )
+                    #import test/io ( Print, Prompt )
                 
-                    function main() {
-                        cause Print("What is your name?")
-                        cause Print(append("Hello, ", cause Prompt()))
+                    #function main() {
+                        #cause Print("What is your name?")
+                        #cause Print(append("Hello, ", #cause Prompt()))
                     }
                 """.trimIndent()
             )
@@ -101,13 +101,13 @@ class IoTest {
             addCompiledFile(ioFile())
             addFile(
                 "project/test.cau", """
-                import core/text ( append )
-                import test/io ( Print, Prompt )
+                #import core/text ( append )
+                #import test/io ( Print, Prompt )
                 
-                function main() {
-                   cause Print("What is your name?")
-                   let name = cause Prompt()
-                   cause Print(append("Hello, ", name))
+                #function main() {
+                   #cause Print("What is your name?")
+                   #let name = #cause Prompt()
+                   #cause Print(append("Hello, ", name))
                 }
             """.trimIndent()
             )
@@ -134,15 +134,15 @@ class IoTest {
             addCompiledFile(ioFile())
             addFile(
                 "project/test.cau", """
-                    import core/text ( append )
-                    import test/io ( Print, Prompt )
+                    #import core/text ( append )
+                    #import test/io ( Print, Prompt )
                     
-                    function main() {
-                      let greeting = {
-                        let name = cause Prompt()
+                    #function main() {
+                      #let greeting = {
+                        #let name = #cause Prompt()
                         append("Hello, ", name)
                       }
-                      cause Print(greeting)
+                      #cause Print(greeting)
                     }
                 """.trimIndent()
             )

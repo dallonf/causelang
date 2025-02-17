@@ -10,12 +10,12 @@ class ObjectTypesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                object Card(
+                #object Card(
                     suit: Text,
                     rank: Number,
                 )
                 
-                function main(): Card {
+                #function main(): Card {
                     Card("hearts", 3)
                 }
             """.trimIndent()
@@ -40,13 +40,13 @@ class ObjectTypesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    object Card(
+                    #object Card(
                         suit: Text,
                         rank: Number,
                     )
                     
-                    function main(): Text {
-                        let card = Card("spades", 7)
+                    #function main(): Text {
+                        #let card = Card("spades", 7)
                         card.suit
                     }
                 """.trimIndent()

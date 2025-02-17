@@ -12,10 +12,10 @@ class EarlyReturns {
             addFile(
                 "project/test.cau",
                 """
-                function main() {
-                    cause Debug("Should print")
-                    return
-                    cause Debug("Should not print")
+                #function main() {
+                    #cause Debug("Should print")
+                    #return
+                    #cause Debug("Should not print")
                 }
             """.trimIndent()
             )
@@ -31,26 +31,26 @@ class EarlyReturns {
             addFile(
                 "project/test.cau",
                 """
-                    import core/math ( add )
+                    #import core/math ( add )
                     
-                    object Nothing
-                    option MaybeNumber(Number, Nothing) 
+                    #object Nothing
+                    #option MaybeNumber(Number, Nothing) 
                     
-                    function main() {
-                        cause Debug(maybe_add(1.0, 2.0))
-                        cause Debug(maybe_add(1.0, Nothing))
-                        cause Debug(maybe_add(Nothing, 2.0))
-                        cause Debug(maybe_add(Nothing, Nothing))
+                    #function main() {
+                        #cause Debug(maybe_add(1.0, 2.0))
+                        #cause Debug(maybe_add(1.0, Nothing))
+                        #cause Debug(maybe_add(Nothing, 2.0))
+                        #cause Debug(maybe_add(Nothing, Nothing))
                     }
                     
-                    function maybe_add(this: MaybeNumber, other: MaybeNumber): MaybeNumber {
-                        let this = branch with this {
-                            is Nothing => return Nothing
-                            is Number as i => i
+                    #function maybe_add(this: MaybeNumber, other: MaybeNumber): MaybeNumber {
+                        #let this = #branch #with this {
+                            #is Nothing => #return Nothing
+                            #is Number #as i => i
                         }
-                        let other = branch with other {
-                            is Nothing => return Nothing
-                            is Number as i => i
+                        #let other = #branch #with other {
+                            #is Nothing => #return Nothing
+                            #is Number #as i => i
                         }
                         
                         add(this, other)
@@ -78,15 +78,15 @@ class EarlyReturns {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/text (append)
+                    #import core/text (append)
                     
-                    function main() {
-                        signal Return(result: Text): NeverContinues
-                        effect for Return as it {
-                            return it.result
+                    #function main() {
+                        #signal Return(result: Text): NeverContinues
+                        #effect #for Return #as it {
+                            #return it.result
                         }
                         
-                        cause Return("hello")
+                        #cause Return("hello")
                         "goodbye"
                     }
                 """.trimIndent()

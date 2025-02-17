@@ -11,10 +11,10 @@ class VariablesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    function main() {
-                        let variable x = 1
-                        set x = 2
-                        cause Debug(x)
+                    #function main() {
+                        #let #variable x = 1
+                        #set x = 2
+                        #cause Debug(x)
                     }
                 """.trimIndent()
             )
@@ -32,9 +32,9 @@ class VariablesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                function main() {
-                    let x = 1
-                    set x = 2
+                #function main() {
+                    #let x = 1
+                    #set x = 2
                 }
             """.trimIndent()
             )
@@ -81,12 +81,12 @@ class VariablesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                function main() {
-                    let variable x = 1
-                    function read() {
-                        cause Debug(x)
+                #function main() {
+                    #let #variable x = 1
+                    #function read() {
+                        #cause Debug(x)
                     }
-                    set x = 2
+                    #set x = 2
                     read()
                 }
             """.trimIndent()
@@ -141,10 +141,10 @@ class VariablesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                function main() {
-                    let variable x = 1
-                    function update() {
-                        set x = 2
+                #function main() {
+                    #let #variable x = 1
+                    #function update() {
+                        #set x = 2
                     }
                     update()
                 }

@@ -10,11 +10,11 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    function main() {
-                        cause Debug(getGreeting())
+                    #function main() {
+                        #cause Debug(getGreeting())
                     }
                     
-                    function getGreeting() {
+                    #function getGreeting() {
                         "Hello World"
                     }
                 """.trimIndent()
@@ -34,21 +34,21 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/text ( append )
+                    #import core/text ( append )
                     
-                    function main() {
-                        let name = getName()
-                        let prefix = getGreetingPrefix()
-                        cause Debug(append(prefix, name))
+                    #function main() {
+                        #let name = getName()
+                        #let prefix = getGreetingPrefix()
+                        #cause Debug(append(prefix, name))
                     }
                     
-                    function getName() {
-                        let end = "ld"
-                        let start = "Wor"
+                    #function getName() {
+                        #let end = "ld"
+                        #let start = "Wor"
                         append(start, end)
                     }
                     
-                    function getGreetingPrefix() {
+                    #function getGreetingPrefix() {
                         append("Hello", ", ")
                     }
                 """.trimIndent()
@@ -68,12 +68,12 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                function main() {
+                #function main() {
                     greet()
                 }
                 
-                function greet() {
-                    cause Debug("Hello World")
+                #function greet() {
+                    #cause Debug("Hello World")
                 }
             """.trimIndent()
             )
@@ -92,13 +92,13 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                import core/text (append)
+                #import core/text (append)
                 
-                function main(): Text {
+                #function main(): Text {
                     formatGreeting("Hello", "World")
                 }
                 
-                function formatGreeting(greeting: Text, name: Text): Text {
+                #function formatGreeting(greeting: Text, name: Text): Text {
                     append(greeting, append(", ", name))
                 }
             """.trimIndent()
@@ -115,11 +115,11 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (add)                   
+                    #import core/math (add)                   
                                     
-                    function main(): Number {
-                        let base = 1.0
-                        function next() {
+                    #function main(): Number {
+                        #let base = 1.0
+                        #function next() {
                             add(base, 2.0)
                         }
                         next()
@@ -138,12 +138,12 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (add)                   
+                    #import core/math (add)                   
                                     
-                    function main(): Number {
-                        let base = 1.0
-                        function x() {
-                            function y() {
+                    #function main(): Number {
+                        #let base = 1.0
+                        #function x() {
+                            #function y() {
                                 add(base, 2.0)
                             }
                             y()
@@ -164,11 +164,11 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (add)                   
+                    #import core/math (add)                   
                                     
-                    function main(): Number {
-                        let base = 1.0
-                        (fn() (fn() add(base, 2.0))())()
+                    #function main(): Number {
+                        #let base = 1.0
+                        (#fn() (#fn() add(base, 2.0))())()
                     }
                 """.trimIndent()
             )
@@ -184,11 +184,11 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (add)                   
+                    #import core/math (add)                   
                                     
-                    function main(): Number {
-                        let base = 1.0
-                        function next(other: Number) {
+                    #function main(): Number {
+                        #let base = 1.0
+                        #function next(other: Number) {
                             add(base, other)
                         }
                         next(2.0)
@@ -207,11 +207,11 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (add)                   
+                    #import core/math (add)                   
                                     
-                    function main(): Number {
-                        let base = 1.0
-                        let next = fn(other: Number) add(base, other)
+                    #function main(): Number {
+                        #let base = 1.0
+                        #let next = #fn(other: Number) add(base, other)
                         next(2.0)
                     }
                 """.trimIndent()
@@ -228,15 +228,15 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (add)          
+                    #import core/math (add)          
                                     
-                    function main(): Number {
-                        let x = 1
-                        function inner() {
-                            let y = 2
-                            function innest() {
-                                let z = 3
-                                let result = add(add(x, x), add(y, z))
+                    #function main(): Number {
+                        #let x = 1
+                        #function inner() {
+                            #let y = 2
+                            #function innest() {
+                                #let z = 3
+                                #let result = add(add(x, x), add(y, z))
                                 add(x, result)
                             }
                             innest()
@@ -257,13 +257,13 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (add, multiply)
+                    #import core/math (add, multiply)
                     
-                    function single_map(this: Number, callback: Function(it: Number): Number) {
-                        cause Debug(callback(this))
+                    #function single_map(this: Number, callback: Function(it: Number): Number) {
+                        #cause Debug(callback(this))
                     }
                                     
-                    function main() {
+                    #function main() {
                         single_map(1, fn(it: Number) add(it, 2))
                         single_map(2, fn(it: Number) multiply(it, 2))
                     }
@@ -282,13 +282,13 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (add, multiply)
+                    #import core/math (add, multiply)
                     
-                    function single_map(this: Number, callback: Function(it: Number): Number) {
-                        cause Debug(callback(this))
+                    #function single_map(this: Number, callback: Function(it: Number): Number) {
+                        #cause Debug(callback(this))
                     }
                                     
-                    function main() {
+                    #function main() {
                         single_map(1, fn(x: Number) add(x, 2))
                     }
                 """.trimIndent()
@@ -306,9 +306,9 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (add)
+                    #import core/math (add)
                                     
-                    function main() {
+                    #function main() {
                         let func: Function(it: Number): Anything = fn(it: Number) add(it, 1) 
                         func(2)
                     }
@@ -327,7 +327,7 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    function main() {
+                    #function main() {
                         non_existent(3, fn() {
                             cause Debug("oh no")
                         })
@@ -360,17 +360,17 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (subtract)
+                    #import core/math (subtract)
                     
-                    function count_down(number: Number): Number {
-                        cause Debug(number)
+                    #function count_down(number: Number): Number {
+                        #cause Debug(number)
                         branch {
                             if equals(number, 0) => number
                             else => count_down(subtract(number, 1))
                         }
                     }
                     
-                    function main() {
+                    #function main() {
                         let result: Number = count_down(3)
                         cause Debug(result)
                     }
@@ -395,11 +395,11 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (subtract)
+                    #import core/math (subtract)
                     
-                    function count_down_from_3(): Number {
-                        function count_down(number: Number): Number {
-                            cause Debug(number)
+                    #function count_down_from_3(): Number {
+                        #function count_down(number: Number): Number {
+                            #cause Debug(number)
                             branch {
                                 if equals(number, 0) => number
                                 else => count_down(subtract(number, 1))
@@ -408,7 +408,7 @@ class FunctionsTest {
                         count_down(3)
                     }
                     
-                    function main() {
+                    #function main() {
                         let result = count_down_from_3()
                         cause Debug(result)
                     }
@@ -433,7 +433,7 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    function main() {
+                    #function main() {
                         function x(done: TrueOrFalse): Action {
                             cause Debug("x")
                             function y(done: TrueOrFalse): Action {
@@ -467,39 +467,39 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    function as_number(this: Anything) {
+                    #function as_number(this: Anything) {
                       branch with this {
                         is Number as this => return this
                         else => cause AssumptionBroken("expected number")
                       } 
                     }
                     
-                    function as_number_with_explicit_type(this: Anything): Number {
+                    #function as_number_with_explicit_type(this: Anything): Number {
                       branch with this {
                         is Number as this => return this
                         else => cause AssumptionBroken("expected number")
                       } 
                     }
                     
-                    function as_number_without_early_return(this: Anything) {
+                    #function as_number_without_early_return(this: Anything) {
                       branch with this {
                         is Number as this => this
                         else => cause AssumptionBroken("expected number")
                       } 
                     }
                     
-                    function as_number_without_early_return_and_with_explicit_type(this: Anything): Number {
+                    #function as_number_without_early_return_and_with_explicit_type(this: Anything): Number {
                       branch with this {
                         is Number as this => this
                         else => cause AssumptionBroken("expected number")
                       } 
                     }
                     
-                    function log_number(it: Number) {
+                    #function log_number(it: Number) {
                         cause(Debug(it))
                     }
                     
-                    function main() {
+                    #function main() {
                         log_number(as_number(1))
                         log_number(as_number_with_explicit_type(2))
                         log_number(as_number_without_early_return(3))
@@ -525,7 +525,7 @@ class FunctionsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    function log_if_number(this: Anything) {
+                    #function log_if_number(this: Anything) {
                       branch with this {
                         is Number as this => {
                             cause Debug(this)
@@ -535,7 +535,7 @@ class FunctionsTest {
                       } 
                     }
                     
-                    function log_if_number_with_explicit_type(this: Anything): Action {
+                    #function log_if_number_with_explicit_type(this: Anything): Action {
                       branch with this {
                         is Number as this => {
                             cause Debug(this)
@@ -545,21 +545,21 @@ class FunctionsTest {
                       } 
                     }
                     
-                    function log_if_number_without_early_return(this: Anything) {
+                    #function log_if_number_without_early_return(this: Anything) {
                       branch with this {
                         is Number as this => cause Debug(this)
                         else => cause AssumptionBroken("expected number")
                       } 
                     }
                     
-                    function log_if_number_without_early_return_and_with_explicit_type(this: Anything): Action {
+                    #function log_if_number_without_early_return_and_with_explicit_type(this: Anything): Action {
                       branch with this {
                         is Number as this => cause Debug(this)
                         else => cause AssumptionBroken("expected number")
                       } 
                     }
                     
-                    function main() {
+                    #function main() {
                         log_if_number(1)
                         log_if_number_with_explicit_type(2)
                         log_if_number_without_early_return(3)

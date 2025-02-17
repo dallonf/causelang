@@ -12,14 +12,14 @@ class OptionsAndUniqueObjects {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    object One
-                    object Two
-                    object Three
+                    #object One
+                    #object Two
+                    #object Three
                     
-                    function main() {
-                        let one = One
-                        let two = Two
-                        let three = Three
+                    #function main() {
+                        #let one = One
+                        #let two = Two
+                        #let three = Three
                         
                         two
                     }
@@ -44,9 +44,9 @@ class OptionsAndUniqueObjects {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                object Test
+                #object Test
                 
-                function main() {
+                #function main() {
                     Test()
                 }
             """.trimIndent()
@@ -70,9 +70,9 @@ class OptionsAndUniqueObjects {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                object Test()
+                #object Test()
                 
-                function main() {
+                #function main() {
                     Test
                 }
             """.trimIndent()
@@ -96,12 +96,12 @@ class OptionsAndUniqueObjects {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                object Test1
-                object Test2
+                #object Test1
+                #object Test2
                 
-                function main() {
-                    let test: Test1 = Test1
-                    let error: Test2 = Test1
+                #function main() {
+                    #let test: Test1 = Test1
+                    #let error: Test2 = Test1
                 }
             """.trimIndent()
             )
@@ -147,20 +147,20 @@ class OptionsAndUniqueObjects {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                object Hearts
-                object Diamonds
-                object Clubs
-                object Spades
+                #object Hearts
+                #object Diamonds
+                #object Clubs
+                #object Spades
                 
-                option Suit(
+                #option Suit(
                     Hearts,
                     Diamonds,
                     Clubs,
                     Spades,
                 )
                 
-                function main() {
-                    let card_suit: Suit = Diamonds
+                #function main() {
+                    #let card_suit: Suit = Diamonds
                     card_suit
                 }
             """.trimIndent()
@@ -184,16 +184,16 @@ class OptionsAndUniqueObjects {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    object Hearts
-                    object Diamonds
+                    #object Hearts
+                    #object Diamonds
                     
-                    option Suit(
+                    #option Suit(
                         Hearts,
                         Diamonds,
                     )
                     
-                    function main() {
-                        let card_suit: Suit = 5
+                    #function main() {
+                        #let card_suit: Suit = 5
                         card_suit
                     }
                 """.trimIndent()
@@ -290,12 +290,12 @@ class OptionsAndUniqueObjects {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                option MaybeNumber(
-                    object None,
-                    object Some(value: Number),
+                #option MaybeNumber(
+                    #object None,
+                    #object Some(value: Number),
                 )
                 
-                function main(): MaybeNumber {
+                #function main(): MaybeNumber {
                     MaybeNumber.Some(4)
                 }
             """.trimIndent()
@@ -314,16 +314,16 @@ class OptionsAndUniqueObjects {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    signal UniqueSignal: Action
+                    #signal UniqueSignal: Action
                     
-                    function main() {
-                        effect for UniqueSignal as s {
-                            cause Debug("unique signal intercepted")
-                            cause s
+                    #function main() {
+                        #effect for UniqueSignal as s {
+                            #cause Debug("unique signal intercepted")
+                            #cause s
                         }
                         
-                        cause UniqueSignal
-                        cause Debug("done")
+                        #cause UniqueSignal
+                        #cause Debug("done")
                     }
                 """.trimIndent()
             )

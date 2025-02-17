@@ -10,9 +10,9 @@ class ImportTest {
         val builder = CodeBundleBuilder()
         builder.addFile(
             "project/test.cau", """
-                import project/support ( print_hello )
+                #import project/support ( print_hello )
                 
-                function main() {
+                #function main() {
                     print_hello()
                 }
             """.trimIndent()
@@ -20,8 +20,8 @@ class ImportTest {
         assertEquals(listOf("project/support.cau"), builder.requiredFilePaths)
         builder.addFile(
             "project/support.cau", """
-                function print_hello() {
-                    cause Debug("Hello World")
+                #function print_hello() {
+                    #cause Debug("Hello World")
                 }
             """.trimIndent()
         )
@@ -41,9 +41,9 @@ class ImportTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import project/a (announce_card)
+                    #import project/a (announce_card)
                     
-                    function main() {
+                    #function main() {
                         announce_card()
                     }
                 """.trimIndent()
@@ -51,22 +51,22 @@ class ImportTest {
 
             addFile(
                 "project/a.cau", """
-                    import project/b ( get_name )
+                    #import project/b ( get_name )
                     
-                    object Card(name: Text)
+                    #object Card(name: Text)
                     
-                    function announce_card() {
-                        let card = Card("Ace of Spades")
-                        cause Debug(get_name(card))
+                    #function announce_card() {
+                        #let card = Card("Ace of Spades")
+                        #cause Debug(get_name(card))
                     }
                 """.trimIndent()
             )
 
             addFile(
                 "project/b.cau", """
-                    import project/a ( Card )
+                    #import project/a ( Card )
                     
-                    function get_name(card: Card): Text {
+                    #function get_name(card: Card): Text {
                         card.name
                     }
                 """.trimIndent()
@@ -106,9 +106,9 @@ class ImportTest {
         val builder = CodeBundleBuilder()
         builder.addFile(
             "project/test.cau", """
-                import ./support ( print_hello )
+                #import ./support ( print_hello )
                 
-                function main() {
+                #function main() {
                     print_hello()
                 }
             """.trimIndent()
@@ -116,8 +116,8 @@ class ImportTest {
         assertEquals(listOf("project/support.cau"), builder.requiredFilePaths)
         builder.addFile(
             "project/support.cau", """
-                function print_hello() {
-                    cause Debug("Hello World")
+                #function print_hello() {
+                    #cause Debug("Hello World")
                 }
             """.trimIndent()
         )
@@ -133,9 +133,9 @@ class ImportTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import ./card/suit (hearts)
+                    #import ./card/suit (hearts)
                     
-                    function main() {
+                    #function main() {
                         hearts()
                     }
                 """.trimIndent()
@@ -143,17 +143,17 @@ class ImportTest {
 
             addFile(
                 "project/util.cau", """
-                    function print(message: Text) {
-                        cause Debug(message)
+                    #function print(message: Text) {
+                        #cause Debug(message)
                     }
                 """.trimIndent()
             )
 
             addFile(
                 "project/card/suit.cau", """
-                    import ../util (print)
+                    #import ../util (print)
                     
-                    function hearts() {
+                    #function hearts() {
                         print("hearts")
                     }
                 """.trimIndent()
@@ -169,10 +169,10 @@ class ImportTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                import ../core/math (subtract)
-                import ./inner/a (four)
+                #import ../core/math (subtract)
+                #import ./inner/a (four)
                 
-                function main() {
+                #function main() {
                     subtract(four(), 1)
                 }
                 """.trimIndent()
@@ -180,10 +180,10 @@ class ImportTest {
 
             addFile(
                 "project/inner/a.cau", """
-                import ../../core/math (add)
-                import ../../../../../what (what)
+                #import ../../core/math (add)
+                #import ../../../../../what (what)
                 
-                function four() {
+                #function four() {
                     add(2, 2)
                 }
                 """.trimIndent()
@@ -233,15 +233,15 @@ class ImportTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/text (append as append_text)
+                    #import core/text (append as append_text)
                     
-                    function append() {
-                        cause Debug("append function")
+                    #function append() {
+                        #cause Debug("append function")
                     }
                     
-                    function main() {
+                    #function main() {
                         append()
-                        cause Debug("hello, ">>append_text("world!"))
+                        #cause Debug("hello, ">>append_text("world!"))
                     }
                 """.trimIndent()
             )

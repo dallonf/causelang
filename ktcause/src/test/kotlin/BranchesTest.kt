@@ -14,11 +14,11 @@ class BranchesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """                
-                    function main() {
-                        branch {
-                            if equals("red", "blue") => "nope"
-                            if equals("red", "red") => "yup"
-                            else => "wut"
+                    #function main() {
+                        #branch {
+                            #if equals("red", "blue") => "nope"
+                            #if equals("red", "red") => "yup"
+                            #else => "wut"
                         }
                     }
                 """.trimIndent()
@@ -35,23 +35,23 @@ class BranchesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    object Hearts
-                    object Diamonds
-                    object Spades
-                    object Clubs
-                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    #object Hearts
+                    #object Diamonds
+                    #object Spades
+                    #object Clubs
+                    #option Suit(Hearts, Diamonds, Spades, Clubs)
                     
-                    function main() {
+                    #function main() {
                         process_suit(Hearts)
                         process_suit(Diamonds)
                         process_suit(Clubs)
                     }                
                     
-                    function process_suit(this: Suit) {
-                        branch with this {
-                            is Hearts => cause Debug("Hearts")
-                            is Diamonds => cause Debug("Diamonds")
-                            else => cause Debug("something else")
+                    #function process_suit(this: Suit) {
+                        #branch #with this {
+                            #is Hearts => #cause Debug("Hearts")
+                            #is Diamonds => #cause Debug("Diamonds")
+                            #else => #cause Debug("something else")
                         }
                     }
                 """.trimIndent()
@@ -71,25 +71,25 @@ class BranchesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    object Hearts
-                    object Diamonds
-                    object Spades
-                    object Clubs
-                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    #object Hearts
+                    #object Diamonds
+                    #object Spades
+                    #object Clubs
+                    #option Suit(Hearts, Diamonds, Spades, Clubs)
                     
-                    function main() {
+                    #function main() {
                         process_suit(Hearts)
                         process_suit(Diamonds)
                         process_suit(Spades)
                         process_suit(Clubs)
                     }                
                     
-                    function process_suit(this: Suit) {
-                        branch with this {
-                            is Hearts => cause Debug("Hearts")
-                            is Diamonds => cause Debug("Diamonds")
-                            is Spades => cause Debug("Spades")
-                            is Clubs => cause Debug("Clubs")
+                    #function process_suit(this: Suit) {
+                        #branch #with this {
+                            #is Hearts => #cause Debug("Hearts")
+                            #is Diamonds => #cause Debug("Diamonds")
+                            #is Spades => #cause Debug("Spades")
+                            #is Clubs => #cause Debug("Clubs")
                         }
                     }
                 """.trimIndent()
@@ -109,20 +109,20 @@ class BranchesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    object Hearts
-                    object Diamonds
-                    object Spades
-                    object Clubs
-                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    #object Hearts
+                    #object Diamonds
+                    #object Spades
+                    #object Clubs
+                    #option Suit(Hearts, Diamonds, Spades, Clubs)
                     
-                    function main() {
+                    #function main() {
                         process_suit(Spades)
                     }                
                     
-                    function process_suit(this: Suit) {
-                        branch with this {
-                            is Hearts => cause Debug("Hearts")
-                            is Diamonds => cause Debug("Diamonds")
+                    #function process_suit(this: Suit) {
+                        #branch #with this {
+                            #is Hearts => #cause Debug("Hearts")
+                            #is Diamonds => #cause Debug("Diamonds")
                         }
                     }
                 """.trimIndent()
@@ -171,21 +171,21 @@ class BranchesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    object Hearts
-                    object Diamonds
-                    object Spades
-                    object Clubs
-                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    #object Hearts
+                    #object Diamonds
+                    #object Spades
+                    #object Clubs
+                    #option Suit(Hearts, Diamonds, Spades, Clubs)
                     
-                    function main() {
-                        let result = suit_to_string(Spades)
-                        cause Debug(result)
+                    #function main() {
+                        #let result = suit_to_string(Spades)
+                        #cause Debug(result)
                     }                
                     
-                    function suit_to_string(this: Suit) {
-                        branch with this {
-                            is Hearts => "Hearts"
-                            is Diamonds => "Diamonds"
+                    #function suit_to_string(this: Suit) {
+                        #branch #with this {
+                            #is Hearts => "Hearts"
+                            #is Diamonds => "Diamonds"
                         }
                     }
                 """.trimIndent()
@@ -231,23 +231,23 @@ class BranchesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    object Hearts
-                    object Diamonds
-                    object Spades
-                    object Clubs
-                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    #object Hearts
+                    #object Diamonds
+                    #object Spades
+                    #object Clubs
+                    #option Suit(Hearts, Diamonds, Spades, Clubs)
                     
-                    function main() {
-                        let result = suit_to_string(Clubs)
-                        cause Debug(result)
+                    #function main() {
+                        #let result = suit_to_string(Clubs)
+                        #cause Debug(result)
                     }                
                     
-                    function suit_to_string(this: Suit) {
-                        branch with this {
-                            is Hearts => "Hearts"
-                            is Diamonds => cause Debug("Diamonds")
-                            is Spades => "Spades"
-                            is Clubs => cause Debug("Clubs")
+                    #function suit_to_string(this: Suit) {
+                        #branch #with this {
+                            #is Hearts => "Hearts"
+                            #is Diamonds => #cause Debug("Diamonds")
+                            #is Spades => "Spades"
+                            #is Clubs => #cause Debug("Clubs")
                         }
                     }
                 """.trimIndent()
@@ -337,20 +337,20 @@ class BranchesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/text (number_to_text)
+                    #import core/text (number_to_text)
                     
-                    object Nothing
-                    option MaybeNumber(Nothing, Number)
+                    #object Nothing
+                    #option MaybeNumber(Nothing, Number)
                     
-                    function main() {
+                    #function main() {
                         print_number(Nothing)
                         print_number(42.0)
                     }                
                     
-                    function print_number(this: MaybeNumber) {
-                        branch with this {
-                            is Number as i => cause Debug(number_to_text(i))
-                            is Nothing => Action
+                    #function print_number(this: MaybeNumber) {
+                        #branch #with this {
+                            #is Number #as i => #cause Debug(number_to_text(i))
+                            #is Nothing => Action
                         }
                     }
                 """.trimIndent()
@@ -366,11 +366,11 @@ class BranchesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """                    
-                    function main() {
-                        let x: Anything = "Something"
-                        branch with x {
-                            is Text as x => cause Debug(x)
-                            else => cause AssumptionBroken("it should have been text")
+                    #function main() {
+                        #let x: Anything = "Something"
+                        #branch #with x {
+                            #is Text #as x => #cause Debug(x)
+                            #else => #cause AssumptionBroken("it should have been text")
                         }
                     }                
                 """.trimIndent()
@@ -386,15 +386,15 @@ class BranchesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """                    
-                    function main() {
-                        let number = branch {
-                            if True => 1
-                            else => 2
+                    #function main() {
+                        #let number = #branch {
+                            #if True => 1
+                            #else => 2
                         }
                         require_number(number)
                     }
                     
-                    function require_number(input: Number) {}
+                    #function require_number(input: Number) {}
                 """.trimIndent()
             )
         }
@@ -406,16 +406,16 @@ class BranchesTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    object Something(
+                    #object Something(
                         a: Text,
                         b: Text,
                     )
                     
-                    function main() {
-                        let value: Anything = Something("ay", "bee")
-                        let cast = branch with value {
-                            is Something as value => value
-                            else => cause AssumptionBroken("Not Something")
+                    #function main() {
+                        #let value: Anything = Something("ay", "bee")
+                        #let cast = #branch #with value {
+                            #is Something #as value => value
+                            #else => #cause AssumptionBroken("Not Something")
                         }
                         cast.a
                     }

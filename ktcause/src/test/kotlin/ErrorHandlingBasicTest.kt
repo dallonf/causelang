@@ -11,8 +11,8 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """
-                    function main() {
-                        cause Debug()
+                    #function main() {
+                        #cause Debug()
                     }
                """.trimIndent()
             )
@@ -68,10 +68,10 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """
-                    signal ExpectText(message: Text): Action
+                    #signal ExpectText(message: Text): Action
                     
-                    function main() {
-                        cause ExpectText(1)
+                    #function main() {
+                        #cause ExpectText(1)
                     }
                 """.trimIndent()
             )
@@ -140,12 +140,12 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """               
-                    function main() {
+                    #function main() {
                         expect_text(1)
                     }
                     
-                    function expect_text(message: Text) {
-                        cause Debug(message)
+                    #function expect_text(message: Text) {
+                        #cause Debug(message)
                     }
                 """.trimIndent()
             )
@@ -216,8 +216,8 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """
-                    function main() {
-                        cause "oops"
+                    #function main() {
+                        #cause "oops"
                     }
                 """.trimIndent()
             )
@@ -265,8 +265,8 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """
-                    function main() {
-                      cause DoesntExist("oops")
+                    #function main() {
+                      #cause DoesntExist("oops")
                     }
                 """.trimIndent()
             )
@@ -306,7 +306,7 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """
-                    function main() {
+                    #function main() {
                         let name: Text = 5
                     }
                 """.trimIndent()
@@ -350,7 +350,7 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """
-                    function main(): Number {
+                    #function main(): Number {
                         "oh no that's not a number"
                     }
                 """.trimIndent()
@@ -419,7 +419,7 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """
-                    function main() {
+                    #function main() {
                         greet("bob")
                     }
                 """.trimIndent()
@@ -456,7 +456,7 @@ internal class ErrorHandlingBasicTest {
                     object NotThat
                     object OrThat
                     
-                    function main(): MainReturn {
+                    #function main(): MainReturn {
                         branch {
                             if equals(2, 2) => return NotThat
                             if equals(1, 2) => return OrThat
@@ -601,7 +601,7 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """                    
-                    function main() {
+                    #function main() {
                         let test = fn(): Number "not a number"
                         test()
                     }
@@ -669,7 +669,7 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """                    
-                    function main() {
+                    #function main() {
                         let test = fn(): Number {
                             return "not a number"
                         }
@@ -743,7 +743,7 @@ internal class ErrorHandlingBasicTest {
                     object Wrapped(next: MaybeWrapped)
                     option MaybeWrapped(Nothing, Wrapped)
                     
-                    function maybe_wrap(): MaybeWrapped {
+                    #function maybe_wrap(): MaybeWrapped {
                         "nah"
                     }
                 """.trimIndent()
@@ -798,12 +798,12 @@ internal class ErrorHandlingBasicTest {
         val vm = LangVm {
             addFile(
                 "project/hello.cau", """               
-                    function main() {
+                    #function main() {
                         print("hello", "there")
                     }
                     
-                    function print(message: Text) {
-                        cause Debug(message)
+                    #function print(message: Text) {
+                        #cause Debug(message)
                     }
                 """.trimIndent()
             )

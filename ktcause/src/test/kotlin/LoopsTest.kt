@@ -12,19 +12,19 @@ class LoopsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (add, at_least)
+                    #import core/math (add, at_least)
                     
-                    function main() {
-                        let variable i = 0
-                        loop {
-                            cause Debug(i)
-                            set i = add(i, 1)
-                            branch {
-                                if at_least(i, 5) => break
-                                else => {}
+                    #function main() {
+                        #let #variable i = 0
+                        #loop {
+                            #cause Debug(i)
+                            #set i = add(i, 1)
+                            #branch {
+                                #if at_least(i, 5) => #break
+                                #else => {}
                             }
                         }
-                        cause Debug("Done!")
+                        #cause Debug("Done!")
                     }
                 """.trimIndent()
             )
@@ -48,22 +48,22 @@ class LoopsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (add, at_least)
+                    #import core/math (add, at_least)
                     
-                    function main() {
-                        let variable i = 0
-                        loop {
-                            set i = add(i, 1)
+                    #function main() {
+                        #let #variable i = 0
+                        #loop {
+                            #set i = add(i, 1)
                             
-                            function break_on_5(i: Number) {
-                                branch {
-                                    if at_least(i, 5) => break
-                                    else => {}
+                            #function break_on_5(i: Number) {
+                                #branch {
+                                    #if at_least(i, 5) => #break
+                                    #else => {}
                                 }
                             }
                             break_on_5(i)
                         }
-                        cause Debug("Done!")
+                        #cause Debug("Done!")
                     }
                 """.trimIndent()
             )
@@ -94,30 +94,30 @@ class LoopsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (add, at_least)
+                    #import core/math (add, at_least)
                     
-                    signal BreakMainLoop: NeverContinues
+                    #signal BreakMainLoop: NeverContinues
                         
-                    function main() {
-                        let variable i = 0
-                        loop {
-                            cause Debug(i)
+                    #function main() {
+                        #let #variable i = 0
+                        #loop {
+                            #cause Debug(i)
                             
-                            set i = add(i, 1)
+                            #set i = add(i, 1)
                             
-                            effect for BreakMainLoop {
-                                break
+                            #effect for BreakMainLoop {
+                                #break
                             }
                             
-                            function break_on_3(i: Number) {
-                                branch {
-                                    if at_least(i, 3) => cause BreakMainLoop
-                                    else => {}
+                            #function break_on_3(i: Number) {
+                                #branch {
+                                    #if at_least(i, 3) => #cause BreakMainLoop
+                                    #else => {}
                                 }
                             }
                             break_on_3(i)
                         }
-                        cause Debug("Done!")
+                        #cause Debug("Done!")
                     }
                 """.trimIndent()
             )
@@ -139,9 +139,9 @@ class LoopsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                function main() {
-                    loop { }
-                    cause Debug("Done!")
+                #function main() {
+                    #loop { }
+                    #cause Debug("Done!")
                 }
             """.trimIndent()
             )
@@ -158,21 +158,21 @@ class LoopsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math (add, at_least)
+                    #import core/math (add, at_least)
                     
-                    signal Progress(i: Number): Action
+                    #signal Progress(i: Number): Action
                     
-                    function main(stop_at: Number) {
-                        let variable i = 0
-                        loop {
-                            cause Progress(i)
-                            set i = add(i, 1)
-                            branch {
-                                if at_least(i, stop_at) => break
-                                else => {}
+                    #function main(stop_at: Number) {
+                        #let #variable i = 0
+                        #loop {
+                            #cause Progress(i)
+                            #set i = add(i, 1)
+                            #branch {
+                                #if at_least(i, stop_at) => #break
+                                #else => {}
                             }
                         }
-                        cause Debug("Done!")
+                        #cause Debug("Done!")
                     }
             """.trimIndent()
             )
@@ -204,26 +204,26 @@ class LoopsTest {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
-                    import core/math ( add )
+                    #import core/math ( add )
                     
-                    object Wrapper(item: WrapperItem)
-                    option WrapperItem(Number, Wrapper)
+                    #object Wrapper(item: WrapperItem)
+                    #option WrapperItem(Number, Wrapper)
                     
-                    function main() {
-                        let wrapper = Wrapper(42)
-                        let wrapper = Wrapper(Wrapper(Wrapper(Wrapper(wrapper))))
+                    #function main() {
+                        #let wrapper = Wrapper(42)
+                        #let wrapper = Wrapper(Wrapper(Wrapper(Wrapper(wrapper))))
                         
-                        let variable count = 0
-                        let variable currentWrapper = wrapper 
-                        let inner = loop {
-                            set count = add(count, 1)
-                            branch with currentWrapper.item {
-                                is Number as number => break with number
-                                is Wrapper as wrapper => set currentWrapper = wrapper
+                        #let #variable count = 0
+                        #let #variable currentWrapper = wrapper 
+                        #let inner = #loop {
+                            #set count = add(count, 1)
+                            #branch with currentWrapper.item {
+                                #is Number as number => #break with number
+                                #is Wrapper as wrapper => #set currentWrapper = wrapper
                             }
                         }
-                        cause Debug(inner)
-                        cause Debug(count)
+                        #cause Debug(inner)
+                        #cause Debug(count)
                     }
                 """.trimIndent()
             )
