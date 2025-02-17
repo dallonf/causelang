@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumTryAs)]
 pub enum LangError {
     NeverResolved,
     NotInScope,

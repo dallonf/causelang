@@ -124,15 +124,7 @@ object RustCompiler {
             )
             resolverErrors.mapNotNull {
                 when (it.error) {
-                    is ErrorLangType.NotCausable -> null
-                    is ErrorLangType.MismatchedType -> null
-                    is ErrorLangType.MissingElseBranch -> null
-                    is ErrorLangType.ActionIncompatibleWithValueTypes -> null
-                    is ErrorLangType.NotVariable -> null
-                    is ErrorLangType.OuterVariable -> null
-                    is ErrorLangType.CannotBreakHere -> null
-                    is ErrorLangType.NotInScope -> null
-                    else -> it
+                    else -> null
                 }
             }
         }

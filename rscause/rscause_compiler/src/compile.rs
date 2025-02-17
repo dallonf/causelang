@@ -965,6 +965,7 @@ fn compile_call_expression(
     procedure: &mut Procedure,
     ctx: &mut CompilerContext,
 ) -> Result<()> {
+    dbg!(&expression);
     compile_expression(&expression.callee, procedure, ctx)?;
 
     for param in &expression.parameters {
@@ -984,25 +985,49 @@ fn compile_call_expression(
         .value_types
         .get(expression.callee.breadcrumbs())
         .cloned()
-        .ok_or_else(|| anyhow!("No type for callee at {}", expression.callee.breadcrumbs()))?
-        .to_result_assuming_inferred();
+        .ok_or_else(|| anyhow!("No type for callee at {}", expression.callee.breadcrumbs()))?;
 
-    let callee_type = match callee_type {
-        Ok(it) => it,
-        Err(err) => {
-            procedure.write_instruction_with_phase(
-                Instruction::Pop(PopInstruction {
-                    // all params and the callee
-                    number: (expression.parameters.len() + 1) as u32,
-                }),
-                Some(&expression.info),
-                InstructionPhase::Cleanup,
-            );
-            let error_const = add_error_constant(err, &expression.into(), procedure, ctx);
-            compile_type_error(error_const, procedure);
-            return Ok(());
-        }
-    };
+    dbg!(&callee_type);
+
+    let runtime_errors = ctx.check_for_badtype_error(expression.breadcrumbs())?;
+    dbg!(&runtime_errors);
+
+    let error_preventing_call = runtime_errors
+        .and_then(|runtime_errors| {
+            // constructing is a sensitive operation; raise any error
+            // if you're trying to construct an object
+            let callee_is_construct = callee_type
+                .clone()
+                .to_result_assuming_inferred()
+                .map(|it| matches!(it.as_ref(), LangType::TypeReference(_)))
+                .unwrap_or(false);
+            if callee_is_construct || runtime_errors.as_ref() == &LangError::NotCallable {
+                Some(runtime_errors.clone())
+            } else {
+                None
+            }
+        })
+        .or_else(|| callee_type.to_result_assuming_inferred_ref().err());
+
+    if let Some(error_preventing_call) = error_preventing_call {
+        // Don't call; pop all the arguments and the callee off the stack
+        // and then raise an error
+        procedure.write_instruction_with_phase(
+            Instruction::Pop(PopInstruction {
+                number: (expression.parameters.len() + 1) as u32,
+            }),
+            Some(&expression.info),
+            InstructionPhase::Cleanup,
+        );
+        let error_const =
+            add_error_constant(error_preventing_call, &expression.into(), procedure, ctx);
+        compile_type_error(error_const, procedure);
+        return Ok(());
+    }
+
+    let callee_type = callee_type
+        .to_result_assuming_inferred()
+        .map_err(|_| anyhow!("callee type was an error, but that should have been caught above"))?;
 
     match callee_type.as_ref() {
         LangType::TypeReference(type_reference) => {
@@ -1079,25 +1104,46 @@ fn compile_pipe_call_expression(
         .value_types
         .get(expression.callee.breadcrumbs())
         .cloned()
-        .ok_or_else(|| anyhow!("No type for callee at {}", expression.callee.breadcrumbs()))?
-        .to_result_assuming_inferred();
+        .ok_or_else(|| anyhow!("No type for callee at {}", expression.callee.breadcrumbs()))?;
 
-    let callee_type = match callee_type {
-        Ok(it) => it,
-        Err(err) => {
-            procedure.write_instruction_with_phase(
-                Instruction::Pop(PopInstruction {
-                    // the subject, all params and the callee
-                    number: (expression.parameters.len() + 2) as u32,
-                }),
-                Some(&expression.info),
-                InstructionPhase::Cleanup,
-            );
-            let error_const = add_error_constant(err, &expression.into(), procedure, ctx);
-            compile_type_error(error_const, procedure);
-            return Ok(());
-        }
-    };
+    let runtime_errors = ctx.check_for_badtype_error(expression.breadcrumbs())?;
+
+    let error_preventing_call = runtime_errors
+        .and_then(|runtime_errors| {
+            // constructing is a sensitive operation; raise any error
+            // if you're trying to construct an object
+            let callee_is_construct = callee_type
+                .clone()
+                .to_result_assuming_inferred()
+                .map(|it| matches!(it.as_ref(), LangType::TypeReference(_)))
+                .unwrap_or(false);
+            if callee_is_construct || runtime_errors.as_ref() == &LangError::NotCallable {
+                Some(runtime_errors.clone())
+            } else {
+                None
+            }
+        })
+        .or_else(|| callee_type.to_result_assuming_inferred_ref().err());
+
+    if let Some(error_preventing_call) = error_preventing_call {
+        // Don't call; pop all the arguments and the callee off the stack
+        // and then raise an error
+        procedure.write_instruction_with_phase(
+            Instruction::Pop(PopInstruction {
+                number: (expression.parameters.len() + 1) as u32,
+            }),
+            Some(&expression.info),
+            InstructionPhase::Cleanup,
+        );
+        let error_const =
+            add_error_constant(error_preventing_call, &expression.into(), procedure, ctx);
+        compile_type_error(error_const, procedure);
+        return Ok(());
+    }
+
+    let callee_type = callee_type
+        .to_result_assuming_inferred()
+        .map_err(|_| anyhow!("callee type was an error, but that should have been caught above"))?;
 
     match callee_type.as_ref() {
         LangType::TypeReference(type_reference) => {
