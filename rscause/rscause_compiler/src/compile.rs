@@ -831,12 +831,6 @@ fn compile_set_expression(
         );
     }
 
-    procedure.write_instruction_with_phase(
-        Instruction::PushAction(PushActionInstruction {}),
-        Some(&expression.info),
-        InstructionPhase::Cleanup,
-    );
-
     Ok(())
 }
 

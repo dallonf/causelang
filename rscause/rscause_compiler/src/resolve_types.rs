@@ -985,7 +985,7 @@ impl ResolveTypes for ast::SetExpressionNode {
             diagnostic: "expression assignable to variable".into(),
         });
 
-        return Some(LangType::Action.into());
+        return Some(InferredType::InferenceVariable(expected_type_var));
     }
 }
 

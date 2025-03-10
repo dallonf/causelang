@@ -443,7 +443,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
 
                     is Instruction.WriteLocal -> {
                         val index = stackFrame.stackStart + instruction.index
-                        val value = stack.pop()
+                        val value = stack.peek()
                         stack.setAtIndex(index, value)
                     }
 
@@ -466,7 +466,7 @@ class LangVm(val codeBundle: CodeBundle, val options: Options = Options()) {
                             parentFrame = parentFrame.existsInFrame
                         }
                         val index = parentFrame.stackStart + instruction.index
-                        val value = stack.pop()
+                        val value = stack.peek()
                         parentFrame.stack.setAtIndex(index, value)
                     }
 

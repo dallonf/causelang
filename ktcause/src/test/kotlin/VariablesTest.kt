@@ -187,4 +187,21 @@ class VariablesTest {
             """.trimIndent(), error.debug()
         )
     }
+
+    @Test
+    fun setExpressionPassesThroughValue() {
+        val vm = LangVm {
+            addFile(
+                "project/test.cau", """
+                    function main() {
+                        let variable x = "hi"
+                        let y: Text = (set x = "bye")
+                        cause Debug(y)
+                    }
+                """.trimIndent()
+            )
+        }
+        TestUtils.expectNoCompileErrors(vm)
+        TestUtils.runMainExpectingDebugs(vm, "project/test.cau", listOf("bye"))
+    }
 }
