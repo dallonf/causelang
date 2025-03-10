@@ -131,7 +131,7 @@ class EffectsBasicTest {
                     
                     function main() {
                         effect for Greet as s {
-                            append("Howdy, ", s.name)
+                            ^ append("Howdy, ", s.name)
                         }
                         
                         let greeting = cause Greet("partner")
@@ -305,7 +305,7 @@ class EffectsBasicTest {
                     
                     update()
                     
-                    x
+                    ^ x
                 }
             """.trimIndent()
             )

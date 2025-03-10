@@ -53,7 +53,7 @@ class EarlyReturns {
                             is Number as i => i
                         }
                         
-                        add(this, other)
+                        ^ add(this, other)
                     }
                 """.trimIndent()
             )
@@ -83,11 +83,11 @@ class EarlyReturns {
                     function main() {
                         signal Return(result: Text): NeverContinues
                         effect for Return as it {
-                            return it.result
+                            ^ return it.result
                         }
                         
                         cause Return("hello")
-                        "goodbye"
+                        ^ "goodbye"
                     }
                 """.trimIndent()
             )

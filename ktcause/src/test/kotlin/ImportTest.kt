@@ -67,7 +67,7 @@ class ImportTest {
                     import project/a ( Card )
                     
                     function get_name(card: Card) returns Text {
-                        card.name
+                        ^ card.name
                     }
                 """.trimIndent()
             )

@@ -140,7 +140,7 @@ class IoTest {
                     function main() {
                       let greeting = {
                         let name = cause Prompt()
-                        append("Hello, ", name)
+                        ^ append("Hello, ", name)
                       }
                       cause Print(greeting)
                     }

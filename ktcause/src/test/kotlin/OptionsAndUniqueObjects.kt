@@ -21,7 +21,7 @@ class OptionsAndUniqueObjects {
                         let two = Two
                         let three = Three
                         
-                        two
+                        ^ two
                     }
                 """.trimIndent()
             )
@@ -47,7 +47,7 @@ class OptionsAndUniqueObjects {
                 object Test
                 
                 function main() {
-                    Test()
+                    ^ Test()
                 }
             """.trimIndent()
             )
@@ -73,7 +73,7 @@ class OptionsAndUniqueObjects {
                 object Test()
                 
                 function main() {
-                    Test
+                    ^ Test
                 }
             """.trimIndent()
             )
@@ -161,7 +161,7 @@ class OptionsAndUniqueObjects {
                 
                 function main() {
                     let card_suit: Suit = Diamonds
-                    card_suit
+                    ^ card_suit
                 }
             """.trimIndent()
             )
@@ -194,7 +194,7 @@ class OptionsAndUniqueObjects {
                     
                     function main() {
                         let card_suit: Suit = 5
-                        card_suit
+                        ^ card_suit
                     }
                 """.trimIndent()
             )

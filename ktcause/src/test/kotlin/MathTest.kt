@@ -12,7 +12,7 @@ class MathTest {
                 import core/math (add, subtract, multiply, divide)
                             
                 function main() {
-                    divide(multiply(add(1, subtract(3, 0.5)), 4), 7)
+                    ^ divide(multiply(add(1, subtract(3, 0.5)), 4), 7)
                 }
             """.trimIndent()
             )
@@ -80,7 +80,7 @@ class MathTest {
                     
                     function main() returns Number {
                         let value = divide(1, 3)
-                        multiply(value, 6)
+                        ^ multiply(value, 6)
                     }
                 """.trimIndent()
             )
@@ -101,7 +101,7 @@ class MathTest {
                 import core/math (remainder)
                 
                 function fizz_buzz(input: Number) returns Text { 
-                    branch {
+                    ^ branch {
                         if equals(remainder(input, 15), 0) => "FizzBuzz"
                         if equals(remainder(input, 3), 0) => "Fizz"
                         if equals(remainder(input, 5), 0) => "Buzz"

@@ -16,7 +16,7 @@ class ObjectTypesTest {
                 )
                 
                 function main() returns Card {
-                    Card("hearts", 3)
+                    ^ Card("hearts", 3)
                 }
             """.trimIndent()
             )
@@ -47,7 +47,7 @@ class ObjectTypesTest {
                     
                     function main() returns Text {
                         let card = Card("spades", 7)
-                        card.suit
+                        ^ card.suit
                     }
                 """.trimIndent()
             )

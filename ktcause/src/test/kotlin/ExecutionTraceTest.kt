@@ -37,10 +37,10 @@ class ExecutionTraceTest {
         assertEquals(
             """
             Traceback (most recent call last):
-            ${"\t"}function main() at project/test.cau at line 15
-            ${"\t"}function x() at project/test.cau at line 3
-            ${"\t"}function y() at project/test.cau at line 7
-            ${"\t"}function z() at project/test.cau at line 11
+            ${"\t"}function main() at project/test.cau at line 14
+            ${"\t"}function x() at project/test.cau at line 2
+            ${"\t"}function y() at project/test.cau at line 6
+            ${"\t"}function z() at project/test.cau at line 10
             
             """.trimIndent(), vm.getExecutionTrace()
         )

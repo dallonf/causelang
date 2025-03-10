@@ -15,7 +15,7 @@ class FunctionsTest {
                     }
                     
                     function getGreeting() {
-                        "Hello World"
+                        ^ "Hello World"
                     }
                 """.trimIndent()
             )
@@ -45,11 +45,11 @@ class FunctionsTest {
                     function getName() {
                         let end = "ld"
                         let start = "Wor"
-                        append(start, end)
+                        ^ append(start, end)
                     }
                     
                     function getGreetingPrefix() {
-                        append("Hello", ", ")
+                        ^ append("Hello", ", ")
                     }
                 """.trimIndent()
             )
@@ -95,11 +95,11 @@ class FunctionsTest {
                 import core/text (append)
                 
                 function main() returns Text {
-                    formatGreeting("Hello", "World")
+                    ^ formatGreeting("Hello", "World")
                 }
                 
                 function formatGreeting(greeting: Text, name: Text) returns Text {
-                    append(greeting, append(", ", name))
+                    ^ append(greeting, append(", ", name))
                 }
             """.trimIndent()
             )
@@ -120,9 +120,9 @@ class FunctionsTest {
                     function main() returns Number {
                         let base = 1.0
                         function next() {
-                            add(base, 2.0)
+                            ^ add(base, 2.0)
                         }
-                        next()
+                        ^ next()
                     }
                 """.trimIndent()
             )
@@ -144,11 +144,11 @@ class FunctionsTest {
                         let base = 1.0
                         function x() {
                             function y() {
-                                add(base, 2.0)
+                                ^ add(base, 2.0)
                             }
-                            y()
+                            ^ y()
                         }
-                        x()
+                        ^ x()
                     }
                 """.trimIndent()
             )
@@ -168,7 +168,7 @@ class FunctionsTest {
                                     
                     function main() returns Number {
                         let base = 1.0
-                        (fn() (fn() add(base, 2.0))())()
+                        ^ (fn() (fn() add(base, 2.0))())()
                     }
                 """.trimIndent()
             )
@@ -189,9 +189,9 @@ class FunctionsTest {
                     function main() returns Number {
                         let base = 1.0
                         function next(other: Number) {
-                            add(base, other)
+                            ^ add(base, other)
                         }
-                        next(2.0)
+                        ^ next(2.0)
                     }
                 """.trimIndent()
             )
@@ -212,7 +212,7 @@ class FunctionsTest {
                     function main() returns Number {
                         let base = 1.0
                         let next = fn(other: Number) add(base, other)
-                        next(2.0)
+                        ^ next(2.0)
                     }
                 """.trimIndent()
             )
@@ -237,11 +237,11 @@ class FunctionsTest {
                             function innest() {
                                 let z = 3
                                 let result = add(add(x, x), add(y, z))
-                                add(x, result)
+                                ^ add(x, result)
                             }
-                            innest()
+                            ^ innest()
                         }
-                        inner()
+                        ^ inner()
                     }
                 """.trimIndent()
             )
@@ -310,7 +310,7 @@ class FunctionsTest {
                                     
                     function main() {
                         let func: Function(it: Number) returns Anything = fn(it: Number) add(it, 1) 
-                        func(2)
+                        ^ func(2)
                     }
                 """.trimIndent()
             )
@@ -364,7 +364,7 @@ class FunctionsTest {
                     
                     function count_down(number: Number) returns Number {
                         cause Debug(number)
-                        branch {
+                        ^ branch {
                             if equals(number, 0) => number
                             else => count_down(subtract(number, 1))
                         }
@@ -400,12 +400,12 @@ class FunctionsTest {
                     function count_down_from_3() returns Number {
                         function count_down(number: Number) returns Number {
                             cause Debug(number)
-                            branch {
+                            ^ branch {
                                 if equals(number, 0) => number
                                 else => count_down(subtract(number, 1))
                             }
                         }
-                        count_down(3)
+                        ^ count_down(3)
                     }
                     
                     function main() {
@@ -468,28 +468,28 @@ class FunctionsTest {
             addFile(
                 "project/test.cau", """
                     function as_number(this: Anything) {
-                      branch with this {
+                      ^ branch with this {
                         is Number as this => return this
                         else => cause AssumptionBroken("expected number")
                       } 
                     }
                     
                     function as_number_with_explicit_type(this: Anything) returns Number {
-                      branch with this {
+                      ^ branch with this {
                         is Number as this => return this
                         else => cause AssumptionBroken("expected number")
                       } 
                     }
                     
                     function as_number_without_early_return(this: Anything) {
-                      branch with this {
+                      ^ branch with this {
                         is Number as this => this
                         else => cause AssumptionBroken("expected number")
                       } 
                     }
                     
                     function as_number_without_early_return_and_with_explicit_type(this: Anything) returns Number {
-                      branch with this {
+                      ^ branch with this {
                         is Number as this => this
                         else => cause AssumptionBroken("expected number")
                       } 

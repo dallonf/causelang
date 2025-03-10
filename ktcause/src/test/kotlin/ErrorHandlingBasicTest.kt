@@ -351,7 +351,7 @@ internal class ErrorHandlingBasicTest {
             addFile(
                 "project/hello.cau", """
                     function main() returns Number {
-                        "oh no that's not a number"
+                        ^ "oh no that's not a number"
                     }
                 """.trimIndent()
             )
@@ -457,7 +457,7 @@ internal class ErrorHandlingBasicTest {
                     object OrThat
                     
                     function main() returns MainReturn {
-                        branch {
+                        ^ branch {
                             if equals(2, 2) => return NotThat
                             if equals(1, 2) => return OrThat
                             else => "maybe"
@@ -472,7 +472,7 @@ internal class ErrorHandlingBasicTest {
                 {
                     "position": {
                         "path": "project/hello.cau",
-                        "breadcrumbs": "declarations.4.body.statements.0.expression.branches.0.body.statement.expression.value",
+                        "breadcrumbs": "declarations.4.body.result.branches.0.body.statement.expression.value",
                         "position": "7:34-7:41"
                     },
                     "error": {
@@ -510,7 +510,7 @@ internal class ErrorHandlingBasicTest {
                 {
                     "position": {
                         "path": "project/hello.cau",
-                        "breadcrumbs": "declarations.4.body.statements.0.expression.branches.1.body.statement.expression.value",
+                        "breadcrumbs": "declarations.4.body.result.branches.1.body.statement.expression.value",
                         "position": "8:34-8:40"
                     },
                     "error": {
@@ -557,7 +557,7 @@ internal class ErrorHandlingBasicTest {
                 "position": {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
-                    "breadcrumbs": "declarations.4.body.statements.0.expression.branches.0.body.statement.expression.value",
+                    "breadcrumbs": "declarations.4.body.result.branches.0.body.statement.expression.value",
                     "position": "7:34-7:41"
                 },
                 "error": {
@@ -603,7 +603,7 @@ internal class ErrorHandlingBasicTest {
                 "project/hello.cau", """                    
                     function main() {
                         let test = fn() returns Number "not a number"
-                        test()
+                        ^ test()
                     }
                 """.trimIndent()
             )
@@ -671,9 +671,9 @@ internal class ErrorHandlingBasicTest {
                 "project/hello.cau", """                    
                     function main() {
                         let test = fn() returns Number {
-                            return "not a number"
+                            ^ return "not a number"
                         }
-                        test()
+                        ^ test()
                     }
                 """.trimIndent()
             )
@@ -684,8 +684,8 @@ internal class ErrorHandlingBasicTest {
                 {
                     "position": {
                         "path": "project/hello.cau",
-                        "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body.block.statements.0.expression.value",
-                        "position": "3:15-3:29"
+                        "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body.block.result.value",
+                        "position": "3:17-3:31"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -713,8 +713,8 @@ internal class ErrorHandlingBasicTest {
                 "position": {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
-                    "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body.block.statements.0.expression.value",
-                    "position": "3:15-3:29"
+                    "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body.block.result.value",
+                    "position": "3:17-3:31"
                 },
                 "error": {
                     "#type": "MismatchedType",
@@ -744,7 +744,7 @@ internal class ErrorHandlingBasicTest {
                     option MaybeWrapped(Nothing, Wrapped)
                     
                     function maybe_wrap() returns MaybeWrapped {
-                        "nah"
+                        ^ "nah"
                     }
                 """.trimIndent()
             )
@@ -836,41 +836,6 @@ internal class ErrorHandlingBasicTest {
                 }
             """.trimIndent(),
             result.expectCausedSignal().debug(),
-        )
-        assertEquals(
-            """
-            {
-                "#type": "BadValue",
-                "position": {
-                    "#type": "SourcePosition",
-                    "path": "project/hello.cau",
-                    "breadcrumbs": "declarations.1.body",
-                    "position": "1:16-3:1"
-                },
-                "error": {
-                    "#type": "ProxyError",
-                    "actualError": {
-                        "#type": "ExcessParameters",
-                        "expected": 1
-                    },
-                    "proxyChain": [
-                        {
-                            "#type": "SourcePosition",
-                            "path": "project/hello.cau",
-                            "breadcrumbs": "declarations.1.body.statements.0",
-                            "position": "2:4-2:27"
-                        },
-                        {
-                            "#type": "SourcePosition",
-                            "path": "project/hello.cau",
-                            "breadcrumbs": "declarations.1.body.statements.0.expression",
-                            "position": "2:4-2:27"
-                        }
-                    ]
-                }
-            }
-            """.trimIndent(),
-            vm.resumeExecution(RuntimeValue.Action).expectReturnValue().debug()
         )
     }
 }

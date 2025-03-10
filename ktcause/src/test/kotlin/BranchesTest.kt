@@ -15,7 +15,7 @@ class BranchesTest {
             addFile(
                 "project/test.cau", """                
                     function main() {
-                        branch {
+                        ^ branch {
                             if equals("red", "blue") => "nope"
                             if equals("red", "red") => "yup"
                             else => "wut"
@@ -183,7 +183,7 @@ class BranchesTest {
                     }                
                     
                     function suit_to_string(this: Suit) {
-                        branch with this {
+                        ^ branch with this {
                             is Hearts => "Hearts"
                             is Diamonds => "Diamonds"
                         }
@@ -243,7 +243,7 @@ class BranchesTest {
                     }                
                     
                     function suit_to_string(this: Suit) {
-                        branch with this {
+                        ^ branch with this {
                             is Hearts => "Hearts"
                             is Diamonds => cause Debug("Diamonds")
                             is Spades => "Spades"
@@ -260,20 +260,20 @@ class BranchesTest {
                 {
                     "position": {
                         "path": "project/test.cau",
-                        "breadcrumbs": "declarations.7.body.statements.0.expression",
-                        "position": "13:4-18:5"
+                        "breadcrumbs": "declarations.7.body.result",
+                        "position": "13:6-18:5"
                     },
                     "error": {
                         "#type": "ActionIncompatibleWithValueTypes",
                         "actions": [
                             {
                                 "path": "project/test.cau",
-                                "breadcrumbs": "declarations.7.body.statements.0.expression.branches.1",
+                                "breadcrumbs": "declarations.7.body.result.branches.1",
                                 "position": "15:8-15:46"
                             },
                             {
                                 "path": "project/test.cau",
-                                "breadcrumbs": "declarations.7.body.statements.0.expression.branches.3",
+                                "breadcrumbs": "declarations.7.body.result.branches.3",
                                 "position": "17:8-17:40"
                             }
                         ],
@@ -285,7 +285,7 @@ class BranchesTest {
                                 },
                                 "position": {
                                     "path": "project/test.cau",
-                                    "breadcrumbs": "declarations.7.body.statements.0.expression.branches.0",
+                                    "breadcrumbs": "declarations.7.body.result.branches.0",
                                     "position": "14:8-14:29"
                                 }
                             },
@@ -296,7 +296,7 @@ class BranchesTest {
                                 },
                                 "position": {
                                     "path": "project/test.cau",
-                                    "breadcrumbs": "declarations.7.body.statements.0.expression.branches.2",
+                                    "breadcrumbs": "declarations.7.body.result.branches.2",
                                     "position": "16:8-16:29"
                                 }
                             }
@@ -417,7 +417,7 @@ class BranchesTest {
                             is Something as value => value
                             else => cause AssumptionBroken("Not Something")
                         }
-                        cast.a
+                        ^ cast.a
                     }
                 """.trimIndent()
             )

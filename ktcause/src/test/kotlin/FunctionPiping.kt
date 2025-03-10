@@ -14,7 +14,7 @@ class FunctionPiping {
                     import core/text (append, number_to_text)
                     
                     function main(name: Text, favorite_number: Number) {
-                        "hello">>append(", ")>>append(name)>>append("!")
+                        ^ "hello">>append(", ")>>append(name)>>append("!")
                             >>append(" ")
                             >>append("My favorite number is")
                             >>append(" ")
@@ -42,11 +42,11 @@ class FunctionPiping {
                     import core/text (append, number_to_text)
                     
                     function append_number(it: Text, number: Number) {
-                        it>>append(number>>number_to_text())
+                        ^ it>>append(number>>number_to_text())
                     }
                     
                     function main() {
-                        "hello, ">>append_number(42)                        
+                        ^ "hello, ">>append_number(42)                        
                     }
                 """.trimIndent()
             )
@@ -67,11 +67,11 @@ class FunctionPiping {
                     import core/text (append, number_to_text)
                     
                     function exclaim(it: Text) {
-                        it>>append("!")
+                        ^ it>>append("!")
                     }
                     
                     function main() {
-                        "hello">>exclaim()                        
+                        ^"hello">>exclaim()
                     }
                 """.trimIndent()
             )

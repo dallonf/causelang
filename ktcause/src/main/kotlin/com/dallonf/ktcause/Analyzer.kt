@@ -485,6 +485,8 @@ object Analyzer {
                 for (statementNode in body.statements) {
                     currentCtx = analyzeStatement(statementNode, output, currentCtx)
                 }
+
+                body.result?.let { analyzeExpression(it, output, currentCtx) }
             }
 
             is SingleStatementBodyNode -> {

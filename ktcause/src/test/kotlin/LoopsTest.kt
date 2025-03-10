@@ -106,16 +106,16 @@ class LoopsTest {
                             set i = add(i, 1)
                             
                             effect for BreakMainLoop {
-                                break
+                                ^ break
                             }
                             
                             function break_on_3(i: Number) {
-                                branch {
+                                ^ branch {
                                     if at_least(i, 3) => cause BreakMainLoop
                                     else => {}
                                 }
                             }
-                            break_on_3(i)
+                            ^ break_on_3(i)
                         }
                         cause Debug("Done!")
                     }
