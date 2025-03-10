@@ -32,6 +32,7 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "name",
     "options",
     "statements",
+    "result",
     "statement",
     "expression",
     "declaration",
@@ -1279,6 +1280,7 @@ impl HasBreadcrumbs for OneOfTypeNode {
 pub struct BlockBodyNode {
     pub info: NodeInfo,
     pub statements: Vec<StatementNode>,
+    pub result: Option<ExpressionNode>,
 }
 impl From<&BlockBodyNode> for AnyAstNode {
     fn from(value: &BlockBodyNode) -> Self {
@@ -1301,6 +1303,10 @@ impl AstNode for BlockBodyNode {
         result.insert(
             BreadcrumbName::new("statements"),
             (&self.statements).into(),
+        );
+        result.insert(
+            BreadcrumbName::new("result"),
+            (&self.result).into(),
         );
         result
     }

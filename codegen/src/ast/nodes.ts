@@ -148,6 +148,7 @@ export const nodes: NodeDeclaration[] = [
     category: "Body",
     fields: {
       statements: listOf("Statement"),
+      result: optional("Expression")
     },
   },
   {

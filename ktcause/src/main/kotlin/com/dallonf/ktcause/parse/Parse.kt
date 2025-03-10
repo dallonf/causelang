@@ -301,8 +301,11 @@ private fun parseBlock(
             statementRule, statementBreadcrumbs.appendIndex(i), ctx
         )
     }
+    val result = blockBody.blockResult()?.let {
+        parseExpression(it.expression(), breadcrumbs.appendName("result"), ctx)
+    }
 
-    return BlockBodyNode(NodeInfo(blockBody.getRange(), breadcrumbs), statements)
+    return BlockBodyNode(NodeInfo(blockBody.getRange(), breadcrumbs), statements, result)
 }
 
 private fun parseStatement(
@@ -396,10 +399,7 @@ private fun parseExpression(
                 )
 
                 is PipeCallExpressionSuffixContext -> parsePipeCallExpressionSuffix(
-                    suffix,
-                    innerBreadcrumbs,
-                    prevLazyExpression,
-                    ctx
+                    suffix, innerBreadcrumbs, prevLazyExpression, ctx
                 )
 
                 else -> throw Error("unexpected call expression suffix")
@@ -617,10 +617,7 @@ private fun parsePipeCallExpressionSuffix(
     }
 
     return PipeCallExpressionNode(
-        NodeInfo(suffix.getRange(), breadcrumbs),
-        subjectExpression,
-        callee,
-        params
+        NodeInfo(suffix.getRange(), breadcrumbs), subjectExpression, callee, params
     )
 }
 

@@ -208,6 +208,16 @@ public interface CauseListener extends ParseTreeListener {
 	 */
 	void exitBlock(CauseParser.BlockContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link CauseParser#blockResult}.
+	 * @param ctx the parse tree
+	 */
+	void enterBlockResult(CauseParser.BlockResultContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link CauseParser#blockResult}.
+	 * @param ctx the parse tree
+	 */
+	void exitBlockResult(CauseParser.BlockResultContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link CauseParser#singleStatementBody}.
 	 * @param ctx the parse tree
 	 */

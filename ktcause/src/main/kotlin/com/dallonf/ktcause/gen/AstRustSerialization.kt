@@ -205,6 +205,7 @@ object AstRustSerialization {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
             put("statements", JsonArray(node.statements.map { serializeStatement(it) }))
+            put("result", node.result?.let { serializeExpression(it)} ?: JsonNull)
         }
     }
 

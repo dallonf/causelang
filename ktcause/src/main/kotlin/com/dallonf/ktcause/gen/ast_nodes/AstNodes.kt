@@ -223,10 +223,14 @@ data class OneOfTypeNode(
 data class BlockBodyNode(
   override val info: NodeInfo,
   val statements: List<StatementNode>,
+  val result: ExpressionNode?,
 ): BodyNode {
   override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild> =
     buildMap {
         put("statements", statements)
+        if (result != null) {
+          put("result", result)
+        }
     }
 }
 data class SingleStatementBodyNode(

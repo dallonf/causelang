@@ -257,6 +257,18 @@ public class CauseBaseListener implements CauseListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterBlockResult(CauseParser.BlockResultContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitBlockResult(CauseParser.BlockResultContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterSingleStatementBody(CauseParser.SingleStatementBodyContext ctx) { }
 	/**
 	 * {@inheritDoc}

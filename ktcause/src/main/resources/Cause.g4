@@ -15,6 +15,7 @@ CURLY_OPEN : '{' ;
 CURLY_CLOSE : '}' ;
 UNDERSCORE : '_' ;
 DOT : '.' ;
+CARET: '^';
 
 STRING_LITERAL : '"' .*? '"' ;
 NUMBER_LITERAL : [0-9] [0-9_]* (DOT [0-9]+)? ;
@@ -80,7 +81,8 @@ optionDeclaration : OPTION NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE* (typ
 
 body : block | singleStatementBody ;
 
-block : CURLY_OPEN NEWLINE* (statement (NEWLINE+ statement)*)? NEWLINE* CURLY_CLOSE ;
+block : CURLY_OPEN NEWLINE* (statement (NEWLINE+ statement)*)? NEWLINE* blockResult? NEWLINE* CURLY_CLOSE ;
+blockResult : CARET expression ;
 singleStatementBody : THICK_ARROW NEWLINE* statement ;
 
 statement : effectStatement | setStatement | declarationStatement | expressionStatement  ;
