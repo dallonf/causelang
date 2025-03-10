@@ -1,6 +1,6 @@
 package com.dallonf.ktcause.gen
 
-import com.dallonf.ktcause.ast.*
+import com.dallonf.ktcause.gen.ast_nodes.*
 
 val rustCompilerSupportedTypes = setOf(
     *listOf(

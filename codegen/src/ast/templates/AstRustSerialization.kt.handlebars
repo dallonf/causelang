@@ -1,7 +1,7 @@
 package com.dallonf.ktcause.gen
 
 import kotlinx.serialization.json.*
-import com.dallonf.ktcause.ast.*
+import com.dallonf.ktcause.gen.ast_nodes.*
 import com.dallonf.ktcause.serialization.RustSerialization
 
 object AstRustSerialization {

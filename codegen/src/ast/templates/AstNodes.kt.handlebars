@@ -1,0 +1,70 @@
+package com.dallonf.ktcause.gen.ast_nodes
+
+import com.dallonf.ktcause.ast.NodeInfo
+import com.dallonf.ktcause.ast.Breadcrumbs
+import com.dallonf.ktcause.ast.BreadcrumbWalkChild
+import java.math.BigDecimal
+
+sealed interface AstNode {
+    fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild>
+
+    val info: NodeInfo
+
+    fun findNode(breadcrumbs: Breadcrumbs): AstNode = BreadcrumbWalkChild.Node(this).findNode(breadcrumbs)
+
+    fun allDescendants() = BreadcrumbWalkChild.Node(this).allDescendants()
+
+    fun allAncestors(topAst: AstNode): Sequence<AstNode> {
+        var currentBreadcrumbs = this.info.breadcrumbs.up()
+        return sequence {
+            while (!currentBreadcrumbs.isEmpty()) {
+                val child = BreadcrumbWalkChild.Node(topAst).findBreadcrumbWalkNode(currentBreadcrumbs)
+                if (child is BreadcrumbWalkChild.Node) {
+                    yield(child.node)
+                }
+                currentBreadcrumbs = currentBreadcrumbs.up()
+            }
+        }
+    }
+}
+
+{{#each categories}}
+sealed interface {{this.name}} : AstNode
+{{/each}}
+
+{{#each nodes}}
+data class {{this.name}}(
+  override val info: NodeInfo,
+  {{#each this.fields}}
+  val {{this.name}}: {{this.type}},
+  {{/each}}
+): {{this.category}} {
+  override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild> =
+    buildMap {
+      {{#each this.fields}}
+        {{#if this.isNode}}
+        {{#if this.optional}}
+        if ({{this.name}} != null) {
+          put("{{this.name}}", {{this.name}})
+        }
+        {{else}}
+        put("{{this.name}}", {{this.name}})
+        {{/if}}
+        {{/if}}
+      {{/each}}
+    }
+}
+{{/each}}
+
+fun String.toBreadcrumbEntry() = Breadcrumbs.BreadcrumbEntry.Name(this)
+fun Int.toBreadcrumbEntry() = Breadcrumbs.BreadcrumbEntry.Index(this)
+
+internal fun MutableMap<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild>.put(key: String, value: AstNode) {
+    put(key.toBreadcrumbEntry(), BreadcrumbWalkChild.Node(value))
+}
+
+internal fun MutableMap<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild>.put(
+    key: String, value: List<AstNode>
+) {
+    put(key.toBreadcrumbEntry(), BreadcrumbWalkChild.List(value))
+}

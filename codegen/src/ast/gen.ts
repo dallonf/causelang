@@ -14,6 +14,7 @@ export async function generateAst() {
     generateRustCompilerMetaKt(),
     generateAstRustSerializationKt(),
     generateAstNodesRs(),
+    generateAstNodesKt(),
   ]);
 }
 
@@ -157,6 +158,43 @@ async function generateAstNodesRs() {
   );
 }
 
+async function generateAstNodesKt() {
+  const template = await compileTemplate(
+    "AstNodes.kt.handlebars",
+    import.meta.url
+  );
+
+  const templateCategories = categories.map((category) => ({
+    name: `${category.name}Node`,
+  }));
+
+  const templateNodes = nodes.map((node) => {
+    return {
+      name: `${node.name}Node`,
+      category: node.category ? `${node.category}Node` : "AstNode",
+      fields: Object.entries(node.fields).map(([name, type]) => ({
+        name,
+        type: ktFieldType(type),
+        optional: typeof type === "object" && type.kind === "optional",
+        isNode: isNode(type),
+      })),
+    };
+  });
+
+  const output = template({
+    categories: templateCategories,
+    nodes: templateNodes,
+  });
+
+  await Deno.writeTextFile(
+    path.join(
+      projectRoot,
+      "ktcause/src/main/kotlin/com/dallonf/ktcause/gen/ast_nodes/AstNodes.kt"
+    ),
+    output
+  );
+}
+
 function rsFieldType(
   type: NodeFieldType,
   opts: {
@@ -193,6 +231,33 @@ function rsFieldType(
       return `Vec<${rsFieldType(type.type, { ...opts, bare: false })}>`;
     case "optional":
       return `Option<${rsFieldType(type.type, opts)}>`;
+    default:
+      return type satisfies never;
+  }
+}
+
+function ktFieldType(type: NodeFieldType): string {
+  if (typeof type === "string") {
+    return `${type}Node`;
+  }
+  switch (type.kind) {
+    case "primitive":
+      switch (type.type) {
+        case "string":
+          return "String";
+        case "boolean":
+          return "Boolean";
+        case "int":
+          return "Int";
+        case "bigdecimal":
+          return "BigDecimal";
+        default:
+          return type satisfies never;
+      }
+    case "list":
+      return `List<${ktFieldType(type.type)}>`;
+    case "optional":
+      return `${ktFieldType(type.type)}?`;
     default:
       return type satisfies never;
   }

@@ -4,6 +4,7 @@ import com.dallonf.ktcause.CoreFiles
 import com.dallonf.ktcause.antlr.*
 import com.dallonf.ktcause.antlr.CauseParser.*
 import com.dallonf.ktcause.ast.*
+import com.dallonf.ktcause.gen.ast_nodes.*
 import org.antlr.v4.runtime.*
 import org.antlr.v4.runtime.tree.ParseTree
 import org.antlr.v4.runtime.tree.TerminalNode

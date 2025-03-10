@@ -1,6 +1,7 @@
 package com.dallonf.ktcause
 
-import com.dallonf.ktcause.ast.*
+import com.dallonf.ktcause.ast.Breadcrumbs
+import com.dallonf.ktcause.gen.ast_nodes.*
 
 data class AnalyzedNode(
     val nodeTags: MutableMap<Breadcrumbs, MutableList<NodeTag>> = mutableMapOf(),
@@ -589,6 +590,12 @@ object Analyzer {
     ) {
         expression.withValue?.let { analyzeExpression(it, output, ctx) }
 
+        fun branchOptionBody(branchOption: BranchOptionNode) = when (branchOption) {
+            is IfBranchOptionNode -> branchOption.body
+            is IsBranchOptionNode -> branchOption.body
+            is ElseBranchOptionNode -> branchOption.body
+        }
+
         for (branchOption in expression.branches) {
             val newCtx = ctx.clone(branchOption.info.breadcrumbs)
             when (branchOption) {
@@ -602,7 +609,7 @@ object Analyzer {
 
                 is ElseBranchOptionNode -> {}
             }
-            analyzeBody(branchOption.body, output, newCtx)
+            analyzeBody(branchOptionBody(branchOption), output, newCtx)
         }
     }
 

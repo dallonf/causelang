@@ -1,6 +1,6 @@
 package com.dallonf.ktcause
 
-import com.dallonf.ktcause.ast.FileNode
+import com.dallonf.ktcause.gen.ast_nodes.FileNode
 import com.dallonf.ktcause.parse.parse
 import com.dallonf.ktcause.types.*
 

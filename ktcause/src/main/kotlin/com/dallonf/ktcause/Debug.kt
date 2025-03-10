@@ -1,7 +1,7 @@
 package com.dallonf.ktcause
 
 import com.dallonf.ktcause.ast.Breadcrumbs
-import com.dallonf.ktcause.ast.FileNode
+import com.dallonf.ktcause.gen.ast_nodes.FileNode
 import com.dallonf.ktcause.types.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json

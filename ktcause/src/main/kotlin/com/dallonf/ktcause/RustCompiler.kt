@@ -1,6 +1,7 @@
 package com.dallonf.ktcause
 
-import com.dallonf.ktcause.ast.*
+import com.dallonf.ktcause.ast.Breadcrumbs
+import com.dallonf.ktcause.gen.ast_nodes.*
 import com.dallonf.ktcause.gen.AstRustSerialization
 import com.dallonf.ktcause.serialization.CompilerResultRustSerialization.deserializeRustCompilerResult
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization
