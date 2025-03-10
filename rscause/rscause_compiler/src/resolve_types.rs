@@ -634,7 +634,7 @@ impl ResolveTypes for AnyAstNode {
             Self::DeclarationStatement(node) => node.compute_type(ctx),
             Self::ExpressionStatement(node) => node.compute_type(ctx),
             Self::EffectStatement(node) => node.compute_type(ctx),
-            Self::SetStatement(node) => node.compute_type(ctx),
+            Self::SetExpression(node) => node.compute_type(ctx),
             Self::CauseExpression(node) => node.compute_type(ctx),
             Self::CallExpression(node) => node.compute_type(ctx),
             Self::PipeCallExpression(node) => node.compute_type(ctx),
@@ -947,7 +947,7 @@ impl ResolveTypes for ast::EffectStatementNode {
     }
 }
 
-impl ResolveTypes for ast::SetStatementNode {
+impl ResolveTypes for ast::SetExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let tags = ctx.get_tags(self);
         let tag = match find_tag!(&tags, NodeTag::SetsVariable) {

@@ -558,9 +558,6 @@ fn compile_statement(
         ast::StatementNode::Effect(statement) => {
             compile_effect_statement(statement, procedure, ctx)?;
         }
-        ast::StatementNode::Set(statement) => {
-            compile_set_statement(statement, procedure, ctx)?;
-        }
     }
     Ok(())
 }
@@ -781,21 +778,21 @@ fn compile_effect_statement(
     Ok(())
 }
 
-fn compile_set_statement(
-    statement: &ast::SetStatementNode,
+fn compile_set_expression(
+    expression: &ast::SetExpressionNode,
     procedure: &mut Procedure,
     ctx: &mut CompilerContext,
 ) -> Result<()> {
-    compile_expression(&statement.expression, procedure, ctx)?;
+    compile_expression(&expression.expression, procedure, ctx)?;
 
-    if let Some(error) = ctx.check_for_badtype_error(statement.breadcrumbs())? {
+    if let Some(error) = ctx.check_for_badtype_error(expression.breadcrumbs())? {
         procedure.write_instruction(
             Instruction::Pop(PopInstruction { number: 1 }),
-            Some(&statement.info),
+            Some(&expression.info),
         );
         let error_const = add_error_constant(
             error.clone(),
-            &AnyAstNode::SetStatement(statement.clone().into()),
+            &AnyAstNode::SetExpression(expression.clone().into()),
             procedure,
             ctx,
         );
@@ -806,7 +803,7 @@ fn compile_set_statement(
                 Instruction::Literal(LiteralInstruction {
                     constant: error_const,
                 }),
-                Some(&statement.info),
+                Some(&expression.info),
             ),
 
             _ => compile_type_error(error_const, procedure),
@@ -814,7 +811,7 @@ fn compile_set_statement(
         return Ok(());
     }
 
-    let tags = ctx.get_tags(statement.breadcrumbs());
+    let tags = ctx.get_tags(expression.breadcrumbs());
     let tag = find_tag!(&tags, NodeTag::SetsVariable).ok_or(anyhow!("Missing SetsVariable tag"))?;
     let value_reference = find_value_reference(&tag.variable, ctx)?;
     if value_reference.effect_depth > 0 {
@@ -823,16 +820,22 @@ fn compile_set_statement(
                 effect_depth: value_reference.effect_depth as u32,
                 index: value_reference.found_index as u32,
             }),
-            Some(&statement.info),
+            Some(&expression.info),
         );
     } else {
         procedure.write_instruction(
             Instruction::WriteLocal(WriteLocalInstruction {
                 index: value_reference.found_index as u32,
             }),
-            Some(&statement.info),
+            Some(&expression.info),
         );
     }
+
+    procedure.write_instruction_with_phase(
+        Instruction::PushAction(PushActionInstruction {}),
+        Some(&expression.info),
+        InstructionPhase::Cleanup,
+    );
 
     Ok(())
 }
@@ -863,6 +866,9 @@ fn compile_expression(
         }
         ast::ExpressionNode::Break(expression) => {
             compile_break_expression(&expression, procedure, ctx)?;
+        }
+        ast::ExpressionNode::Set(expression) => {
+            compile_set_expression(&expression, procedure, ctx)?
         }
         ast::ExpressionNode::Cause(expression) => {
             compile_cause_expression(expression.clone(), procedure, ctx)?;

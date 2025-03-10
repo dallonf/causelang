@@ -329,18 +329,6 @@ public class CauseBaseListener implements CauseListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterSetStatement(CauseParser.SetStatementContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitSetStatement(CauseParser.SetStatementContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
 	@Override public void enterExpression(CauseParser.ExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -420,6 +408,18 @@ public class CauseBaseListener implements CauseListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitLoopExpression(CauseParser.LoopExpressionContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterSetExpression(CauseParser.SetExpressionContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitSetExpression(CauseParser.SetExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

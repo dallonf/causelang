@@ -85,14 +85,13 @@ block : CURLY_OPEN NEWLINE* (statement (NEWLINE+ statement)*)? NEWLINE* blockRes
 blockResult : CARET expression ;
 singleExpressionBody : THICK_ARROW NEWLINE* expression ;
 
-statement : effectStatement | setStatement | declarationStatement | expressionStatement  ;
+statement : effectStatement | declarationStatement | expressionStatement  ;
 
 expressionStatement : expression ;
 declarationStatement : declaration ;
 effectStatement : EFFECT NEWLINE* FOR NEWLINE* pattern NEWLINE* body ;
-setStatement : SET NEWLINE* IDENTIFIER NEWLINE* EQUALS NEWLINE* expression ;
 
-expression : (groupExpression | blockExpression | functionExpression | branchExpression | loopExpression | causeExpression | returnExpression | breakExpression | stringLiteralExpression | numberLiteralExpression | identifierExpression)
+expression : (groupExpression | blockExpression | functionExpression | branchExpression | loopExpression | setExpression | causeExpression | returnExpression | breakExpression | stringLiteralExpression | numberLiteralExpression | identifierExpression)
     expressionSuffix* ;
 groupExpression : PAREN_OPEN NEWLINE* expression NEWLINE* PAREN_CLOSE ;
 blockExpression : block ;
@@ -102,6 +101,7 @@ functionExpression : FN NEWLINE* PAREN_OPEN NEWLINE*
 branchExpression : BRANCH NEWLINE* branchWith? NEWLINE* CURLY_OPEN NEWLINE* (branchOption (NEWLINE+ branchOption)*)? NEWLINE* CURLY_CLOSE ;
     branchWith: WITH NEWLINE* expression ;
 loopExpression : LOOP NEWLINE* body ;
+setExpression : SET NEWLINE* IDENTIFIER NEWLINE* EQUALS NEWLINE* expression ;
 causeExpression : CAUSE NEWLINE* expression ;
 returnExpression : RETURN expression? ; // no newline supported here
 breakExpression : BREAK (WITH NEWLINE* expression)?;

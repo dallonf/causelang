@@ -543,23 +543,19 @@ object Analyzer {
                 analyzePattern(statementNode.pattern, output, effectCtx)
                 analyzeBody(statementNode.body, output, effectCtx)
             }
-
-            is SetStatementNode -> {
-                analyzeSetStatement(statementNode, output, ctx)
-            }
         }
         return ctx
     }
 
-    private fun analyzeSetStatement(
-        statementNode: SetStatementNode, output: AnalyzedNode, ctx: AnalyzerContext
+    private fun analyzeSetExpression(
+        expressionNode: SetExpressionNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        analyzeExpression(statementNode.expression, output, ctx)
-        val variable = ctx.currentScope.items[statementNode.identifier.text]
+        analyzeExpression(expressionNode.expression, output, ctx)
+        val variable = ctx.currentScope.items[expressionNode.identifier.text]
         if (variable != null) {
-            output.addTag(statementNode.info.breadcrumbs, NodeTag.SetsVariable(variable.origin))
+            output.addTag(expressionNode.info.breadcrumbs, NodeTag.SetsVariable(variable.origin))
             if (variable is CapturedValueScopeItem) {
-                output.addTag(statementNode.info.breadcrumbs, NodeTag.UsesCapturedValue(ctx.currentFunction!!))
+                output.addTag(expressionNode.info.breadcrumbs, NodeTag.UsesCapturedValue(ctx.currentFunction!!))
             }
         }
     }
@@ -571,6 +567,7 @@ object Analyzer {
             is BlockExpressionNode -> analyzeBlockExpression(expression, output, ctx)
             is FunctionExpressionNode -> analyzeFunctionExpression(expression, output, ctx)
 
+            is SetExpressionNode -> analyzeSetExpression(expression, output, ctx)
             is CauseExpressionNode -> analyzeCauseExpression(expression, output, ctx)
             is BranchExpressionNode -> analyzeBranchExpressionNode(expression, output, ctx)
             is LoopExpressionNode -> analyzeLoopExpressionNode(expression, output, ctx)

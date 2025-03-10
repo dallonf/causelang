@@ -167,12 +167,6 @@ public interface CauseVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitEffectStatement(CauseParser.EffectStatementContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link CauseParser#setStatement}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitSetStatement(CauseParser.SetStatementContext ctx);
-	/**
 	 * Visit a parse tree produced by {@link CauseParser#expression}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -214,6 +208,12 @@ public interface CauseVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitLoopExpression(CauseParser.LoopExpressionContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link CauseParser#setExpression}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitSetExpression(CauseParser.SetExpressionContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link CauseParser#causeExpression}.
 	 * @param ctx the parse tree

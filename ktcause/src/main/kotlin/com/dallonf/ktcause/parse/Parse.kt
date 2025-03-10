@@ -313,7 +313,6 @@ private fun parseStatement(
 ): StatementNode {
     return when (val child = statementRule.getChild(0)) {
         is EffectStatementContext -> parseEffectStatement(child, breadcrumbs, ctx)
-        is SetStatementContext -> parseSetStatement(child, breadcrumbs, ctx)
         is ExpressionStatementContext -> parseExpressionStatement(child, breadcrumbs, ctx)
         is DeclarationStatementContext -> parseDeclarationStatement(child, breadcrumbs, ctx)
         else -> throw Error("unrecognized statement type")
@@ -330,13 +329,13 @@ private fun parseEffectStatement(
     )
 }
 
-private fun parseSetStatement(
-    statement: SetStatementContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): SetStatementNode {
-    val identifier = parseIdentifier(statement.IDENTIFIER().symbol, breadcrumbs.appendName("identifier"), ctx)
-    val expression = parseExpression(statement.expression(), breadcrumbs.appendName("expression"), ctx)
-    return SetStatementNode(
-        NodeInfo(statement.getRange(), breadcrumbs), identifier, expression
+private fun parseSetExpressionNode(
+    expression: SetExpressionContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+): SetExpressionNode {
+    val identifier = parseIdentifier(expression.IDENTIFIER().symbol, breadcrumbs.appendName("identifier"), ctx)
+    val valueExpression = parseExpression(expression.expression(), breadcrumbs.appendName("expression"), ctx)
+    return SetExpressionNode(
+        NodeInfo(expression.getRange(), breadcrumbs), identifier, valueExpression
     )
 }
 
@@ -374,6 +373,7 @@ private fun parseExpression(
             is FunctionExpressionContext -> parseFunctionExpression(child, innerBreadcrumbs, ctx)
             is BranchExpressionContext -> parseBranchExpression(child, innerBreadcrumbs, ctx)
             is LoopExpressionContext -> parseLoopExpression(child, innerBreadcrumbs, ctx)
+            is SetExpressionContext -> parseSetExpressionNode(child, innerBreadcrumbs, ctx)
             is CauseExpressionContext -> parseCauseExpression(child, innerBreadcrumbs, ctx)
             is ReturnExpressionContext -> parseReturnExpression(child, innerBreadcrumbs, ctx)
             is BreakExpressionContext -> parseBreakExpression(child, innerBreadcrumbs, ctx)

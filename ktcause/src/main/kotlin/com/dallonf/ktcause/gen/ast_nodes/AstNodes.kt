@@ -271,17 +271,6 @@ data class EffectStatementNode(
         put("body", body)
     }
 }
-data class SetStatementNode(
-  override val info: NodeInfo,
-  val identifier: IdentifierNode,
-  val expression: ExpressionNode,
-): StatementNode {
-  override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild> =
-    buildMap {
-        put("identifier", identifier)
-        put("expression", expression)
-    }
-}
 data class GroupExpressionNode(
   override val info: NodeInfo,
   val expression: ExpressionNode,
@@ -366,6 +355,17 @@ data class LoopExpressionNode(
   override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild> =
     buildMap {
         put("body", body)
+    }
+}
+data class SetExpressionNode(
+  override val info: NodeInfo,
+  val identifier: IdentifierNode,
+  val expression: ExpressionNode,
+): ExpressionNode {
+  override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild> =
+    buildMap {
+        put("identifier", identifier)
+        put("expression", expression)
     }
 }
 data class CauseExpressionNode(

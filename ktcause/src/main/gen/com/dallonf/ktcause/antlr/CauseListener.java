@@ -268,16 +268,6 @@ public interface CauseListener extends ParseTreeListener {
 	 */
 	void exitEffectStatement(CauseParser.EffectStatementContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link CauseParser#setStatement}.
-	 * @param ctx the parse tree
-	 */
-	void enterSetStatement(CauseParser.SetStatementContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link CauseParser#setStatement}.
-	 * @param ctx the parse tree
-	 */
-	void exitSetStatement(CauseParser.SetStatementContext ctx);
-	/**
 	 * Enter a parse tree produced by {@link CauseParser#expression}.
 	 * @param ctx the parse tree
 	 */
@@ -347,6 +337,16 @@ public interface CauseListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitLoopExpression(CauseParser.LoopExpressionContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link CauseParser#setExpression}.
+	 * @param ctx the parse tree
+	 */
+	void enterSetExpression(CauseParser.SetExpressionContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link CauseParser#setExpression}.
+	 * @param ctx the parse tree
+	 */
+	void exitSetExpression(CauseParser.SetExpressionContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link CauseParser#causeExpression}.
 	 * @param ctx the parse tree

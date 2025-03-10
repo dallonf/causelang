@@ -46,7 +46,7 @@ class VariablesTest {
                 {
                     "position": {
                         "path": "project/test.cau",
-                        "breadcrumbs": "declarations.1.body.statements.1",
+                        "breadcrumbs": "declarations.1.body.statements.1.expression",
                         "position": "3:4-3:13"
                     },
                     "error": {
@@ -65,7 +65,7 @@ class VariablesTest {
                 "position": {
                     "#type": "SourcePosition",
                     "path": "project/test.cau",
-                    "breadcrumbs": "declarations.1.body.statements.1",
+                    "breadcrumbs": "declarations.1.body.statements.1.expression",
                     "position": "3:4-3:13"
                 },
                 "error": {
@@ -158,7 +158,7 @@ class VariablesTest {
                 {
                     "position": {
                         "path": "project/test.cau",
-                        "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0",
+                        "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression",
                         "position": "4:8-4:17"
                     },
                     "error": {
@@ -177,7 +177,7 @@ class VariablesTest {
                 "position": {
                     "#type": "SourcePosition",
                     "path": "project/test.cau",
-                    "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0",
+                    "breadcrumbs": "declarations.1.body.statements.1.declaration.body.statements.0.expression",
                     "position": "4:8-4:17"
                 },
                 "error": {

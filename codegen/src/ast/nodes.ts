@@ -181,14 +181,6 @@ export const nodes: NodeDeclaration[] = [
       body: "Body",
     },
   },
-  {
-    name: "SetStatement",
-    category: "Statement",
-    fields: {
-      identifier: "Identifier",
-      expression: "Expression",
-    },
-  },
 
   {
     name: "GroupExpression",
@@ -249,6 +241,14 @@ export const nodes: NodeDeclaration[] = [
     category: "Expression",
     fields: {
       body: "Body",
+    },
+  },
+  {
+    name: "SetExpression",
+    category: "Expression",
+    fields: {
+      identifier: "Identifier",
+      expression: "Expression",
     },
   },
   {
