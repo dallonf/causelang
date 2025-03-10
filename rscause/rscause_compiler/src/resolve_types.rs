@@ -889,11 +889,12 @@ impl ResolveTypes for ast::FunctionNode {
 
 impl ResolveTypes for ast::BlockBodyNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        let last_statement = self.statements.last();
-        let last_statement_type = last_statement
+        let result_expression_type = self
+            .result
+            .as_ref()
             .map(|it| ctx.get_resolved_type_proxying_errors(it))
             .unwrap_or(LangType::Action.into());
-        Some(last_statement_type)
+        Some(result_expression_type)
     }
 }
 

@@ -480,11 +480,22 @@ fn compile_body(
     ctx: &mut CompilerContext,
 ) -> Result<()> {
     match body {
-        ast::BodyNode::Block(block) => compile_block(block, procedure, ctx),
-        ast::BodyNode::SingleStatement(body) => {
-            compile_statement(&body.statement, procedure, ctx, true)
-        }
-    }
+        ast::BodyNode::Block(block) => compile_block(block, procedure, ctx)?,
+        ast::BodyNode::SingleStatement(body) => match &body.statement {
+            ast::StatementNode::Expression(expression_statement_node) => {
+                compile_expression(&expression_statement_node.expression, procedure, ctx)?
+            }
+            _ => {
+                compile_statement(&body.statement, procedure, ctx)?;
+                procedure.write_instruction_with_phase(
+                    Instruction::PushAction(PushActionInstruction {}),
+                    Some(&body.info),
+                    InstructionPhase::Cleanup,
+                );
+            }
+        },
+    };
+    Ok(())
 }
 
 fn compile_block(
@@ -501,16 +512,19 @@ fn compile_block(
             named_value_indices: HashMap::new(),
         })));
 
-    if block.statements.is_empty() {
-        procedure.write_instruction(
-            Instruction::PushAction(PushActionInstruction {}),
-            Some(&block.info),
-        );
+    for statement in block.statements.iter() {
+        compile_statement(statement, procedure, ctx)?;
+        // TODO: deal with NeverContinues
     }
 
-    for (i, statement) in block.statements.iter().enumerate() {
-        compile_statement(statement, procedure, ctx, i == block.statements.len() - 1)?;
-        // TODO: deal with NeverContinues
+    if let Some(result) = &block.result {
+        compile_expression(result, procedure, ctx)?;
+    } else {
+        procedure.write_instruction_with_phase(
+            Instruction::PushAction(PushActionInstruction {}),
+            Some(&block.info),
+            InstructionPhase::Cleanup,
+        );
     }
 
     let scope = ctx
@@ -538,49 +552,24 @@ fn compile_statement(
     statement: &ast::StatementNode,
     procedure: &mut Procedure,
     ctx: &mut CompilerContext,
-    is_last_statement: bool,
 ) -> Result<()> {
     match statement {
         ast::StatementNode::Expression(statement) => {
             compile_expression(&statement.expression, procedure, ctx)?;
-            if !is_last_statement {
-                procedure.write_instruction_with_phase(
-                    Instruction::Pop(PopInstruction { number: 1 }),
-                    Some(&statement.info),
-                    InstructionPhase::Cleanup,
-                );
-            }
+            procedure.write_instruction_with_phase(
+                Instruction::Pop(PopInstruction { number: 1 }),
+                Some(&statement.info),
+                InstructionPhase::Cleanup,
+            );
         }
         ast::StatementNode::Declaration(statement) => {
             compile_local_declaration(statement, procedure, ctx)?;
-            if is_last_statement {
-                procedure.write_instruction_with_phase(
-                    Instruction::PushAction(PushActionInstruction {}),
-                    Some(&statement.info),
-                    InstructionPhase::Cleanup,
-                );
-            }
         }
         ast::StatementNode::Effect(statement) => {
             compile_effect_statement(statement, procedure, ctx)?;
-            if is_last_statement {
-                procedure.write_instruction_with_phase(
-                    Instruction::PushAction(PushActionInstruction {}),
-                    Some(&statement.info),
-                    InstructionPhase::Cleanup,
-                );
-            }
         }
         ast::StatementNode::Set(statement) => {
             compile_set_statement(statement, procedure, ctx)?;
-
-            if is_last_statement {
-                procedure.write_instruction_with_phase(
-                    Instruction::PushAction(PushActionInstruction {}),
-                    Some(&statement.info),
-                    InstructionPhase::Cleanup,
-                );
-            }
         }
     }
     Ok(())

@@ -41,7 +41,7 @@ internal class BlockResultSyntaxTest {
             )
         }
         TestUtils.expectNoCompileErrors(vm)
-        runMainExpectingDebugs(vm, "project/hello.cau", listOf("Hello, world!"))
+        runMainExpectingDebugs(vm, "project/hello.cau", listOf("Hi"))
     }
 
     @Test
@@ -61,14 +61,56 @@ internal class BlockResultSyntaxTest {
 
         assertEquals(
             """
+            [
+                {
+                    "position": {
+                        "path": "project/hello.cau",
+                        "breadcrumbs": "declarations.1.body.statements.0.declaration.value",
+                        "position": "2:25-4:5"
+                    },
+                    "error": {
+                        "#type": "MismatchedType",
+                        "expected": {
+                            "valueType": {
+                                "#type": "Primitive",
+                                "kind": "Text"
+                            }
+                        },
+                        "actual": {
+                            "#type": "Action"
+                        }
+                    }
+                }
+            ]
             """.trimIndent(),
             vm.codeBundle.compileErrors.debug(),
         )
 
         val result = vm.executeFunction("project/hello.cau", "main", listOf())
-        val badValue = TestUtils.expectTypeError(result, vm)
+        val badValue = TestUtils.expectInvalidSignal(result)
         assertEquals(
             """
+            {
+                "#type": "BadValue",
+                "position": {
+                    "#type": "SourcePosition",
+                    "path": "project/hello.cau",
+                    "breadcrumbs": "declarations.1.body.statements.0.declaration.value",
+                    "position": "2:25-4:5"
+                },
+                "error": {
+                    "#type": "MismatchedType",
+                    "expected": {
+                        "valueType": {
+                            "#type": "Primitive",
+                            "kind": "Text"
+                        }
+                    },
+                    "actual": {
+                        "#type": "Action"
+                    }
+                }
+            }
             """.trimIndent(),
             badValue.debug(),
         )
