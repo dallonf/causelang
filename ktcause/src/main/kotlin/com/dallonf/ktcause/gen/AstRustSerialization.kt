@@ -28,7 +28,7 @@ object AstRustSerialization {
     fun serializeBody(node: BodyNode): JsonElement {
         return when (node) {
             is BlockBodyNode -> buildJsonObject { put("Block", serializeBlockBody(node)) }
-            is SingleStatementBodyNode -> buildJsonObject { put("SingleStatement", serializeSingleStatementBody(node)) }
+            is SingleExpressionBodyNode -> buildJsonObject { put("SingleExpression", serializeSingleExpressionBody(node)) }
             else -> TODO("Unknown node type: ${node::class.simpleName}")
         }
     }
@@ -209,10 +209,10 @@ object AstRustSerialization {
         }
     }
 
-    fun serializeSingleStatementBody(node: SingleStatementBodyNode): JsonElement {
+    fun serializeSingleExpressionBody(node: SingleExpressionBodyNode): JsonElement {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
-            put("statement", serializeStatement(node.statement))
+            put("expression", serializeExpression(node.expression))
         }
     }
 

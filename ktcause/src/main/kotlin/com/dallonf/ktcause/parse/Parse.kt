@@ -280,10 +280,10 @@ private fun parseBody(
 ): BodyNode {
     return when (val child = body.getChild(0)) {
         is BlockContext -> parseBlock(child, breadcrumbs, ctx)
-        is SingleStatementBodyContext -> {
-            val statement = parseStatement(child.statement(), breadcrumbs.appendName("statement"), ctx)
-            SingleStatementBodyNode(
-                NodeInfo(child.getRange(), breadcrumbs), statement
+        is SingleExpressionBodyContext -> {
+            val expression = parseExpression(child.expression(), breadcrumbs.appendName("expression"), ctx)
+            SingleExpressionBodyNode(
+                NodeInfo(child.getRange(), breadcrumbs), expression
             )
         }
 

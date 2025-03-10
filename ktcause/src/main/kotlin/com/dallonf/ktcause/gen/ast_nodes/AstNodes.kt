@@ -233,13 +233,13 @@ data class BlockBodyNode(
         }
     }
 }
-data class SingleStatementBodyNode(
+data class SingleExpressionBodyNode(
   override val info: NodeInfo,
-  val statement: StatementNode,
+  val expression: ExpressionNode,
 ): BodyNode {
   override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild> =
     buildMap {
-        put("statement", statement)
+        put("expression", expression)
     }
 }
 data class ExpressionStatementNode(

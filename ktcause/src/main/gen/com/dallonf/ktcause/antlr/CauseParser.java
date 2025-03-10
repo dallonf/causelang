@@ -32,7 +32,7 @@ public class CauseParser extends Parser {
 		RULE_functionReturnValue = 11, RULE_namedValueDeclaration = 12, RULE_objectDeclaration = 13, 
 		RULE_signalDeclaration = 14, RULE_objectFields = 15, RULE_objectField = 16, 
 		RULE_optionDeclaration = 17, RULE_body = 18, RULE_block = 19, RULE_blockResult = 20, 
-		RULE_singleStatementBody = 21, RULE_statement = 22, RULE_expressionStatement = 23, 
+		RULE_singleExpressionBody = 21, RULE_statement = 22, RULE_expressionStatement = 23, 
 		RULE_declarationStatement = 24, RULE_effectStatement = 25, RULE_setStatement = 26, 
 		RULE_expression = 27, RULE_groupExpression = 28, RULE_blockExpression = 29, 
 		RULE_functionExpression = 30, RULE_branchExpression = 31, RULE_branchWith = 32, 
@@ -50,11 +50,11 @@ public class CauseParser extends Parser {
 			"importDeclaration", "importMappings", "importMapping", "functionDeclaration", 
 			"functionReturnValue", "namedValueDeclaration", "objectDeclaration", 
 			"signalDeclaration", "objectFields", "objectField", "optionDeclaration", 
-			"body", "block", "blockResult", "singleStatementBody", "statement", "expressionStatement", 
-			"declarationStatement", "effectStatement", "setStatement", "expression", 
-			"groupExpression", "blockExpression", "functionExpression", "branchExpression", 
-			"branchWith", "loopExpression", "causeExpression", "returnExpression", 
-			"breakExpression", "stringLiteralExpression", "numberLiteralExpression", 
+			"body", "block", "blockResult", "singleExpressionBody", "statement", 
+			"expressionStatement", "declarationStatement", "effectStatement", "setStatement", 
+			"expression", "groupExpression", "blockExpression", "functionExpression", 
+			"branchExpression", "branchWith", "loopExpression", "causeExpression", 
+			"returnExpression", "breakExpression", "stringLiteralExpression", "numberLiteralExpression", 
 			"identifierExpression", "expressionSuffix", "callExpressionSuffix", "callParam", 
 			"callPositionalParameter", "memberExpressionSuffix", "pipeCallExpressionSuffix", 
 			"branchOption", "ifBranchOption", "isBranchOption", "elseBranchOption", 
@@ -1758,14 +1758,14 @@ public class CauseParser extends Parser {
 			}
 			setState(458);
 			_errHandler.sync(this);
-			switch ( getInterpreter().adaptivePredict(_input,57,_ctx) ) {
-			case 1:
+			_la = _input.LA(1);
+			if (_la==PAREN_OPEN) {
 				{
 				setState(457);
 				objectFields();
 				}
-				break;
 			}
+
 			}
 		}
 		catch (RecognitionException re) {
@@ -1857,14 +1857,14 @@ public class CauseParser extends Parser {
 			}
 			setState(475);
 			_errHandler.sync(this);
-			switch ( getInterpreter().adaptivePredict(_input,60,_ctx) ) {
-			case 1:
+			_la = _input.LA(1);
+			if (_la==PAREN_OPEN) {
 				{
 				setState(474);
 				objectFields();
 				}
-				break;
 			}
+
 			setState(480);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,61,_ctx);
@@ -2397,8 +2397,8 @@ public class CauseParser extends Parser {
 		public BlockContext block() {
 			return getRuleContext(BlockContext.class,0);
 		}
-		public SingleStatementBodyContext singleStatementBody() {
-			return getRuleContext(SingleStatementBodyContext.class,0);
+		public SingleExpressionBodyContext singleExpressionBody() {
+			return getRuleContext(SingleExpressionBodyContext.class,0);
 		}
 		public BodyContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
@@ -2437,7 +2437,7 @@ public class CauseParser extends Parser {
 				enterOuterAlt(_localctx, 2);
 				{
 				setState(616);
-				singleStatementBody();
+				singleExpressionBody();
 				}
 				break;
 			default:
@@ -2661,37 +2661,37 @@ public class CauseParser extends Parser {
 	}
 
 	@SuppressWarnings("CheckReturnValue")
-	public static class SingleStatementBodyContext extends ParserRuleContext {
+	public static class SingleExpressionBodyContext extends ParserRuleContext {
 		public TerminalNode THICK_ARROW() { return getToken(CauseParser.THICK_ARROW, 0); }
-		public StatementContext statement() {
-			return getRuleContext(StatementContext.class,0);
+		public ExpressionContext expression() {
+			return getRuleContext(ExpressionContext.class,0);
 		}
 		public List<TerminalNode> NEWLINE() { return getTokens(CauseParser.NEWLINE); }
 		public TerminalNode NEWLINE(int i) {
 			return getToken(CauseParser.NEWLINE, i);
 		}
-		public SingleStatementBodyContext(ParserRuleContext parent, int invokingState) {
+		public SingleExpressionBodyContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
 		}
-		@Override public int getRuleIndex() { return RULE_singleStatementBody; }
+		@Override public int getRuleIndex() { return RULE_singleExpressionBody; }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof CauseListener ) ((CauseListener)listener).enterSingleStatementBody(this);
+			if ( listener instanceof CauseListener ) ((CauseListener)listener).enterSingleExpressionBody(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof CauseListener ) ((CauseListener)listener).exitSingleStatementBody(this);
+			if ( listener instanceof CauseListener ) ((CauseListener)listener).exitSingleExpressionBody(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof CauseVisitor ) return ((CauseVisitor<? extends T>)visitor).visitSingleStatementBody(this);
+			if ( visitor instanceof CauseVisitor ) return ((CauseVisitor<? extends T>)visitor).visitSingleExpressionBody(this);
 			else return visitor.visitChildren(this);
 		}
 	}
 
-	public final SingleStatementBodyContext singleStatementBody() throws RecognitionException {
-		SingleStatementBodyContext _localctx = new SingleStatementBodyContext(_ctx, getState());
-		enterRule(_localctx, 42, RULE_singleStatementBody);
+	public final SingleExpressionBodyContext singleExpressionBody() throws RecognitionException {
+		SingleExpressionBodyContext _localctx = new SingleExpressionBodyContext(_ctx, getState());
+		enterRule(_localctx, 42, RULE_singleExpressionBody);
 		int _la;
 		try {
 			enterOuterAlt(_localctx, 1);
@@ -2713,7 +2713,7 @@ public class CauseParser extends Parser {
 				_la = _input.LA(1);
 			}
 			setState(667);
-			statement();
+			expression();
 			}
 		}
 		catch (RecognitionException re) {
@@ -5851,7 +5851,7 @@ public class CauseParser extends Parser {
 		"\u0296\u0295\u0001\u0000\u0000\u0000\u0297\u029a\u0001\u0000\u0000\u0000"+
 		"\u0298\u0296\u0001\u0000\u0000\u0000\u0298\u0299\u0001\u0000\u0000\u0000"+
 		"\u0299\u029b\u0001\u0000\u0000\u0000\u029a\u0298\u0001\u0000\u0000\u0000"+
-		"\u029b\u029c\u0003,\u0016\u0000\u029c+\u0001\u0000\u0000\u0000\u029d\u02a2"+
+		"\u029b\u029c\u00036\u001b\u0000\u029c+\u0001\u0000\u0000\u0000\u029d\u02a2"+
 		"\u00032\u0019\u0000\u029e\u02a2\u00034\u001a\u0000\u029f\u02a2\u00030"+
 		"\u0018\u0000\u02a0\u02a2\u0003.\u0017\u0000\u02a1\u029d\u0001\u0000\u0000"+
 		"\u0000\u02a1\u029e\u0001\u0000\u0000\u0000\u02a1\u029f\u0001\u0000\u0000"+

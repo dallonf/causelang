@@ -489,9 +489,9 @@ object Analyzer {
                 body.result?.let { analyzeExpression(it, output, currentCtx) }
             }
 
-            is SingleStatementBodyNode -> {
-                analyzeStatement(body.statement, output, ctx)
-                output.addValueFlowTag(body.statement.info.breadcrumbs, body.info.breadcrumbs)
+            is SingleExpressionBodyNode -> {
+                analyzeExpression(body.expression, output, ctx)
+                output.addValueFlowTag(body.expression.info.breadcrumbs, body.info.breadcrumbs)
             }
         }
     }

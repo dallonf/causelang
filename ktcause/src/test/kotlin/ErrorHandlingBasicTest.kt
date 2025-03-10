@@ -472,7 +472,7 @@ internal class ErrorHandlingBasicTest {
                 {
                     "position": {
                         "path": "project/hello.cau",
-                        "breadcrumbs": "declarations.4.body.result.branches.0.body.statement.expression.value",
+                        "breadcrumbs": "declarations.4.body.result.branches.0.body.expression.value",
                         "position": "7:34-7:41"
                     },
                     "error": {
@@ -510,7 +510,7 @@ internal class ErrorHandlingBasicTest {
                 {
                     "position": {
                         "path": "project/hello.cau",
-                        "breadcrumbs": "declarations.4.body.result.branches.1.body.statement.expression.value",
+                        "breadcrumbs": "declarations.4.body.result.branches.1.body.expression.value",
                         "position": "8:34-8:40"
                     },
                     "error": {
@@ -557,7 +557,7 @@ internal class ErrorHandlingBasicTest {
                 "position": {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
-                    "breadcrumbs": "declarations.4.body.result.branches.0.body.statement.expression.value",
+                    "breadcrumbs": "declarations.4.body.result.branches.0.body.expression.value",
                     "position": "7:34-7:41"
                 },
                 "error": {

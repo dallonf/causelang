@@ -21,7 +21,7 @@ val rustCompilerSupportedTypes = setOf(
         ObjectFieldNode::class,
         OneOfTypeNode::class,
         BlockBodyNode::class,
-        SingleStatementBodyNode::class,
+        SingleExpressionBodyNode::class,
         ExpressionStatementNode::class,
         DeclarationStatementNode::class,
         EffectStatementNode::class,

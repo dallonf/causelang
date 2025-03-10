@@ -137,11 +137,11 @@ public interface CauseVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitBlockResult(CauseParser.BlockResultContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link CauseParser#singleStatementBody}.
+	 * Visit a parse tree produced by {@link CauseParser#singleExpressionBody}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitSingleStatementBody(CauseParser.SingleStatementBodyContext ctx);
+	T visitSingleExpressionBody(CauseParser.SingleExpressionBodyContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link CauseParser#statement}.
 	 * @param ctx the parse tree

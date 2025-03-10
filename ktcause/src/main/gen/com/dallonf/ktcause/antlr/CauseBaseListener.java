@@ -269,13 +269,13 @@ public class CauseBaseListener implements CauseListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterSingleStatementBody(CauseParser.SingleStatementBodyContext ctx) { }
+	@Override public void enterSingleExpressionBody(CauseParser.SingleExpressionBodyContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitSingleStatementBody(CauseParser.SingleStatementBodyContext ctx) { }
+	@Override public void exitSingleExpressionBody(CauseParser.SingleExpressionBodyContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

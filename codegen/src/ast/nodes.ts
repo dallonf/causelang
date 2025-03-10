@@ -152,10 +152,10 @@ export const nodes: NodeDeclaration[] = [
     },
   },
   {
-    name: "SingleStatementBody",
+    name: "SingleExpressionBody",
     category: "Body",
     fields: {
-      statement: "Statement",
+      expression: "Expression",
     },
   },
 

@@ -33,7 +33,7 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "options",
     "statements",
     "result",
-    "statement",
+    "expression",
     "expression",
     "declaration",
     "pattern",
@@ -87,7 +87,7 @@ pub enum AnyAstNode {
     ObjectField(Arc<ObjectFieldNode>),
     OneOfType(Arc<OneOfTypeNode>),
     BlockBody(Arc<BlockBodyNode>),
-    SingleStatementBody(Arc<SingleStatementBodyNode>),
+    SingleExpressionBody(Arc<SingleExpressionBodyNode>),
     ExpressionStatement(Arc<ExpressionStatementNode>),
     DeclarationStatement(Arc<DeclarationStatementNode>),
     EffectStatement(Arc<EffectStatementNode>),
@@ -130,7 +130,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::ObjectField(node) => node.children(),
             AnyAstNode::OneOfType(node) => node.children(),
             AnyAstNode::BlockBody(node) => node.children(),
-            AnyAstNode::SingleStatementBody(node) => node.children(),
+            AnyAstNode::SingleExpressionBody(node) => node.children(),
             AnyAstNode::ExpressionStatement(node) => node.children(),
             AnyAstNode::DeclarationStatement(node) => node.children(),
             AnyAstNode::EffectStatement(node) => node.children(),
@@ -173,7 +173,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::ObjectField(node) => node.info(),
             AnyAstNode::OneOfType(node) => node.info(),
             AnyAstNode::BlockBody(node) => node.info(),
-            AnyAstNode::SingleStatementBody(node) => node.info(),
+            AnyAstNode::SingleExpressionBody(node) => node.info(),
             AnyAstNode::ExpressionStatement(node) => node.info(),
             AnyAstNode::DeclarationStatement(node) => node.info(),
             AnyAstNode::EffectStatement(node) => node.info(),
@@ -218,7 +218,7 @@ impl HasBreadcrumbs for AnyAstNode {
             AnyAstNode::ObjectField(node) => node.breadcrumbs(),
             AnyAstNode::OneOfType(node) => node.breadcrumbs(),
             AnyAstNode::BlockBody(node) => node.breadcrumbs(),
-            AnyAstNode::SingleStatementBody(node) => node.breadcrumbs(),
+            AnyAstNode::SingleExpressionBody(node) => node.breadcrumbs(),
             AnyAstNode::ExpressionStatement(node) => node.breadcrumbs(),
             AnyAstNode::DeclarationStatement(node) => node.breadcrumbs(),
             AnyAstNode::EffectStatement(node) => node.breadcrumbs(),
@@ -349,19 +349,19 @@ impl HasBreadcrumbs for DeclarationNode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BodyNode {
     Block(Arc<BlockBodyNode>),
-    SingleStatement(Arc<SingleStatementBodyNode>),
+    SingleExpression(Arc<SingleExpressionBodyNode>),
 }
 impl AstNode for BodyNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         match self {
             BodyNode::Block(node) => node.children(),
-            BodyNode::SingleStatement(node) => node.children(),
+            BodyNode::SingleExpression(node) => node.children(),
         }
     }
     fn info(&self) -> &NodeInfo {
         match self {
             BodyNode::Block(node) => node.info(),
-            BodyNode::SingleStatement(node) => node.info(),
+            BodyNode::SingleExpression(node) => node.info(),
         }
     }
 }
@@ -374,7 +374,7 @@ impl From<BodyNode> for AnyAstNode {
     fn from(value: BodyNode) -> Self {
         match value {
             BodyNode::Block(node) => AnyAstNode::BlockBody(node),
-            BodyNode::SingleStatement(node) => AnyAstNode::SingleStatementBody(node),
+            BodyNode::SingleExpression(node) => AnyAstNode::SingleExpressionBody(node),
         }
     }
 }
@@ -382,7 +382,7 @@ impl HasBreadcrumbs for BodyNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         match self {
             BodyNode::Block(node) => node.breadcrumbs(),
-            BodyNode::SingleStatement(node) => node.breadcrumbs(),
+            BodyNode::SingleExpression(node) => node.breadcrumbs(),
         }
     }
 }
@@ -1321,31 +1321,31 @@ impl HasBreadcrumbs for BlockBodyNode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct SingleStatementBodyNode {
+pub struct SingleExpressionBodyNode {
     pub info: NodeInfo,
-    pub statement: StatementNode,
+    pub expression: ExpressionNode,
 }
-impl From<&SingleStatementBodyNode> for AnyAstNode {
-    fn from(value: &SingleStatementBodyNode) -> Self {
-        AnyAstNode::SingleStatementBody(Arc::new(value.to_owned()))
+impl From<&SingleExpressionBodyNode> for AnyAstNode {
+    fn from(value: &SingleExpressionBodyNode) -> Self {
+        AnyAstNode::SingleExpressionBody(Arc::new(value.to_owned()))
     }
 }
-impl From<&Arc<SingleStatementBodyNode>> for AnyAstNode {
-    fn from(value: &Arc<SingleStatementBodyNode>) -> Self {
-        AnyAstNode::SingleStatementBody(value.clone())
+impl From<&Arc<SingleExpressionBodyNode>> for AnyAstNode {
+    fn from(value: &Arc<SingleExpressionBodyNode>) -> Self {
+        AnyAstNode::SingleExpressionBody(value.clone())
     }
 }
-impl From<Arc<SingleStatementBodyNode>> for AnyAstNode {
-    fn from(value: Arc<SingleStatementBodyNode>) -> Self {
-        AnyAstNode::SingleStatementBody(value.clone())
+impl From<Arc<SingleExpressionBodyNode>> for AnyAstNode {
+    fn from(value: Arc<SingleExpressionBodyNode>) -> Self {
+        AnyAstNode::SingleExpressionBody(value.clone())
     }
 }
-impl AstNode for SingleStatementBodyNode {
+impl AstNode for SingleExpressionBodyNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("statement"),
-            (&self.statement).into(),
+            BreadcrumbName::new("expression"),
+            (&self.expression).into(),
         );
         result
     }
@@ -1353,7 +1353,7 @@ impl AstNode for SingleStatementBodyNode {
         &self.info
     }
 }
-impl HasBreadcrumbs for SingleStatementBodyNode {
+impl HasBreadcrumbs for SingleExpressionBodyNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.info.breadcrumbs
     }

@@ -1,6 +1,6 @@
 use crate::ast::{
     self, AnyAstNode, AstNode, BreadcrumbTreeNode, ExpressionNode, FunctionSignatureParameterNode,
-    LoopExpressionNode, SingleStatementBodyNode,
+    LoopExpressionNode,
 };
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
 use crate::error_types::{
@@ -661,7 +661,7 @@ impl ResolveTypes for AnyAstNode {
                 let value_type = ctx.get_resolved_type_proxying_errors(&node.value);
                 Some(value_type)
             }
-            Self::SingleStatementBody(node) => node.compute_type(ctx),
+            Self::SingleExpressionBody(node) => node.compute_type(ctx),
             Self::GroupExpression(node) => {
                 Some(ctx.get_resolved_type_proxying_errors(&node.expression))
             }
@@ -1676,10 +1676,10 @@ impl ResolveTypes for ast::BreakExpressionNode {
     }
 }
 
-impl ResolveTypes for SingleStatementBodyNode {
+impl ResolveTypes for ast::SingleExpressionBodyNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         return ctx
-            .get_resolved_type_proxying_errors(&self.statement)
+            .get_resolved_type_proxying_errors(&self.expression)
             .pipe(Some);
     }
 }

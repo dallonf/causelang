@@ -481,19 +481,9 @@ fn compile_body(
 ) -> Result<()> {
     match body {
         ast::BodyNode::Block(block) => compile_block(block, procedure, ctx)?,
-        ast::BodyNode::SingleStatement(body) => match &body.statement {
-            ast::StatementNode::Expression(expression_statement_node) => {
-                compile_expression(&expression_statement_node.expression, procedure, ctx)?
-            }
-            _ => {
-                compile_statement(&body.statement, procedure, ctx)?;
-                procedure.write_instruction_with_phase(
-                    Instruction::PushAction(PushActionInstruction {}),
-                    Some(&body.info),
-                    InstructionPhase::Cleanup,
-                );
-            }
-        },
+        ast::BodyNode::SingleExpression(body) => {
+            compile_expression(&body.expression, procedure, ctx)?
+        }
     };
     Ok(())
 }

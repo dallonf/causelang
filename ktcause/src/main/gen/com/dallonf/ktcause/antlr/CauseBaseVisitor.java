@@ -165,7 +165,7 @@ public class CauseBaseVisitor<T> extends AbstractParseTreeVisitor<T> implements 
 	 * <p>The default implementation returns the result of calling
 	 * {@link #visitChildren} on {@code ctx}.</p>
 	 */
-	@Override public T visitSingleStatementBody(CauseParser.SingleStatementBodyContext ctx) { return visitChildren(ctx); }
+	@Override public T visitSingleExpressionBody(CauseParser.SingleExpressionBodyContext ctx) { return visitChildren(ctx); }
 	/**
 	 * {@inheritDoc}
 	 *

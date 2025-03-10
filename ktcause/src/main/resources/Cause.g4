@@ -79,11 +79,11 @@ objectField : IDENTIFIER NEWLINE* COLON NEWLINE* typeReference ;
 
 optionDeclaration : OPTION NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE* (typeReference NEWLINE* (COMMA NEWLINE* typeReference NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
 
-body : block | singleStatementBody ;
+body : block | singleExpressionBody ;
 
 block : CURLY_OPEN NEWLINE* (statement (NEWLINE+ statement)*)? NEWLINE* blockResult? NEWLINE* CURLY_CLOSE ;
 blockResult : CARET expression ;
-singleStatementBody : THICK_ARROW NEWLINE* statement ;
+singleExpressionBody : THICK_ARROW NEWLINE* expression ;
 
 statement : effectStatement | setStatement | declarationStatement | expressionStatement  ;
 

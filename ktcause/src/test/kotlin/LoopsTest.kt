@@ -75,7 +75,7 @@ class LoopsTest {
                 {
                     "position": {
                         "path": "project/test.cau",
-                        "breadcrumbs": "declarations.2.body.statements.1.expression.body.statements.1.declaration.body.statements.0.expression.branches.0.body.statement.expression",
+                        "breadcrumbs": "declarations.2.body.statements.1.expression.body.statements.1.declaration.body.statements.0.expression.branches.0.body.expression",
                         "position": "10:37-10:42"
                     },
                     "error": {
