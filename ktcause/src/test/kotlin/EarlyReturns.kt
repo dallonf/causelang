@@ -83,7 +83,7 @@ class EarlyReturns {
                     function main() {
                         signal Return(result: Text): NeverContinues
                         effect for Return as it {
-                            ^ return it.result
+                            return it.result
                         }
                         
                         cause Return("hello")

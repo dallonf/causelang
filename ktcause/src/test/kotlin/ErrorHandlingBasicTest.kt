@@ -671,7 +671,7 @@ internal class ErrorHandlingBasicTest {
                 "project/hello.cau", """                    
                     function main() {
                         let test = fn() returns Number {
-                            ^ return "not a number"
+                            return "not a number"
                         }
                         ^ test()
                     }
@@ -684,8 +684,8 @@ internal class ErrorHandlingBasicTest {
                 {
                     "position": {
                         "path": "project/hello.cau",
-                        "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body.block.result.value",
-                        "position": "3:17-3:31"
+                        "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body.block.statements.0.expression.value",
+                        "position": "3:15-3:29"
                     },
                     "error": {
                         "#type": "MismatchedType",
@@ -713,8 +713,8 @@ internal class ErrorHandlingBasicTest {
                 "position": {
                     "#type": "SourcePosition",
                     "path": "project/hello.cau",
-                    "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body.block.result.value",
-                    "position": "3:17-3:31"
+                    "breadcrumbs": "declarations.1.body.statements.0.declaration.value.body.block.statements.0.expression.value",
+                    "position": "3:15-3:29"
                 },
                 "error": {
                     "#type": "MismatchedType",

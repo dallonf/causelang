@@ -106,7 +106,7 @@ class LoopsTest {
                             set i = add(i, 1)
                             
                             effect for BreakMainLoop {
-                                ^ break
+                                break
                             }
                             
                             function break_on_3(i: Number) {
