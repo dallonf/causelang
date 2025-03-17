@@ -347,11 +347,11 @@ pub fn compile(
             }
             ast::DeclarationNode::SignalType(_)
             | ast::DeclarationNode::ObjectType(_)
-            | ast::DeclarationNode::OneOfType(_) => {
+            | ast::DeclarationNode::TypeAlias(_) => {
                 let name = match declaration {
                     ast::DeclarationNode::SignalType(declaration) => declaration.name.text.clone(),
                     ast::DeclarationNode::ObjectType(declaration) => declaration.name.text.clone(),
-                    ast::DeclarationNode::OneOfType(declaration) => declaration.name.text.clone(),
+                    ast::DeclarationNode::TypeAlias(declaration) => declaration.name.text.clone(),
                     _ => unreachable!(),
                 };
                 let error = ctx.check_for_badtype_error(declaration.breadcrumbs())?;
@@ -572,11 +572,11 @@ fn compile_local_declaration(
 
         ast::DeclarationNode::SignalType(_)
         | ast::DeclarationNode::ObjectType(_)
-        | ast::DeclarationNode::OneOfType(_) => {
+        | ast::DeclarationNode::TypeAlias(_) => {
             let name = match &statement.declaration {
                 ast::DeclarationNode::SignalType(declaration) => declaration.name.text.clone(),
                 ast::DeclarationNode::ObjectType(declaration) => declaration.name.text.clone(),
-                ast::DeclarationNode::OneOfType(declaration) => declaration.name.text.clone(),
+                ast::DeclarationNode::TypeAlias(declaration) => declaration.name.text.clone(),
                 _ => unreachable!(),
             };
             let resolved_type = ctx

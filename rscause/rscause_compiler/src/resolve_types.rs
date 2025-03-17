@@ -630,7 +630,7 @@ impl ResolveTypes for AnyAstNode {
             Self::ObjectType(node) => node.compute_type(ctx),
             Self::SignalType(node) => node.compute_type(ctx),
             Self::ObjectField(node) => node.compute_type(ctx),
-            Self::OneOfType(node) => node.compute_type(ctx),
+            Self::TypeAlias(node) => node.compute_type(ctx),
             Self::BlockBody(node) => node.compute_type(ctx),
             Self::DeclarationStatement(node) => node.compute_type(ctx),
             Self::ExpressionStatement(node) => node.compute_type(ctx),
@@ -645,6 +645,7 @@ impl ResolveTypes for AnyAstNode {
             Self::NumberLiteralExpression(node) => node.compute_type(ctx),
             Self::IdentifierTypeReference(node) => resolve_identifier_type_reference(node, ctx),
             Self::FunctionTypeReference(node) => node.compute_type(ctx),
+            Self::OneOfTypeReference(node) => node.compute_type(ctx),
             Self::Pattern(node) => {
                 let referenced_type = ctx
                     .get_resolved_type_proxying_errors(&node.type_reference)
@@ -751,6 +752,33 @@ impl ResolveTypes for ast::FunctionTypeReferenceNode {
             )
             .into(),
         )
+    }
+}
+
+impl ResolveTypes for ast::OneOfTypeReferenceNode {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+        let options = self
+            .options
+            .iter()
+            .map(|it| {
+                let type_reference_var = ctx.add_inference_variable();
+                let referenced_type_var = ctx.add_inference_variable();
+                ctx.constraints.push((
+                    type_reference_var,
+                    TypeConstraint::ResolveFrom(it.breadcrumbs().clone()),
+                    ConstraintDiagnostic::Resolver(it.breadcrumbs().clone(), "oneof option".into()),
+                ));
+                ctx.constraints.push((
+                    referenced_type_var,
+                    TypeConstraint::ReferencedType(InferredType::InferenceVariable(
+                        type_reference_var,
+                    )),
+                    ConstraintDiagnostic::Resolver(it.breadcrumbs().clone(), "oneof option".into()),
+                ));
+                InferredType::InferenceVariable(referenced_type_var)
+            })
+            .collect_vec();
+        Some(LangType::TypeReference(LangType::OneOf(OneOfLangType { options }).into()).into())
     }
 }
 
@@ -1480,30 +1508,15 @@ impl ResolveTypes for ast::ObjectFieldNode {
     }
 }
 
-impl ResolveTypes for ast::OneOfTypeNode {
+impl ResolveTypes for ast::TypeAliasNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        let options = self
-            .options
-            .iter()
-            .map(|it| {
-                let type_reference_var = ctx.add_inference_variable();
-                let referenced_type_var = ctx.add_inference_variable();
-                ctx.constraints.push((
-                    type_reference_var,
-                    TypeConstraint::ResolveFrom(it.breadcrumbs().clone()),
-                    ConstraintDiagnostic::Resolver(it.breadcrumbs().clone(), "oneof option".into()),
-                ));
-                ctx.constraints.push((
-                    referenced_type_var,
-                    TypeConstraint::ReferencedType(InferredType::InferenceVariable(
-                        type_reference_var,
-                    )),
-                    ConstraintDiagnostic::Resolver(it.breadcrumbs().clone(), "oneof option".into()),
-                ));
-                InferredType::InferenceVariable(referenced_type_var)
-            })
-            .collect_vec();
-        Some(LangType::TypeReference(LangType::OneOf(OneOfLangType { options }).into()).into())
+        let aliased_type_var = ctx.add_inference_variable();
+        ctx.constraints.push((
+            aliased_type_var,
+            TypeConstraint::ResolveFrom(self.r#type.breadcrumbs().to_owned()),
+            ConstraintDiagnostic::Resolver(self.breadcrumbs().to_owned(), "type alias".to_owned()),
+        ));
+        Some(AnyInferredLangType::InferenceVariable(aliased_type_var))
     }
 }
 
