@@ -58,6 +58,16 @@ public interface CauseListener extends ParseTreeListener {
 	 */
 	void exitFunctionTypeReferenceReturnValue(CauseParser.FunctionTypeReferenceReturnValueContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link CauseParser#oneOfTypeReference}.
+	 * @param ctx the parse tree
+	 */
+	void enterOneOfTypeReference(CauseParser.OneOfTypeReferenceContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link CauseParser#oneOfTypeReference}.
+	 * @param ctx the parse tree
+	 */
+	void exitOneOfTypeReference(CauseParser.OneOfTypeReferenceContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link CauseParser#functionSignatureParam}.
 	 * @param ctx the parse tree
 	 */
@@ -138,6 +148,16 @@ public interface CauseListener extends ParseTreeListener {
 	 */
 	void exitNamedValueDeclaration(CauseParser.NamedValueDeclarationContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link CauseParser#typeAliasDeclaration}.
+	 * @param ctx the parse tree
+	 */
+	void enterTypeAliasDeclaration(CauseParser.TypeAliasDeclarationContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link CauseParser#typeAliasDeclaration}.
+	 * @param ctx the parse tree
+	 */
+	void exitTypeAliasDeclaration(CauseParser.TypeAliasDeclarationContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link CauseParser#objectDeclaration}.
 	 * @param ctx the parse tree
 	 */
@@ -177,16 +197,6 @@ public interface CauseListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitObjectField(CauseParser.ObjectFieldContext ctx);
-	/**
-	 * Enter a parse tree produced by {@link CauseParser#optionDeclaration}.
-	 * @param ctx the parse tree
-	 */
-	void enterOptionDeclaration(CauseParser.OptionDeclarationContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link CauseParser#optionDeclaration}.
-	 * @param ctx the parse tree
-	 */
-	void exitOptionDeclaration(CauseParser.OptionDeclarationContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link CauseParser#body}.
 	 * @param ctx the parse tree

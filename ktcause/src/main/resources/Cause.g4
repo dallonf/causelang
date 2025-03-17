@@ -37,10 +37,12 @@ LET : 'let' ;
 LOOP : 'loop' ;
 OBJECT : 'object' ;
 OPTION : 'option' ;
+ONE_OF_CAMELCASE : 'OneOf' ;
 RETURN : 'return' ;
 RETURNS : 'returns' ;
 SET : 'set' ;
 SIGNAL : 'signal' ;
+TYPE : 'type' ;
 VARIABLE : 'variable' ;
 WITH : 'with' ;
 PATH : [a-zA-Z0-9_\-.]+ '/' [a-zA-Z_\-/.]+ ;
@@ -48,17 +50,18 @@ IDENTIFIER : [a-zA-Z_] [a-zA-Z0-9_]* ; // TODO: need moar emoji
 
 file : NEWLINE* (declaration (NEWLINE+ declaration)*)? NEWLINE* EOF ;
 
-typeReference : functionTypeReference | identifierTypeReference  ;
+typeReference : functionTypeReference | identifierTypeReference | oneOfTypeReference ;
 identifierTypeReference : IDENTIFIER ;
 functionTypeReference : FUNCTION_CAMEL NEWLINE* PAREN_OPEN NEWLINE*
     (functionSignatureParam NEWLINE* (COMMA NEWLINE* functionSignatureParam NEWLINE*)* COMMA?)?
     NEWLINE* PAREN_CLOSE NEWLINE* functionTypeReferenceReturnValue
 ;
     functionTypeReferenceReturnValue : RETURNS NEWLINE* typeReference ;
+oneOfTypeReference : ONE_OF_CAMELCASE NEWLINE* PAREN_OPEN NEWLINE* (typeReference NEWLINE* (COMMA NEWLINE* typeReference NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
 
 functionSignatureParam : IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference)? ;
 
-declaration : importDeclaration | functionDeclaration | namedValueDeclaration | objectDeclaration | signalDeclaration | optionDeclaration ;
+declaration : importDeclaration | functionDeclaration | namedValueDeclaration | typeAliasDeclaration | objectDeclaration | signalDeclaration ;
 
 importDeclaration : IMPORT NEWLINE* PATH NEWLINE* PAREN_OPEN NEWLINE* importMappings NEWLINE* PAREN_CLOSE ;
 importMappings : importMapping NEWLINE* (COMMA NEWLINE* importMapping NEWLINE*)* COMMA? ;
@@ -72,12 +75,11 @@ functionReturnValue : RETURNS NEWLINE* typeReference ;
 
 namedValueDeclaration : LET NEWLINE* VARIABLE? NEWLINE* IDENTIFIER NEWLINE* (COLON NEWLINE* typeReference NEWLINE*)? EQUALS NEWLINE* expression ;
 
+typeAliasDeclaration : TYPE NEWLINE* IDENTIFIER NEWLINE* EQUALS NEWLINE* typeReference ;
 objectDeclaration : OBJECT NEWLINE* IDENTIFIER NEWLINE* objectFields? ;
 signalDeclaration : SIGNAL NEWLINE* IDENTIFIER NEWLINE* objectFields? NEWLINE* (COLON NEWLINE* typeReference)?;
 objectFields : (PAREN_OPEN NEWLINE* (objectField NEWLINE* (COMMA NEWLINE* objectField NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE) ;
 objectField : IDENTIFIER NEWLINE* COLON NEWLINE* typeReference ;
-
-optionDeclaration : OPTION NEWLINE* IDENTIFIER NEWLINE* PAREN_OPEN NEWLINE* (typeReference NEWLINE* (COMMA NEWLINE* typeReference NEWLINE*)* COMMA?)? NEWLINE* PAREN_CLOSE ;
 
 body : block | singleExpressionBody ;
 

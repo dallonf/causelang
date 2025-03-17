@@ -41,6 +41,12 @@ public interface CauseVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitFunctionTypeReferenceReturnValue(CauseParser.FunctionTypeReferenceReturnValueContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link CauseParser#oneOfTypeReference}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitOneOfTypeReference(CauseParser.OneOfTypeReferenceContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link CauseParser#functionSignatureParam}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -89,6 +95,12 @@ public interface CauseVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitNamedValueDeclaration(CauseParser.NamedValueDeclarationContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link CauseParser#typeAliasDeclaration}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitTypeAliasDeclaration(CauseParser.TypeAliasDeclarationContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link CauseParser#objectDeclaration}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -112,12 +124,6 @@ public interface CauseVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitObjectField(CauseParser.ObjectFieldContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link CauseParser#optionDeclaration}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitOptionDeclaration(CauseParser.OptionDeclarationContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link CauseParser#body}.
 	 * @param ctx the parse tree

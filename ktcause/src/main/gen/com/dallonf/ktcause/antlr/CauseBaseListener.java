@@ -77,6 +77,18 @@ public class CauseBaseListener implements CauseListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterOneOfTypeReference(CauseParser.OneOfTypeReferenceContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitOneOfTypeReference(CauseParser.OneOfTypeReferenceContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterFunctionSignatureParam(CauseParser.FunctionSignatureParamContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -173,6 +185,18 @@ public class CauseBaseListener implements CauseListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterTypeAliasDeclaration(CauseParser.TypeAliasDeclarationContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitTypeAliasDeclaration(CauseParser.TypeAliasDeclarationContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterObjectDeclaration(CauseParser.ObjectDeclarationContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -216,18 +240,6 @@ public class CauseBaseListener implements CauseListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitObjectField(CauseParser.ObjectFieldContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterOptionDeclaration(CauseParser.OptionDeclarationContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitOptionDeclaration(CauseParser.OptionDeclarationContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

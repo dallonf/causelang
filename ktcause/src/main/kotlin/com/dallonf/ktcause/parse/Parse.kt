@@ -59,6 +59,7 @@ private fun parseTypeReference(
     return when (val child = typeReference.getChild(0)) {
         is IdentifierTypeReferenceContext -> parseIdentifierTypeReference(child, breadcrumbs, ctx)
         is FunctionTypeReferenceContext -> parseFunctionTypeReference(child, breadcrumbs, ctx)
+        is OneOfTypeReferenceContext -> parseOneOfTypeReference(child, breadcrumbs, ctx)
         else -> throw Error("unexpected type reference: ${child.toString()}")
     }
 }
@@ -98,6 +99,20 @@ private fun parseFunctionTypeReference(
     )
 }
 
+private fun parseOneOfTypeReference(
+    typeReference: OneOfTypeReferenceContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+): OneOfTypeReferenceNode {
+    val optionsBreadcrumbs = breadcrumbs.appendName("options")
+    val options = typeReference.typeReference().mapIndexed { i, option ->
+        val optionBreadcrumbs = optionsBreadcrumbs.appendIndex(i)
+        parseTypeReference(option, optionBreadcrumbs, ctx)
+    }
+
+    return OneOfTypeReferenceNode(
+        NodeInfo(typeReference.getRange(), breadcrumbs), options
+    )
+}
+
 private fun parseDeclaration(
     declaration: DeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
 ): DeclarationNode {
@@ -107,7 +122,7 @@ private fun parseDeclaration(
         is NamedValueDeclarationContext -> parseNamedValueDeclaration(child, breadcrumbs, ctx)
         is ObjectDeclarationContext -> parseObjectDeclaration(child, breadcrumbs, ctx)
         is SignalDeclarationContext -> parseSignalDeclaration(child, breadcrumbs, ctx)
-        is OptionDeclarationContext -> parseOptionDeclaration(child, breadcrumbs, ctx)
+        is TypeAliasDeclarationContext -> parseTypeAliasDeclaration(child, breadcrumbs, ctx)
         else -> throw Error("unexpected declaration type: ${child.toString()}")
     }
 }
@@ -261,17 +276,13 @@ private fun parseObjectFields(
     }
 }
 
-private fun parseOptionDeclaration(
-    declaration: OptionDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
-): OneOfTypeNode {
+private fun parseTypeAliasDeclaration(
+    declaration: TypeAliasDeclarationContext, breadcrumbs: Breadcrumbs, ctx: ParserContext
+): TypeAliasNode {
     val name = parseIdentifier(declaration.IDENTIFIER().symbol, breadcrumbs.appendName("name"), ctx)
-    val optionsBreadcrumbs = breadcrumbs.appendName("options")
-    val options = declaration.typeReference()
-        .mapIndexed { option, it -> parseTypeReference(it, optionsBreadcrumbs.appendIndex(option), ctx) }
+    val type = parseTypeReference(declaration.typeReference(), breadcrumbs.appendName("type"), ctx)
 
-    return OneOfTypeNode(
-        NodeInfo(declaration.getRange(), breadcrumbs), name, options
-    )
+    return TypeAliasNode(NodeInfo(declaration.getRange(), breadcrumbs), name, type)
 }
 
 

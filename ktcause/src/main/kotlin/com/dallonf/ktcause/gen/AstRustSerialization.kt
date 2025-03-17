@@ -9,6 +9,7 @@ object AstRustSerialization {
         return when (node) {
             is IdentifierTypeReferenceNode -> buildJsonObject { put("Identifier", serializeIdentifierTypeReference(node)) }
             is FunctionTypeReferenceNode -> buildJsonObject { put("Function", serializeFunctionTypeReference(node)) }
+            is OneOfTypeReferenceNode -> buildJsonObject { put("OneOf", serializeOneOfTypeReference(node)) }
             else -> TODO("Unknown node type: ${node::class.simpleName}")
         }
     }
@@ -20,7 +21,7 @@ object AstRustSerialization {
             is NamedValueNode -> buildJsonObject { put("NamedValue", serializeNamedValue(node)) }
             is ObjectTypeNode -> buildJsonObject { put("ObjectType", serializeObjectType(node)) }
             is SignalTypeNode -> buildJsonObject { put("SignalType", serializeSignalType(node)) }
-            is OneOfTypeNode -> buildJsonObject { put("OneOfType", serializeOneOfType(node)) }
+            is TypeAliasNode -> buildJsonObject { put("TypeAlias", serializeTypeAlias(node)) }
             else -> TODO("Unknown node type: ${node::class.simpleName}")
         }
     }
@@ -92,6 +93,13 @@ object AstRustSerialization {
             put("info", RustSerialization.serializeNodeInfo(node.info))
             put("params", JsonArray(node.params.map { serializeFunctionSignatureParameter(it) }))
             put("return_type", serializeTypeReference(node.returnType))
+        }
+    }
+
+    fun serializeOneOfTypeReference(node: OneOfTypeReferenceNode): JsonElement {
+        return buildJsonObject {
+            put("info", RustSerialization.serializeNodeInfo(node.info))
+            put("options", JsonArray(node.options.map { serializeTypeReference(it) }))
         }
     }
 
@@ -185,19 +193,19 @@ object AstRustSerialization {
         }
     }
 
+    fun serializeTypeAlias(node: TypeAliasNode): JsonElement {
+        return buildJsonObject {
+            put("info", RustSerialization.serializeNodeInfo(node.info))
+            put("name", serializeIdentifier(node.name))
+            put("type", serializeTypeReference(node.type))
+        }
+    }
+
     fun serializeObjectField(node: ObjectFieldNode): JsonElement {
         return buildJsonObject {
             put("info", RustSerialization.serializeNodeInfo(node.info))
             put("name", serializeIdentifier(node.name))
             put("type_annotation", serializeTypeReference(node.typeAnnotation))
-        }
-    }
-
-    fun serializeOneOfType(node: OneOfTypeNode): JsonElement {
-        return buildJsonObject {
-            put("info", RustSerialization.serializeNodeInfo(node.info))
-            put("name", serializeIdentifier(node.name))
-            put("options", JsonArray(node.options.map { serializeTypeReference(it) }))
         }
     }
 

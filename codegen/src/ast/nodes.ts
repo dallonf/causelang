@@ -39,6 +39,13 @@ export const nodes: NodeDeclaration[] = [
       returnType: "TypeReference",
     },
   },
+  {
+    name: "OneOfTypeReference",
+    category: "TypeReference",
+    fields: {
+      options: listOf("TypeReference"),
+    },
+  },
 
   {
     name: "Pattern",
@@ -128,18 +135,18 @@ export const nodes: NodeDeclaration[] = [
     },
   },
   {
+    name: "TypeAlias",
+    category: "Declaration",
+    fields: {
+      name: "Identifier",
+      type: "TypeReference",
+    },
+  },
+  {
     name: "ObjectField",
     fields: {
       name: "Identifier",
       typeAnnotation: "TypeReference",
-    },
-  },
-  {
-    name: "OneOfType",
-    category: "Declaration",
-    fields: {
-      name: "Identifier",
-      options: listOf("TypeReference"),
     },
   },
 
@@ -148,7 +155,7 @@ export const nodes: NodeDeclaration[] = [
     category: "Body",
     fields: {
       statements: listOf("Statement"),
-      result: optional("Expression")
+      result: optional("Expression"),
     },
   },
   {

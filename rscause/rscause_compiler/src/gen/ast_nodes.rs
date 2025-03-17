@@ -3,6 +3,7 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "identifier",
     "params",
     "return_type",
+    "options",
     "name",
     "type_reference",
     "name",
@@ -28,9 +29,9 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "fields",
     "result",
     "name",
-    "type_annotation",
+    "type",
     "name",
-    "options",
+    "type_annotation",
     "statements",
     "result",
     "expression",
@@ -73,6 +74,7 @@ pub enum AnyAstNode {
     Identifier(Arc<IdentifierNode>),
     IdentifierTypeReference(Arc<IdentifierTypeReferenceNode>),
     FunctionTypeReference(Arc<FunctionTypeReferenceNode>),
+    OneOfTypeReference(Arc<OneOfTypeReferenceNode>),
     Pattern(Arc<PatternNode>),
     FunctionSignatureParameter(Arc<FunctionSignatureParameterNode>),
     FunctionCallParameter(Arc<FunctionCallParameterNode>),
@@ -84,8 +86,8 @@ pub enum AnyAstNode {
     NamedValue(Arc<NamedValueNode>),
     ObjectType(Arc<ObjectTypeNode>),
     SignalType(Arc<SignalTypeNode>),
+    TypeAlias(Arc<TypeAliasNode>),
     ObjectField(Arc<ObjectFieldNode>),
-    OneOfType(Arc<OneOfTypeNode>),
     BlockBody(Arc<BlockBodyNode>),
     SingleExpressionBody(Arc<SingleExpressionBodyNode>),
     ExpressionStatement(Arc<ExpressionStatementNode>),
@@ -116,6 +118,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::Identifier(node) => node.children(),
             AnyAstNode::IdentifierTypeReference(node) => node.children(),
             AnyAstNode::FunctionTypeReference(node) => node.children(),
+            AnyAstNode::OneOfTypeReference(node) => node.children(),
             AnyAstNode::Pattern(node) => node.children(),
             AnyAstNode::FunctionSignatureParameter(node) => node.children(),
             AnyAstNode::FunctionCallParameter(node) => node.children(),
@@ -127,8 +130,8 @@ impl AstNode for AnyAstNode {
             AnyAstNode::NamedValue(node) => node.children(),
             AnyAstNode::ObjectType(node) => node.children(),
             AnyAstNode::SignalType(node) => node.children(),
+            AnyAstNode::TypeAlias(node) => node.children(),
             AnyAstNode::ObjectField(node) => node.children(),
-            AnyAstNode::OneOfType(node) => node.children(),
             AnyAstNode::BlockBody(node) => node.children(),
             AnyAstNode::SingleExpressionBody(node) => node.children(),
             AnyAstNode::ExpressionStatement(node) => node.children(),
@@ -159,6 +162,7 @@ impl AstNode for AnyAstNode {
             AnyAstNode::Identifier(node) => node.info(),
             AnyAstNode::IdentifierTypeReference(node) => node.info(),
             AnyAstNode::FunctionTypeReference(node) => node.info(),
+            AnyAstNode::OneOfTypeReference(node) => node.info(),
             AnyAstNode::Pattern(node) => node.info(),
             AnyAstNode::FunctionSignatureParameter(node) => node.info(),
             AnyAstNode::FunctionCallParameter(node) => node.info(),
@@ -170,8 +174,8 @@ impl AstNode for AnyAstNode {
             AnyAstNode::NamedValue(node) => node.info(),
             AnyAstNode::ObjectType(node) => node.info(),
             AnyAstNode::SignalType(node) => node.info(),
+            AnyAstNode::TypeAlias(node) => node.info(),
             AnyAstNode::ObjectField(node) => node.info(),
-            AnyAstNode::OneOfType(node) => node.info(),
             AnyAstNode::BlockBody(node) => node.info(),
             AnyAstNode::SingleExpressionBody(node) => node.info(),
             AnyAstNode::ExpressionStatement(node) => node.info(),
@@ -204,6 +208,7 @@ impl HasBreadcrumbs for AnyAstNode {
             AnyAstNode::Identifier(node) => node.breadcrumbs(),
             AnyAstNode::IdentifierTypeReference(node) => node.breadcrumbs(),
             AnyAstNode::FunctionTypeReference(node) => node.breadcrumbs(),
+            AnyAstNode::OneOfTypeReference(node) => node.breadcrumbs(),
             AnyAstNode::Pattern(node) => node.breadcrumbs(),
             AnyAstNode::FunctionSignatureParameter(node) => node.breadcrumbs(),
             AnyAstNode::FunctionCallParameter(node) => node.breadcrumbs(),
@@ -215,8 +220,8 @@ impl HasBreadcrumbs for AnyAstNode {
             AnyAstNode::NamedValue(node) => node.breadcrumbs(),
             AnyAstNode::ObjectType(node) => node.breadcrumbs(),
             AnyAstNode::SignalType(node) => node.breadcrumbs(),
+            AnyAstNode::TypeAlias(node) => node.breadcrumbs(),
             AnyAstNode::ObjectField(node) => node.breadcrumbs(),
-            AnyAstNode::OneOfType(node) => node.breadcrumbs(),
             AnyAstNode::BlockBody(node) => node.breadcrumbs(),
             AnyAstNode::SingleExpressionBody(node) => node.breadcrumbs(),
             AnyAstNode::ExpressionStatement(node) => node.breadcrumbs(),
@@ -248,18 +253,21 @@ impl HasBreadcrumbs for AnyAstNode {
 pub enum TypeReferenceNode {
     Identifier(Arc<IdentifierTypeReferenceNode>),
     Function(Arc<FunctionTypeReferenceNode>),
+    OneOf(Arc<OneOfTypeReferenceNode>),
 }
 impl AstNode for TypeReferenceNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         match self {
             TypeReferenceNode::Identifier(node) => node.children(),
             TypeReferenceNode::Function(node) => node.children(),
+            TypeReferenceNode::OneOf(node) => node.children(),
         }
     }
     fn info(&self) -> &NodeInfo {
         match self {
             TypeReferenceNode::Identifier(node) => node.info(),
             TypeReferenceNode::Function(node) => node.info(),
+            TypeReferenceNode::OneOf(node) => node.info(),
         }
     }
 }
@@ -273,6 +281,7 @@ impl From<TypeReferenceNode> for AnyAstNode {
         match value {
             TypeReferenceNode::Identifier(node) => AnyAstNode::IdentifierTypeReference(node),
             TypeReferenceNode::Function(node) => AnyAstNode::FunctionTypeReference(node),
+            TypeReferenceNode::OneOf(node) => AnyAstNode::OneOfTypeReference(node),
         }
     }
 }
@@ -281,6 +290,7 @@ impl HasBreadcrumbs for TypeReferenceNode {
         match self {
             TypeReferenceNode::Identifier(node) => node.breadcrumbs(),
             TypeReferenceNode::Function(node) => node.breadcrumbs(),
+            TypeReferenceNode::OneOf(node) => node.breadcrumbs(),
         }
     }
 }
@@ -292,7 +302,7 @@ pub enum DeclarationNode {
     NamedValue(Arc<NamedValueNode>),
     ObjectType(Arc<ObjectTypeNode>),
     SignalType(Arc<SignalTypeNode>),
-    OneOfType(Arc<OneOfTypeNode>),
+    TypeAlias(Arc<TypeAliasNode>),
 }
 impl AstNode for DeclarationNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
@@ -302,7 +312,7 @@ impl AstNode for DeclarationNode {
             DeclarationNode::NamedValue(node) => node.children(),
             DeclarationNode::ObjectType(node) => node.children(),
             DeclarationNode::SignalType(node) => node.children(),
-            DeclarationNode::OneOfType(node) => node.children(),
+            DeclarationNode::TypeAlias(node) => node.children(),
         }
     }
     fn info(&self) -> &NodeInfo {
@@ -312,7 +322,7 @@ impl AstNode for DeclarationNode {
             DeclarationNode::NamedValue(node) => node.info(),
             DeclarationNode::ObjectType(node) => node.info(),
             DeclarationNode::SignalType(node) => node.info(),
-            DeclarationNode::OneOfType(node) => node.info(),
+            DeclarationNode::TypeAlias(node) => node.info(),
         }
     }
 }
@@ -329,7 +339,7 @@ impl From<DeclarationNode> for AnyAstNode {
             DeclarationNode::NamedValue(node) => AnyAstNode::NamedValue(node),
             DeclarationNode::ObjectType(node) => AnyAstNode::ObjectType(node),
             DeclarationNode::SignalType(node) => AnyAstNode::SignalType(node),
-            DeclarationNode::OneOfType(node) => AnyAstNode::OneOfType(node),
+            DeclarationNode::TypeAlias(node) => AnyAstNode::TypeAlias(node),
         }
     }
 }
@@ -341,7 +351,7 @@ impl HasBreadcrumbs for DeclarationNode {
             DeclarationNode::NamedValue(node) => node.breadcrumbs(),
             DeclarationNode::ObjectType(node) => node.breadcrumbs(),
             DeclarationNode::SignalType(node) => node.breadcrumbs(),
-            DeclarationNode::OneOfType(node) => node.breadcrumbs(),
+            DeclarationNode::TypeAlias(node) => node.breadcrumbs(),
         }
     }
 }
@@ -698,6 +708,45 @@ impl AstNode for FunctionTypeReferenceNode {
     }
 }
 impl HasBreadcrumbs for FunctionTypeReferenceNode {
+    fn breadcrumbs(&self) -> &Breadcrumbs {
+        &self.info.breadcrumbs
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct OneOfTypeReferenceNode {
+    pub info: NodeInfo,
+    pub options: Vec<TypeReferenceNode>,
+}
+impl From<&OneOfTypeReferenceNode> for AnyAstNode {
+    fn from(value: &OneOfTypeReferenceNode) -> Self {
+        AnyAstNode::OneOfTypeReference(Arc::new(value.to_owned()))
+    }
+}
+impl From<&Arc<OneOfTypeReferenceNode>> for AnyAstNode {
+    fn from(value: &Arc<OneOfTypeReferenceNode>) -> Self {
+        AnyAstNode::OneOfTypeReference(value.clone())
+    }
+}
+impl From<Arc<OneOfTypeReferenceNode>> for AnyAstNode {
+    fn from(value: Arc<OneOfTypeReferenceNode>) -> Self {
+        AnyAstNode::OneOfTypeReference(value.clone())
+    }
+}
+impl AstNode for OneOfTypeReferenceNode {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("options"),
+            (&self.options).into(),
+        );
+        result
+    }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
+}
+impl HasBreadcrumbs for OneOfTypeReferenceNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.info.breadcrumbs
     }
@@ -1189,6 +1238,50 @@ impl HasBreadcrumbs for SignalTypeNode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TypeAliasNode {
+    pub info: NodeInfo,
+    pub name: Arc<IdentifierNode>,
+    pub type: TypeReferenceNode,
+}
+impl From<&TypeAliasNode> for AnyAstNode {
+    fn from(value: &TypeAliasNode) -> Self {
+        AnyAstNode::TypeAlias(Arc::new(value.to_owned()))
+    }
+}
+impl From<&Arc<TypeAliasNode>> for AnyAstNode {
+    fn from(value: &Arc<TypeAliasNode>) -> Self {
+        AnyAstNode::TypeAlias(value.clone())
+    }
+}
+impl From<Arc<TypeAliasNode>> for AnyAstNode {
+    fn from(value: Arc<TypeAliasNode>) -> Self {
+        AnyAstNode::TypeAlias(value.clone())
+    }
+}
+impl AstNode for TypeAliasNode {
+    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
+        let mut result = HashMap::new();
+        result.insert(
+            BreadcrumbName::new("name"),
+            (&self.name).into(),
+        );
+        result.insert(
+            BreadcrumbName::new("type"),
+            (&self.type).into(),
+        );
+        result
+    }
+    fn info(&self) -> &NodeInfo {
+        &self.info
+    }
+}
+impl HasBreadcrumbs for TypeAliasNode {
+    fn breadcrumbs(&self) -> &Breadcrumbs {
+        &self.info.breadcrumbs
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ObjectFieldNode {
     pub info: NodeInfo,
     pub name: Arc<IdentifierNode>,
@@ -1227,50 +1320,6 @@ impl AstNode for ObjectFieldNode {
     }
 }
 impl HasBreadcrumbs for ObjectFieldNode {
-    fn breadcrumbs(&self) -> &Breadcrumbs {
-        &self.info.breadcrumbs
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct OneOfTypeNode {
-    pub info: NodeInfo,
-    pub name: Arc<IdentifierNode>,
-    pub options: Vec<TypeReferenceNode>,
-}
-impl From<&OneOfTypeNode> for AnyAstNode {
-    fn from(value: &OneOfTypeNode) -> Self {
-        AnyAstNode::OneOfType(Arc::new(value.to_owned()))
-    }
-}
-impl From<&Arc<OneOfTypeNode>> for AnyAstNode {
-    fn from(value: &Arc<OneOfTypeNode>) -> Self {
-        AnyAstNode::OneOfType(value.clone())
-    }
-}
-impl From<Arc<OneOfTypeNode>> for AnyAstNode {
-    fn from(value: Arc<OneOfTypeNode>) -> Self {
-        AnyAstNode::OneOfType(value.clone())
-    }
-}
-impl AstNode for OneOfTypeNode {
-    fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
-        let mut result = HashMap::new();
-        result.insert(
-            BreadcrumbName::new("name"),
-            (&self.name).into(),
-        );
-        result.insert(
-            BreadcrumbName::new("options"),
-            (&self.options).into(),
-        );
-        result
-    }
-    fn info(&self) -> &NodeInfo {
-        &self.info
-    }
-}
-impl HasBreadcrumbs for OneOfTypeNode {
     fn breadcrumbs(&self) -> &Breadcrumbs {
         &self.info.breadcrumbs
     }

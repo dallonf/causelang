@@ -63,6 +63,15 @@ data class FunctionTypeReferenceNode(
         put("returnType", returnType)
     }
 }
+data class OneOfTypeReferenceNode(
+  override val info: NodeInfo,
+  val options: List<TypeReferenceNode>,
+): TypeReferenceNode {
+  override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild> =
+    buildMap {
+        put("options", options)
+    }
+}
 data class PatternNode(
   override val info: NodeInfo,
   val name: IdentifierNode?,
@@ -198,6 +207,17 @@ data class SignalTypeNode(
         }
     }
 }
+data class TypeAliasNode(
+  override val info: NodeInfo,
+  val name: IdentifierNode,
+  val type: TypeReferenceNode,
+): DeclarationNode {
+  override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild> =
+    buildMap {
+        put("name", name)
+        put("type", type)
+    }
+}
 data class ObjectFieldNode(
   override val info: NodeInfo,
   val name: IdentifierNode,
@@ -207,17 +227,6 @@ data class ObjectFieldNode(
     buildMap {
         put("name", name)
         put("typeAnnotation", typeAnnotation)
-    }
-}
-data class OneOfTypeNode(
-  override val info: NodeInfo,
-  val name: IdentifierNode,
-  val options: List<TypeReferenceNode>,
-): DeclarationNode {
-  override fun childNodes(): Map<Breadcrumbs.BreadcrumbEntry, BreadcrumbWalkChild> =
-    buildMap {
-        put("name", name)
-        put("options", options)
     }
 }
 data class BlockBodyNode(
