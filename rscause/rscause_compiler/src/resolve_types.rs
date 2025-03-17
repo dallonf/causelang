@@ -420,6 +420,7 @@ pub enum TypeConstraint {
     ReferencedType(AnyInferredLangType),
     ResolveFrom(Breadcrumbs),
     Narrowed(NarrowedConstraint),
+    UnreachableIfNeverContinues(AnyInferredLangType),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -889,12 +890,52 @@ impl ResolveTypes for ast::FunctionNode {
 
 impl ResolveTypes for ast::BlockBodyNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        let result_expression_type = self
-            .result
-            .as_ref()
-            .map(|it| ctx.get_resolved_type_proxying_errors(it))
-            .unwrap_or(LangType::Action.into());
-        Some(result_expression_type)
+        let result_var = ctx.add_inference_variable();
+
+        if let Some(result) = &self.result {
+            ctx.constraints.push((
+                result_var,
+                TypeConstraint::ResolveFrom(result.breadcrumbs().to_owned()),
+                ConstraintDiagnostic::Resolver(
+                    result.breadcrumbs().to_owned(),
+                    "Explicit result of block".into(),
+                ),
+            ));
+        } else {
+            ctx.constraints.push((
+                result_var,
+                TypeConstraint::EqualTo(LangType::Action.into()),
+                ConstraintDiagnostic::Resolver(
+                    self.breadcrumbs().to_owned(),
+                    "Block results in Action by default".into(),
+                ),
+            ));
+        }
+
+        for statement in &self.statements {
+            let statement_result_var = ctx.add_inference_variable();
+            ctx.constraints.push((
+                statement_result_var,
+                TypeConstraint::ResolveFrom(statement.breadcrumbs().to_owned()),
+                ConstraintDiagnostic::Resolver(
+                    statement.breadcrumbs().to_owned(),
+                    "Block statement (for flow analysis)".to_owned(),
+                ),
+            ));
+            ctx.constraints.push((
+                result_var,
+                TypeConstraint::UnreachableIfNeverContinues(InferredType::InferenceVariable(
+                    statement_result_var,
+                )),
+                ConstraintDiagnostic::Resolver(
+                    statement.breadcrumbs().to_owned(),
+                    "Entire block result is unreachable if one statement is NeverContinues"
+                        .to_owned(),
+                ),
+            ));
+        }
+
+        Some(InferredType::InferenceVariable(result_var))
     }
 }
 

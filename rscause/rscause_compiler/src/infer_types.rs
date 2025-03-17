@@ -214,6 +214,34 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                         };
                         new_constraints.push(result);
                     }
+
+                    TypeConstraint::UnreachableIfNeverContinues(unreachable_trigger) => {
+                        match unreachable_trigger {
+                            InferredType::Known(unreachable_trigger) => {
+                                let is_never_continues = matches!(
+                                    unreachable_trigger.as_ref(),
+                                    LangType::NeverContinues
+                                );
+
+                                if is_never_continues {
+                                    // override all other rules
+                                    // NOTE: we'll have to add a priority system of some sort
+                                    // if there are other rules that want to override all rules,
+                                    // including this one that wants to override all rules
+                                    new_constraints.clear();
+                                    pending_constraints.clear();
+                                    new_constraints.push(TypeConstraint::EqualTo(
+                                        InferredType::Known(LangType::NeverContinues.into()),
+                                    ));
+                                    break;
+                                }
+                            }
+                            InferredType::Error(_) => {} // remove constraint
+                            InferredType::InferenceVariable(_) => pending_constraints.push(
+                                TypeConstraint::UnreachableIfNeverContinues(unreachable_trigger),
+                            ),
+                        }
+                    }
                 }
             }
 
@@ -275,6 +303,11 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                                 base: fill_solved_variables(narrowed.base),
                                 narrow: fill_solved_variables(narrowed.narrow),
                             })
+                        }
+                        TypeConstraint::UnreachableIfNeverContinues(inferred_type) => {
+                            TypeConstraint::UnreachableIfNeverContinues(fill_solved_variables(
+                                inferred_type,
+                            ))
                         }
                     })
                     .collect();
