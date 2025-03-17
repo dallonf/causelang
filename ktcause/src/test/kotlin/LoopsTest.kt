@@ -207,7 +207,7 @@ class LoopsTest {
                     import core/math ( add )
                     
                     object Wrapper(item: WrapperItem)
-                    option WrapperItem(Number, Wrapper)
+                    type WrapperItem = OneOf(Number, Wrapper)
                     
                     function main() {
                         let wrapper = Wrapper(42)

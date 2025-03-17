@@ -3,10 +3,9 @@ import com.dallonf.ktcause.LangVm
 import com.dallonf.ktcause.Resolver.debug
 import com.dallonf.ktcause.RuntimeValue
 import org.junit.jupiter.api.Test
-import kotlin.test.Ignore
 import kotlin.test.assertEquals
 
-class OptionsAndUniqueObjects {
+class OneOfAndUniqueObjects {
     @Test
     fun defineUniqueObjectTypes() {
         val vm = LangVm {
@@ -143,7 +142,7 @@ class OptionsAndUniqueObjects {
     }
 
     @Test
-    fun defineOptionTypes() {
+    fun defineOneOfTypes() {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
@@ -152,7 +151,7 @@ class OptionsAndUniqueObjects {
                 object Clubs
                 object Spades
                 
-                option Suit(
+                type Suit = OneOf(
                     Hearts,
                     Diamonds,
                     Clubs,
@@ -180,14 +179,14 @@ class OptionsAndUniqueObjects {
     }
 
     @Test
-    fun optionTypesTypeCheck() {
+    fun oneOfTypesTypeCheck() {
         val vm = LangVm {
             addFile(
                 "project/test.cau", """
                     object Hearts
                     object Diamonds
                     
-                    option Suit(
+                    type Suit = OneOf(
                         Hearts,
                         Diamonds,
                     )
@@ -280,31 +279,6 @@ class OptionsAndUniqueObjects {
                     }
                 }
             }
-            """.trimIndent(), vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue().debug()
-        )
-    }
-
-    @Test
-    @Ignore
-    fun optionTypesWithShorthand() {
-        val vm = LangVm {
-            addFile(
-                "project/test.cau", """
-                option MaybeNumber(
-                    object None,
-                    object Some(value: Number),
-                )
-                
-                function main(): MaybeNumber {
-                    MaybeNumber.Some(4)
-                }
-            """.trimIndent()
-            )
-        }
-        TestUtils.expectNoCompileErrors(vm)
-
-        assertEquals(
-            """
             """.trimIndent(), vm.executeFunction("project/test.cau", "main", listOf()).expectReturnValue().debug()
         )
     }

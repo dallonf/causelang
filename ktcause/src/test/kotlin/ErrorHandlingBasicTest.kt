@@ -451,12 +451,11 @@ internal class ErrorHandlingBasicTest {
     fun mistypedEarlyReturn() {
         val vm = LangVm {
             addFile(
-                "project/hello.cau", """                    
-                    option MainReturn(Number, Text)
+                "project/hello.cau", """
                     object NotThat
                     object OrThat
                     
-                    function main() returns MainReturn {
+                    function main() returns OneOf(Number, Text) {
                         ^ branch {
                             if equals(2, 2) => return NotThat
                             if equals(1, 2) => return OrThat
@@ -741,7 +740,7 @@ internal class ErrorHandlingBasicTest {
                 "project/hello.cau", """
                     object Nothing
                     object Wrapped(next: MaybeWrapped)
-                    option MaybeWrapped(Nothing, Wrapped)
+                    type MaybeWrapped = OneOf(Nothing, Wrapped)
                     
                     function maybe_wrap() returns MaybeWrapped {
                         ^ "nah"

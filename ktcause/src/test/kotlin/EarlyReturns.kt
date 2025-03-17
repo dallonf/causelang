@@ -34,7 +34,7 @@ class EarlyReturns {
                     import core/math ( add )
                     
                     object Nothing
-                    option MaybeNumber(Number, Nothing) 
+                    type MaybeNumber = OneOf(Number, Nothing) 
                     
                     function main() {
                         cause Debug(maybe_add(1.0, 2.0))

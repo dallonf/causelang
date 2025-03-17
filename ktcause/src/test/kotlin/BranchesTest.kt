@@ -39,7 +39,7 @@ class BranchesTest {
                     object Diamonds
                     object Spades
                     object Clubs
-                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    type Suit = OneOf(Hearts, Diamonds, Spades, Clubs)
                     
                     function main() {
                         process_suit(Hearts)
@@ -75,7 +75,7 @@ class BranchesTest {
                     object Diamonds
                     object Spades
                     object Clubs
-                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    type Suit = OneOf(Hearts, Diamonds, Spades, Clubs)
                     
                     function main() {
                         process_suit(Hearts)
@@ -113,7 +113,7 @@ class BranchesTest {
                     object Diamonds
                     object Spades
                     object Clubs
-                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    type Suit = OneOf(Hearts, Diamonds, Spades, Clubs)
                     
                     function main() {
                         process_suit(Spades)
@@ -175,7 +175,7 @@ class BranchesTest {
                     object Diamonds
                     object Spades
                     object Clubs
-                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    type Suit = OneOf(Hearts, Diamonds, Spades, Clubs)
                     
                     function main() {
                         let result = suit_to_string(Spades)
@@ -235,7 +235,7 @@ class BranchesTest {
                     object Diamonds
                     object Spades
                     object Clubs
-                    option Suit(Hearts, Diamonds, Spades, Clubs)
+                    type Suit = OneOf(Hearts, Diamonds, Spades, Clubs)
                     
                     function main() {
                         let result = suit_to_string(Clubs)
@@ -340,7 +340,7 @@ class BranchesTest {
                     import core/text (number_to_text)
                     
                     object Nothing
-                    option MaybeNumber(Nothing, Number)
+                    type MaybeNumber = OneOf(Nothing, Number)
                     
                     function main() {
                         print_number(Nothing)
