@@ -1334,48 +1334,44 @@ impl ResolveTypes for ast::DeclarationStatementNode {
 
 impl ResolveTypes for ast::NamedValueNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        let annotated_type = self
-            .type_annotation
-            .as_ref()
-            .map(|it| ctx.get_resolved_type_proxying_errors(it))
-            .map(|annotated_type| {
-                let annotated_type = annotated_type.to_result_assuming_inferred()?;
-                match annotated_type.as_ref() {
-                    LangType::TypeReference(InferredType::Known(value_type)) => {
-                        Ok(value_type.clone())
-                    }
-                    LangType::TypeReference(InferredType::Error(err)) => {
-                        Err(LangError::proxy_error(
-                            err.clone(),
-                            ErrorPosition::Source(SourcePosition {
-                                breadcrumbs: self.breadcrumbs().clone(),
-                                path: ctx.file_path.clone(),
-                                position: self.info().position.clone(),
-                            }),
-                        )
-                        .into())
-                    }
-                    _ => Err(
-                        LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
-                            r#type: AnyInferredLangType::Known(annotated_type.clone()),
-                        })
-                        .pipe(Arc::new),
-                    ),
-                }
-            });
+        let annotated_type_var = self.type_annotation.as_ref().map(|annotated_type| {
+            let annotated_type_reference_var = ctx.add_inference_variable();
+            ctx.constraints.push((
+                annotated_type_reference_var,
+                TypeConstraint::ResolveFrom(annotated_type.breadcrumbs().to_owned()),
+                ConstraintDiagnostic::Resolver(
+                    annotated_type.breadcrumbs().to_owned(),
+                    "named value type annotation".into(),
+                ),
+            ));
+
+            let annotated_type_var = ctx.add_inference_variable();
+            ctx.constraints.push((
+                annotated_type_var,
+                TypeConstraint::ReferencedType(InferredType::InferenceVariable(annotated_type_var)),
+                ConstraintDiagnostic::Resolver(
+                    annotated_type.breadcrumbs().to_owned(),
+                    "name value type annotation".into(),
+                ),
+            ));
+
+            return annotated_type_var;
+        });
 
         let inferred_type = ctx.get_resolved_type_proxying_errors(&self.value);
 
-        if let Some(Ok(annotated_type)) = &annotated_type {
+        if let Some(annotated_type_var) = &annotated_type_var {
             ctx.edicts.push(TypeEdict {
                 breadcrumbs: self.value.breadcrumbs().clone(),
-                rule: TypeEdictRule::AssignableTo(annotated_type.clone().into()),
+                rule: TypeEdictRule::AssignableTo(InferredType::InferenceVariable(
+                    *annotated_type_var,
+                )),
                 diagnostic: "A named value must be assignable to its declared type".into(),
             });
         }
 
-        let result = annotated_type
-            .map(|annotated_type| annotated_type.into())
+        let result = annotated_type_var
+            .map(|annotated_type_var| InferredType::InferenceVariable(annotated_type_var))
             .unwrap_or(inferred_type);
         Some(result)
     }
