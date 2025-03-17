@@ -1241,7 +1241,7 @@ impl HasBreadcrumbs for SignalTypeNode {
 pub struct TypeAliasNode {
     pub info: NodeInfo,
     pub name: Arc<IdentifierNode>,
-    pub type: TypeReferenceNode,
+    pub r#type: TypeReferenceNode,
 }
 impl From<&TypeAliasNode> for AnyAstNode {
     fn from(value: &TypeAliasNode) -> Self {
@@ -1267,7 +1267,7 @@ impl AstNode for TypeAliasNode {
         );
         result.insert(
             BreadcrumbName::new("type"),
-            (&self.type).into(),
+            (&self.r#type).into(),
         );
         result
     }

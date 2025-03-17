@@ -139,6 +139,7 @@ async function generateAstNodesRs() {
       fields: Object.entries(node.fields).map(([name, type]) => {
         return {
           name: changeCase.snakeCase(name),
+          rsName: getRsIdentifier(name),
           type: rsFieldType(type),
           isNode: isNode(type),
         };
@@ -156,6 +157,13 @@ async function generateAstNodesRs() {
     path.join(projectRoot, "rscause/rscause_compiler/src/gen/ast_nodes.rs"),
     output
   );
+}
+
+function getRsIdentifier(name: string): string {
+  if (name === "type") {
+    return "r#type";
+  }
+  return changeCase.snakeCase(name);
 }
 
 async function generateAstNodesKt() {

@@ -90,7 +90,7 @@ impl HasBreadcrumbs for {{this.name}} {
 pub struct {{this.name}} {
     pub info: NodeInfo,
     {{#each this.fields}}
-    pub {{this.name}}: {{this.type}},
+    pub {{this.rsName}}: {{this.type}},
     {{/each}}
 }
 impl From<&{{this.name}}> for AnyAstNode {
@@ -116,7 +116,7 @@ impl AstNode for {{this.name}} {
         {{#if this.isNode}}
         result.insert(
             BreadcrumbName::new("{{this.name}}"),
-            (&self.{{this.name}}).into(),
+            (&self.{{this.rsName}}).into(),
         );
         {{/if}}
         {{/each}}
