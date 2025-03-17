@@ -216,7 +216,7 @@ object Analyzer {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
 
-            is OneOfTypeNode -> {
+            is TypeAliasNode -> {
                 return listOf(declaration.name.text to declaration.info.breadcrumbs)
             }
         }
@@ -255,6 +255,12 @@ object Analyzer {
                     param.typeReference?.let { analyzeTypeReference(it, output, ctx) }
                 }
                 analyzeTypeReference(typeReference.returnType, output, ctx)
+            }
+
+            is OneOfTypeReferenceNode -> {
+                for (option in typeReference.options) {
+                    analyzeTypeReference(option, output, ctx)
+                }
             }
         }
     }
@@ -296,7 +302,7 @@ object Analyzer {
             is NamedValueNode -> analyzeNamedValueDeclaration(declaration, output, ctx)
             is ObjectTypeNode -> analyzeObjectTypeDeclaration(declaration, output, ctx)
             is SignalTypeNode -> analyzeSignalTypeDeclaration(declaration, output, ctx)
-            is OneOfTypeNode -> analyzeOptionTypeDeclaration(declaration, output, ctx)
+            is TypeAliasNode -> analyzeTypeAliasDeclaration(declaration, output, ctx)
         }
     }
 
@@ -468,12 +474,10 @@ object Analyzer {
         output.addTag(breadcrumbs, NodeTag.CanonicalIdInfo(canonicalInfo.parentName, number))
     }
 
-    private fun analyzeOptionTypeDeclaration(
-        declaration: OneOfTypeNode, output: AnalyzedNode, ctx: AnalyzerContext
+    private fun analyzeTypeAliasDeclaration(
+        declaration: TypeAliasNode, output: AnalyzedNode, ctx: AnalyzerContext
     ) {
-        for (option in declaration.options) {
-            analyzeTypeReference(option, output, ctx)
-        }
+        analyzeTypeReference(declaration.type, output, ctx)
     }
 
 
