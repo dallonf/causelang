@@ -23,7 +23,6 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::str::FromStr;
 use std::sync::Arc;
 use strum::EnumTryAs;
 
@@ -570,7 +569,8 @@ impl ResolveTypesContext {
         new_id
     }
 
-    fn add_linking_inference_variable(
+    /// Creates a new inference variable that represents the deferred type of a node
+    fn add_inference_variable_from_node(
         &mut self,
         breadcrumbs: &Breadcrumbs,
         reason: impl Into<String>,
@@ -582,6 +582,26 @@ impl ResolveTypesContext {
             ConstraintDiagnostic::Resolver(breadcrumbs.to_owned(), reason.into()),
         ));
         return new_var;
+    }
+
+    /// Creates a new inference variable that represents the deferred type of a node,
+    /// assuming that it is a TypeReference, and unwraps the value type
+    fn add_inference_variable_from_type_reference_node(
+        &mut self,
+        breadcrumbs: &Breadcrumbs,
+        reason: impl Into<String>,
+    ) -> u64 {
+        let reason = reason.into();
+        let type_reference_var = self.add_inference_variable_from_node(breadcrumbs, reason.clone());
+        let value_var = self.add_inference_variable();
+        self.constraints.push((
+            value_var,
+            TypeConstraint::ReferencedType(AnyInferredLangType::InferenceVariable(
+                type_reference_var,
+            )),
+            ConstraintDiagnostic::Resolver(breadcrumbs.to_owned(), reason.clone()),
+        ));
+        return value_var;
     }
 
     pub fn get_canonical_type(
@@ -881,9 +901,14 @@ fn compute_function_type(
             let value_type = param_node
                 .type_reference
                 .as_ref()
-                .map(|it| ctx.get_resolved_type_proxying_errors(it))
-                .unwrap_or_else(|| LangError::NeverResolved.into())
-                .and_then(|it| it.get_referenced_value_type());
+                .map(|it| {
+                    let value_var = ctx.add_inference_variable_from_type_reference_node(
+                        it.breadcrumbs(),
+                        "function parameter type annotation",
+                    );
+                    AnyInferredLangType::InferenceVariable(value_var)
+                })
+                .unwrap_or_else(|| LangError::NeverResolved.into());
             LangParameter {
                 name: param_node.name.text.clone(),
                 value_type,
@@ -1350,7 +1375,7 @@ impl ResolveTypes for ast::DeclarationStatementNode {
 impl ResolveTypes for ast::NamedValueNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let annotated_type_var = self.type_annotation.as_ref().map(|annotated_type| {
-            let annotated_type_reference_var = ctx.add_linking_inference_variable(
+            let annotated_type_reference_var = ctx.add_inference_variable_from_node(
                 annotated_type.breadcrumbs(),
                 "named value type annotation",
             );
