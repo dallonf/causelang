@@ -24,7 +24,8 @@ object RustCompiler {
         path: String,
         ast: FileNode,
         tags: Map<Breadcrumbs, List<NodeTag>>,
-        externalFiles: Map<String, Resolver.ExternalFileDescriptor>
+        externalFiles: Map<String, Resolver.ExternalFileDescriptor>,
+        debugContext: Debug.DebugContext,
     ): RustCompilerResult {
         val filteredCanonicalTypes = getCanonicalTypes(externalFiles)
 
@@ -42,7 +43,11 @@ object RustCompiler {
             path, astJson, tagsJson, canonicalTypesJson, externalFilesJson
         )
         val result = deserializeRustCompilerResult(Json.parseToJsonElement(resultJson))
-        return result
+
+        return result.copy(
+            compiledFile =
+                result.compiledFile.copy(baseDebugCtx = debugContext),
+        )
     }
 
     private fun getCanonicalTypes(externalFiles: Map<String, Resolver.ExternalFileDescriptor>): Map<CanonicalLangTypeId, CanonicalLangType> {

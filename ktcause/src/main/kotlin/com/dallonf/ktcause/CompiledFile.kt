@@ -9,8 +9,16 @@ data class CompiledFile(
     val types: Map<CanonicalLangTypeId, CanonicalLangType>,
     val procedures: List<Procedure>,
     val exports: Map<String, CompiledExport>,
-    val debugCtx: Debug.DebugContext? = null
+    private val baseDebugCtx: Debug.DebugContext? = null
 ) {
+    val debugCtx: Debug.DebugContext? by lazy {
+        if (baseDebugCtx == null) {
+            null
+        } else {
+            Debug.DebugContext(baseDebugCtx.path, baseDebugCtx.source, baseDebugCtx.ast, baseDebugCtx.analyzed, this)
+        }
+    }
+
     fun toFileDescriptor(): Resolver.ExternalFileDescriptor {
         val exportDescriptors = mutableMapOf<String, ValueLangType>()
         for ((exportName, export) in exports) {
@@ -50,7 +58,8 @@ data class CompiledFile(
             abstract val declaration: NodeInfo
 
             data class Function(val name: String?, override val declaration: NodeInfo) : ProcedureIdentity()
-            data class Effect(val matchesType: ConstraintReference, override val declaration: NodeInfo) : ProcedureIdentity()
+            data class Effect(val matchesType: ConstraintReference, override val declaration: NodeInfo) :
+                ProcedureIdentity()
         }
 
         enum class InstructionPhase {

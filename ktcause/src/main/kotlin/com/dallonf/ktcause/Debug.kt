@@ -150,7 +150,7 @@ object Debug {
                 println(error.debug())
                 val file = files[error.position.path]!!
                 if (file.debugCtx != null) {
-                    println(file.debugCtx.getNodeContext(error.position.breadcrumbs))
+                    println(file.debugCtx!!.getNodeContext(error.position.breadcrumbs))
                 } else {
                     println("Can't show error for ${file.path}")
                 }
@@ -160,10 +160,11 @@ object Debug {
     }
 
     data class DebugContext(
+        val path: String? = null,
         val source: String? = null,
         val ast: FileNode? = null,
         val analyzed: AnalyzedNode? = null,
-        val resolved: ResolvedFile? = null
+        val compiledFile: CompiledFile? = null
     ) {
         fun getSourceContext(breadcrumbs: Breadcrumbs): String? {
             val contextLines = 2
@@ -201,7 +202,7 @@ object Debug {
             val position = node?.info?.position
 
             if (node != null && position != null) {
-                builder.appendLine("${node::class.simpleName} at $position${resolved?.let { " in ${resolved.path}" } ?: ""}")
+                builder.appendLine("${node::class.simpleName} at $position${path?.let { " in $path" } ?: ""}")
             }
 
             if (position != null && source != null) {
@@ -210,23 +211,24 @@ object Debug {
                 builder.appendLine("```")
             }
 
-            if (resolved != null) {
-                builder.appendLine("Inferred type: ${
-                    resolved.resolvedTypes[ResolutionKey(
-                        ResolutionType.INFERRED, breadcrumbs
-                    )]?.let { debugSerializer.encodeToString(it) }
-                }")
-                val constraint = resolved.resolvedTypes[ResolutionKey(
-                    ResolutionType.CONSTRAINT, breadcrumbs
-                )]
-                if (constraint != null) {
-                    builder.appendLine(
-                        "Constraint type: ${
-                            debugSerializer.encodeToString(constraint)
-                        }"
-                    )
-                }
-            }
+//            if (resolved != null) {
+//                builder.appendLine(
+//                    "Inferred type: ${
+//                    resolved.resolvedTypes[ResolutionKey(
+//                        ResolutionType.INFERRED, breadcrumbs
+//                    )]?.let { debugSerializer.encodeToString(it) }
+//                }")
+//                val constraint = resolved.resolvedTypes[ResolutionKey(
+//                    ResolutionType.CONSTRAINT, breadcrumbs
+//                )]
+//                if (constraint != null) {
+//                    builder.appendLine(
+//                        "Constraint type: ${
+//                            debugSerializer.encodeToString(constraint)
+//                        }"
+//                    )
+//                }
+//            }
 
             if (analyzed != null) {
                 val tags = analyzed.nodeTags[breadcrumbs]
