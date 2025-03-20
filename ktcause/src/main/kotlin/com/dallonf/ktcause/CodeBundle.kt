@@ -63,8 +63,8 @@ class CodeBundleBuilder {
 
     fun addFile(filePath: String, source: String): Debug.DebugContext {
         val astNode = parse(source)
-        val analyzedFile = Analyzer.analyzeFile(filePath, astNode, Debug.DebugContext(source, astNode))
-        val analyzedDebugCtx = Debug.DebugContext(source, astNode, analyzedFile)
+        val analyzedFile = Analyzer.analyzeFile(filePath, astNode, Debug.DebugContext(filePath, source, astNode))
+        val analyzedDebugCtx = Debug.DebugContext(filePath, source, astNode, analyzedFile)
         pendingFiles.add(
             PendingFile(
                 filePath, astNode, analyzedFile, analyzedDebugCtx
@@ -91,7 +91,13 @@ class CodeBundleBuilder {
             val otherFiles = referencedCompiledFiles.associate { it.path to it.toFileDescriptor() }
 
             val compiledFile = run {
-                val (result, errors) = RustCompiler.compile(file.path, file.ast, file.analyzed.nodeTags, otherFiles)
+                val (result, errors) = RustCompiler.compile(
+                    file.path,
+                    file.ast,
+                    file.analyzed.nodeTags,
+                    otherFiles,
+                    file.debugContext
+                )
                 finalCompileErrors.addAll(errors)
                 result
             }
