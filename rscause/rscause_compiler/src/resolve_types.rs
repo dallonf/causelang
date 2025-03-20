@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::str::FromStr;
 use std::sync::Arc;
 use strum::EnumTryAs;
 
@@ -567,6 +568,20 @@ impl ResolveTypesContext {
         let new_id = self.next_inference_variable;
         self.next_inference_variable += 1;
         new_id
+    }
+
+    fn add_linking_inference_variable(
+        &mut self,
+        breadcrumbs: &Breadcrumbs,
+        reason: impl Into<String>,
+    ) -> u64 {
+        let new_var = self.add_inference_variable();
+        self.constraints.push((
+            new_var,
+            TypeConstraint::ResolveFrom(breadcrumbs.to_owned()),
+            ConstraintDiagnostic::Resolver(breadcrumbs.to_owned(), reason.into()),
+        ));
+        return new_var;
     }
 
     pub fn get_canonical_type(
@@ -1335,20 +1350,17 @@ impl ResolveTypes for ast::DeclarationStatementNode {
 impl ResolveTypes for ast::NamedValueNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         let annotated_type_var = self.type_annotation.as_ref().map(|annotated_type| {
-            let annotated_type_reference_var = ctx.add_inference_variable();
-            ctx.constraints.push((
-                annotated_type_reference_var,
-                TypeConstraint::ResolveFrom(annotated_type.breadcrumbs().to_owned()),
-                ConstraintDiagnostic::Resolver(
-                    annotated_type.breadcrumbs().to_owned(),
-                    "named value type annotation".into(),
-                ),
-            ));
+            let annotated_type_reference_var = ctx.add_linking_inference_variable(
+                annotated_type.breadcrumbs(),
+                "named value type annotation",
+            );
 
             let annotated_type_var = ctx.add_inference_variable();
             ctx.constraints.push((
                 annotated_type_var,
-                TypeConstraint::ReferencedType(InferredType::InferenceVariable(annotated_type_var)),
+                TypeConstraint::ReferencedType(InferredType::InferenceVariable(
+                    annotated_type_reference_var,
+                )),
                 ConstraintDiagnostic::Resolver(
                     annotated_type.breadcrumbs().to_owned(),
                     "name value type annotation".into(),
