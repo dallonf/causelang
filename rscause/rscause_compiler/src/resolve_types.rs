@@ -1778,10 +1778,11 @@ impl ResolveTypes for ast::SingleExpressionBodyNode {
 impl ResolveTypes for FunctionSignatureParameterNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         if let Some(type_reference_node) = &self.type_reference {
-            let referenced_type = ctx
-                .get_resolved_type_proxying_errors(type_reference_node)
-                .and_then(|it| it.get_referenced_value_type());
-            return Some(referenced_type);
+            let referenced_type_var = ctx.add_inference_variable_from_type_reference_node(
+                type_reference_node.breadcrumbs(),
+                "function param type annotation",
+            );
+            return Some(AnyInferredLangType::InferenceVariable(referenced_type_var));
         } else {
             return Some(
                 LangError::ImplementationTodo(ImplementationTodoError {
