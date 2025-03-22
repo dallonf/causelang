@@ -17,14 +17,14 @@ use crate::{
         AnyInferredLangType, AnyLangTypeResult, HasInference, InferredType, LangType, OneOfLangType,
     },
     resolve_types::{
-        ImplicitValueAssignableToTypeEdict, NarrowedConstraint, ResolveTypesContext,
-        TypeConstraint, TypeEdictRule, ValidateBranchExpressionTypeEdict,
+        ConstraintDiagnostic, ImplicitValueAssignableToTypeEdict, NarrowedConstraint,
+        ResolveTypesContext, TypeConstraint, TypeEdictRule, ValidateBranchExpressionTypeEdict,
         ValidateBranchExpressionTypeEdictBranch,
     },
 };
 
 pub fn infer_types(ctx: &mut ResolveTypesContext) {
-    let mut variables = HashMap::<u64, RefCell<Vec<TypeConstraint>>>::new();
+    let mut variables = HashMap::<u64, RefCell<Vec<(TypeConstraint, ConstraintDiagnostic)>>>::new();
     let variable_ids = ctx
         .value_types
         .values()
@@ -51,9 +51,10 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
         variables.insert(id, vec![].into());
     }
     for constraint in ctx.constraints.iter() {
-        // TODO: preserve diagnostics
         let constraints_for_var = variables.entry(constraint.0).or_default();
-        constraints_for_var.borrow_mut().push(constraint.1.clone());
+        constraints_for_var
+            .borrow_mut()
+            .push((constraint.1.clone(), constraint.2.clone()));
     }
 
     let mut solved_variables = HashMap::<u64, AnyLangTypeResult>::new();
@@ -61,14 +62,14 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
     let mut last_hash = hash_variables(&variables);
 
     while !variables.is_empty() {
-        for (_id, constraints) in variables.iter() {
-            let mut new_constraints: Vec<TypeConstraint> = vec![];
-            let mut pending_constraints: Vec<TypeConstraint> = vec![];
-            for constraint in constraints.borrow().clone() {
-                match constraint {
+        for (id, constraints) in variables.iter() {
+            let mut new_constraints: Vec<(TypeConstraint, ConstraintDiagnostic)> = vec![];
+            let mut pending_constraints: Vec<(TypeConstraint, ConstraintDiagnostic)> = vec![];
+            for (constraint, diagnostic) in constraints.borrow().clone() {
+                match &constraint {
                     TypeConstraint::EqualTo(_) | TypeConstraint::AssignableTo(_) => {
                         // these can't be simplified individually
-                        pending_constraints.push(constraint)
+                        pending_constraints.push((constraint, diagnostic))
                     }
                     TypeConstraint::ResolveFrom(breadcrumbs) => {
                         let value_type = ctx
@@ -109,7 +110,13 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
 
                             value_type
                         };
-                        new_constraints.push(TypeConstraint::EqualTo(result));
+                        new_constraints.push((
+                            TypeConstraint::EqualTo(result),
+                            ConstraintDiagnostic::Inferred(
+                                "resolved from AST".into(),
+                                vec![(*id, constraint, diagnostic)],
+                            ),
+                        ));
                     }
 
                     TypeConstraint::ReferencedType(type_reference) => {
@@ -119,11 +126,13 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                                 InferredType::Error(lang_error) => {
                                     // TODO: maybe proxy this
                                     break 'result TypeConstraint::EqualTo(InferredType::Error(
-                                        lang_error,
+                                        lang_error.to_owned(),
                                     ));
                                 }
                                 InferredType::InferenceVariable(_) => {
-                                    break 'result TypeConstraint::ReferencedType(type_reference)
+                                    break 'result TypeConstraint::ReferencedType(
+                                        type_reference.to_owned(),
+                                    )
                                 }
                             };
                             let Some(referenced_type) = known_reference.try_as_type_reference_ref()
@@ -137,7 +146,13 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                             };
                             TypeConstraint::EqualTo(referenced_type.clone())
                         };
-                        new_constraints.push(result);
+                        new_constraints.push((
+                            result,
+                            ConstraintDiagnostic::Inferred(
+                                "unwrapped type reference".into(),
+                                vec![(*id, constraint, diagnostic)],
+                            ),
+                        ));
                     }
 
                     TypeConstraint::MemberOf(inferred_type, name) => {
@@ -167,7 +182,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                             .and_then(|fields| {
                                 fields
                                     .iter()
-                                    .find(|it| it.name == name)
+                                    .find(|it| it.name == *name)
                                     .map(|field| InferredType::Known(field.clone()))
                                     .unwrap_or(LangError::DoesNotHaveMember.into())
                             })
@@ -175,15 +190,32 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
 
                         match field_type {
                             InferredType::Known(field_type) => {
-                                new_constraints.push(TypeConstraint::EqualTo(field_type.into()));
+                                new_constraints.push((
+                                    TypeConstraint::EqualTo(field_type.into()),
+                                    ConstraintDiagnostic::Inferred(
+                                        "member of instance".into(),
+                                        vec![(*id, constraint, diagnostic)],
+                                    ),
+                                ));
                             }
                             InferredType::Error(error) => {
-                                new_constraints
-                                    .push(TypeConstraint::EqualTo(InferredType::Error(error)));
+                                new_constraints.push((
+                                    TypeConstraint::EqualTo(InferredType::Error(error)),
+                                    ConstraintDiagnostic::Inferred(
+                                        "member of instance (error)".into(),
+                                        vec![(*id, constraint, diagnostic)],
+                                    ),
+                                ));
                             }
                             InferredType::InferenceVariable(_) => {
                                 // keep the constraint as-is
-                                new_constraints.push(TypeConstraint::MemberOf(inferred_type, name))
+                                new_constraints.push((
+                                    TypeConstraint::MemberOf(
+                                        inferred_type.to_owned(),
+                                        name.to_owned(),
+                                    ),
+                                    diagnostic,
+                                ))
                             }
                         }
                     }
@@ -202,17 +234,23 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                                     TypeConstraint::EqualTo(base.clone().into())
                                 }
                                 InferredType::InferenceVariable(_) => {
-                                    TypeConstraint::Narrowed(narrowed)
+                                    TypeConstraint::Narrowed(narrowed.to_owned())
                                 }
                             },
                             InferredType::Error(lang_error) => {
                                 TypeConstraint::EqualTo(InferredType::Error(lang_error.clone()))
                             }
                             InferredType::InferenceVariable(_) => {
-                                TypeConstraint::Narrowed(narrowed)
+                                TypeConstraint::Narrowed(narrowed.to_owned())
                             }
                         };
-                        new_constraints.push(result);
+                        new_constraints.push((
+                            result,
+                            ConstraintDiagnostic::Inferred(
+                                "narrowed".into(),
+                                vec![(*id, constraint, diagnostic)],
+                            ),
+                        ));
                     }
 
                     TypeConstraint::UnreachableIfNeverContinues(unreachable_trigger) => {
@@ -230,16 +268,33 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                                     // including this one that wants to override all rules
                                     new_constraints.clear();
                                     pending_constraints.clear();
-                                    new_constraints.push(TypeConstraint::EqualTo(
-                                        InferredType::Known(LangType::NeverContinues.into()),
+                                    new_constraints.push((
+                                        TypeConstraint::EqualTo(InferredType::Known(
+                                            LangType::NeverContinues.into(),
+                                        )),
+                                        ConstraintDiagnostic::Inferred(
+                                            "unreachable result".into(),
+                                            constraints
+                                                .borrow()
+                                                .iter()
+                                                .map(|(prev_constraint, prev_diagnostic)| {
+                                                    (
+                                                        *id,
+                                                        prev_constraint.to_owned(),
+                                                        prev_diagnostic.to_owned(),
+                                                    )
+                                                })
+                                                .collect(),
+                                        ),
                                     ));
                                     break;
                                 }
                             }
                             InferredType::Error(_) => {} // remove constraint
-                            InferredType::InferenceVariable(_) => pending_constraints.push(
-                                TypeConstraint::UnreachableIfNeverContinues(unreachable_trigger),
-                            ),
+                            InferredType::InferenceVariable(_) => pending_constraints.push((
+                                TypeConstraint::UnreachableIfNeverContinues(unreachable_trigger.to_owned()),
+                                diagnostic,
+                            )),
                         }
                     }
                 }
@@ -251,10 +306,15 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
 
         let mut solved_this_iteration = vec![];
         for (id, constraints) in variables.iter() {
-            if is_solved(&constraints.borrow()) {
+            let just_constraints = constraints
+                .borrow()
+                .iter()
+                .map(|(constraints, _)| constraints.to_owned())
+                .collect_vec();
+            if is_solved(&just_constraints) {
                 solved_variables.insert(
                     *id,
-                    get_solution(&constraints.borrow())
+                    get_solution(&just_constraints)
                         .unwrap()
                         .to_result_assuming_inferred(),
                 );
@@ -282,33 +342,36 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                 let new_constraints = constraints
                     .take()
                     .into_iter()
-                    .map(|constraint| match constraint {
-                        TypeConstraint::EqualTo(inferred_type) => {
-                            TypeConstraint::EqualTo(fill_solved_variables(inferred_type))
-                        }
-                        TypeConstraint::AssignableTo(inferred_type) => {
-                            TypeConstraint::AssignableTo(fill_solved_variables(inferred_type))
-                        }
-                        TypeConstraint::MemberOf(inferred_type, name) => {
-                            TypeConstraint::MemberOf(fill_solved_variables(inferred_type), name)
-                        }
-                        TypeConstraint::ReferencedType(inferred_type) => {
-                            TypeConstraint::ReferencedType(fill_solved_variables(inferred_type))
-                        }
-                        TypeConstraint::ResolveFrom(breadcrumbs) => {
-                            TypeConstraint::ResolveFrom(breadcrumbs)
-                        }
-                        TypeConstraint::Narrowed(narrowed) => {
-                            TypeConstraint::Narrowed(NarrowedConstraint {
-                                base: fill_solved_variables(narrowed.base),
-                                narrow: fill_solved_variables(narrowed.narrow),
-                            })
-                        }
-                        TypeConstraint::UnreachableIfNeverContinues(inferred_type) => {
-                            TypeConstraint::UnreachableIfNeverContinues(fill_solved_variables(
-                                inferred_type,
-                            ))
-                        }
+                    .map(|(constraint, diagnostic)| {
+                        let new_constraint = match constraint {
+                            TypeConstraint::EqualTo(inferred_type) => {
+                                TypeConstraint::EqualTo(fill_solved_variables(inferred_type))
+                            }
+                            TypeConstraint::AssignableTo(inferred_type) => {
+                                TypeConstraint::AssignableTo(fill_solved_variables(inferred_type))
+                            }
+                            TypeConstraint::MemberOf(inferred_type, name) => {
+                                TypeConstraint::MemberOf(fill_solved_variables(inferred_type), name)
+                            }
+                            TypeConstraint::ReferencedType(inferred_type) => {
+                                TypeConstraint::ReferencedType(fill_solved_variables(inferred_type))
+                            }
+                            TypeConstraint::ResolveFrom(breadcrumbs) => {
+                                TypeConstraint::ResolveFrom(breadcrumbs)
+                            }
+                            TypeConstraint::Narrowed(narrowed) => {
+                                TypeConstraint::Narrowed(NarrowedConstraint {
+                                    base: fill_solved_variables(narrowed.base),
+                                    narrow: fill_solved_variables(narrowed.narrow),
+                                })
+                            }
+                            TypeConstraint::UnreachableIfNeverContinues(inferred_type) => {
+                                TypeConstraint::UnreachableIfNeverContinues(fill_solved_variables(
+                                    inferred_type,
+                                ))
+                            }
+                        };
+                        (new_constraint, diagnostic)
                     })
                     .collect();
 
@@ -419,11 +482,22 @@ fn is_solved(constraints: &[TypeConstraint]) -> bool {
 
 /// Hashes the variables for the purposes of determining if anything has changed
 /// from the previous inference iteration
-fn hash_variables(variables: &HashMap<u64, RefCell<Vec<TypeConstraint>>>) -> u64 {
+fn hash_variables(
+    variables: &HashMap<u64, RefCell<Vec<(TypeConstraint, ConstraintDiagnostic)>>>,
+) -> u64 {
     let mut hasher = DefaultHasher::new();
     let mut values = variables
         .iter()
-        .map(|(i, constraints)| (*i, constraints.borrow().to_owned()))
+        .map(|(i, constraints)| {
+            (
+                *i,
+                constraints
+                    .borrow()
+                    .iter()
+                    .map(|(constraint, _)| constraint.to_owned())
+                    .collect_vec(),
+            )
+        })
         .collect_vec();
     values.sort_by_key(|a| a.0);
     values.hash(&mut hasher);

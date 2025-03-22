@@ -434,7 +434,7 @@ pub enum ConstraintDiagnostic {
     Unknown,
     PendingInference,
     Resolver(Breadcrumbs, String),
-    Inferred(String, Vec<(usize, TypeConstraint, ConstraintDiagnostic)>),
+    Inferred(String, Vec<(u64, TypeConstraint, ConstraintDiagnostic)>),
 }
 
 pub struct ResolveTypesContext {
