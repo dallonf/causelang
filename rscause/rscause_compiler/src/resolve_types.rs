@@ -10,7 +10,7 @@ use crate::error_types::{
     MissingElseBranchError, MissingParametersError, SourcePosition, UnreachableBranchError,
     ValueUsedAsConstraintError,
 };
-use crate::infer_types::infer_types;
+use crate::infer_types::{infer_types, InferTypesResult};
 use crate::lang_types::{
     AnyInferredLangType, CanonicalLangType, CanonicalLangTypeCategory, CanonicalLangTypeId,
     CanonicalTypeField, FunctionLangType, InferredType, InstanceLangType, LangParameter, LangType,
@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::str::FromStr;
 use std::sync::Arc;
 use strum::EnumTryAs;
 
@@ -73,7 +74,10 @@ pub fn resolve_types(
         descendant.get_resolved_type(&mut ctx);
     }
 
-    infer_types(&mut ctx);
+    let InferTypesResult {
+        solved_variables: _solved_variables,
+        unsolved_variables: _unsolved_variables,
+    } = infer_types(&mut ctx);
 
     // Check all edicts of known types
     let edict_errors = ctx

@@ -23,7 +23,13 @@ use crate::{
     },
 };
 
-pub fn infer_types(ctx: &mut ResolveTypesContext) {
+#[derive(Debug)]
+pub struct InferTypesResult {
+    pub solved_variables: HashMap<u64, (AnyInferredLangType, ConstraintDiagnostic)>,
+    pub unsolved_variables: HashMap<u64, Vec<(TypeConstraint, ConstraintDiagnostic)>>,
+}
+
+pub fn infer_types(ctx: &mut ResolveTypesContext) -> InferTypesResult {
     let mut variables = HashMap::<u64, RefCell<Vec<(TypeConstraint, ConstraintDiagnostic)>>>::new();
     let variable_ids = ctx
         .value_types
@@ -57,7 +63,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
             .push((constraint.1.clone(), constraint.2.clone()));
     }
 
-    let mut solved_variables = HashMap::<u64, AnyLangTypeResult>::new();
+    let mut solved_variables = HashMap::<u64, (AnyLangTypeResult, ConstraintDiagnostic)>::new();
 
     let mut last_hash = hash_variables(&variables);
 
@@ -292,7 +298,9 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                             }
                             InferredType::Error(_) => {} // remove constraint
                             InferredType::InferenceVariable(_) => pending_constraints.push((
-                                TypeConstraint::UnreachableIfNeverContinues(unreachable_trigger.to_owned()),
+                                TypeConstraint::UnreachableIfNeverContinues(
+                                    unreachable_trigger.to_owned(),
+                                ),
                                 diagnostic,
                             )),
                         }
@@ -314,9 +322,21 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
             if is_solved(&just_constraints) {
                 solved_variables.insert(
                     *id,
-                    get_solution(&just_constraints)
-                        .unwrap()
-                        .to_result_assuming_inferred(),
+                    (
+                        get_solution(&just_constraints)
+                            .unwrap()
+                            .to_result_assuming_inferred(),
+                        ConstraintDiagnostic::Inferred(
+                            format!("solved var {id}"),
+                            constraints
+                                .borrow()
+                                .iter()
+                                .map(|(constraint, diagnostic)| {
+                                    (*id, constraint.to_owned(), diagnostic.to_owned())
+                                })
+                                .collect(),
+                        ),
+                    ),
                 );
                 solved_this_iteration.push(*id);
             }
@@ -334,7 +354,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                         .fold(inferred_type, |inferred_type, solved_id| {
                             inferred_type.fill_variable(
                                 *solved_id,
-                                solved_variables[solved_id].clone().into(),
+                                solved_variables[solved_id].0.clone().into(),
                             )
                         })
                 };
@@ -387,28 +407,28 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
     }
 
     // Fill all solved variables
-    for (id, solution) in solved_variables {
+    for (&id, solution) in &solved_variables {
         for ptr in ctx.value_types.values_mut() {
             if let Some(ptr) = ptr {
-                *ptr = ptr.fill_variable(id, solution.clone().into()).into();
+                *ptr = ptr.fill_variable(id, solution.0.clone().into()).into();
             }
         }
         for ptr in ctx.new_canonical_types.values_mut() {
-            *ptr = ptr.fill_variable(id, solution.clone().into()).into();
+            *ptr = ptr.fill_variable(id, solution.0.clone().into()).into();
         }
         for ptr in ctx.edicts.iter_mut() {
             ptr.rule = match &ptr.rule {
                 TypeEdictRule::AssignableTo(inferred_type) => TypeEdictRule::AssignableTo(
-                    inferred_type.fill_variable(id, solution.clone().into()),
+                    inferred_type.fill_variable(id, solution.0.clone().into()),
                 ),
                 TypeEdictRule::ImplicitValueAssignableTo(rule) => {
                     TypeEdictRule::ImplicitValueAssignableTo(ImplicitValueAssignableToTypeEdict {
                         assignable_to: rule
                             .assignable_to
-                            .fill_variable(id, solution.clone().into()),
+                            .fill_variable(id, solution.0.clone().into()),
                         implicit_value: rule
                             .implicit_value
-                            .fill_variable(id, solution.clone().into()),
+                            .fill_variable(id, solution.0.clone().into()),
                     })
                 }
                 TypeEdictRule::MustBeTypeReference => TypeEdictRule::MustBeTypeReference,
@@ -422,12 +442,12 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                                 remaining_with_value: branch
                                     .remaining_with_value
                                     .as_ref()
-                                    .map(|it| it.fill_variable(id, solution.clone().into())),
+                                    .map(|it| it.fill_variable(id, solution.0.clone().into())),
                                 pattern: branch
                                     .pattern
                                     .as_ref()
-                                    .map(|it| it.fill_variable(id, solution.clone().into())),
-                                result: branch.result.fill_variable(id, solution.clone().into()),
+                                    .map(|it| it.fill_variable(id, solution.0.clone().into())),
+                                result: branch.result.fill_variable(id, solution.0.clone().into()),
                             })
                             .collect(),
                         else_branch: edict.else_branch.as_ref().map(|branch| {
@@ -436,22 +456,41 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                                 remaining_with_value: branch
                                     .remaining_with_value
                                     .as_ref()
-                                    .map(|it| it.fill_variable(id, solution.clone().into())),
+                                    .map(|it| it.fill_variable(id, solution.0.clone().into())),
                                 pattern: branch
                                     .pattern
                                     .as_ref()
-                                    .map(|it| it.fill_variable(id, solution.clone().into())),
-                                result: branch.result.fill_variable(id, solution.clone().into()),
+                                    .map(|it| it.fill_variable(id, solution.0.clone().into())),
+                                result: branch.result.fill_variable(id, solution.0.clone().into()),
                             }
                         }),
                         final_with_value: edict
                             .final_with_value
                             .as_ref()
-                            .map(|it| it.fill_variable(id, solution.clone().into())),
+                            .map(|it| it.fill_variable(id, solution.0.clone().into())),
                     })
                 }
             };
         }
+    }
+
+    InferTypesResult {
+        solved_variables: solved_variables
+            .iter()
+            .map(|(&id, (result, diagnostic))| {
+                (
+                    id,
+                    (
+                        AnyInferredLangType::from(result.to_owned()),
+                        diagnostic.to_owned(),
+                    ),
+                )
+            })
+            .collect(),
+        unsolved_variables: variables
+            .iter()
+            .map(|(&id, constraints_cell)| (id, constraints_cell.borrow().to_owned()))
+            .collect(),
     }
 }
 
