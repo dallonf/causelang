@@ -140,6 +140,7 @@ async function generateAstNodesRs() {
         return {
           name: changeCase.snakeCase(name),
           rsName: getRsIdentifier(name),
+          breadcrumbName: name,
           type: rsFieldType(type),
           isNode: isNode(type),
         };
@@ -147,8 +148,12 @@ async function generateAstNodesRs() {
     };
   });
 
+  function onlyUnique(value: string, index: number, array: string[]) {
+    return array.indexOf(value) === index;
+  }
+
   const output = template({
-    breadcrumbNames: breadcrumbNames.map((name) => changeCase.snakeCase(name)),
+    breadcrumbNames: breadcrumbNames.filter(onlyUnique),
     categories: templateCategories,
     nodes: templateNodes,
   });

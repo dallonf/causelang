@@ -115,7 +115,7 @@ impl AstNode for {{this.name}} {
         {{#each this.fields}}
         {{#if this.isNode}}
         result.insert(
-            BreadcrumbName::new("{{this.name}}"),
+            BreadcrumbName::new("{{this.breadcrumbName}}"),
             (&self.{{this.rsName}}).into(),
         );
         {{/if}}

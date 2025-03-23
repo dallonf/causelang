@@ -2,71 +2,36 @@ pub static BREADCRUMB_NAMES: &[&str] = &[
     "text",
     "identifier",
     "params",
-    "return_type",
+    "returnType",
     "options",
     "name",
-    "type_reference",
-    "name",
-    "type_reference",
+    "typeReference",
     "value",
     "declarations",
     "path",
     "mappings",
-    "path",
-    "source_name",
+    "sourceName",
     "rename",
-    "name",
-    "params",
     "body",
-    "return_type",
-    "name",
-    "type_annotation",
-    "value",
-    "is_variable",
-    "name",
-    "fields",
-    "name",
+    "typeAnnotation",
+    "isVariable",
     "fields",
     "result",
-    "name",
     "type",
-    "name",
-    "type_annotation",
     "statements",
-    "result",
-    "expression",
     "expression",
     "declaration",
     "pattern",
-    "body",
-    "expression",
     "block",
-    "params",
-    "body",
-    "return_type",
-    "with_value",
+    "withValue",
     "branches",
     "condition",
-    "body",
-    "pattern",
-    "body",
-    "body",
-    "body",
-    "identifier",
-    "expression",
     "signal",
     "callee",
     "parameters",
     "subject",
-    "callee",
-    "parameters",
-    "object_expression",
-    "member_identifier",
-    "identifier",
-    "text",
-    "value",
-    "value",
-    "with_value",
+    "objectExpression",
+    "memberIdentifier",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumTryAs)]
@@ -698,7 +663,7 @@ impl AstNode for FunctionTypeReferenceNode {
             (&self.params).into(),
         );
         result.insert(
-            BreadcrumbName::new("return_type"),
+            BreadcrumbName::new("returnType"),
             (&self.return_type).into(),
         );
         result
@@ -781,7 +746,7 @@ impl AstNode for PatternNode {
             (&self.name).into(),
         );
         result.insert(
-            BreadcrumbName::new("type_reference"),
+            BreadcrumbName::new("typeReference"),
             (&self.type_reference).into(),
         );
         result
@@ -825,7 +790,7 @@ impl AstNode for FunctionSignatureParameterNode {
             (&self.name).into(),
         );
         result.insert(
-            BreadcrumbName::new("type_reference"),
+            BreadcrumbName::new("typeReference"),
             (&self.type_reference).into(),
         );
         result
@@ -1021,7 +986,7 @@ impl AstNode for ImportMappingNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("source_name"),
+            BreadcrumbName::new("sourceName"),
             (&self.source_name).into(),
         );
         result.insert(
@@ -1079,7 +1044,7 @@ impl AstNode for FunctionNode {
             (&self.body).into(),
         );
         result.insert(
-            BreadcrumbName::new("return_type"),
+            BreadcrumbName::new("returnType"),
             (&self.return_type).into(),
         );
         result
@@ -1125,7 +1090,7 @@ impl AstNode for NamedValueNode {
             (&self.name).into(),
         );
         result.insert(
-            BreadcrumbName::new("type_annotation"),
+            BreadcrumbName::new("typeAnnotation"),
             (&self.type_annotation).into(),
         );
         result.insert(
@@ -1310,7 +1275,7 @@ impl AstNode for ObjectFieldNode {
             (&self.name).into(),
         );
         result.insert(
-            BreadcrumbName::new("type_annotation"),
+            BreadcrumbName::new("typeAnnotation"),
             (&self.type_annotation).into(),
         );
         result
@@ -1642,7 +1607,7 @@ impl AstNode for FunctionExpressionNode {
             (&self.body).into(),
         );
         result.insert(
-            BreadcrumbName::new("return_type"),
+            BreadcrumbName::new("returnType"),
             (&self.return_type).into(),
         );
         result
@@ -1682,7 +1647,7 @@ impl AstNode for BranchExpressionNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("with_value"),
+            BreadcrumbName::new("withValue"),
             (&self.with_value).into(),
         );
         result.insert(
@@ -2068,11 +2033,11 @@ impl AstNode for MemberExpressionNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("object_expression"),
+            BreadcrumbName::new("objectExpression"),
             (&self.object_expression).into(),
         );
         result.insert(
-            BreadcrumbName::new("member_identifier"),
+            BreadcrumbName::new("memberIdentifier"),
             (&self.member_identifier).into(),
         );
         result
@@ -2257,7 +2222,7 @@ impl AstNode for BreakExpressionNode {
     fn children(&self) -> HashMap<BreadcrumbName, BreadcrumbTreeNode> {
         let mut result = HashMap::new();
         result.insert(
-            BreadcrumbName::new("with_value"),
+            BreadcrumbName::new("withValue"),
             (&self.with_value).into(),
         );
         result

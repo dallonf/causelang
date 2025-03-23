@@ -138,7 +138,7 @@ object RustSerialization {
 
     private fun breadcrumbsToString(breadcrumbs: Breadcrumbs) = breadcrumbs.entries.joinToString(".") {
         when (it) {
-            is Breadcrumbs.BreadcrumbEntry.Name -> toSnakeCase(it.name)
+            is Breadcrumbs.BreadcrumbEntry.Name -> it.name
             is Breadcrumbs.BreadcrumbEntry.Index -> it.index.toString()
         }
     }
