@@ -1540,8 +1540,11 @@ impl ResolveTypes for ast::SignalTypeNode {
 
 impl ResolveTypes for ast::ObjectFieldNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        let type_reference = ctx.get_resolved_type_proxying_errors(&self.type_annotation);
-        Some(type_reference.try_get_referenced_type().into())
+        let value_var = ctx.add_inference_variable_from_type_reference_node(
+            self.type_annotation.breadcrumbs(),
+            "Object field type",
+        );
+        Some(AnyInferredLangType::inference_var(value_var))
     }
 }
 

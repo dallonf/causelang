@@ -21,6 +21,10 @@ pub enum InferredType<T> {
     InferenceVariable(u64),
 }
 impl<T> InferredType<T> {
+    pub fn inference_var(var: u64) -> Self {
+        Self::InferenceVariable(var)
+    }
+
     #[inline]
     pub fn map<U, F: FnOnce(T) -> U>(self, op: F) -> InferredType<U> {
         self.and_then(|it| InferredType::Known(op(it)))
