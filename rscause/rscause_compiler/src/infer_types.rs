@@ -6,7 +6,7 @@ use std::{
 };
 
 use itertools::Itertools;
-use tap::Conv;
+use tap::{Conv, Pipe};
 
 use crate::{
     ast::{AnyAstNode, AstNode},
@@ -399,6 +399,15 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) -> InferTypesResult {
             })
             .collect();
 
+        for &solved_id in &solved_this_iteration {
+            let solution = &solved_variables[&solved_id];
+            for ptr in ctx.new_canonical_types.values_mut() {
+                *ptr = ptr
+                    .fill_variable(solved_id, solution.0.clone().into())
+                    .into();
+            }
+        }
+
         let new_hash = hash_variables(&variables);
         if new_hash == last_hash {
             break;
@@ -412,9 +421,6 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) -> InferTypesResult {
             if let Some(ptr) = ptr {
                 *ptr = ptr.fill_variable(id, solution.0.clone().into()).into();
             }
-        }
-        for ptr in ctx.new_canonical_types.values_mut() {
-            *ptr = ptr.fill_variable(id, solution.0.clone().into()).into();
         }
         for ptr in ctx.edicts.iter_mut() {
             ptr.rule = match &ptr.rule {

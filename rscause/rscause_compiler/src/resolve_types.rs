@@ -617,6 +617,15 @@ impl ResolveTypesContext {
             .cloned()
             .or_else(|| self.canonical_types.get(type_id).cloned())
     }
+
+    #[allow(dead_code)]
+    fn debug_value_type(&self, breadcrumbs_str: &str) {
+        let breadcrumbs = Breadcrumbs::from_str(breadcrumbs_str).unwrap();
+        println!(
+            "{breadcrumbs_str}: {:#?}",
+            self.value_types.get(&breadcrumbs)
+        );
+    }
 }
 
 trait ResolveTypes: ast::AstNode {
