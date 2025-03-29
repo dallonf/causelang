@@ -566,6 +566,7 @@ pub enum TypeConstraint {
     Narrowed(NarrowedConstraint),
     UnreachableIfNeverContinues(AnyInferredLangType),
     CallResult(AnyInferredLangType),
+    CauseResult(AnyInferredLangType),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1254,51 +1255,14 @@ impl ResolveTypes for ast::SetExpressionNode {
 
 impl ResolveTypes for ast::CauseExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        let canonical_type_id = match ctx
-            .get_resolved_type_proxying_errors(&self.signal)
-            .to_result_assuming_inferred()
-            .and_then(|it| match it.as_ref() {
-                LangType::Instance(instance) => Ok(instance.type_id.clone()),
-                LangType::TypeReference(instance) => instance
-                    .clone()
-                    .to_result_assuming_inferred()
-                    .and_then(|it| {
-                        it.try_as_instance_ref()
-                            .cloned()
-                            .ok_or(LangError::NotCausable.into())
-                    })
-                    .and_then(|instance| {
-                        if instance.type_id.is_unique {
-                            Ok(instance.type_id.clone())
-                        } else {
-                            Err(LangError::NotCausable.into())
-                        }
-                    }),
-                _ => Err(LangError::NotCausable.into()),
-            }) {
-            Ok(it) => it,
-            Err(err) => return Some(InferredType::Error(err.into())),
-        };
-        if canonical_type_id.category != CanonicalLangTypeCategory::Signal {
-            return Some(LangError::NotCallable.into());
-        }
-        let signal_result_type = ctx
-            .get_canonical_type(&canonical_type_id)
-            .ok_or(
-                LangError::CompilerBug(CompilerBugError {
-                    description: format!(
-                        "Couldn't find a canonical symbol: {:?}",
-                        &canonical_type_id
-                    ),
-                })
-                .into(),
-            )
-            .and_then(|canonical_type| match canonical_type.as_ref() {
-                CanonicalLangType::Signal(signal_type) => Ok(signal_type.result().clone()),
-                _ => Err(LangError::NotCausable.into()),
-            })
-            .unwrap_or_else(|err: Arc<LangError>| InferredType::Error(err.into()));
-        Some(signal_result_type)
+        let signal_var = ctx.add_inference_variable_from_node(self.signal.breadcrumbs(), "cause signal");
+        let result_var = ctx.add_inference_variable();
+        ctx.constraints.push((
+            result_var,
+            TypeConstraint::CauseResult(AnyInferredLangType::inference_var(signal_var)),
+            ConstraintDiagnostic::Resolver(self.breadcrumbs().to_owned(), "cause result".into())
+        ));
+        Some(AnyInferredLangType::inference_var(result_var))
     }
 }
 

@@ -6,6 +6,7 @@ use std::{
 };
 
 use itertools::Itertools;
+use num::traits::sign;
 use tap::{Conv, Pipe};
 
 use crate::{
@@ -14,7 +15,8 @@ use crate::{
         CompilerBugError, ErrorPosition, LangError, SourcePosition, ValueUsedAsConstraintError,
     },
     lang_types::{
-        AnyInferredLangType, AnyLangTypeResult, HasInference, InferredType, LangType, OneOfLangType,
+        AnyInferredLangType, AnyLangTypeResult, CanonicalLangType, CanonicalLangTypeCategory,
+        HasInference, InferredType, LangType, OneOfLangType,
     },
     resolve_types::{
         ConstraintDiagnostic, ImplicitValueAssignableToTypeEdict, NarrowedConstraint,
@@ -369,6 +371,92 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) -> InferTypesResult {
                             diagnostic,
                         )),
                     },
+                    TypeConstraint::CauseResult(signal_type) => match signal_type {
+                        InferredType::Known(signal_type) => {
+                            let canonical_type_id = match signal_type.as_ref() {
+                                LangType::Instance(instance) => Ok(instance.type_id.clone()),
+                                LangType::TypeReference(instance) => match instance {
+                                    InferredType::Known(instance) => instance
+                                        .try_as_instance_ref()
+                                        .and_then(|instance| {
+                                            if instance.type_id.is_unique {
+                                                Some(instance.type_id.clone())
+                                            } else {
+                                                None
+                                            }
+                                        })
+                                        .ok_or(LangError::NotCausable.into()),
+                                    InferredType::Error(lang_error) => Err(lang_error.clone()),
+                                    // keep it around until the signal type reference is resolved
+                                    InferredType::InferenceVariable(_) => {
+                                        new_constraints.push((
+                                            TypeConstraint::CauseResult(
+                                                signal_type.to_owned().into(),
+                                            ),
+                                            diagnostic,
+                                        ));
+                                        break;
+                                    }
+                                },
+                                _ => Err(LangError::NotCausable.into()),
+                            };
+                            let signal = canonical_type_id.and_then(|canonical_type_id| {
+                                ctx.get_canonical_type(canonical_type_id.as_ref())
+                                    .ok_or(
+                                        LangError::CompilerBug(CompilerBugError {
+                                            description: format!(
+                                                "Couldn't find a canonical symbol: {:?}",
+                                                &canonical_type_id
+                                            ),
+                                        })
+                                        .into(),
+                                    )
+                                    .and_then(|canonical_type| match canonical_type.as_ref() {
+                                        CanonicalLangType::Signal(signal_canonical_lang_type) => {
+                                            Ok(signal_canonical_lang_type.to_owned())
+                                        }
+                                        _ => Err(LangError::NotCausable.into()),
+                                    })
+                            });
+                            let result_type = signal
+                                .map(|signal| signal.result)
+                                .unwrap_or_else(|err| AnyInferredLangType::Error(err.into()));
+
+                            new_constraints.push((
+                                TypeConstraint::EqualTo(result_type),
+                                ConstraintDiagnostic::Inferred(
+                                    "signal result".into(),
+                                    vec![(
+                                        *id,
+                                        TypeConstraint::CauseResult(signal_type.to_owned().into()),
+                                        diagnostic,
+                                    )],
+                                ),
+                            ));
+                        }
+                        InferredType::Error(lang_error) => new_constraints.push((
+                            TypeConstraint::EqualTo(lang_error.as_ref().to_owned().into()),
+                            ConstraintDiagnostic::Inferred(
+                                "result of causing a signal".into(),
+                                constraints
+                                    .borrow()
+                                    .iter()
+                                    .map(|(prev_constraint, prev_diagnostic)| {
+                                        (
+                                            *id,
+                                            prev_constraint.to_owned(),
+                                            prev_diagnostic.to_owned(),
+                                        )
+                                    })
+                                    .collect(),
+                            ),
+                        )),
+                        // keep it around until the callee type is resolved
+                        InferredType::InferenceVariable(_) => new_constraints.push((
+                            TypeConstraint::CauseResult(signal_type.to_owned()),
+                            diagnostic,
+                        )),
+                    },
                 }
             }
 
@@ -456,6 +544,9 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) -> InferTypesResult {
                             }
                             TypeConstraint::CallResult(callee_type) => {
                                 TypeConstraint::CallResult(fill_solved_variables(callee_type))
+                            }
+                            TypeConstraint::CauseResult(signal_type) => {
+                                TypeConstraint::CauseResult(fill_solved_variables(signal_type))
                             }
                         };
                         (new_constraint, diagnostic)
