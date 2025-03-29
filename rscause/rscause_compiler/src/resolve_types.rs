@@ -45,10 +45,10 @@ pub struct ResolverError {
     pub error: LangError,
 }
 impl ResolverError {
-    fn new(source_position: SourcePosition, format: LangError) -> Self {
+    fn new(source_position: SourcePosition, error: LangError) -> Self {
         Self {
             position: source_position,
-            error: format,
+            error,
         }
     }
 }
@@ -110,189 +110,268 @@ pub fn resolve_types(
             .clone();
             match &edict.rule {
                 TypeEdictRule::AssignableTo(expected_type) => {
-                    if let InferredType::Known(expected_type) = expected_type {
-                        if !actual_type.is_assignable_to(&expected_type) {
-                            vec![ResolverError::new(
-                                source_position,
-                                LangError::MismatchedType(MismatchedTypeError {
-                                    expected: expected_type.as_ref().clone(),
-                                    actual: actual_type,
-                                }),
-                            )]
-                        } else {
-                            vec![]
-                        }
-                    } else {
-                        vec![]
-                    }
-                }
+                                if let InferredType::Known(expected_type) = expected_type {
+                                    if !actual_type.is_assignable_to(&expected_type) {
+                                        vec![ResolverError::new(
+                                            source_position,
+                                            LangError::MismatchedType(MismatchedTypeError {
+                                                expected: expected_type.as_ref().clone(),
+                                                actual: actual_type,
+                                            }),
+                                        )]
+                                    } else {
+                                        vec![]
+                                    }
+                                } else {
+                                    vec![]
+                                }
+                            }
                 TypeEdictRule::ImplicitValueAssignableTo(rule) => {
-                    if let (InferredType::Known(implicit_value), InferredType::Known(assignable_to)) = (&rule.implicit_value, &rule.assignable_to) {
-                        if !implicit_value.is_assignable_to(&assignable_to) {
-                            vec![ResolverError::new(
-                                source_position,
-                                LangError::MismatchedType(MismatchedTypeError {
-                                    expected: assignable_to.as_ref().clone(),
-                                    actual: implicit_value.clone(),
-                                }),
-                            )]
-                        } else {
-                            vec![]
-                        }
-                    } else {
-                        vec![]
-                    }
-                }
+                                if let (InferredType::Known(implicit_value), InferredType::Known(assignable_to)) = (&rule.implicit_value, &rule.assignable_to) {
+                                    if !implicit_value.is_assignable_to(&assignable_to) {
+                                        vec![ResolverError::new(
+                                            source_position,
+                                            LangError::MismatchedType(MismatchedTypeError {
+                                                expected: assignable_to.as_ref().clone(),
+                                                actual: implicit_value.clone(),
+                                            }),
+                                        )]
+                                    } else {
+                                        vec![]
+                                    }
+                                } else {
+                                    vec![]
+                                }
+                            }
                 TypeEdictRule::MustBeTypeReference => {
-                    if let LangType::TypeReference(_) = actual_type.as_ref() {
-                        vec![]
-                    } else {
-                        vec![ResolverError::new(
-                            source_position,
-                            LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
-                                r#type: AnyInferredLangType::Known(actual_type.clone()),
-                            }),
-                        )]
-                    }
-                }
-
+                                if let LangType::TypeReference(_) = actual_type.as_ref() {
+                                    vec![]
+                                } else {
+                                    vec![ResolverError::new(
+                                        source_position,
+                                        LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
+                                            r#type: AnyInferredLangType::Known(actual_type.clone()),
+                                        }),
+                                    )]
+                                }
+                            }
                 TypeEdictRule::ValidateBranchExpression(edict) => {
-                    let mut errors = vec![];
-                    let all_branches = {
-                        let mut branches = edict.branches.clone();
-                        if let Some(else_branch) = &edict.else_branch {
-                            branches.push(else_branch.clone());
-                        }
-                        branches
-                    };
-                    'branch: for branch in &all_branches {
-                        let branch_source_position =
-                            ctx.get_source_position_for_breadcrumbs(&branch.breadcrumbs);
-                        // Branches unreachable because with-value is NeverContinues
-                        if let Some(with_value) = branch
-                            .remaining_with_value
-                            .as_ref()
-                            .and_then(|it| it.try_as_known_ref())
-                            .cloned()
-                        {
-                            if with_value.as_ref() == &LangType::NeverContinues {
-                                errors.push(ResolverError::new(
-                                    branch_source_position,
-                                    LangError::UnreachableBranch(UnreachableBranchError {
-                                        options: None,
-                                    }),
-                                ));
-                                continue 'branch;
-                            }
-                        }
+                                let mut errors = vec![];
+                                let all_branches = {
+                                    let mut branches = edict.branches.clone();
+                                    if let Some(else_branch) = &edict.else_branch {
+                                        branches.push(else_branch.clone());
+                                    }
+                                    branches
+                                };
+                                'branch: for branch in &all_branches {
+                                    let branch_source_position =
+                                        ctx.get_source_position_for_breadcrumbs(&branch.breadcrumbs);
+                                    // Branches unreachable because with-value is NeverContinues
+                                    if let Some(with_value) = branch
+                                        .remaining_with_value
+                                        .as_ref()
+                                        .and_then(|it| it.try_as_known_ref())
+                                        .cloned()
+                                    {
+                                        if with_value.as_ref() == &LangType::NeverContinues {
+                                            errors.push(ResolverError::new(
+                                                branch_source_position,
+                                                LangError::UnreachableBranch(UnreachableBranchError {
+                                                    options: None,
+                                                }),
+                                            ));
+                                            continue 'branch;
+                                        }
+                                    }
 
-                        // Branches unreachable because with-value is not assignable to
-                        // is-pattern.
-                        // TODO: Can this be merged with the above?
-                        if let (Some(with_value), Some(pattern)) = (
-                            branch
-                                .remaining_with_value
-                                .as_ref()
-                                .and_then(|it| it.try_as_known_ref()),
-                            branch.pattern.as_ref().and_then(|it| it.try_as_known_ref()),
-                        ) {
-                            if !pattern.is_assignable_to(&with_value) {
-                                errors.push(ResolverError::new(
-                                    branch_source_position,
-                                    LangError::UnreachableBranch(UnreachableBranchError {
-                                        options: Some(
-                                            OneOfLangType::new_with_one(with_value.clone().into())
-                                                .simplify()
-                                                .into(),
-                                        ),
-                                    }),
-                                ));
-                            }
-                            continue 'branch;
-                        }
-                    }
+                                    // Branches unreachable because with-value is not assignable to
+                                    // is-pattern.
+                                    // TODO: Can this be merged with the above?
+                                    if let (Some(with_value), Some(pattern)) = (
+                                        branch
+                                            .remaining_with_value
+                                            .as_ref()
+                                            .and_then(|it| it.try_as_known_ref()),
+                                        branch.pattern.as_ref().and_then(|it| it.try_as_known_ref()),
+                                    ) {
+                                        if !pattern.is_assignable_to(&with_value) {
+                                            errors.push(ResolverError::new(
+                                                branch_source_position,
+                                                LangError::UnreachableBranch(UnreachableBranchError {
+                                                    options: Some(
+                                                        OneOfLangType::new_with_one(with_value.clone().into())
+                                                            .simplify()
+                                                            .into(),
+                                                    ),
+                                                }),
+                                            ));
+                                        }
+                                        continue 'branch;
+                                    }
+                                }
 
-                    // A with-value must be NeverContinues at the end of the
-                    // branch expression, otherwise an else-branch is needed to make it
-                    // exhaustive
-                    if let Some(final_with_value) = edict
-                        .final_with_value
-                        .as_ref()
-                        .and_then(|it| it.try_as_known_ref())
-                    {
-                        if final_with_value.as_ref() != &LangType::NeverContinues {
-                            errors.push(ResolverError::new(
-                                source_position.clone(),
-                                LangError::MissingElseBranch(MissingElseBranchError {
-                                    options: Some(
-                                        OneOfLangType::new_with_one(
-                                            final_with_value.clone().into(),
-                                        )
-                                        .simplify()
-                                        .into(),
-                                    ),
-                                }),
-                            ));
-                        }
-                    }
-
-                    // If any branch returns Action, all branches must
-                    let action_returns = all_branches
-                        .iter()
-                        .filter(|branch| {
-                            branch
-                                .result
-                                .to_result_assuming_inferred_ref()
-                                // sneaky little inversion here -
-                                // NeverContinues returns will be excluded with this logic
-                                .map(|it| LangType::Action.is_assignable_to(it.as_ref()))
-                                .unwrap_or(false)
-                        })
-                        .collect_vec();
-                    let non_action_returns = all_branches
-                        .iter()
-                        .filter(|branch| {
-                            branch
-                                .result
-                                .try_as_known_ref()
-                                .map(|it| !it.as_ref().is_assignable_to(&LangType::Action))
-                                .unwrap_or(false)
-                        })
-                        .collect_vec();
-                    if !action_returns.is_empty() && !non_action_returns.is_empty() {
-                        errors.push(ResolverError::new(
-                            source_position,
-                            LangError::ActionIncompatibleWithValueTypes(
-                                ActionIncompatibleWithValueTypesError {
-                                    actions: action_returns
-                                        .into_iter()
-                                        .map(|it| {
-                                            ctx.get_source_position_for_breadcrumbs(&it.breadcrumbs)
-                                        })
-                                        .collect(),
-                                    types: Some(
-                                        non_action_returns
-                                            .into_iter()
-                                            .map(|it| ActionIncompatibleWithValueTypesValueType {
-                                                r#type: it
-                                                    .result
-                                                    .try_as_known_ref()
-                                                    .expect(&format!("should be a Known type (already filtered above), but found {:?}", &it.result))
-                                                    .to_owned(),
-                                                position: ctx.get_source_position_for_breadcrumbs(
-                                                    &it.breadcrumbs,
+                                // A with-value must be NeverContinues at the end of the
+                                // branch expression, otherwise an else-branch is needed to make it
+                                // exhaustive
+                                if let Some(final_with_value) = edict
+                                    .final_with_value
+                                    .as_ref()
+                                    .and_then(|it| it.try_as_known_ref())
+                                {
+                                    if final_with_value.as_ref() != &LangType::NeverContinues {
+                                        errors.push(ResolverError::new(
+                                            source_position.clone(),
+                                            LangError::MissingElseBranch(MissingElseBranchError {
+                                                options: Some(
+                                                    OneOfLangType::new_with_one(
+                                                        final_with_value.clone().into(),
+                                                    )
+                                                    .simplify()
+                                                    .into(),
                                                 ),
-                                            })
-                                            .collect(),
-                                    ),
-                                },
-                            ),
-                        ));
-                    }
+                                            }),
+                                        ));
+                                    }
+                                }
 
-                    errors
-                }
-            }
+                                // If any branch returns Action, all branches must
+                                let action_returns = all_branches
+                                    .iter()
+                                    .filter(|branch| {
+                                        branch
+                                            .result
+                                            .to_result_assuming_inferred_ref()
+                                            // sneaky little inversion here -
+                                            // NeverContinues returns will be excluded with this logic
+                                            .map(|it| LangType::Action.is_assignable_to(it.as_ref()))
+                                            .unwrap_or(false)
+                                    })
+                                    .collect_vec();
+                                let non_action_returns = all_branches
+                                    .iter()
+                                    .filter(|branch| {
+                                        branch
+                                            .result
+                                            .try_as_known_ref()
+                                            .map(|it| !it.as_ref().is_assignable_to(&LangType::Action))
+                                            .unwrap_or(false)
+                                    })
+                                    .collect_vec();
+                                if !action_returns.is_empty() && !non_action_returns.is_empty() {
+                                    errors.push(ResolverError::new(
+                                        source_position,
+                                        LangError::ActionIncompatibleWithValueTypes(
+                                            ActionIncompatibleWithValueTypesError {
+                                                actions: action_returns
+                                                    .into_iter()
+                                                    .map(|it| {
+                                                        ctx.get_source_position_for_breadcrumbs(&it.breadcrumbs)
+                                                    })
+                                                    .collect(),
+                                                types: Some(
+                                                    non_action_returns
+                                                        .into_iter()
+                                                        .map(|it| ActionIncompatibleWithValueTypesValueType {
+                                                            r#type: it
+                                                                .result
+                                                                .try_as_known_ref()
+                                                                .expect(&format!("should be a Known type (already filtered above), but found {:?}", &it.result))
+                                                                .to_owned(),
+                                                            position: ctx.get_source_position_for_breadcrumbs(
+                                                                &it.breadcrumbs,
+                                                            ),
+                                                        })
+                                                        .collect(),
+                                                ),
+                                            },
+                                        ),
+                                    ));
+                                }
+
+                                errors
+                            }
+
+                            TypeEdictRule::ValidateCall(validate_call_type_edict) => {
+                                let callee_type = validate_call_type_edict.callee_type
+                                    .to_result_assuming_inferred_ref()
+                                    .map_err(|err| vec![ResolverError::new(source_position.clone(), err.as_ref().to_owned())]);
+                                
+                                let expected_parameters = callee_type.and_then(|it| 
+                                    get_expected_call_parameters(it, &ctx)
+                                        .map_err(|err| vec![ResolverError::new(source_position.clone(), err.as_ref().to_owned())])
+                                );
+
+                                expected_parameters.and_then(|expected_parameters| {
+                                    match validate_call_type_edict.parameters.len().cmp(&expected_parameters.len()) {
+                                        std::cmp::Ordering::Less => {
+                                            return Err(vec![
+                                                ResolverError::new(source_position.clone(),
+                                                LangError::MissingParameters(MissingParametersError {
+                                                    names: expected_parameters[expected_parameters.len()..]
+                                                        .into_iter()
+                                                        .map(|it| it.name.as_ref().to_owned())
+                                                        .collect(),
+                                                })
+                                                )
+                                            ])
+                                        }
+                                        std::cmp::Ordering::Greater => {
+                                            return Err(vec![
+                                                ResolverError::new(source_position.clone(), 
+                                                LangError::ExcessParameters(ExcessParametersError {
+                                                    expected: expected_parameters.len() as u32,
+                                                })
+                                            ),
+                                            ])
+                                        }
+                                        std::cmp::Ordering::Equal => {}
+                                    }
+                                    Ok(())
+                                }).err().unwrap_or(vec![])
+                            },
+
+                            TypeEdictRule::ValidateCallParameter(validate_call_parameter_type_edict) => {
+                                let callee_type = validate_call_parameter_type_edict.callee_type
+                                    .to_result_assuming_inferred_ref()
+                                    // don't throw an error if you can't find the call type;
+                                    // that's handled by the ValidateCall edict
+                                    .map_err(|_| vec![]);
+
+                                let expected_parameters = callee_type.and_then(|it| 
+                                    get_expected_call_parameters(it, &ctx)
+                                        // don't throw an error if you can't find expected params;
+                                        // that's handled by the ValidateCall edict
+                                        .map_err(|_| vec![])
+                                );
+
+                                let expected_parameter = expected_parameters.and_then(|it| {
+                                    let index = validate_call_parameter_type_edict.parameter_index;
+                                    // don't throw an error for an excess parameter;
+                                    // that's handled by the ValidateCall edict
+                                    it.get(index).cloned().ok_or(vec![])
+                                });
+
+                                expected_parameter
+                                    .and_then(|expected_parameter| {
+                                        let expected_type = expected_parameter.value_type.to_result_assuming_inferred().map_err(|err| {
+                                            vec![ResolverError::new(source_position.clone(), err.as_ref().to_owned())]
+                                        })?;
+
+                                        if !actual_type.is_assignable_to(&expected_type) {
+                                            return Err(vec![ResolverError::new(
+                                                source_position,
+                                                LangError::MismatchedType(MismatchedTypeError {
+                                                    expected: expected_type.as_ref().clone(),
+                                                    actual: actual_type,
+                                                }),
+                                            )]);
+                                        } 
+
+                                        Ok(())
+                                    }).err().unwrap_or(vec![])
+                            },
+                        }
         })
         .collect_vec();
 
@@ -374,6 +453,53 @@ pub fn resolve_types(
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+struct ExpectedCallParameter {
+    name: Arc<String>,
+    value_type: AnyInferredLangType,
+}
+
+fn get_expected_call_parameters(
+    callee_type: &Arc<LangType>,
+    ctx: &ResolveTypesContext,
+) -> Result<Vec<ExpectedCallParameter>, Arc<LangError>> {
+    match callee_type.as_ref() {
+        LangType::Function(function_type) => Ok(function_type
+            .params
+            .iter()
+            .map(|it| ExpectedCallParameter {
+                name: it.name.clone(),
+                value_type: it.value_type.clone(),
+            })
+            .collect_vec()),
+        LangType::TypeReference(referenced_type) => referenced_type
+            .clone()
+            .to_result_assuming_inferred()
+            .and_then(|referenced_type| match referenced_type.as_ref() {
+                LangType::Instance(instance) => {
+                    let instance_type = instance;
+                    let canonical_type = ctx.get_canonical_type(&instance_type.type_id).ok_or(
+                        LangError::compiler_bug(format!(
+                            "Missing canonical type: {}",
+                            instance_type.type_id.to_string()
+                        )),
+                    )?;
+                    Ok(canonical_type
+                        .fields()
+                        .iter()
+                        .map(|it| ExpectedCallParameter {
+                            name: it.name.clone(),
+                            value_type: it.value_type.clone(),
+                        })
+                        .collect_vec())
+                }
+                LangType::StopgapDictionary | LangType::StopgapList => Ok(vec![]),
+                _ => Err(LangError::NotCallable.into()),
+            }),
+        _ => Err(LangError::NotCallable.into()),
+    }
+}
+
 /// A type "edict" is an explicit declaration that a given node's value
 /// must satisfy some rules. They are also used as extra constraints
 /// in type inference.
@@ -392,6 +518,8 @@ pub enum TypeEdictRule {
     ImplicitValueAssignableTo(ImplicitValueAssignableToTypeEdict),
     MustBeTypeReference,
     ValidateBranchExpression(ValidateBranchExpressionTypeEdict),
+    ValidateCall(ValidateCallTypeEdict),
+    ValidateCallParameter(ValidateCallParameterTypeEdict),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -416,6 +544,18 @@ pub struct ValidateBranchExpressionTypeEdictBranch {
     pub result: AnyInferredLangType,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ValidateCallTypeEdict {
+    pub callee_type: AnyInferredLangType,
+    pub parameters: Vec<AnyInferredLangType>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ValidateCallParameterTypeEdict {
+    pub callee_type: AnyInferredLangType,
+    pub parameter_index: usize,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumTryAs)]
 pub enum TypeConstraint {
     EqualTo(AnyInferredLangType),
@@ -425,6 +565,7 @@ pub enum TypeConstraint {
     ResolveFrom(Breadcrumbs),
     Narrowed(NarrowedConstraint),
     UnreachableIfNeverContinues(AnyInferredLangType),
+    CallResult(AnyInferredLangType),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1164,6 +1305,7 @@ impl ResolveTypes for ast::CauseExpressionNode {
 impl ResolveTypes for ast::CallExpressionNode {
     fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
         resolve_call_expression(
+            self.breadcrumbs(),
             &self.callee,
             &self
                 .parameters
@@ -1185,117 +1327,53 @@ impl ResolveTypes for ast::PipeCallExpressionNode {
                 .collect(),
         ]
         .concat();
-        resolve_call_expression(&self.callee, &parameters, ctx)
+        resolve_call_expression(self.breadcrumbs(), &self.callee, &parameters, ctx)
     }
 }
 
 fn resolve_call_expression(
+    breadcrumbs: &Breadcrumbs,
     callee_expression: &ExpressionNode,
     parameter_breadcrumbs: &[Breadcrumbs],
     ctx: &mut ResolveTypesContext,
 ) -> Option<AnyInferredLangType> {
-    let callee_type = ctx.get_resolved_type_proxying_errors(callee_expression);
-    let callee_type = match callee_type.to_result_assuming_inferred() {
-        Ok(it) => it,
-        Err(err) => return Some(InferredType::Error(err.into())),
-    };
+    let callee_var =
+        ctx.add_inference_variable_from_node(callee_expression.breadcrumbs(), "function callee");
+    let result_var = ctx.add_inference_variable();
+    ctx.constraints.push((
+        result_var,
+        TypeConstraint::CallResult(AnyInferredLangType::inference_var(callee_var)),
+        ConstraintDiagnostic::Resolver(breadcrumbs.to_owned(), "call expression result".into()),
+    ));
 
-    let result_type = match callee_type.as_ref() {
-        LangType::Function(function_type) => Ok(function_type.return_type.clone()),
-        LangType::TypeReference(referenced_type) => referenced_type
-            .clone()
-            .to_result_assuming_inferred()
-            .and_then(|referenced_type| match referenced_type.as_ref() {
-                LangType::Instance(instance) => Ok(instance.clone().into()),
-                LangType::StopgapDictionary | LangType::StopgapList => Ok(referenced_type.into()),
-                _ => Err(LangError::NotCallable.into()),
+    let parameter_types = parameter_breadcrumbs
+        .iter()
+        .map(|param| {
+            ctx.add_inference_variable_from_node(param, "call parameter")
+                .pipe(AnyInferredLangType::inference_var)
+        })
+        .collect();
+    ctx.edicts.push(TypeEdict {
+        breadcrumbs: breadcrumbs.to_owned(),
+        rule: TypeEdictRule::ValidateCall(ValidateCallTypeEdict {
+            callee_type: AnyInferredLangType::inference_var(callee_var),
+            parameters: parameter_types,
+        }),
+        diagnostic: "call expression".into(),
+    });
+
+    for (i, parameter) in parameter_breadcrumbs.iter().enumerate() {
+        ctx.edicts.push(TypeEdict {
+            breadcrumbs: parameter.to_owned(),
+            rule: TypeEdictRule::ValidateCallParameter(ValidateCallParameterTypeEdict {
+                callee_type: AnyInferredLangType::inference_var(callee_var),
+                parameter_index: i,
             }),
-        _ => Err(LangError::NotCallable.into()),
-    };
-
-    #[derive(Debug, Clone, Eq, PartialEq)]
-    struct ExpectedCallParameter {
-        name: Arc<String>,
-        value_type: AnyInferredLangType,
+            diagnostic: "call parameter".into(),
+        });
     }
 
-    let expected_parameters = match callee_type.as_ref() {
-        LangType::Function(function_type) => Ok(function_type
-            .params
-            .iter()
-            .map(|it| ExpectedCallParameter {
-                name: it.name.clone(),
-                value_type: it.value_type.clone(),
-            })
-            .collect_vec()),
-        LangType::TypeReference(referenced_type) => referenced_type
-            .clone()
-            .to_result_assuming_inferred()
-            .and_then(|referenced_type| match referenced_type.as_ref() {
-                LangType::Instance(instance) => {
-                    let instance_type = instance;
-                    let canonical_type = ctx.get_canonical_type(&instance_type.type_id).ok_or(
-                        LangError::compiler_bug(format!(
-                            "Missing canonical type: {}",
-                            instance_type.type_id.to_string()
-                        )),
-                    )?;
-                    Ok(canonical_type
-                        .fields()
-                        .iter()
-                        .map(|it| ExpectedCallParameter {
-                            name: it.name.clone(),
-                            value_type: it.value_type.clone(),
-                        })
-                        .collect_vec())
-                }
-                LangType::StopgapDictionary | LangType::StopgapList => Ok(vec![]),
-                _ => Err(LangError::NotCallable.into()),
-            }),
-        _ => Err(LangError::NotCallable.into()),
-    };
-
-    match expected_parameters {
-        Ok(parameters) => {
-            match parameter_breadcrumbs.len().cmp(&parameters.len()) {
-                std::cmp::Ordering::Less => {
-                    return Some(
-                        LangError::MissingParameters(MissingParametersError {
-                            names: parameters[parameter_breadcrumbs.len()..]
-                                .into_iter()
-                                .map(|it| it.name.as_ref().to_owned())
-                                .collect(),
-                        })
-                        .into(),
-                    )
-                }
-                std::cmp::Ordering::Greater => {
-                    return Some(
-                        LangError::ExcessParameters(ExcessParametersError {
-                            expected: parameters.len() as u32,
-                        })
-                        .into(),
-                    )
-                }
-                std::cmp::Ordering::Equal => {}
-            }
-
-            for (lang_param, param_breadcrumbs) in
-                parameters.iter().zip(parameter_breadcrumbs.iter())
-            {
-                ctx.edicts.push(TypeEdict {
-                    breadcrumbs: param_breadcrumbs.clone(),
-                    rule: TypeEdictRule::AssignableTo(lang_param.value_type.clone()),
-                    diagnostic:
-                        "Function call param must be assignable to function definition param type"
-                            .into(),
-                });
-            }
-        }
-        Err(err) => return Some(InferredType::Error(err.into())),
-    }
-
-    Some(result_type.unwrap_or_else(|err| InferredType::Error(err.into())))
+    Some(AnyInferredLangType::inference_var(result_var))
 }
 
 impl ResolveTypes for ast::MemberExpressionNode {

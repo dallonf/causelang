@@ -19,7 +19,8 @@ use crate::{
     resolve_types::{
         ConstraintDiagnostic, ImplicitValueAssignableToTypeEdict, NarrowedConstraint,
         ResolveTypesContext, TypeConstraint, TypeEdictRule, ValidateBranchExpressionTypeEdict,
-        ValidateBranchExpressionTypeEdictBranch,
+        ValidateBranchExpressionTypeEdictBranch, ValidateCallParameterTypeEdict,
+        ValidateCallTypeEdict,
     },
 };
 
@@ -124,7 +125,6 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) -> InferTypesResult {
                             ),
                         ));
                     }
-
                     TypeConstraint::ReferencedType(type_reference) => {
                         let result = 'result: {
                             let known_reference = match type_reference {
@@ -160,7 +160,6 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) -> InferTypesResult {
                             ),
                         ));
                     }
-
                     TypeConstraint::MemberOf(inferred_type, name) => {
                         let field_type = inferred_type
                             .clone()
@@ -225,7 +224,6 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) -> InferTypesResult {
                             }
                         }
                     }
-
                     TypeConstraint::Narrowed(narrowed) => {
                         let result = match &narrowed.base {
                             InferredType::Known(base) => match &narrowed.narrow {
@@ -258,7 +256,6 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) -> InferTypesResult {
                             ),
                         ));
                     }
-
                     TypeConstraint::UnreachableIfNeverContinues(unreachable_trigger) => {
                         match unreachable_trigger {
                             InferredType::Known(unreachable_trigger) => {
@@ -305,6 +302,73 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) -> InferTypesResult {
                             )),
                         }
                     }
+                    TypeConstraint::CallResult(callee_type) => match callee_type {
+                        InferredType::Known(callee_type) => {
+                            let result_type: AnyInferredLangType = match callee_type.as_ref() {
+                                LangType::Function(function_type) => {
+                                    function_type.return_type.clone().into()
+                                }
+                                LangType::TypeReference(referenced_type) => match referenced_type {
+                                    InferredType::Known(referenced_type) => {
+                                        match referenced_type.as_ref() {
+                                            LangType::Instance(instance) => instance.clone().into(),
+                                            LangType::StopgapDictionary | LangType::StopgapList => {
+                                                referenced_type.clone().into()
+                                            }
+                                            _ => LangError::NotCallable.into(),
+                                        }
+                                    }
+                                    InferredType::Error(lang_error) => {
+                                        AnyInferredLangType::Error(lang_error.clone())
+                                    }
+                                    InferredType::InferenceVariable(_) => {
+                                        pending_constraints.push((
+                                            TypeConstraint::CallResult(
+                                                callee_type.to_owned().into(),
+                                            ),
+                                            diagnostic,
+                                        ));
+                                        break;
+                                    }
+                                },
+                                _ => LangError::NotCallable.into(),
+                            };
+
+                            new_constraints.push((
+                                TypeConstraint::EqualTo(result_type),
+                                ConstraintDiagnostic::Inferred(
+                                    "call result".into(),
+                                    vec![(
+                                        *id,
+                                        TypeConstraint::CallResult(callee_type.clone().into()),
+                                        diagnostic,
+                                    )],
+                                ),
+                            ))
+                        }
+                        InferredType::Error(lang_error) => new_constraints.push((
+                            TypeConstraint::EqualTo(lang_error.as_ref().to_owned().into()),
+                            ConstraintDiagnostic::Inferred(
+                                "call result of function".into(),
+                                constraints
+                                    .borrow()
+                                    .iter()
+                                    .map(|(prev_constraint, prev_diagnostic)| {
+                                        (
+                                            *id,
+                                            prev_constraint.to_owned(),
+                                            prev_diagnostic.to_owned(),
+                                        )
+                                    })
+                                    .collect(),
+                            ),
+                        )),
+                        // keep it around until the callee type is resolved
+                        InferredType::InferenceVariable(_) => new_constraints.push((
+                            TypeConstraint::CallResult(callee_type.to_owned()),
+                            diagnostic,
+                        )),
+                    },
                 }
             }
 
@@ -390,6 +454,9 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) -> InferTypesResult {
                                     inferred_type,
                                 ))
                             }
+                            TypeConstraint::CallResult(callee_type) => {
+                                TypeConstraint::CallResult(fill_solved_variables(callee_type))
+                            }
                         };
                         (new_constraint, diagnostic)
                     })
@@ -474,6 +541,26 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) -> InferTypesResult {
                             .final_with_value
                             .as_ref()
                             .map(|it| it.fill_variable(id, solution.0.clone().into())),
+                    })
+                }
+                TypeEdictRule::ValidateCall(validate_call_type_edict) => {
+                    TypeEdictRule::ValidateCall(ValidateCallTypeEdict {
+                        callee_type: validate_call_type_edict
+                            .callee_type
+                            .fill_variable(id, solution.0.clone().into()),
+                        parameters: validate_call_type_edict
+                            .parameters
+                            .iter()
+                            .map(|it| it.fill_variable(id, solution.0.clone().into()))
+                            .collect(),
+                    })
+                }
+                TypeEdictRule::ValidateCallParameter(validate_call_parameter_type_edict) => {
+                    TypeEdictRule::ValidateCallParameter(ValidateCallParameterTypeEdict {
+                        callee_type: validate_call_parameter_type_edict
+                            .callee_type
+                            .fill_variable(id, solution.0.clone().into()),
+                        parameter_index: validate_call_parameter_type_edict.parameter_index,
                     })
                 }
             };
