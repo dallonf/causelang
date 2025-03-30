@@ -4,6 +4,23 @@ pub enum LangType {
   {{name}}{{#if hasParam}}({{paramType}}){{/if}},
   {{/each}}
 }
+impl HasInference for LangType {
+  fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+    match self {
+      {{#each langTypes}}
+        LangType::{{name}}{{#if hasParam}}(it) => {{inferenceGetRecursiveInferredTypesExpression}}{{else}} => vec![]{{/if}},
+      {{/each}}
+    }
+  }
+
+  fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+    match self {
+      {{#each langTypes}}
+        LangType::{{name}}{{#if hasParam}}(it) => LangType::{{name}}({{inferenceFillVariableExpression}}){{else}} => LangType::{{name}}{{/if}},
+      {{/each}}
+    }
+  }
+}
 
 {{#each complexLangTypes}}
 #[derive(Debug, Clone, Eq, PartialEq,{{#unless customHashImplementation}} Hash,{{/unless}} Serialize, Deserialize)]

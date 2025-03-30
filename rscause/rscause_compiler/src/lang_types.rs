@@ -294,50 +294,6 @@ impl LangType {
     }
 }
 
-impl HasInference for LangType {
-    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
-        match self {
-            LangType::TypeReference(inferred_type) => inferred_type.recursive_inferred_types(),
-            LangType::Action => vec![],
-            LangType::Instance(_) => vec![],
-            LangType::Function(function_lang_type) => function_lang_type.recursive_inferred_types(),
-            LangType::Primitive(_) => vec![],
-            LangType::Anything => vec![],
-            LangType::AnySignal => vec![],
-            LangType::OneOf(one_of_lang_type) => one_of_lang_type.recursive_inferred_types(),
-            LangType::NeverContinues => vec![],
-            LangType::StopgapDictionary => vec![],
-            LangType::StopgapList => vec![],
-            LangType::BadValue => vec![],
-        }
-    }
-
-    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
-        match self {
-            LangType::TypeReference(inferred_type) => {
-                LangType::TypeReference(inferred_type.fill_variable(id, value))
-            }
-            LangType::Action => LangType::Action,
-            LangType::Instance(instance_lang_type) => {
-                LangType::Instance(instance_lang_type.clone())
-            }
-            LangType::Function(function_lang_type) => {
-                LangType::Function(function_lang_type.fill_variable(id, value))
-            }
-            LangType::Primitive(primitive_lang_type) => LangType::Primitive(*primitive_lang_type),
-            LangType::Anything => LangType::Anything,
-            LangType::AnySignal => LangType::AnySignal,
-            LangType::OneOf(one_of_lang_type) => {
-                LangType::OneOf(one_of_lang_type.fill_variable(id, value))
-            }
-            LangType::NeverContinues => LangType::NeverContinues,
-            LangType::StopgapDictionary => LangType::StopgapDictionary,
-            LangType::StopgapList => LangType::StopgapList,
-            LangType::BadValue => LangType::BadValue,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum PrimitiveLangType {
     Text,

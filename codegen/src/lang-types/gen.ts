@@ -26,6 +26,8 @@ type TemplateLangType = {
   | {
       hasParam: true;
       paramType: string;
+      inferenceGetRecursiveInferredTypesExpression: string;
+      inferenceFillVariableExpression: string;
     }
 );
 
@@ -60,6 +62,82 @@ async function generateRustLangTypes() {
     import.meta.url
   );
 
+  function getRecursiveInferredTypesExpression(
+    fieldRef: string,
+    fieldType: FieldType
+  ): string {
+    switch (fieldType.kind) {
+      case "canonicalTypeId":
+      case "string":
+      case "primitiveEnum":
+        return "vec![]";
+
+      case "langType":
+        return `${fieldRef}.recursive_inferred_types()`;
+      case "list":
+        return `${fieldRef}.iter().flat_map(|it| ${getRecursiveInferredTypesExpression(
+          "it",
+          fieldType.type
+        )}).collect()`;
+      case "object": {
+        const appendStatements = Object.entries(fieldType.fields).map(
+          ([subfieldName, subfieldType]) => {
+            return `inner_result.append(&mut ${getRecursiveInferredTypesExpression(
+              `${fieldRef}.${subfieldName}`,
+              subfieldType
+            )}); `;
+          }
+        );
+        return `{ let mut inner_result = vec![]; ${appendStatements.join(
+          ""
+        )} inner_result }`;
+      }
+      case "optional":
+        return `${fieldRef}.as_ref().map(|it| ${getRecursiveInferredTypesExpression(
+          "it",
+          fieldType.type
+        )}).unwrap_or(vec![])`;
+      default:
+        return fieldType satisfies never;
+    }
+  }
+
+  function getInferenceFillVariableExpression(
+    fieldRef: string,
+    fieldType: FieldType
+  ): string {
+    switch (fieldType.kind) {
+      case "string":
+      case "canonicalTypeId":
+      case "primitiveEnum":
+        return `${fieldRef}.clone()`;
+      case "langType":
+        return `${fieldRef}.fill_variable(id, value.clone())`;
+      case "optional":
+        return `${fieldRef}.as_ref().map(|it| ${getInferenceFillVariableExpression(
+          "it",
+          fieldType.type
+        )})`;
+      case "list":
+        return `${fieldRef}.iter().map(|it| ${getInferenceFillVariableExpression(
+          "it",
+          fieldType.type
+        )}).collect()`;
+      case "object": {
+        const fields = Object.entries(fieldType.fields).map(
+          ([objectFieldName, objectFieldType]) =>
+            `${objectFieldName}: ${getInferenceFillVariableExpression(
+              `${fieldRef}.${objectFieldName}`,
+              objectFieldType
+            )}`
+        );
+        return `${fieldType.name} { ${fields.join(",")} }`;
+      }
+      default:
+        return fieldType satisfies never;
+    }
+  }
+
   const templateLangTypes: TemplateLangType[] = langTypes.map((langType) => {
     if (langType.kind === undefined) {
       return { name: langType.name, hasParam: false };
@@ -76,10 +154,34 @@ async function generateRustLangTypes() {
       }
     });
 
+    const inferenceGetRecursiveInferredTypesExpression = doit((): string => {
+      switch (langType.kind) {
+        case "simple":
+          return getRecursiveInferredTypesExpression("it", langType.type);
+        case "complex":
+          return "it.recursive_inferred_types()";
+        default:
+          return langType satisfies never;
+      }
+    });
+
+    const inferenceFillVariableExpression = doit((): string => {
+      switch (langType.kind) {
+        case "simple":
+          return getInferenceFillVariableExpression("it", langType.type);
+        case "complex":
+          return "it.fill_variable(id, value)";
+        default:
+          return langType satisfies never;
+      }
+    });
+
     return {
       name: langType.name,
       hasParam: true,
       paramType,
+      inferenceGetRecursiveInferredTypesExpression,
+      inferenceFillVariableExpression,
     };
   });
 
@@ -92,82 +194,6 @@ async function generateRustLangTypes() {
         fields: Object.entries(complexLangType.fields).map(
           ([fieldName, fieldType]): TemplateComplexLangTypeField => {
             const hasSubtypes = getTypeHasSubtypes(fieldType);
-
-            function getInferenceFillVariableExpression(
-              fieldRef: string,
-              fieldType: FieldType
-            ): string {
-              switch (fieldType.kind) {
-                case "string":
-                case "canonicalTypeId":
-                case "primitiveEnum":
-                  return `${fieldRef}.clone()`;
-                case "langType":
-                  return `${fieldRef}.fill_variable(id, value.clone())`;
-                case "optional":
-                  return `${fieldRef}.as_ref().map(|it| ${getInferenceFillVariableExpression(
-                    "it",
-                    fieldType.type
-                  )})`;
-                case "list":
-                  return `${fieldRef}.iter().map(|it| ${getInferenceFillVariableExpression(
-                    "it",
-                    fieldType.type
-                  )}).collect()`;
-                case "object": {
-                  const fields = Object.entries(fieldType.fields).map(
-                    ([objectFieldName, objectFieldType]) =>
-                      `${objectFieldName}: ${getInferenceFillVariableExpression(
-                        `${fieldRef}.${objectFieldName}`,
-                        objectFieldType
-                      )}`
-                  );
-                  return `${fieldType.name} { ${fields.join(",")} }`;
-                }
-                default:
-                  return fieldType satisfies never;
-              }
-            }
-
-            function getRecursiveInferredTypesExpression(
-              fieldRef: string,
-              fieldType: FieldType
-            ): string {
-              switch (fieldType.kind) {
-                case "canonicalTypeId":
-                case "string":
-                case "primitiveEnum":
-                  return "vec![]";
-
-                case "langType":
-                  return `${fieldRef}.recursive_inferred_types()`;
-                case "list":
-                  return `${fieldRef}.iter().flat_map(|it| ${getRecursiveInferredTypesExpression(
-                    "it",
-                    fieldType.type
-                  )}).collect()`;
-                case "object": {
-                  const appendStatements = Object.entries(fieldType.fields).map(
-                    ([subfieldName, subfieldType]) => {
-                      return `inner_result.append(&mut ${getRecursiveInferredTypesExpression(
-                        `${fieldRef}.${subfieldName}`,
-                        subfieldType
-                      )}); `;
-                    }
-                  );
-                  return `{ let mut inner_result = vec![]; ${appendStatements.join(
-                    ""
-                  )} inner_result }`;
-                }
-                case "optional":
-                  return `${fieldRef}.as_ref().map(|it| ${getRecursiveInferredTypesExpression(
-                    "it",
-                    fieldType.type
-                  )}).unwrap_or(vec![])`;
-                default:
-                  return fieldType satisfies never;
-              }
-            }
 
             const subtypesSpread = hasSubtypes
               ? {

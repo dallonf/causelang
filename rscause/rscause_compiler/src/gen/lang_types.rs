@@ -13,6 +13,41 @@ pub enum LangType {
   OneOf(OneOfLangType),
   BadValue,
 }
+impl HasInference for LangType {
+  fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+    match self {
+        LangType::TypeReference(it) => it.recursive_inferred_types(),
+        LangType::Instance(it) => it.recursive_inferred_types(),
+        LangType::Function(it) => it.recursive_inferred_types(),
+        LangType::Primitive(it) => vec![],
+        LangType::StopgapDictionary => vec![],
+        LangType::StopgapList => vec![],
+        LangType::Action => vec![],
+        LangType::Anything => vec![],
+        LangType::AnySignal => vec![],
+        LangType::NeverContinues => vec![],
+        LangType::OneOf(it) => it.recursive_inferred_types(),
+        LangType::BadValue => vec![],
+    }
+  }
+
+  fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+    match self {
+        LangType::TypeReference(it) => LangType::TypeReference(it.fill_variable(id, value.clone())),
+        LangType::Instance(it) => LangType::Instance(it.fill_variable(id, value)),
+        LangType::Function(it) => LangType::Function(it.fill_variable(id, value)),
+        LangType::Primitive(it) => LangType::Primitive(it.clone()),
+        LangType::StopgapDictionary => LangType::StopgapDictionary,
+        LangType::StopgapList => LangType::StopgapList,
+        LangType::Action => LangType::Action,
+        LangType::Anything => LangType::Anything,
+        LangType::AnySignal => LangType::AnySignal,
+        LangType::NeverContinues => LangType::NeverContinues,
+        LangType::OneOf(it) => LangType::OneOf(it.fill_variable(id, value)),
+        LangType::BadValue => LangType::BadValue,
+    }
+  }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct InstanceLangType {
