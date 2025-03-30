@@ -339,48 +339,6 @@ impl HasInference for LangType {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct FunctionLangType {
-    pub name: Option<Arc<String>>,
-    pub params: Vec<LangParameter>,
-    pub return_type: AnyInferredLangType,
-}
-impl From<FunctionLangType> for LangType {
-    fn from(value: FunctionLangType) -> Self {
-        Self::Function(value)
-    }
-}
-impl HasInference for FunctionLangType {
-    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
-        let mut result = vec![];
-        let mut param_results = self
-            .params
-            .iter()
-            .flat_map(|p| p.value_type.recursive_inferred_types())
-            .collect();
-        result.append(&mut param_results);
-        result.append(&mut self.return_type.recursive_inferred_types());
-        return result;
-    }
-
-    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
-        let params = self
-            .params
-            .iter()
-            .map(|it| LangParameter {
-                name: it.name.clone(),
-                value_type: it.value_type.fill_variable(id, value.clone()),
-            })
-            .collect_vec();
-        let return_type = self.return_type.fill_variable(id, value.clone());
-        return Self {
-            name: self.name.clone(),
-            params,
-            return_type,
-        };
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct LangParameter {
     pub name: Arc<String>,
     pub value_type: AnyInferredLangType,
@@ -397,20 +355,6 @@ impl From<PrimitiveLangType> for LangType {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct InstanceLangType {
-    pub type_id: Arc<CanonicalLangTypeId>,
-}
-impl From<InstanceLangType> for LangType {
-    fn from(value: InstanceLangType) -> Self {
-        Self::Instance(value)
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct OneOfLangType {
-    pub options: Vec<AnyInferredLangType>,
-}
 impl OneOfLangType {
     pub fn new(options: Vec<AnyInferredLangType>) -> Self {
         Self { options }
@@ -575,32 +519,9 @@ impl OneOfLangType {
         false
     }
 }
-impl From<OneOfLangType> for LangType {
-    fn from(value: OneOfLangType) -> Self {
-        Self::OneOf(value)
-    }
-}
 impl Hash for OneOfLangType {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.simplify().options.hash(state);
-    }
-}
-impl HasInference for OneOfLangType {
-    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
-        self.options
-            .iter()
-            .flat_map(|o| o.recursive_inferred_types())
-            .collect()
-    }
-
-    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
-        let options = self
-            .simplify()
-            .options
-            .iter()
-            .map(|it| it.fill_variable(id, value.clone()))
-            .collect_vec();
-        return Self { options };
     }
 }
 

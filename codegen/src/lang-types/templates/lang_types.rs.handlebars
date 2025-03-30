@@ -6,7 +6,7 @@ pub enum LangType {
 }
 
 {{#each complexLangTypes}}
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq,{{#unless customHashImplementation}} Hash,{{/unless}} Serialize, Deserialize)]
 pub struct {{name}}LangType {
   {{#each fields}}
   pub {{name}}: {{type}},
@@ -21,8 +21,8 @@ impl HasInference for {{name}}LangType {
   fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
     let mut result = vec![];
     {{#each fields}}
-    {{#if hasSubTypes}}
-    result.append({{inferenceGetRecursiveInferredTypesExpression}});
+    {{#if hasSubtypes}}
+    result.append(&mut {{inferenceGetRecursiveInferredTypesExpression}});
     {{/if}}
     {{/each}}
     return result;
@@ -30,7 +30,7 @@ impl HasInference for {{name}}LangType {
   fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
     return Self {
       {{#each fields}}
-        {{name}}: {{inferenceFillVariableExpression}}
+        {{name}}: {{inferenceFillVariableExpression}},
       {{/each}}
     }
   }
@@ -44,24 +44,4 @@ pub struct {{name}} {
     pub {{name}}: {{type}},
     {{/each}}
 }
-{{#if hasSubtypes}}
-impl HasInference for {{name}} {
-  fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
-    let mut result = vec![];
-    {{#each fields}}
-    {{#if hasSubTypes}}
-    result.append({{inferenceGetRecursiveInferredTypesExpression}});
-    {{/if}}
-    {{/each}}
-    return result;
-  }
-  fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
-    return Self {
-      {{#each fields}}
-        {{name}}: {{inferenceFillVariableExpression}}
-      {{/each}}
-    }
-  }
-}
-{{/if}}
 {{/each}}

@@ -42,6 +42,7 @@ export const langTypes: LangTypeDeclaration[] = [
   {
     name: "OneOf",
     kind: "complex",
+    customHashImplementation: true,
     fields: {
       options: listOf({ kind: "langType" }),
     },

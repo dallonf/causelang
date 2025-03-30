@@ -5,6 +5,7 @@ export type LangTypeDeclaration = {
   | { kind: "simple"; type: FieldType }
   | {
       kind: "complex";
+      customHashImplementation?: boolean;
       fields: Record<string, FieldType>;
     }
 );
@@ -48,4 +49,28 @@ export function optional(input: FieldType): FieldType {
     kind: "optional",
     type: input,
   };
+}
+
+export function getTypeHasSubtypes(type: FieldType): boolean {
+  switch (type.kind) {
+    case "canonicalTypeId":
+      // technically a reference to another type,
+      // but it's indirect so doesn't matter for our purposes
+      return false;
+    case "langType":
+      return true;
+
+    case "list":
+    case "optional":
+      return getTypeHasSubtypes(type.type);
+
+    case "object":
+      return Object.values(type.fields).some(getTypeHasSubtypes);
+
+    case "primitiveEnum":
+    case "string":
+      return false;
+    default:
+      return type satisfies never;
+  }
 }
