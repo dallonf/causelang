@@ -8,8 +8,8 @@ use crate::ast::NodeInfo;
 use crate::error_types::{ErrorPosition, LangError};
 use crate::instructions::{Instruction, InstructionPhase};
 use crate::lang_types::{
-    AnyInferredLangType, CanonicalLangType, CanonicalLangTypeId, FunctionLangType, InferredType,
-    LangType,
+    AnyOldResolvingLangType, CanonicalLangType, CanonicalLangTypeId, FunctionOldResolvingLangType,
+    OldResolvingLangType, OldResolvingType,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -42,7 +42,7 @@ pub struct FunctionProcedureIdentity {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct EffectProcedureIdentity {
-    pub matches_type: Arc<LangType>,
+    pub matches_type: Arc<OldResolvingLangType>,
     pub declaration: NodeInfo,
 }
 
@@ -58,7 +58,7 @@ pub enum CompiledConstant {
     #[serde(serialize_with = "serialize_big_rational")]
     Number(BigRational),
     Error(ErrorConst),
-    Type(Arc<LangType>),
+    Type(Arc<OldResolvingLangType>),
 }
 
 fn serialize_big_rational<S>(value: &BigRational, serializer: S) -> Result<S::Ok, S::Error>
@@ -78,8 +78,8 @@ pub struct ErrorConst {
 pub enum CompiledExport {
     Function {
         procedure_index: u32,
-        function_type: InferredType<Arc<FunctionLangType>>,
+        function_type: OldResolvingType<Arc<FunctionOldResolvingLangType>>,
     },
-    Type(AnyInferredLangType),
+    Type(AnyOldResolvingLangType),
     Error(Arc<LangError>),
 }

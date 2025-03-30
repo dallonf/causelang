@@ -17,54 +17,57 @@ use crate::error_types::{ConstraintUsedAsValueError, LangError};
 include!("gen/lang_types.rs");
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
-pub enum InferredType<T> {
+pub enum OldResolvingType<T> {
     Known(T),
     Error(Arc<LangError>),
     InferenceVariable(u64),
 }
-impl<T> InferredType<T> {
+impl<T> OldResolvingType<T> {
     #[inline]
-    pub fn map<U, F: FnOnce(T) -> U>(self, op: F) -> InferredType<U> {
-        self.and_then(|it| InferredType::Known(op(it)))
+    pub fn map<U, F: FnOnce(T) -> U>(self, op: F) -> OldResolvingType<U> {
+        self.and_then(|it| OldResolvingType::Known(op(it)))
     }
     #[inline]
-    pub fn and_then<U, F: FnOnce(T) -> InferredType<U>>(self, op: F) -> InferredType<U> {
+    pub fn and_then<U, F: FnOnce(T) -> OldResolvingType<U>>(self, op: F) -> OldResolvingType<U> {
         match self {
-            InferredType::Known(t) => op(t),
-            InferredType::Error(err) => InferredType::Error(err),
-            InferredType::InferenceVariable(var) => InferredType::InferenceVariable(var),
+            OldResolvingType::Known(t) => op(t),
+            OldResolvingType::Error(err) => OldResolvingType::Error(err),
+            OldResolvingType::InferenceVariable(var) => OldResolvingType::InferenceVariable(var),
         }
     }
     // Will be a NeverResolved error if it's an inference variable
     #[inline]
     pub fn to_result_assuming_inferred(self) -> LangTypeResult<T> {
         match self {
-            InferredType::Known(t) => Ok(t),
-            InferredType::Error(err) => Err(err),
-            InferredType::InferenceVariable(_) => Err(LangError::NeverResolved.into()),
+            OldResolvingType::Known(t) => Ok(t),
+            OldResolvingType::Error(err) => Err(err),
+            OldResolvingType::InferenceVariable(_) => Err(LangError::NeverResolved.into()),
         }
     }
     // Will be a NeverResolved error if it's an inference variable
     #[inline]
     pub fn to_result_assuming_inferred_ref(&self) -> LangTypeResult<&T> {
         match self {
-            InferredType::Known(t) => Ok(t),
-            InferredType::Error(err) => Err(err.clone()),
-            InferredType::InferenceVariable(_) => Err(LangError::NeverResolved.into()),
+            OldResolvingType::Known(t) => Ok(t),
+            OldResolvingType::Error(err) => Err(err.clone()),
+            OldResolvingType::InferenceVariable(_) => Err(LangError::NeverResolved.into()),
         }
     }
 
     #[inline]
-    pub fn map_err<F: FnOnce(Arc<LangError>) -> Arc<LangError>>(self, op: F) -> InferredType<T> {
+    pub fn map_err<F: FnOnce(Arc<LangError>) -> Arc<LangError>>(
+        self,
+        op: F,
+    ) -> OldResolvingType<T> {
         match self {
-            InferredType::Known(t) => InferredType::Known(t),
-            InferredType::Error(err) => InferredType::Error(op(err)),
-            InferredType::InferenceVariable(var) => InferredType::InferenceVariable(var),
+            OldResolvingType::Known(t) => OldResolvingType::Known(t),
+            OldResolvingType::Error(err) => OldResolvingType::Error(op(err)),
+            OldResolvingType::InferenceVariable(var) => OldResolvingType::InferenceVariable(var),
         }
     }
 
     pub fn as_known(&self) -> Option<&T> {
-        if let InferredType::Known(known) = self {
+        if let OldResolvingType::Known(known) = self {
             Some(known)
         } else {
             None
@@ -73,29 +76,29 @@ impl<T> InferredType<T> {
 }
 
 pub type LangTypeResult<T> = Result<T, Arc<LangError>>;
-pub type AnyLangTypeResult = LangTypeResult<Arc<LangType>>;
+pub type AnyOldResolvingLangTypeResult = LangTypeResult<Arc<OldResolvingLangType>>;
 
-impl<T> From<LangError> for InferredType<T> {
+impl<T> From<LangError> for OldResolvingType<T> {
     fn from(value: LangError) -> Self {
         Self::Error(Arc::new(value))
     }
 }
-impl<T> From<T> for AnyInferredLangType
+impl<T> From<T> for AnyOldResolvingLangType
 where
-    T: Into<LangType>,
+    T: Into<OldResolvingLangType>,
 {
     fn from(value: T) -> Self {
         Self::Known(Arc::new(value.into()))
     }
 }
-impl From<Arc<LangType>> for AnyInferredLangType {
-    fn from(value: Arc<LangType>) -> Self {
+impl From<Arc<OldResolvingLangType>> for AnyOldResolvingLangType {
+    fn from(value: Arc<OldResolvingLangType>) -> Self {
         Self::Known(value)
     }
 }
 
-impl From<Result<Arc<LangType>, Arc<LangError>>> for AnyInferredLangType {
-    fn from(value: Result<Arc<LangType>, Arc<LangError>>) -> Self {
+impl From<Result<Arc<OldResolvingLangType>, Arc<LangError>>> for AnyOldResolvingLangType {
+    fn from(value: Result<Arc<OldResolvingLangType>, Arc<LangError>>) -> Self {
         match value {
             Ok(value) => Self::Known(value),
             Err(err) => Self::Error(err),
@@ -103,11 +106,11 @@ impl From<Result<Arc<LangType>, Arc<LangError>>> for AnyInferredLangType {
     }
 }
 
-pub type AnyInferredLangType = InferredType<Arc<LangType>>;
-impl AnyInferredLangType {
+pub type AnyOldResolvingLangType = OldResolvingType<Arc<OldResolvingLangType>>;
+impl AnyOldResolvingLangType {
     /// Assuming this is a LangType::TypeReference and that
     /// any type inference has already been run, return the inner value.
-    pub fn try_get_referenced_type(&self) -> AnyLangTypeResult {
+    pub fn try_get_referenced_type(&self) -> AnyOldResolvingLangTypeResult {
         let self_result = self.clone().to_result_assuming_inferred()?;
         let instance = self_result
             .try_as_type_reference_ref()
@@ -124,49 +127,49 @@ impl AnyInferredLangType {
 }
 
 pub trait HasInference {
-    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType>;
+    fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType>;
     // TODO: this is going to be horrifically slow to do for every single
     // found type
-    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self;
+    fn fill_variable(&self, id: u64, value: AnyOldResolvingLangType) -> Self;
 
     fn has_pending(&self) -> bool {
         self.recursive_inferred_types()
             .iter()
-            .any(|it| matches!(it, InferredType::InferenceVariable(_)))
+            .any(|it| matches!(it, OldResolvingType::InferenceVariable(_)))
     }
 }
 
-impl HasInference for AnyInferredLangType {
-    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+impl HasInference for AnyOldResolvingLangType {
+    fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
         match self {
-            InferredType::Known(known) => known.recursive_inferred_types(),
-            InferredType::Error(_) => vec![self.clone()],
-            InferredType::InferenceVariable(_) => vec![self.clone()],
+            OldResolvingType::Known(known) => known.recursive_inferred_types(),
+            OldResolvingType::Error(_) => vec![self.clone()],
+            OldResolvingType::InferenceVariable(_) => vec![self.clone()],
         }
     }
 
-    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+    fn fill_variable(&self, id: u64, value: AnyOldResolvingLangType) -> Self {
         match self {
-            InferredType::Known(known) => {
-                InferredType::Known(known.fill_variable(id, value).into())
+            OldResolvingType::Known(known) => {
+                OldResolvingType::Known(known.fill_variable(id, value).into())
             }
-            InferredType::Error(error) => InferredType::Error(error.clone()),
-            &InferredType::InferenceVariable(current_id) => {
+            OldResolvingType::Error(error) => OldResolvingType::Error(error.clone()),
+            &OldResolvingType::InferenceVariable(current_id) => {
                 if current_id == id {
                     value
                 } else {
-                    InferredType::InferenceVariable(current_id)
+                    OldResolvingType::InferenceVariable(current_id)
                 }
             }
         }
     }
 }
 
-impl LangType {
+impl OldResolvingLangType {
     /// If this is a TypeReference, extract the value type
-    pub fn get_referenced_value_type(&self) -> AnyInferredLangType {
+    pub fn get_referenced_value_type(&self) -> AnyOldResolvingLangType {
         match self {
-            LangType::TypeReference(value_type) => value_type.clone(),
+            OldResolvingLangType::TypeReference(value_type) => value_type.clone(),
             _ => LangError::ConstraintUsedAsValue(ConstraintUsedAsValueError {
                 r#type: self.to_owned(),
             })
@@ -177,8 +180,8 @@ impl LangType {
     /// Includes special handling for unique types
     pub fn get_canonical_id_for_instance(&self) -> Option<Arc<CanonicalLangTypeId>> {
         match self {
-            LangType::Instance(instance_type) => Some(instance_type.type_id.clone()),
-            LangType::TypeReference(referenced_type) => {
+            OldResolvingLangType::Instance(instance_type) => Some(instance_type.type_id.clone()),
+            OldResolvingLangType::TypeReference(referenced_type) => {
                 let referenced_type = referenced_type.to_result_assuming_inferred_ref().ok()?;
                 let instance = referenced_type.try_as_instance_ref()?;
                 if instance.type_id.is_unique {
@@ -191,11 +194,11 @@ impl LangType {
         }
     }
 
-    pub fn is_assignable_to(&self, other_type: &LangType) -> bool {
-        if self == &LangType::NeverContinues {
+    pub fn is_assignable_to(&self, other_type: &OldResolvingLangType) -> bool {
+        if self == &OldResolvingLangType::NeverContinues {
             return true;
         }
-        if let LangType::OneOf(one_of) = self {
+        if let OldResolvingLangType::OneOf(one_of) = self {
             // special case: self is an unsimplified OneOfLangType
             let assignable_to_simplified = one_of
                 .simplify_to_value()
@@ -213,23 +216,23 @@ impl LangType {
         match other_type {
             // Type references aren't assignable to other type references
             // at least until generics become a thing.
-            LangType::TypeReference(_other_type_reference) => false,
+            OldResolvingLangType::TypeReference(_other_type_reference) => false,
 
-            LangType::Action => {
-                self == &LangType::Action
+            OldResolvingLangType::Action => {
+                self == &OldResolvingLangType::Action
                     // Action is a sort of unique type; a "reference" to it is equivalent
                     // to an Action value
-                    || self == &LangType::TypeReference(LangType::Action.into())
+                    || self == &OldResolvingLangType::TypeReference(OldResolvingLangType::Action.into())
             }
-            LangType::Instance(other_instance) => {
+            OldResolvingLangType::Instance(other_instance) => {
                 let self_canonical_id = self.get_canonical_id_for_instance();
                 match self_canonical_id {
                     Some(self_canonical_id) => self_canonical_id == other_instance.type_id,
                     None => false,
                 }
             }
-            LangType::Function(other_function) => {
-                if let LangType::Function(self_function) = self {
+            OldResolvingLangType::Function(other_function) => {
+                if let OldResolvingLangType::Function(self_function) = self {
                     let params_match = self_function.params.len() == other_function.params.len()
                         && self_function
                             .params
@@ -244,8 +247,8 @@ impl LangType {
 
                     let return_type_matches = {
                         if let (
-                            InferredType::Known(self_function_return),
-                            InferredType::Known(other_function_return),
+                            OldResolvingType::Known(self_function_return),
+                            OldResolvingType::Known(other_function_return),
                         ) = (&self_function.return_type, &other_function.return_type)
                         {
                             // I have a hunch this isn't sound variance,
@@ -261,16 +264,16 @@ impl LangType {
                     false
                 }
             }
-            LangType::Primitive(other_primitive) => {
-                if let LangType::Primitive(self_primitive) = self {
+            OldResolvingLangType::Primitive(other_primitive) => {
+                if let OldResolvingLangType::Primitive(self_primitive) = self {
                     self_primitive == other_primitive
                 } else {
                     false
                 }
             }
-            LangType::Anything => true,
-            LangType::AnySignal => {
-                if self == &LangType::AnySignal {
+            OldResolvingLangType::Anything => true,
+            OldResolvingLangType::AnySignal => {
+                if self == &OldResolvingLangType::AnySignal {
                     true
                 } else {
                     let self_canonical_id = self.get_canonical_id_for_instance();
@@ -282,14 +285,16 @@ impl LangType {
                     }
                 }
             }
-            LangType::OneOf(other_one_of) => other_one_of.is_superset_of(self),
+            OldResolvingLangType::OneOf(other_one_of) => other_one_of.is_superset_of(self),
 
-            LangType::NeverContinues => self == &LangType::NeverContinues,
+            OldResolvingLangType::NeverContinues => self == &OldResolvingLangType::NeverContinues,
 
-            LangType::StopgapDictionary => self == &LangType::StopgapDictionary,
-            LangType::StopgapList => self == &LangType::StopgapList,
+            OldResolvingLangType::StopgapDictionary => {
+                self == &OldResolvingLangType::StopgapDictionary
+            }
+            OldResolvingLangType::StopgapList => self == &OldResolvingLangType::StopgapList,
 
-            LangType::BadValue => self == &LangType::BadValue,
+            OldResolvingLangType::BadValue => self == &OldResolvingLangType::BadValue,
         }
     }
 }
@@ -299,18 +304,18 @@ pub enum PrimitiveLangType {
     Text,
     Number,
 }
-impl From<PrimitiveLangType> for LangType {
+impl From<PrimitiveLangType> for OldResolvingLangType {
     fn from(value: PrimitiveLangType) -> Self {
         Self::Primitive(value)
     }
 }
 
-impl OneOfLangType {
-    pub fn new(options: Vec<AnyInferredLangType>) -> Self {
+impl OneOfOldResolvingLangType {
+    pub fn new(options: Vec<AnyOldResolvingLangType>) -> Self {
         Self { options }
     }
 
-    pub fn new_with_one(option: AnyInferredLangType) -> Self {
+    pub fn new_with_one(option: AnyOldResolvingLangType) -> Self {
         Self {
             options: vec![option],
         }
@@ -320,9 +325,11 @@ impl OneOfLangType {
         self.options.is_empty()
     }
 
-    pub fn is_superset_of(&self, pattern_type: &LangType) -> bool {
+    pub fn is_superset_of(&self, pattern_type: &OldResolvingLangType) -> bool {
         let possible_values = match pattern_type {
-            LangType::OneOf(pattern_one_of) => pattern_one_of.simplify().options.clone(),
+            OldResolvingLangType::OneOf(pattern_one_of) => {
+                pattern_one_of.simplify().options.clone()
+            }
             other => vec![other.clone().into()],
         };
 
@@ -330,13 +337,13 @@ impl OneOfLangType {
         let result = possible_values
             .into_iter()
             .all(|possible_value| match possible_value {
-                InferredType::InferenceVariable(_) => {
+                OldResolvingType::InferenceVariable(_) => {
                     has_pending_values = true;
                     true
                 }
-                InferredType::Error(_) => false,
-                InferredType::Known(possible_value) => self.options.iter().any(|option| {
-                    if let InferredType::Known(option) = option {
+                OldResolvingType::Error(_) => false,
+                OldResolvingType::Known(possible_value) => self.options.iter().any(|option| {
+                    if let OldResolvingType::Known(option) = option {
                         possible_value.is_assignable_to(&option)
                     } else {
                         false
@@ -351,10 +358,12 @@ impl OneOfLangType {
         return result;
     }
 
-    pub fn narrow(&self, pattern_type: &LangType) -> OneOfLangType {
+    pub fn narrow(&self, pattern_type: &OldResolvingLangType) -> OneOfOldResolvingLangType {
         let options = self.simplify().options;
         let possible_values = match pattern_type {
-            LangType::OneOf(pattern_one_of) => pattern_one_of.simplify().options.clone(),
+            OldResolvingLangType::OneOf(pattern_one_of) => {
+                pattern_one_of.simplify().options.clone()
+            }
             other => vec![other.clone().into()],
         };
 
@@ -362,9 +371,9 @@ impl OneOfLangType {
             .iter()
             .cloned()
             .filter(|option| {
-                if let InferredType::Known(option) = option {
+                if let OldResolvingType::Known(option) = option {
                     !possible_values.iter().any(|possible_value| {
-                        if let InferredType::Known(possible_value) = possible_value {
+                        if let OldResolvingType::Known(possible_value) = possible_value {
                             option.is_assignable_to(&possible_value)
                         } else {
                             // don't narrow with error or pending
@@ -378,21 +387,21 @@ impl OneOfLangType {
             })
             .collect();
 
-        return OneOfLangType::new(remaining_options);
+        return OneOfOldResolvingLangType::new(remaining_options);
     }
 
-    pub fn expand(&self, pattern_type: &AnyInferredLangType) -> OneOfLangType {
+    pub fn expand(&self, pattern_type: &AnyOldResolvingLangType) -> OneOfOldResolvingLangType {
         let new_values = vec![self.options.clone(), vec![pattern_type.clone()]].concat();
-        return OneOfLangType::new(new_values).simplify();
+        return OneOfOldResolvingLangType::new(new_values).simplify();
     }
 
-    pub fn simplify(&self) -> OneOfLangType {
+    pub fn simplify(&self) -> OneOfOldResolvingLangType {
         let all_possible_types = self
             .options
             .iter()
             .flat_map(|it| {
-                if let InferredType::Known(known) = it {
-                    if let LangType::OneOf(one_of) = known.as_ref() {
+                if let OldResolvingType::Known(known) = it {
+                    if let OldResolvingLangType::OneOf(one_of) = known.as_ref() {
                         return one_of.simplify().options.clone();
                     }
                 }
@@ -403,7 +412,7 @@ impl OneOfLangType {
         let all_possible_types = if all_possible_types.len() > 1 {
             let mut not_duplicated = vec![];
             for possible_type in &all_possible_types {
-                let possible_type = if let InferredType::Known(known) = possible_type {
+                let possible_type = if let OldResolvingType::Known(known) = possible_type {
                     known
                 } else {
                     not_duplicated.push(possible_type.clone());
@@ -412,7 +421,10 @@ impl OneOfLangType {
 
                 // first check if the the type is already covered by the options in `not_duplicated`
                 let is_already_covered = not_duplicated.iter().any(|existing_type| {
-                    OneOfLangType::is_mergeable(&possible_type.clone().into(), existing_type)
+                    OneOfOldResolvingLangType::is_mergeable(
+                        &possible_type.clone().into(),
+                        existing_type,
+                    )
                 });
                 if !is_already_covered {
                     // make sure none of the existing options in `not_duplicated``
@@ -421,7 +433,7 @@ impl OneOfLangType {
                     not_duplicated = not_duplicated
                         .into_iter()
                         .filter(|existing_type| {
-                            !OneOfLangType::is_mergeable(
+                            !OneOfOldResolvingLangType::is_mergeable(
                                 existing_type,
                                 &possible_type.clone().into(),
                             )
@@ -435,23 +447,23 @@ impl OneOfLangType {
             all_possible_types
         };
 
-        OneOfLangType::new(all_possible_types)
+        OneOfOldResolvingLangType::new(all_possible_types)
     }
 
-    pub fn simplify_to_value(&self) -> AnyInferredLangType {
+    pub fn simplify_to_value(&self) -> AnyOldResolvingLangType {
         let simplified = self.simplify();
         if simplified.options.len() == 1 {
             simplified.options[0].clone()
         } else if simplified.options.len() == 0 {
-            LangType::NeverContinues.into()
+            OldResolvingLangType::NeverContinues.into()
         } else {
             simplified.into()
         }
     }
 
     fn is_mergeable(
-        less_specific: &AnyInferredLangType,
-        more_specific: &AnyInferredLangType,
+        less_specific: &AnyOldResolvingLangType,
+        more_specific: &AnyOldResolvingLangType,
     ) -> bool {
         if less_specific == more_specific {
             return true;
@@ -469,7 +481,7 @@ impl OneOfLangType {
         false
     }
 }
-impl Hash for OneOfLangType {
+impl Hash for OneOfOldResolvingLangType {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.simplify().options.hash(state);
     }
@@ -620,14 +632,14 @@ impl CanonicalLangType {
     }
 }
 impl HasInference for CanonicalLangType {
-    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+    fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
         match self {
             CanonicalLangType::Object(object) => object.recursive_inferred_types(),
             CanonicalLangType::Signal(signal) => signal.recursive_inferred_types(),
         }
     }
 
-    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+    fn fill_variable(&self, id: u64, value: AnyOldResolvingLangType) -> Self {
         match self {
             CanonicalLangType::Object(object) => {
                 CanonicalLangType::Object(object.fill_variable(id, value))
@@ -682,7 +694,7 @@ impl ObjectCanonicalLangType {
     }
 }
 impl HasInference for ObjectCanonicalLangType {
-    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+    fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
         return self
             .fields
             .iter()
@@ -690,7 +702,7 @@ impl HasInference for ObjectCanonicalLangType {
             .collect();
     }
 
-    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+    fn fill_variable(&self, id: u64, value: AnyOldResolvingLangType) -> Self {
         let fields = self
             .fields
             .iter()
@@ -710,14 +722,14 @@ impl HasInference for ObjectCanonicalLangType {
 pub struct SignalCanonicalLangType {
     pub type_id: CanonicalLangTypeId,
     pub fields: Vec<CanonicalTypeField>,
-    pub result: AnyInferredLangType,
+    pub result: AnyOldResolvingLangType,
 }
 
 impl SignalCanonicalLangType {
     pub fn new(
         type_id: CanonicalLangTypeId,
         fields: Vec<CanonicalTypeField>,
-        result: AnyInferredLangType,
+        result: AnyOldResolvingLangType,
     ) -> Self {
         if type_id.category != CanonicalLangTypeCategory::Signal {
             panic!("SignalCanonicalLangType::new called with non-signal type_id");
@@ -735,12 +747,12 @@ impl SignalCanonicalLangType {
     pub fn fields(&self) -> &[CanonicalTypeField] {
         &self.fields
     }
-    pub fn result(&self) -> &AnyInferredLangType {
+    pub fn result(&self) -> &AnyOldResolvingLangType {
         &self.result
     }
 }
 impl HasInference for SignalCanonicalLangType {
-    fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+    fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
         let mut result = vec![];
         result.append(
             &mut self
@@ -753,7 +765,7 @@ impl HasInference for SignalCanonicalLangType {
         return result;
     }
 
-    fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+    fn fill_variable(&self, id: u64, value: AnyOldResolvingLangType) -> Self {
         let fields = self
             .fields
             .iter()
@@ -774,7 +786,7 @@ impl HasInference for SignalCanonicalLangType {
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct CanonicalTypeField {
     pub name: Arc<String>,
-    pub value_type: AnyInferredLangType,
+    pub value_type: AnyOldResolvingLangType,
 }
 
 #[cfg(test)]
@@ -786,36 +798,38 @@ mod test {
 
         #[test]
         fn test_collapse_nevercontinues_first() {
-            let one_of = OneOfLangType::new(vec![
-                LangType::NeverContinues.into(),
-                LangType::Primitive(PrimitiveLangType::Number).into(),
+            let one_of = OneOfOldResolvingLangType::new(vec![
+                OldResolvingLangType::NeverContinues.into(),
+                OldResolvingLangType::Primitive(PrimitiveLangType::Number).into(),
             ]);
             let simplified = one_of.simplify_to_value();
             assert_eq!(
                 simplified,
-                LangType::Primitive(PrimitiveLangType::Number).into()
+                OldResolvingLangType::Primitive(PrimitiveLangType::Number).into()
             )
         }
 
         #[test]
         fn test_collapse_nevercontinues_second() {
-            let one_of = OneOfLangType::new(vec![
-                LangType::Primitive(PrimitiveLangType::Number).into(),
-                LangType::NeverContinues.into(),
+            let one_of = OneOfOldResolvingLangType::new(vec![
+                OldResolvingLangType::Primitive(PrimitiveLangType::Number).into(),
+                OldResolvingLangType::NeverContinues.into(),
             ]);
             let simplified = one_of.simplify_to_value();
             assert_eq!(
                 simplified,
-                LangType::Primitive(PrimitiveLangType::Number).into()
+                OldResolvingLangType::Primitive(PrimitiveLangType::Number).into()
             )
         }
 
         #[test]
         fn test_single_value_assignable() {
-            let one_of =
-                OneOfLangType::new(vec![LangType::Primitive(PrimitiveLangType::Number).into()]);
-            let primitive = LangType::Primitive(PrimitiveLangType::Number);
-            assert!(LangType::OneOf(one_of).is_assignable_to(&primitive));
+            let one_of = OneOfOldResolvingLangType::new(vec![OldResolvingLangType::Primitive(
+                PrimitiveLangType::Number,
+            )
+            .into()]);
+            let primitive = OldResolvingLangType::Primitive(PrimitiveLangType::Number);
+            assert!(OldResolvingLangType::OneOf(one_of).is_assignable_to(&primitive));
         }
     }
 
@@ -824,19 +838,18 @@ mod test {
 
         #[test]
         fn test_function_with_specific_return_type_assignable_to_function_with_anything_return() {
-            let function_constraint = FunctionLangType {
+            let function_constraint = FunctionOldResolvingLangType {
                 name: None,
                 params: vec![],
-                return_type: LangType::Anything.into(),
+                return_type: OldResolvingLangType::Anything.into(),
             };
-            let actual_function = FunctionLangType {
+            let actual_function = FunctionOldResolvingLangType {
                 name: None,
                 params: vec![],
-                return_type: LangType::Primitive(PrimitiveLangType::Number).into(),
+                return_type: OldResolvingLangType::Primitive(PrimitiveLangType::Number).into(),
             };
-            assert!(
-                LangType::Function(actual_function).is_assignable_to(&function_constraint.into())
-            );
+            assert!(OldResolvingLangType::Function(actual_function)
+                .is_assignable_to(&function_constraint.into()));
         }
     }
 }

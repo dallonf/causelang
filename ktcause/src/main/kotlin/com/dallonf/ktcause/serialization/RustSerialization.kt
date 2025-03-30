@@ -42,7 +42,7 @@ object RustSerialization {
         return buildJsonObject {
             put("exports", fileDescriptor.exports.mapValues { (_, type) ->
                 require(type is ResolvedValueLangType)
-                LangTypeRustSerialization.serializeLangType(type)
+                LangTypeRustSerialization.serializeOldResolvingLangType(type)
             }.let {
                 JsonObject(it)
             })

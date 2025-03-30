@@ -148,7 +148,7 @@ async function generateRustLangTypes() {
         case "simple":
           return rustTypeExpression(langType.type);
         case "complex":
-          return langType.name + "LangType";
+          return langType.name + "OldResolvingLangType";
         default:
           return langType satisfies never;
       }
@@ -287,7 +287,7 @@ function rustTypeExpression(fieldType: FieldType): string {
     case "string":
       return "Arc<String>";
     case "langType":
-      return "AnyInferredLangType";
+      return "AnyOldResolvingLangType";
     case "canonicalTypeId":
       return "Arc<CanonicalLangTypeId>";
     case "optional":

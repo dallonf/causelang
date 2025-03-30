@@ -14,7 +14,8 @@ use crate::{
         CompilerBugError, ErrorPosition, LangError, SourcePosition, ValueUsedAsConstraintError,
     },
     lang_types::{
-        AnyInferredLangType, AnyLangTypeResult, HasInference, InferredType, LangType, OneOfLangType,
+        AnyOldResolvingLangType, AnyOldResolvingLangTypeResult, HasInference, OldResolvingLangType,
+        OldResolvingType, OneOfOldResolvingLangType,
     },
     resolve_types::{
         ImplicitValueAssignableToTypeEdict, NarrowedConstraint, ResolveTypesContext,
@@ -40,7 +41,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                 .flat_map(|canonical_type| canonical_type.recursive_inferred_types()),
         )
         .filter_map(|inferred_type| {
-            if let InferredType::InferenceVariable(id) = inferred_type {
+            if let OldResolvingType::InferenceVariable(id) = inferred_type {
                 Some(id)
             } else {
                 None
@@ -56,7 +57,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
         constraints_for_var.borrow_mut().push(constraint.1.clone());
     }
 
-    let mut solved_variables = HashMap::<u64, AnyLangTypeResult>::new();
+    let mut solved_variables = HashMap::<u64, AnyOldResolvingLangTypeResult>::new();
 
     let mut last_hash = hash_variables(&variables);
 
@@ -78,11 +79,11 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                             .cloned();
                         let result = 'result: {
                             let Some(value_type) = value_type else {
-                                break 'result InferredType::Error(Arc::new(
+                                break 'result OldResolvingType::Error(Arc::new(
                                     LangError::NeverResolved,
                                 ));
                             };
-                            if let InferredType::Error(error) = &value_type {
+                            if let OldResolvingType::Error(error) = &value_type {
                                 let error = error.clone();
                                 let node = ctx
                                     .root_node
@@ -92,7 +93,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                                 let node = match node {
                                     Ok(node) => node,
                                     Err(err) => {
-                                        break 'result InferredType::Error(Arc::new(
+                                        break 'result OldResolvingType::Error(Arc::new(
                                             LangError::compiler_bug(err.to_string()),
                                         ));
                                     }
@@ -102,7 +103,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                                     breadcrumbs: breadcrumbs.clone(),
                                     position: node.info().position,
                                 });
-                                break 'result InferredType::Error(
+                                break 'result OldResolvingType::Error(
                                     LangError::proxy_error(error, source_position).into(),
                                 );
                             }
@@ -115,20 +116,20 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                     TypeConstraint::ReferencedType(type_reference) => {
                         let result = 'result: {
                             let known_reference = match type_reference {
-                                InferredType::Known(known) => known,
-                                InferredType::Error(lang_error) => {
+                                OldResolvingType::Known(known) => known,
+                                OldResolvingType::Error(lang_error) => {
                                     // TODO: maybe proxy this
-                                    break 'result TypeConstraint::EqualTo(InferredType::Error(
-                                        lang_error,
-                                    ));
+                                    break 'result TypeConstraint::EqualTo(
+                                        OldResolvingType::Error(lang_error),
+                                    );
                                 }
-                                InferredType::InferenceVariable(_) => {
+                                OldResolvingType::InferenceVariable(_) => {
                                     break 'result TypeConstraint::ReferencedType(type_reference)
                                 }
                             };
                             let Some(referenced_type) = known_reference.try_as_type_reference_ref()
                             else {
-                                break 'result TypeConstraint::EqualTo(InferredType::Error(
+                                break 'result TypeConstraint::EqualTo(OldResolvingType::Error(
                                     LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
                                         r#type: known_reference.clone().into(),
                                     })
@@ -144,16 +145,16 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                         let field_type = inferred_type
                             .clone()
                             .and_then(|known| {
-                                if let LangType::Instance(instance) = known.as_ref() {
-                                    InferredType::Known(instance.clone())
+                                if let OldResolvingLangType::Instance(instance) = known.as_ref() {
+                                    OldResolvingType::Known(instance.clone())
                                 } else {
-                                    InferredType::Error(LangError::DoesNotHaveAnyMembers.into())
+                                    OldResolvingType::Error(LangError::DoesNotHaveAnyMembers.into())
                                 }
                             })
                             .and_then(|instance| {
                                 ctx.get_canonical_type(&instance.type_id)
-                                    .map(|canonical_type| InferredType::Known(canonical_type))
-                                    .unwrap_or(InferredType::Error(
+                                    .map(|canonical_type| OldResolvingType::Known(canonical_type))
+                                    .unwrap_or(OldResolvingType::Error(
                                         LangError::CompilerBug(CompilerBugError {
                                             description: format!(
                                                 "Missing canonical type: {}",
@@ -168,20 +169,20 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                                 fields
                                     .iter()
                                     .find(|it| it.name == name)
-                                    .map(|field| InferredType::Known(field.clone()))
+                                    .map(|field| OldResolvingType::Known(field.clone()))
                                     .unwrap_or(LangError::DoesNotHaveMember.into())
                             })
                             .and_then(|field| field.value_type);
 
                         match field_type {
-                            InferredType::Known(field_type) => {
+                            OldResolvingType::Known(field_type) => {
                                 new_constraints.push(TypeConstraint::EqualTo(field_type.into()));
                             }
-                            InferredType::Error(error) => {
+                            OldResolvingType::Error(error) => {
                                 new_constraints
-                                    .push(TypeConstraint::EqualTo(InferredType::Error(error)));
+                                    .push(TypeConstraint::EqualTo(OldResolvingType::Error(error)));
                             }
-                            InferredType::InferenceVariable(_) => {
+                            OldResolvingType::InferenceVariable(_) => {
                                 // keep the constraint as-is
                                 new_constraints.push(TypeConstraint::MemberOf(inferred_type, name))
                             }
@@ -190,25 +191,27 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
 
                     TypeConstraint::Narrowed(narrowed) => {
                         let result = match &narrowed.base {
-                            InferredType::Known(base) => match &narrowed.narrow {
-                                InferredType::Known(narrow) => {
-                                    let oneof = OneOfLangType::new_with_one(base.clone().into());
+                            OldResolvingType::Known(base) => match &narrowed.narrow {
+                                OldResolvingType::Known(narrow) => {
+                                    let oneof = OneOfOldResolvingLangType::new_with_one(
+                                        base.clone().into(),
+                                    );
                                     let oneof = oneof.narrow(&narrow.clone());
                                     TypeConstraint::EqualTo(oneof.simplify_to_value().into())
                                 }
-                                InferredType::Error(_) => {
+                                OldResolvingType::Error(_) => {
                                     // This ignores any error in the narrowing type.
                                     // Maybe that's fine? Hopefully it would be reported elsewhere.
                                     TypeConstraint::EqualTo(base.clone().into())
                                 }
-                                InferredType::InferenceVariable(_) => {
+                                OldResolvingType::InferenceVariable(_) => {
                                     TypeConstraint::Narrowed(narrowed)
                                 }
                             },
-                            InferredType::Error(lang_error) => {
-                                TypeConstraint::EqualTo(InferredType::Error(lang_error.clone()))
+                            OldResolvingType::Error(lang_error) => {
+                                TypeConstraint::EqualTo(OldResolvingType::Error(lang_error.clone()))
                             }
-                            InferredType::InferenceVariable(_) => {
+                            OldResolvingType::InferenceVariable(_) => {
                                 TypeConstraint::Narrowed(narrowed)
                             }
                         };
@@ -217,10 +220,10 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
 
                     TypeConstraint::UnreachableIfNeverContinues(unreachable_trigger) => {
                         match unreachable_trigger {
-                            InferredType::Known(unreachable_trigger) => {
+                            OldResolvingType::Known(unreachable_trigger) => {
                                 let is_never_continues = matches!(
                                     unreachable_trigger.as_ref(),
-                                    LangType::NeverContinues
+                                    OldResolvingLangType::NeverContinues
                                 );
 
                                 if is_never_continues {
@@ -231,13 +234,15 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                                     new_constraints.clear();
                                     pending_constraints.clear();
                                     new_constraints.push(TypeConstraint::EqualTo(
-                                        InferredType::Known(LangType::NeverContinues.into()),
+                                        OldResolvingType::Known(
+                                            OldResolvingLangType::NeverContinues.into(),
+                                        ),
                                     ));
                                     break;
                                 }
                             }
-                            InferredType::Error(_) => {} // remove constraint
-                            InferredType::InferenceVariable(_) => pending_constraints.push(
+                            OldResolvingType::Error(_) => {} // remove constraint
+                            OldResolvingType::InferenceVariable(_) => pending_constraints.push(
                                 TypeConstraint::UnreachableIfNeverContinues(unreachable_trigger),
                             ),
                         }
@@ -268,7 +273,7 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                     return None;
                 }
 
-                let fill_solved_variables = |inferred_type: AnyInferredLangType| {
+                let fill_solved_variables = |inferred_type: AnyOldResolvingLangType| {
                     solved_this_iteration
                         .iter()
                         .fold(inferred_type, |inferred_type, solved_id| {
@@ -392,13 +397,13 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
     }
 }
 
-fn get_solution(constraints: &[TypeConstraint]) -> Option<AnyInferredLangType> {
+fn get_solution(constraints: &[TypeConstraint]) -> Option<AnyOldResolvingLangType> {
     if constraints.len() > 1 || constraints.len() == 0 {
         return None;
     }
 
     let lone_equals_constraint = if let TypeConstraint::EqualTo(equal) = &constraints[0] {
-        if let InferredType::InferenceVariable(_) = equal {
+        if let OldResolvingType::InferenceVariable(_) = equal {
             return None;
         }
         equal

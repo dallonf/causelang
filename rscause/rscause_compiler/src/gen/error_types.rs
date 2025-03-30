@@ -38,8 +38,8 @@ pub struct ImplementationTodoError {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MismatchedTypeError {
-    pub expected: lang_types::LangType,
-    pub actual: Arc<lang_types::LangType>,
+    pub expected: lang_types::OldResolvingLangType,
+    pub actual: Arc<lang_types::OldResolvingLangType>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MissingParametersError {
@@ -51,11 +51,11 @@ pub struct ExcessParametersError {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MissingElseBranchError {
-    pub options: Option<lang_types::OneOfLangType>,
+    pub options: Option<lang_types::OneOfOldResolvingLangType>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct UnreachableBranchError {
-    pub options: Option<lang_types::OneOfLangType>,
+    pub options: Option<lang_types::OneOfOldResolvingLangType>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ActionIncompatibleWithValueTypesError {
@@ -64,11 +64,11 @@ pub struct ActionIncompatibleWithValueTypesError {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ConstraintUsedAsValueError {
-    pub r#type: lang_types::LangType,
+    pub r#type: lang_types::OldResolvingLangType,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ValueUsedAsConstraintError {
-    pub r#type: lang_types::AnyInferredLangType,
+    pub r#type: lang_types::AnyOldResolvingLangType,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CompilerBugError {
@@ -77,7 +77,7 @@ pub struct CompilerBugError {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ActionIncompatibleWithValueTypesValueType {
-    pub r#type: Arc<lang_types::LangType>,
+    pub r#type: Arc<lang_types::OldResolvingLangType>,
     pub position: SourcePosition,
 }
 

@@ -1,22 +1,22 @@
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
-pub enum LangType {
+pub enum OldResolvingLangType {
   {{#each langTypes}}
   {{name}}{{#if hasParam}}({{paramType}}){{/if}},
   {{/each}}
 }
-impl HasInference for LangType {
-  fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+impl HasInference for OldResolvingLangType {
+  fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
     match self {
       {{#each langTypes}}
-        LangType::{{name}}{{#if hasParam}}(it) => {{inferenceGetRecursiveInferredTypesExpression}}{{else}} => vec![]{{/if}},
+        OldResolvingLangType::{{name}}{{#if hasParam}}(it) => {{inferenceGetRecursiveInferredTypesExpression}}{{else}} => vec![]{{/if}},
       {{/each}}
     }
   }
 
-  fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+  fn fill_variable(&self, id: u64, value: AnyOldResolvingLangType) -> Self {
     match self {
       {{#each langTypes}}
-        LangType::{{name}}{{#if hasParam}}(it) => LangType::{{name}}({{inferenceFillVariableExpression}}){{else}} => LangType::{{name}}{{/if}},
+        OldResolvingLangType::{{name}}{{#if hasParam}}(it) => OldResolvingLangType::{{name}}({{inferenceFillVariableExpression}}){{else}} => OldResolvingLangType::{{name}}{{/if}},
       {{/each}}
     }
   }
@@ -24,18 +24,18 @@ impl HasInference for LangType {
 
 {{#each complexLangTypes}}
 #[derive(Debug, Clone, Eq, PartialEq,{{#unless customHashImplementation}} Hash,{{/unless}} Serialize, Deserialize)]
-pub struct {{name}}LangType {
+pub struct {{name}}OldResolvingLangType {
   {{#each fields}}
   pub {{name}}: {{type}},
   {{/each}}
 }
-impl From<{{name}}LangType> for LangType {
-  fn from(value: {{name}}LangType) -> Self {
+impl From<{{name}}OldResolvingLangType> for OldResolvingLangType {
+  fn from(value: {{name}}OldResolvingLangType) -> Self {
     Self::{{name}}(value)
   }
 }
-impl HasInference for {{name}}LangType {
-  fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+impl HasInference for {{name}}OldResolvingLangType {
+  fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
     let mut result = vec![];
     {{#each fields}}
     {{#if hasSubtypes}}
@@ -44,7 +44,7 @@ impl HasInference for {{name}}LangType {
     {{/each}}
     return result;
   }
-  fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+  fn fill_variable(&self, id: u64, value: AnyOldResolvingLangType) -> Self {
     return Self {
       {{#each fields}}
         {{name}}: {{inferenceFillVariableExpression}},

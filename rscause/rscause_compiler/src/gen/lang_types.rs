@@ -1,8 +1,8 @@
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
-pub enum LangType {
-  TypeReference(AnyInferredLangType),
-  Instance(InstanceLangType),
-  Function(FunctionLangType),
+pub enum OldResolvingLangType {
+  TypeReference(AnyOldResolvingLangType),
+  Instance(InstanceOldResolvingLangType),
+  Function(FunctionOldResolvingLangType),
   Primitive(PrimitiveLangType),
   StopgapDictionary,
   StopgapList,
@@ -10,84 +10,84 @@ pub enum LangType {
   Anything,
   AnySignal,
   NeverContinues,
-  OneOf(OneOfLangType),
+  OneOf(OneOfOldResolvingLangType),
   BadValue,
 }
-impl HasInference for LangType {
-  fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+impl HasInference for OldResolvingLangType {
+  fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
     match self {
-        LangType::TypeReference(it) => it.recursive_inferred_types(),
-        LangType::Instance(it) => it.recursive_inferred_types(),
-        LangType::Function(it) => it.recursive_inferred_types(),
-        LangType::Primitive(it) => vec![],
-        LangType::StopgapDictionary => vec![],
-        LangType::StopgapList => vec![],
-        LangType::Action => vec![],
-        LangType::Anything => vec![],
-        LangType::AnySignal => vec![],
-        LangType::NeverContinues => vec![],
-        LangType::OneOf(it) => it.recursive_inferred_types(),
-        LangType::BadValue => vec![],
+        OldResolvingLangType::TypeReference(it) => it.recursive_inferred_types(),
+        OldResolvingLangType::Instance(it) => it.recursive_inferred_types(),
+        OldResolvingLangType::Function(it) => it.recursive_inferred_types(),
+        OldResolvingLangType::Primitive(it) => vec![],
+        OldResolvingLangType::StopgapDictionary => vec![],
+        OldResolvingLangType::StopgapList => vec![],
+        OldResolvingLangType::Action => vec![],
+        OldResolvingLangType::Anything => vec![],
+        OldResolvingLangType::AnySignal => vec![],
+        OldResolvingLangType::NeverContinues => vec![],
+        OldResolvingLangType::OneOf(it) => it.recursive_inferred_types(),
+        OldResolvingLangType::BadValue => vec![],
     }
   }
 
-  fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+  fn fill_variable(&self, id: u64, value: AnyOldResolvingLangType) -> Self {
     match self {
-        LangType::TypeReference(it) => LangType::TypeReference(it.fill_variable(id, value.clone())),
-        LangType::Instance(it) => LangType::Instance(it.fill_variable(id, value)),
-        LangType::Function(it) => LangType::Function(it.fill_variable(id, value)),
-        LangType::Primitive(it) => LangType::Primitive(it.clone()),
-        LangType::StopgapDictionary => LangType::StopgapDictionary,
-        LangType::StopgapList => LangType::StopgapList,
-        LangType::Action => LangType::Action,
-        LangType::Anything => LangType::Anything,
-        LangType::AnySignal => LangType::AnySignal,
-        LangType::NeverContinues => LangType::NeverContinues,
-        LangType::OneOf(it) => LangType::OneOf(it.fill_variable(id, value)),
-        LangType::BadValue => LangType::BadValue,
+        OldResolvingLangType::TypeReference(it) => OldResolvingLangType::TypeReference(it.fill_variable(id, value.clone())),
+        OldResolvingLangType::Instance(it) => OldResolvingLangType::Instance(it.fill_variable(id, value)),
+        OldResolvingLangType::Function(it) => OldResolvingLangType::Function(it.fill_variable(id, value)),
+        OldResolvingLangType::Primitive(it) => OldResolvingLangType::Primitive(it.clone()),
+        OldResolvingLangType::StopgapDictionary => OldResolvingLangType::StopgapDictionary,
+        OldResolvingLangType::StopgapList => OldResolvingLangType::StopgapList,
+        OldResolvingLangType::Action => OldResolvingLangType::Action,
+        OldResolvingLangType::Anything => OldResolvingLangType::Anything,
+        OldResolvingLangType::AnySignal => OldResolvingLangType::AnySignal,
+        OldResolvingLangType::NeverContinues => OldResolvingLangType::NeverContinues,
+        OldResolvingLangType::OneOf(it) => OldResolvingLangType::OneOf(it.fill_variable(id, value)),
+        OldResolvingLangType::BadValue => OldResolvingLangType::BadValue,
     }
   }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct InstanceLangType {
+pub struct InstanceOldResolvingLangType {
   pub type_id: Arc<CanonicalLangTypeId>,
 }
-impl From<InstanceLangType> for LangType {
-  fn from(value: InstanceLangType) -> Self {
+impl From<InstanceOldResolvingLangType> for OldResolvingLangType {
+  fn from(value: InstanceOldResolvingLangType) -> Self {
     Self::Instance(value)
   }
 }
-impl HasInference for InstanceLangType {
-  fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+impl HasInference for InstanceOldResolvingLangType {
+  fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
     let mut result = vec![];
     return result;
   }
-  fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+  fn fill_variable(&self, id: u64, value: AnyOldResolvingLangType) -> Self {
     return Self {
         type_id: self.type_id.clone(),
     }
   }
 }
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct FunctionLangType {
+pub struct FunctionOldResolvingLangType {
   pub name: Option<Arc<String>>,
   pub params: Vec<LangParameter>,
-  pub return_type: AnyInferredLangType,
+  pub return_type: AnyOldResolvingLangType,
 }
-impl From<FunctionLangType> for LangType {
-  fn from(value: FunctionLangType) -> Self {
+impl From<FunctionOldResolvingLangType> for OldResolvingLangType {
+  fn from(value: FunctionOldResolvingLangType) -> Self {
     Self::Function(value)
   }
 }
-impl HasInference for FunctionLangType {
-  fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+impl HasInference for FunctionOldResolvingLangType {
+  fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
     let mut result = vec![];
     result.append(&mut self.params.iter().flat_map(|it| { let mut inner_result = vec![]; inner_result.append(&mut vec![]); inner_result.append(&mut it.value_type.recursive_inferred_types());  inner_result }).collect());
     result.append(&mut self.return_type.recursive_inferred_types());
     return result;
   }
-  fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+  fn fill_variable(&self, id: u64, value: AnyOldResolvingLangType) -> Self {
     return Self {
         name: self.name.as_ref().map(|it| it.clone()),
         params: self.params.iter().map(|it| LangParameter { name: it.name.clone(),value_type: it.value_type.fill_variable(id, value.clone()) }).collect(),
@@ -96,21 +96,21 @@ impl HasInference for FunctionLangType {
   }
 }
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct OneOfLangType {
-  pub options: Vec<AnyInferredLangType>,
+pub struct OneOfOldResolvingLangType {
+  pub options: Vec<AnyOldResolvingLangType>,
 }
-impl From<OneOfLangType> for LangType {
-  fn from(value: OneOfLangType) -> Self {
+impl From<OneOfOldResolvingLangType> for OldResolvingLangType {
+  fn from(value: OneOfOldResolvingLangType) -> Self {
     Self::OneOf(value)
   }
 }
-impl HasInference for OneOfLangType {
-  fn recursive_inferred_types(&self) -> Vec<AnyInferredLangType> {
+impl HasInference for OneOfOldResolvingLangType {
+  fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
     let mut result = vec![];
     result.append(&mut self.options.iter().flat_map(|it| it.recursive_inferred_types()).collect());
     return result;
   }
-  fn fill_variable(&self, id: u64, value: AnyInferredLangType) -> Self {
+  fn fill_variable(&self, id: u64, value: AnyOldResolvingLangType) -> Self {
     return Self {
         options: self.options.iter().map(|it| it.fill_variable(id, value.clone())).collect(),
     }
@@ -120,5 +120,5 @@ impl HasInference for OneOfLangType {
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct LangParameter {
     pub name: Arc<String>,
-    pub value_type: AnyInferredLangType,
+    pub value_type: AnyOldResolvingLangType,
 }

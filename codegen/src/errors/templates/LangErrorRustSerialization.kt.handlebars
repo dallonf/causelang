@@ -2,11 +2,11 @@ package com.dallonf.ktcause.gen
 
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeConstraintValueLangType
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeOptionValueLangType
-import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeOneOfLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeOneOfOldResolvingLangType
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeResolvedValueLangType
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeValueLangType
-import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeAnyInferredLangType
-import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeAnyOldResolvingLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeOldResolvingLangType
 import com.dallonf.ktcause.serialization.RustSerialization.deserializeSourcePosition
 import com.dallonf.ktcause.serialization.RustSerialization.serializeErrorPosition
 import com.dallonf.ktcause.serialization.RustSerialization.deserializeSourcePositionSource
@@ -84,8 +84,8 @@ object LangErrorRustSerialization {
 
     fun serializeLangErrorMismatchedType(errorLangType: ErrorLangType.MismatchedType): JsonElement {
         return buildJsonObject {
-            put("expected",  serializeLangType(errorLangType.expected.valueType))
-            put("actual",  serializeLangType(errorLangType.actual))
+            put("expected",  serializeOldResolvingLangType(errorLangType.expected.valueType))
+            put("actual",  serializeOldResolvingLangType(errorLangType.actual))
         }
     }
 
@@ -111,7 +111,7 @@ object LangErrorRustSerialization {
             errorLangType.types?.let { types ->
                 put("types", JsonArray(types.map {
                     buildJsonObject {
-                        put("type", serializeAnyInferredLangType(it.type))
+                        put("type", serializeAnyOldResolvingLangType(it.type))
                         put("position", serializeSourcePosition(it.position))
                     }
                 }))

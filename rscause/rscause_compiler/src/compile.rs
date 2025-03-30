@@ -22,7 +22,7 @@ use crate::instructions::{
     ReturnInstruction, StartLoopInstruction, SwapInstruction, WriteLocalInstruction,
     WriteLocalThroughEffectScopeInstruction,
 };
-use crate::lang_types::OneOfLangType;
+use crate::lang_types::OneOfOldResolvingLangType;
 use crate::prelude::*;
 use crate::resolve_types::ResolverError;
 use crate::tags::{ReferencesFileNodeTag, TopLevelDeclarationNodeTag};
@@ -32,7 +32,7 @@ use crate::{
     compiled_file::{
         CompiledExport, CompiledFile, FunctionProcedureIdentity, Procedure, ProcedureIdentity,
     },
-    lang_types::{CanonicalLangType, CanonicalLangTypeId, InferredType, LangType},
+    lang_types::{CanonicalLangType, CanonicalLangTypeId, OldResolvingLangType, OldResolvingType},
     resolve_types::ResolveTypesResult,
     tags::NodeTag,
 };
@@ -98,9 +98,9 @@ impl CompilerContext {
             .ok_or(anyhow!("No type for {}", breadcrumbs))?;
 
         match found_type {
-            InferredType::Error(err) => Some(err.clone()),
-            InferredType::InferenceVariable(_) => Some(LangError::NeverResolved.into()),
-            InferredType::Known(_) => None,
+            OldResolvingType::Error(err) => Some(err.clone()),
+            OldResolvingType::InferenceVariable(_) => Some(LangError::NeverResolved.into()),
+            OldResolvingType::Known(_) => None,
         }
         .or_else(|| {
             self.constraint_errors
@@ -322,10 +322,10 @@ pub fn compile(
                     .ok_or_else(|| anyhow!("No type for function at {}", function.breadcrumbs()))?
                     .clone()
                     .and_then(|function_type| match function_type.as_ref() {
-                        LangType::Function(function_type) => {
-                            InferredType::Known(function_type.clone().into())
+                        OldResolvingLangType::Function(function_type) => {
+                            OldResolvingType::Known(function_type.clone().into())
                         }
-                        _ => InferredType::Error(
+                        _ => OldResolvingType::Error(
                             LangError::CompilerBug(CompilerBugError {
                                 description: format!(
                                     "Function at {} has a non-function type",
@@ -692,7 +692,7 @@ fn compile_effect_statement(
         .value_types
         .get(&statement.pattern.type_reference.info().breadcrumbs)
         .ok_or(anyhow!("no type found for effect pattern"))?;
-    let matching_type = if let InferredType::Known(matching_type) = matching_type {
+    let matching_type = if let OldResolvingType::Known(matching_type) = matching_type {
         matching_type.clone()
     } else {
         // can't compile an effect without a valid type
@@ -973,7 +973,7 @@ fn compile_call_expression(
             let callee_is_construct = callee_type
                 .clone()
                 .to_result_assuming_inferred()
-                .map(|it| matches!(it.as_ref(), LangType::TypeReference(_)))
+                .map(|it| matches!(it.as_ref(), OldResolvingLangType::TypeReference(_)))
                 .unwrap_or(false);
             if callee_is_construct || runtime_errors.as_ref() == &LangError::NotCallable {
                 Some(runtime_errors.clone())
@@ -1004,7 +1004,7 @@ fn compile_call_expression(
         .map_err(|_| anyhow!("callee type was an error, but that should have been caught above"))?;
 
     match callee_type.as_ref() {
-        LangType::TypeReference(type_reference) => {
+        OldResolvingLangType::TypeReference(type_reference) => {
             // TODO: handle unique types
             type_reference
                 .clone()
@@ -1012,7 +1012,7 @@ fn compile_call_expression(
                 .map_err(|_| anyhow!("Callee type is a reference to an error or unique type"))?
                 .pipe(|instance_type| {
                     Ok(match instance_type.as_ref() {
-                        LangType::Instance(instance) => {
+                        OldResolvingLangType::Instance(instance) => {
                             let canonical_type = ctx.canonical_types.get(&instance.type_id).ok_or(
                                 anyhow!("No canonical type found for {:?}", &instance.type_id),
                             )?;
@@ -1022,7 +1022,8 @@ fn compile_call_expression(
                                 Some(&expression.info),
                             );
                         }
-                        LangType::StopgapDictionary | LangType::StopgapList => {
+                        OldResolvingLangType::StopgapDictionary
+                        | OldResolvingLangType::StopgapList => {
                             procedure.write_instruction(
                                 Instruction::Construct(ConstructInstruction {
                                     arity: expression.parameters.len() as u32,
@@ -1034,7 +1035,7 @@ fn compile_call_expression(
                     })
                 })?;
         }
-        LangType::Function(_) => procedure.write_instruction(
+        OldResolvingLangType::Function(_) => procedure.write_instruction(
             Instruction::CallFunction(CallFunctionInstruction {
                 arity: expression.parameters.len() as u32,
             }),
@@ -1089,7 +1090,7 @@ fn compile_pipe_call_expression(
             let callee_is_construct = callee_type
                 .clone()
                 .to_result_assuming_inferred()
-                .map(|it| matches!(it.as_ref(), LangType::TypeReference(_)))
+                .map(|it| matches!(it.as_ref(), OldResolvingLangType::TypeReference(_)))
                 .unwrap_or(false);
             if callee_is_construct || runtime_errors.as_ref() == &LangError::NotCallable {
                 Some(runtime_errors.clone())
@@ -1120,14 +1121,14 @@ fn compile_pipe_call_expression(
         .map_err(|_| anyhow!("callee type was an error, but that should have been caught above"))?;
 
     match callee_type.as_ref() {
-        LangType::TypeReference(type_reference) => {
+        OldResolvingLangType::TypeReference(type_reference) => {
             // TODO: handle unique types
             let canonical_type = type_reference
                 .clone()
                 .to_result_assuming_inferred()
                 .map_err(|_| anyhow!("Callee type is a reference to an error or unique type"))
                 .and_then(|instance_type| match instance_type.as_ref() {
-                    LangType::Instance(instance) => {
+                    OldResolvingLangType::Instance(instance) => {
                         ctx.canonical_types.get(&instance.type_id).ok_or(anyhow!(
                             "No canonical type found for {:?}",
                             &instance.type_id
@@ -1141,7 +1142,7 @@ fn compile_pipe_call_expression(
                 Some(&expression.info),
             )
         }
-        LangType::Function(_) => procedure.write_instruction(
+        OldResolvingLangType::Function(_) => procedure.write_instruction(
             Instruction::CallFunction(CallFunctionInstruction {
                 arity: (expression.parameters.len() + 1) as u32,
             }),
@@ -1183,7 +1184,7 @@ fn compile_member_expression(
             )
         })?
         .pipe(|object_type| {
-            if let LangType::Instance(instance) = object_type.as_ref() {
+            if let OldResolvingLangType::Instance(instance) = object_type.as_ref() {
                 Ok(instance.to_owned())
             } else {
                 Err(anyhow!("Object expression type is not an Instance (should have been handled by BadValue check)"))
@@ -1410,16 +1411,16 @@ fn compile_branch_expression(
 
         // If we're supposed to return an Action or NeverContinues, then this should be an immediate error
         // because the BadValue has nowhere to go
-        let return_one_of = OneOfLangType::new_with_one(return_type.into());
+        let return_one_of = OneOfOldResolvingLangType::new_with_one(return_type.into());
         let should_report_error = return_one_of.options.len() == 0
             || return_one_of.options.iter().all(|option| {
-                matches!(option, InferredType::InferenceVariable(_))
-                    || matches!(option, InferredType::Error(_))
+                matches!(option, OldResolvingType::InferenceVariable(_))
+                    || matches!(option, OldResolvingType::Error(_))
                     || option
                         .try_as_known_ref()
                         .map(|option| {
-                            matches!(option.as_ref(), LangType::Action)
-                                || matches!(option.as_ref(), LangType::NeverContinues)
+                            matches!(option.as_ref(), OldResolvingLangType::Action)
+                                || matches!(option.as_ref(), OldResolvingLangType::NeverContinues)
                         })
                         .unwrap_or(false)
             });

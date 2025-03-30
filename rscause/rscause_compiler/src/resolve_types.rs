@@ -12,9 +12,10 @@ use crate::error_types::{
 };
 use crate::infer_types::infer_types;
 use crate::lang_types::{
-    AnyInferredLangType, CanonicalLangType, CanonicalLangTypeCategory, CanonicalLangTypeId,
-    CanonicalTypeField, FunctionLangType, InferredType, InstanceLangType, LangParameter, LangType,
-    ObjectCanonicalLangType, OneOfLangType, PrimitiveLangType, SignalCanonicalLangType,
+    AnyOldResolvingLangType, CanonicalLangType, CanonicalLangTypeCategory, CanonicalLangTypeId,
+    CanonicalTypeField, FunctionOldResolvingLangType, InstanceOldResolvingLangType, LangParameter,
+    ObjectCanonicalLangType, OldResolvingLangType, OldResolvingType, OneOfOldResolvingLangType,
+    PrimitiveLangType, SignalCanonicalLangType,
 };
 use crate::prelude::*;
 use crate::tags::NodeTag;
@@ -28,12 +29,12 @@ use strum::EnumTryAs;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExternalFileDescriptor {
-    pub exports: HashMap<Arc<String>, Arc<LangType>>,
+    pub exports: HashMap<Arc<String>, Arc<OldResolvingLangType>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ResolveTypesResult {
-    pub value_types: HashMap<Breadcrumbs, AnyInferredLangType>,
+    pub value_types: HashMap<Breadcrumbs, AnyOldResolvingLangType>,
     pub errors: Vec<ResolverError>,
     pub new_canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
 }
@@ -87,12 +88,12 @@ pub fn resolve_types(
                 .flatten();
             let source_position = ctx.get_source_position_for_breadcrumbs(&edict.breadcrumbs);
             let actual_type = match actual_type {
-                Some(InferredType::Known(it)) => it,
-                Some(InferredType::InferenceVariable(var)) => todo!(
+                Some(OldResolvingType::Known(it)) => it,
+                Some(OldResolvingType::InferenceVariable(var)) => todo!(
                     "Todo: figure out how to resolve a edict on an inference variable ({var})"
                 ),
                 // we won't check edicts if this type is already an error
-                Some(InferredType::Error(_)) => return vec![],
+                Some(OldResolvingType::Error(_)) => return vec![],
                 None => {
                     return vec![ResolverError::new(
                         source_position,
@@ -106,7 +107,7 @@ pub fn resolve_types(
             .clone();
             match &edict.rule {
                 TypeEdictRule::AssignableTo(expected_type) => {
-                    if let InferredType::Known(expected_type) = expected_type {
+                    if let OldResolvingType::Known(expected_type) = expected_type {
                         if !actual_type.is_assignable_to(&expected_type) {
                             vec![ResolverError::new(
                                 source_position,
@@ -123,7 +124,7 @@ pub fn resolve_types(
                     }
                 }
                 TypeEdictRule::ImplicitValueAssignableTo(rule) => {
-                    if let (InferredType::Known(implicit_value), InferredType::Known(assignable_to)) = (&rule.implicit_value, &rule.assignable_to) {
+                    if let (OldResolvingType::Known(implicit_value), OldResolvingType::Known(assignable_to)) = (&rule.implicit_value, &rule.assignable_to) {
                         if !implicit_value.is_assignable_to(&assignable_to) {
                             vec![ResolverError::new(
                                 source_position,
@@ -140,13 +141,13 @@ pub fn resolve_types(
                     }
                 }
                 TypeEdictRule::MustBeTypeReference => {
-                    if let LangType::TypeReference(_) = actual_type.as_ref() {
+                    if let OldResolvingLangType::TypeReference(_) = actual_type.as_ref() {
                         vec![]
                     } else {
                         vec![ResolverError::new(
                             source_position,
                             LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
-                                r#type: AnyInferredLangType::Known(actual_type.clone()),
+                                r#type: AnyOldResolvingLangType::Known(actual_type.clone()),
                             }),
                         )]
                     }
@@ -171,7 +172,7 @@ pub fn resolve_types(
                             .and_then(|it| it.try_as_known_ref())
                             .cloned()
                         {
-                            if with_value.as_ref() == &LangType::NeverContinues {
+                            if with_value.as_ref() == &OldResolvingLangType::NeverContinues {
                                 errors.push(ResolverError::new(
                                     branch_source_position,
                                     LangError::UnreachableBranch(UnreachableBranchError {
@@ -197,7 +198,7 @@ pub fn resolve_types(
                                     branch_source_position,
                                     LangError::UnreachableBranch(UnreachableBranchError {
                                         options: Some(
-                                            OneOfLangType::new_with_one(with_value.clone().into())
+                                            OneOfOldResolvingLangType::new_with_one(with_value.clone().into())
                                                 .simplify()
                                                 .into(),
                                         ),
@@ -216,12 +217,12 @@ pub fn resolve_types(
                         .as_ref()
                         .and_then(|it| it.try_as_known_ref())
                     {
-                        if final_with_value.as_ref() != &LangType::NeverContinues {
+                        if final_with_value.as_ref() != &OldResolvingLangType::NeverContinues {
                             errors.push(ResolverError::new(
                                 source_position.clone(),
                                 LangError::MissingElseBranch(MissingElseBranchError {
                                     options: Some(
-                                        OneOfLangType::new_with_one(
+                                        OneOfOldResolvingLangType::new_with_one(
                                             final_with_value.clone().into(),
                                         )
                                         .simplify()
@@ -241,7 +242,7 @@ pub fn resolve_types(
                                 .to_result_assuming_inferred_ref()
                                 // sneaky little inversion here -
                                 // NeverContinues returns will be excluded with this logic
-                                .map(|it| LangType::Action.is_assignable_to(it.as_ref()))
+                                .map(|it| OldResolvingLangType::Action.is_assignable_to(it.as_ref()))
                                 .unwrap_or(false)
                         })
                         .collect_vec();
@@ -251,7 +252,7 @@ pub fn resolve_types(
                             branch
                                 .result
                                 .try_as_known_ref()
-                                .map(|it| !it.as_ref().is_assignable_to(&LangType::Action))
+                                .map(|it| !it.as_ref().is_assignable_to(&OldResolvingLangType::Action))
                                 .unwrap_or(false)
                         })
                         .collect_vec();
@@ -330,9 +331,9 @@ pub fn resolve_types(
                     });
                 let found_error = match resolved_type {
                     // TODO: Need to handle errors in nested types
-                    InferredType::Known(_) => None,
-                    InferredType::InferenceVariable(_) => Some(LangError::NeverResolved),
-                    InferredType::Error(err) => {
+                    OldResolvingType::Known(_) => None,
+                    OldResolvingType::InferenceVariable(_) => Some(LangError::NeverResolved),
+                    OldResolvingType::Error(err) => {
                         if let LangError::ProxyError(_) = err.as_ref() {
                             return None;
                         }
@@ -384,7 +385,7 @@ pub struct TypeEdict {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TypeEdictRule {
-    AssignableTo(AnyInferredLangType),
+    AssignableTo(AnyOldResolvingLangType),
     ImplicitValueAssignableTo(ImplicitValueAssignableToTypeEdict),
     MustBeTypeReference,
     ValidateBranchExpression(ValidateBranchExpressionTypeEdict),
@@ -393,40 +394,40 @@ pub enum TypeEdictRule {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 
 pub struct ImplicitValueAssignableToTypeEdict {
-    pub implicit_value: AnyInferredLangType,
-    pub assignable_to: AnyInferredLangType,
+    pub implicit_value: AnyOldResolvingLangType,
+    pub assignable_to: AnyOldResolvingLangType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ValidateBranchExpressionTypeEdict {
     pub branches: Vec<ValidateBranchExpressionTypeEdictBranch>,
     pub else_branch: Option<ValidateBranchExpressionTypeEdictBranch>,
-    pub final_with_value: Option<AnyInferredLangType>,
+    pub final_with_value: Option<AnyOldResolvingLangType>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ValidateBranchExpressionTypeEdictBranch {
     pub breadcrumbs: Breadcrumbs,
-    pub remaining_with_value: Option<AnyInferredLangType>,
-    pub pattern: Option<AnyInferredLangType>,
-    pub result: AnyInferredLangType,
+    pub remaining_with_value: Option<AnyOldResolvingLangType>,
+    pub pattern: Option<AnyOldResolvingLangType>,
+    pub result: AnyOldResolvingLangType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumTryAs)]
 pub enum TypeConstraint {
-    EqualTo(AnyInferredLangType),
-    AssignableTo(AnyInferredLangType),
-    MemberOf(AnyInferredLangType, Arc<String>),
-    ReferencedType(AnyInferredLangType),
+    EqualTo(AnyOldResolvingLangType),
+    AssignableTo(AnyOldResolvingLangType),
+    MemberOf(AnyOldResolvingLangType, Arc<String>),
+    ReferencedType(AnyOldResolvingLangType),
     ResolveFrom(Breadcrumbs),
     Narrowed(NarrowedConstraint),
-    UnreachableIfNeverContinues(AnyInferredLangType),
+    UnreachableIfNeverContinues(AnyOldResolvingLangType),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NarrowedConstraint {
-    pub base: AnyInferredLangType,
-    pub narrow: AnyInferredLangType,
+    pub base: AnyOldResolvingLangType,
+    pub narrow: AnyOldResolvingLangType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -444,7 +445,7 @@ pub struct ResolveTypesContext {
     pub node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     pub external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 
-    pub value_types: HashMap<Breadcrumbs, Option<AnyInferredLangType>>,
+    pub value_types: HashMap<Breadcrumbs, Option<AnyOldResolvingLangType>>,
 
     pub constraints: Vec<(u64, TypeConstraint, ConstraintDiagnostic)>,
     pub edicts: Vec<TypeEdict>,
@@ -498,7 +499,7 @@ impl ResolveTypesContext {
             })
     }
 
-    fn get_resolved_type<'a, T>(&mut self, node: &'a T) -> Option<AnyInferredLangType>
+    fn get_resolved_type<'a, T>(&mut self, node: &'a T) -> Option<AnyOldResolvingLangType>
     where
         &'a T: Into<AnyAstNode>,
     {
@@ -512,25 +513,30 @@ impl ResolveTypesContext {
         resolved
     }
 
-    pub fn get_resolved_type_proxying_errors<'a, T>(&mut self, node: &'a T) -> AnyInferredLangType
+    pub fn get_resolved_type_proxying_errors<'a, T>(
+        &mut self,
+        node: &'a T,
+    ) -> AnyOldResolvingLangType
     where
         &'a T: Into<AnyAstNode>,
     {
         self.get_resolved_type(node)
             .map(|found_type| match found_type {
-                InferredType::Known(found_type) => InferredType::Known(found_type),
-                InferredType::InferenceVariable(var) => InferredType::InferenceVariable(var),
-                InferredType::Error(err) => {
+                OldResolvingType::Known(found_type) => OldResolvingType::Known(found_type),
+                OldResolvingType::InferenceVariable(var) => {
+                    OldResolvingType::InferenceVariable(var)
+                }
+                OldResolvingType::Error(err) => {
                     let source_position = ErrorPosition::Source(SourcePosition {
                         path: self.file_path.clone(),
                         breadcrumbs: node.into().breadcrumbs().clone(),
                         position: node.into().info().position,
                     });
-                    InferredType::Error(LangError::proxy_error(err, source_position).into())
+                    OldResolvingType::Error(LangError::proxy_error(err, source_position).into())
                 }
             })
             .unwrap_or_else(|| {
-                InferredType::Error(
+                OldResolvingType::Error(
                     LangError::compiler_bug(format!(
                         "no type found for node at {:?}",
                         node.into().breadcrumbs()
@@ -581,8 +587,8 @@ impl ResolveTypesContext {
 }
 
 trait ResolveTypes: ast::AstNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType>;
-    fn get_resolved_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType>;
+    fn get_resolved_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         if let Some(already_resolved) = ctx.value_types.get(self.breadcrumbs()) {
             return already_resolved.clone();
         }
@@ -594,18 +600,20 @@ trait ResolveTypes: ast::AstNode {
     fn get_resolved_type_proxying_errors(
         &self,
         ctx: &mut ResolveTypesContext,
-    ) -> Option<AnyInferredLangType> {
+    ) -> Option<AnyOldResolvingLangType> {
         self.get_resolved_type(ctx)
             .map(|found_type| match found_type {
-                InferredType::Known(found_type) => InferredType::Known(found_type),
-                InferredType::InferenceVariable(var) => InferredType::InferenceVariable(var),
-                InferredType::Error(err) => {
+                OldResolvingType::Known(found_type) => OldResolvingType::Known(found_type),
+                OldResolvingType::InferenceVariable(var) => {
+                    OldResolvingType::InferenceVariable(var)
+                }
+                OldResolvingType::Error(err) => {
                     let source_position = ErrorPosition::Source(SourcePosition {
                         path: ctx.file_path.clone(),
                         breadcrumbs: self.breadcrumbs().clone(),
                         position: self.info().position,
                     });
-                    InferredType::Error(LangError::proxy_error(err, source_position).into())
+                    OldResolvingType::Error(LangError::proxy_error(err, source_position).into())
                 }
             })
     }
@@ -618,7 +626,7 @@ trait ResolveTypes: ast::AstNode {
 }
 
 impl ResolveTypes for AnyAstNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         match self {
             Self::File(_) => None,
             Self::Identifier(_) => None,
@@ -649,9 +657,9 @@ impl ResolveTypes for AnyAstNode {
                 let referenced_type = ctx
                     .get_resolved_type_proxying_errors(&node.type_reference)
                     .and_then(|referenced_type| match referenced_type.as_ref() {
-                        LangType::TypeReference(it) => it.clone(),
+                        OldResolvingLangType::TypeReference(it) => it.clone(),
                         _ => LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
-                            r#type: InferredType::Known(referenced_type),
+                            r#type: OldResolvingType::Known(referenced_type),
                         })
                         .into(),
                     });
@@ -673,7 +681,7 @@ impl ResolveTypes for AnyAstNode {
             Self::IsBranchOption(_) => None,
             Self::ElseBranchOption(_) => None,
             Self::LoopExpression(node) => node.compute_type(ctx),
-            Self::ReturnExpression(_) => Some(LangType::NeverContinues.into()),
+            Self::ReturnExpression(_) => Some(OldResolvingLangType::NeverContinues.into()),
             Self::BreakExpression(node) => node.compute_type(ctx),
         }
     }
@@ -682,16 +690,16 @@ impl ResolveTypes for AnyAstNode {
 fn resolve_identifier_type_reference(
     node: &ast::IdentifierTypeReferenceNode,
     ctx: &mut ResolveTypesContext,
-) -> Option<InferredType<Arc<LangType>>> {
+) -> Option<OldResolvingType<Arc<OldResolvingLangType>>> {
     let tags = ctx.get_tags(node);
     let reference_tag = find_tag!(&tags, NodeTag::ValueComesFrom);
     let reference_tag = match reference_tag.ok_or(LangError::NotInScope) {
         Ok(it) => it,
-        Err(err) => return Some(InferredType::Error(err.into())),
+        Err(err) => return Some(OldResolvingType::Error(err.into())),
     };
     let source_node = match ctx.node_at_path(&reference_tag.source) {
         Ok(it) => it,
-        Err(err) => return Some(InferredType::Error(err.into())),
+        Err(err) => return Some(OldResolvingType::Error(err.into())),
     };
     let source_node_type = ctx.get_resolved_type_proxying_errors(&source_node);
     ctx.edicts.push(TypeEdict {
@@ -703,7 +711,7 @@ fn resolve_identifier_type_reference(
 }
 
 impl ResolveTypes for ast::FunctionTypeReferenceNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let return_type_var = ctx.add_inference_variable();
         let return_type = ctx.get_resolved_type_proxying_errors(&self.return_type);
         ctx.constraints.push((
@@ -735,17 +743,17 @@ impl ResolveTypes for ast::FunctionTypeReferenceNode {
                 }
                 LangParameter {
                     name: param.name.text.clone(),
-                    value_type: InferredType::InferenceVariable(inference_var).into(),
+                    value_type: OldResolvingType::InferenceVariable(inference_var).into(),
                 }
             })
             .collect();
 
         Some(
-            LangType::TypeReference(
-                FunctionLangType {
+            OldResolvingLangType::TypeReference(
+                FunctionOldResolvingLangType {
                     name: None,
                     params,
-                    return_type: InferredType::InferenceVariable(return_type_var).into(),
+                    return_type: OldResolvingType::InferenceVariable(return_type_var).into(),
                 }
                 .into(),
             )
@@ -755,7 +763,7 @@ impl ResolveTypes for ast::FunctionTypeReferenceNode {
 }
 
 impl ResolveTypes for ast::ImportMappingNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let tags = self.get_tags(ctx);
 
         let comes_from_tag = find_tag!(&tags, NodeTag::ValueComesFrom);
@@ -789,8 +797,8 @@ impl ResolveTypes for ast::ImportMappingNode {
             });
         Some(
             export
-                .map(|export| InferredType::Known(export.clone()))
-                .unwrap_or_else(|err| InferredType::Error(err.into())),
+                .map(|export| OldResolvingType::Known(export.clone()))
+                .unwrap_or_else(|err| OldResolvingType::Error(err.into())),
         )
     }
 }
@@ -801,7 +809,7 @@ fn compute_function_type(
     return_type_node: Option<&ast::TypeReferenceNode>,
     tags: &Vec<NodeTag>,
     ctx: &mut ResolveTypesContext,
-) -> Option<AnyInferredLangType> {
+) -> Option<AnyOldResolvingLangType> {
     let name = name_node.map(|it| it.text.clone());
     let explicit_return_type = return_type_node.map(|it| {
         let type_reference = ctx.get_resolved_type_proxying_errors(it);
@@ -821,12 +829,12 @@ fn compute_function_type(
                         "Function return value".to_owned(),
                     ),
                 ));
-                let return_type = AnyInferredLangType::InferenceVariable(return_type_var);
+                let return_type = AnyOldResolvingLangType::InferenceVariable(return_type_var);
                 Some((tag.return_expression_value.clone(), return_type))
             }
             NodeTag::FunctionCanReturnAction(tag) => Some((
                 tag.return_expression.clone(),
-                AnyInferredLangType::from(LangType::Action),
+                AnyOldResolvingLangType::from(OldResolvingLangType::Action),
             )),
             _ => None,
         })
@@ -863,11 +871,11 @@ fn compute_function_type(
     }
     let get_inferred_return_type = || {
         let explicit_returns = can_return.iter().map(|it| it.1.clone()).collect();
-        OneOfLangType::new(explicit_returns).simplify_to_value()
+        OneOfOldResolvingLangType::new(explicit_returns).simplify_to_value()
     };
     let return_type = explicit_return_type.unwrap_or_else(get_inferred_return_type);
 
-    let function_type = FunctionLangType {
+    let function_type = FunctionOldResolvingLangType {
         name,
         params,
         return_type,
@@ -876,7 +884,7 @@ fn compute_function_type(
 }
 
 impl ResolveTypes for ast::FunctionNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let tags = ctx.get_tags(self).as_ref().to_owned();
         compute_function_type(
             Some(&self.name),
@@ -889,7 +897,7 @@ impl ResolveTypes for ast::FunctionNode {
 }
 
 impl ResolveTypes for ast::BlockBodyNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let result_var = ctx.add_inference_variable();
 
         if let Some(result) = &self.result {
@@ -904,7 +912,7 @@ impl ResolveTypes for ast::BlockBodyNode {
         } else {
             ctx.constraints.push((
                 result_var,
-                TypeConstraint::EqualTo(LangType::Action.into()),
+                TypeConstraint::EqualTo(OldResolvingLangType::Action.into()),
                 ConstraintDiagnostic::Resolver(
                     self.breadcrumbs().to_owned(),
                     "Block results in Action by default".into(),
@@ -924,7 +932,7 @@ impl ResolveTypes for ast::BlockBodyNode {
             ));
             ctx.constraints.push((
                 result_var,
-                TypeConstraint::UnreachableIfNeverContinues(InferredType::InferenceVariable(
+                TypeConstraint::UnreachableIfNeverContinues(OldResolvingType::InferenceVariable(
                     statement_result_var,
                 )),
                 ConstraintDiagnostic::Resolver(
@@ -935,25 +943,25 @@ impl ResolveTypes for ast::BlockBodyNode {
             ));
         }
 
-        Some(InferredType::InferenceVariable(result_var))
+        Some(OldResolvingType::InferenceVariable(result_var))
     }
 }
 
 impl ResolveTypes for ast::ExpressionStatementNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         ctx.get_resolved_type_proxying_errors(&self.expression)
             .pipe(Some)
     }
 }
 
 impl ResolveTypes for ast::EffectStatementNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        let result_type: AnyInferredLangType = ctx
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
+        let result_type: AnyOldResolvingLangType = ctx
             .get_resolved_type_proxying_errors(&self.pattern)
             .and_then(|pattern_type| match pattern_type.as_ref() {
                 // TODO: if the pattern is pending when we hit this resolution,
                 // this validation probably gets skipped...
-                LangType::Instance(instance) => {
+                OldResolvingLangType::Instance(instance) => {
                     if instance.type_id.category == CanonicalLangTypeCategory::Signal {
                         let result_type = ctx
                             .get_canonical_type(&instance.type_id)
@@ -966,7 +974,7 @@ impl ResolveTypes for ast::EffectStatementNode {
                                 _ => Err(LangError::NotCausable),
                             })
                             .map(|signal| signal.result().clone());
-                        result_type.unwrap_or_else(|err| InferredType::Error(err.into()))
+                        result_type.unwrap_or_else(|err| OldResolvingType::Error(err.into()))
                     } else {
                         LangError::NotCausable.into()
                     }
@@ -974,8 +982,10 @@ impl ResolveTypes for ast::EffectStatementNode {
                 // can't guarantee a result when capturing AnySignal
                 // TODO: this is actually probably a bug in the language that you
                 // can define effects for signals that require a result via AnySignal
-                LangType::AnySignal => InferredType::Known(LangType::Action.into()),
-                _ => InferredType::Error(LangError::NotCausable.into()),
+                OldResolvingLangType::AnySignal => {
+                    OldResolvingType::Known(OldResolvingLangType::Action.into())
+                }
+                _ => OldResolvingType::Error(LangError::NotCausable.into()),
             });
 
         ctx.edicts.push(TypeEdict {
@@ -984,12 +994,12 @@ impl ResolveTypes for ast::EffectStatementNode {
             diagnostic: "Result of effect handler must be assignable to effect's result".into(),
         });
 
-        return Some(LangType::Action.into());
+        return Some(OldResolvingLangType::Action.into());
     }
 }
 
 impl ResolveTypes for ast::SetExpressionNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let tags = ctx.get_tags(self);
         let tag = match find_tag!(&tags, NodeTag::SetsVariable) {
             Some(tag) => tag,
@@ -1022,22 +1032,24 @@ impl ResolveTypes for ast::SetExpressionNode {
         ));
         ctx.edicts.push(TypeEdict {
             breadcrumbs: self.expression.breadcrumbs().clone(),
-            rule: TypeEdictRule::AssignableTo(InferredType::InferenceVariable(expected_type_var)),
+            rule: TypeEdictRule::AssignableTo(OldResolvingType::InferenceVariable(
+                expected_type_var,
+            )),
             diagnostic: "expression assignable to variable".into(),
         });
 
-        return Some(InferredType::InferenceVariable(expected_type_var));
+        return Some(OldResolvingType::InferenceVariable(expected_type_var));
     }
 }
 
 impl ResolveTypes for ast::CauseExpressionNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let canonical_type_id = match ctx
             .get_resolved_type_proxying_errors(&self.signal)
             .to_result_assuming_inferred()
             .and_then(|it| match it.as_ref() {
-                LangType::Instance(instance) => Ok(instance.type_id.clone()),
-                LangType::TypeReference(instance) => instance
+                OldResolvingLangType::Instance(instance) => Ok(instance.type_id.clone()),
+                OldResolvingLangType::TypeReference(instance) => instance
                     .clone()
                     .to_result_assuming_inferred()
                     .and_then(|it| {
@@ -1055,7 +1067,7 @@ impl ResolveTypes for ast::CauseExpressionNode {
                 _ => Err(LangError::NotCausable.into()),
             }) {
             Ok(it) => it,
-            Err(err) => return Some(InferredType::Error(err.into())),
+            Err(err) => return Some(OldResolvingType::Error(err.into())),
         };
         if canonical_type_id.category != CanonicalLangTypeCategory::Signal {
             return Some(LangError::NotCallable.into());
@@ -1075,13 +1087,13 @@ impl ResolveTypes for ast::CauseExpressionNode {
                 CanonicalLangType::Signal(signal_type) => Ok(signal_type.result().clone()),
                 _ => Err(LangError::NotCausable.into()),
             })
-            .unwrap_or_else(|err: Arc<LangError>| InferredType::Error(err.into()));
+            .unwrap_or_else(|err: Arc<LangError>| OldResolvingType::Error(err.into()));
         Some(signal_result_type)
     }
 }
 
 impl ResolveTypes for ast::CallExpressionNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         resolve_call_expression(
             &self.callee,
             &self
@@ -1095,7 +1107,7 @@ impl ResolveTypes for ast::CallExpressionNode {
 }
 
 impl ResolveTypes for ast::PipeCallExpressionNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let parameters = vec![
             vec![self.subject.breadcrumbs().clone()],
             self.parameters
@@ -1112,21 +1124,23 @@ fn resolve_call_expression(
     callee_expression: &ExpressionNode,
     parameter_breadcrumbs: &[Breadcrumbs],
     ctx: &mut ResolveTypesContext,
-) -> Option<AnyInferredLangType> {
+) -> Option<AnyOldResolvingLangType> {
     let callee_type = ctx.get_resolved_type_proxying_errors(callee_expression);
     let callee_type = match callee_type.to_result_assuming_inferred() {
         Ok(it) => it,
-        Err(err) => return Some(InferredType::Error(err.into())),
+        Err(err) => return Some(OldResolvingType::Error(err.into())),
     };
 
     let result_type = match callee_type.as_ref() {
-        LangType::Function(function_type) => Ok(function_type.return_type.clone()),
-        LangType::TypeReference(referenced_type) => referenced_type
+        OldResolvingLangType::Function(function_type) => Ok(function_type.return_type.clone()),
+        OldResolvingLangType::TypeReference(referenced_type) => referenced_type
             .clone()
             .to_result_assuming_inferred()
             .and_then(|referenced_type| match referenced_type.as_ref() {
-                LangType::Instance(instance) => Ok(instance.clone().into()),
-                LangType::StopgapDictionary | LangType::StopgapList => Ok(referenced_type.into()),
+                OldResolvingLangType::Instance(instance) => Ok(instance.clone().into()),
+                OldResolvingLangType::StopgapDictionary | OldResolvingLangType::StopgapList => {
+                    Ok(referenced_type.into())
+                }
                 _ => Err(LangError::NotCallable.into()),
             }),
         _ => Err(LangError::NotCallable.into()),
@@ -1135,11 +1149,11 @@ fn resolve_call_expression(
     #[derive(Debug, Clone, Eq, PartialEq)]
     struct ExpectedCallParameter {
         name: Arc<String>,
-        value_type: AnyInferredLangType,
+        value_type: AnyOldResolvingLangType,
     }
 
     let expected_parameters = match callee_type.as_ref() {
-        LangType::Function(function_type) => Ok(function_type
+        OldResolvingLangType::Function(function_type) => Ok(function_type
             .params
             .iter()
             .map(|it| ExpectedCallParameter {
@@ -1147,11 +1161,11 @@ fn resolve_call_expression(
                 value_type: it.value_type.clone(),
             })
             .collect_vec()),
-        LangType::TypeReference(referenced_type) => referenced_type
+        OldResolvingLangType::TypeReference(referenced_type) => referenced_type
             .clone()
             .to_result_assuming_inferred()
             .and_then(|referenced_type| match referenced_type.as_ref() {
-                LangType::Instance(instance) => {
+                OldResolvingLangType::Instance(instance) => {
                     let instance_type = instance;
                     let canonical_type = ctx.get_canonical_type(&instance_type.type_id).ok_or(
                         LangError::compiler_bug(format!(
@@ -1168,7 +1182,9 @@ fn resolve_call_expression(
                         })
                         .collect_vec())
                 }
-                LangType::StopgapDictionary | LangType::StopgapList => Ok(vec![]),
+                OldResolvingLangType::StopgapDictionary | OldResolvingLangType::StopgapList => {
+                    Ok(vec![])
+                }
                 _ => Err(LangError::NotCallable.into()),
             }),
         _ => Err(LangError::NotCallable.into()),
@@ -1211,14 +1227,14 @@ fn resolve_call_expression(
                 });
             }
         }
-        Err(err) => return Some(InferredType::Error(err.into())),
+        Err(err) => return Some(OldResolvingType::Error(err.into())),
     }
 
-    Some(result_type.unwrap_or_else(|err| InferredType::Error(err.into())))
+    Some(result_type.unwrap_or_else(|err| OldResolvingType::Error(err.into())))
 }
 
 impl ResolveTypes for ast::MemberExpressionNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let object = ctx.get_resolved_type_proxying_errors(&self.object_expression);
         let var = ctx.add_inference_variable();
         ctx.constraints.push((
@@ -1226,12 +1242,12 @@ impl ResolveTypes for ast::MemberExpressionNode {
             TypeConstraint::MemberOf(object.clone(), self.member_identifier.text.clone()),
             ConstraintDiagnostic::Resolver(self.breadcrumbs().clone(), "Member expression".into()),
         ));
-        return Some(InferredType::InferenceVariable(var));
+        return Some(OldResolvingType::InferenceVariable(var));
     }
 }
 
 impl ResolveTypes for ast::IdentifierExpressionNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let tags = self.get_tags(ctx).as_ref().to_owned();
 
         let comes_from_tag = match find_tag!(&tags, NodeTag::ValueComesFrom) {
@@ -1275,10 +1291,10 @@ impl ResolveTypes for ast::IdentifierExpressionNode {
             .try_as_known_ref()
             .and_then(|it| it.try_as_type_reference_ref())
             .and_then(|it| it.try_as_known_ref())
-            .map(|it| matches!(it.as_ref(), LangType::Action))
+            .map(|it| matches!(it.as_ref(), OldResolvingLangType::Action))
             .unwrap_or(false);
         if is_action_reference {
-            return Some(LangType::Action.into());
+            return Some(OldResolvingLangType::Action.into());
         }
 
         return Some(resolved_type);
@@ -1286,26 +1302,26 @@ impl ResolveTypes for ast::IdentifierExpressionNode {
 }
 
 impl ResolveTypes for ast::StringLiteralExpressionNode {
-    fn compute_type(&self, _ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        Some(LangType::Primitive(PrimitiveLangType::Text).into())
+    fn compute_type(&self, _ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
+        Some(OldResolvingLangType::Primitive(PrimitiveLangType::Text).into())
     }
 }
 
 impl ResolveTypes for ast::NumberLiteralExpressionNode {
-    fn compute_type(&self, _ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
-        Some(LangType::Primitive(PrimitiveLangType::Number).into())
+    fn compute_type(&self, _ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
+        Some(OldResolvingLangType::Primitive(PrimitiveLangType::Number).into())
     }
 }
 
 impl ResolveTypes for ast::DeclarationStatementNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         ctx.get_resolved_type_proxying_errors(&self.declaration)
             .pipe(Some)
     }
 }
 
 impl ResolveTypes for ast::NamedValueNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let annotated_type = self
             .type_annotation
             .as_ref()
@@ -1313,10 +1329,10 @@ impl ResolveTypes for ast::NamedValueNode {
             .map(|annotated_type| {
                 let annotated_type = annotated_type.to_result_assuming_inferred()?;
                 match annotated_type.as_ref() {
-                    LangType::TypeReference(InferredType::Known(value_type)) => {
+                    OldResolvingLangType::TypeReference(OldResolvingType::Known(value_type)) => {
                         Ok(value_type.clone())
                     }
-                    LangType::TypeReference(InferredType::Error(err)) => {
+                    OldResolvingLangType::TypeReference(OldResolvingType::Error(err)) => {
                         Err(LangError::proxy_error(
                             err.clone(),
                             ErrorPosition::Source(SourcePosition {
@@ -1329,7 +1345,7 @@ impl ResolveTypes for ast::NamedValueNode {
                     }
                     _ => Err(
                         LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
-                            r#type: AnyInferredLangType::Known(annotated_type.clone()),
+                            r#type: AnyOldResolvingLangType::Known(annotated_type.clone()),
                         })
                         .pipe(Arc::new),
                     ),
@@ -1354,7 +1370,7 @@ impl ResolveTypes for ast::NamedValueNode {
 }
 
 impl ResolveTypes for ast::ObjectTypeNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let canonical_id_tag = ctx
             .get_tags(self)
             .iter()
@@ -1397,8 +1413,8 @@ impl ResolveTypes for ast::ObjectTypeNode {
         );
 
         Some(
-            LangType::TypeReference(
-                LangType::Instance(InstanceLangType {
+            OldResolvingLangType::TypeReference(
+                OldResolvingLangType::Instance(InstanceOldResolvingLangType {
                     type_id: id.clone(),
                 })
                 .into(),
@@ -1409,7 +1425,7 @@ impl ResolveTypes for ast::ObjectTypeNode {
 }
 
 impl ResolveTypes for ast::SignalTypeNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let canonical_id_tag = ctx
             .get_tags(self)
             .iter()
@@ -1439,9 +1455,9 @@ impl ResolveTypes for ast::SignalTypeNode {
             .map(|it| {
                 ctx.get_resolved_type_proxying_errors(it)
                     .try_get_referenced_type()
-                    .conv::<AnyInferredLangType>()
+                    .conv::<AnyOldResolvingLangType>()
             })
-            .unwrap_or(LangType::Action.into());
+            .unwrap_or(OldResolvingLangType::Action.into());
         let id = Arc::new(CanonicalLangTypeId {
             path: ctx.file_path.clone(),
             parent_name: canonical_id_tag.parent_name.clone(),
@@ -1462,8 +1478,8 @@ impl ResolveTypes for ast::SignalTypeNode {
         );
 
         Some(
-            LangType::TypeReference(
-                LangType::Instance(InstanceLangType {
+            OldResolvingLangType::TypeReference(
+                OldResolvingLangType::Instance(InstanceOldResolvingLangType {
                     type_id: id.clone(),
                 })
                 .into(),
@@ -1474,14 +1490,14 @@ impl ResolveTypes for ast::SignalTypeNode {
 }
 
 impl ResolveTypes for ast::ObjectFieldNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let type_reference = ctx.get_resolved_type_proxying_errors(&self.type_annotation);
         Some(type_reference.try_get_referenced_type().into())
     }
 }
 
 impl ResolveTypes for ast::OneOfTypeNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let options = self
             .options
             .iter()
@@ -1495,29 +1511,34 @@ impl ResolveTypes for ast::OneOfTypeNode {
                 ));
                 ctx.constraints.push((
                     referenced_type_var,
-                    TypeConstraint::ReferencedType(InferredType::InferenceVariable(
+                    TypeConstraint::ReferencedType(OldResolvingType::InferenceVariable(
                         type_reference_var,
                     )),
                     ConstraintDiagnostic::Resolver(it.breadcrumbs().clone(), "oneof option".into()),
                 ));
-                InferredType::InferenceVariable(referenced_type_var)
+                OldResolvingType::InferenceVariable(referenced_type_var)
             })
             .collect_vec();
-        Some(LangType::TypeReference(LangType::OneOf(OneOfLangType { options }).into()).into())
+        Some(
+            OldResolvingLangType::TypeReference(
+                OldResolvingLangType::OneOf(OneOfOldResolvingLangType { options }).into(),
+            )
+            .into(),
+        )
     }
 }
 
 impl ResolveTypes for ast::FunctionExpressionNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let tags = ctx.get_tags(self).as_ref().to_owned();
         compute_function_type(None, &self.params, self.return_type.as_ref(), &tags, ctx)
     }
 }
 
 impl ResolveTypes for ast::BranchExpressionNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         if self.branches.is_empty() {
-            return Some(LangType::Action.into());
+            return Some(OldResolvingLangType::Action.into());
         }
 
         let mut branches = Vec::<ValidateBranchExpressionTypeEdictBranch>::new();
@@ -1554,7 +1575,8 @@ impl ResolveTypes for ast::BranchExpressionNode {
                     branches.push(ValidateBranchExpressionTypeEdictBranch {
                         breadcrumbs: branch.breadcrumbs().to_owned(),
                         pattern: None,
-                        remaining_with_value: with_value_var.map(InferredType::InferenceVariable),
+                        remaining_with_value: with_value_var
+                            .map(OldResolvingType::InferenceVariable),
                         result: resolved_type.clone(),
                     });
                 }
@@ -1565,7 +1587,8 @@ impl ResolveTypes for ast::BranchExpressionNode {
                     branches.push(ValidateBranchExpressionTypeEdictBranch {
                         breadcrumbs: branch.breadcrumbs().to_owned(),
                         pattern: Some(pattern_type.clone()),
-                        remaining_with_value: with_value_var.map(InferredType::InferenceVariable),
+                        remaining_with_value: with_value_var
+                            .map(OldResolvingType::InferenceVariable),
                         result: resolved_type.clone(),
                     });
                     if let Some(with_value_var) = &mut with_value_var {
@@ -1574,7 +1597,7 @@ impl ResolveTypes for ast::BranchExpressionNode {
                         ctx.constraints.push((
                             *with_value_var,
                             TypeConstraint::Narrowed(NarrowedConstraint {
-                                base: InferredType::InferenceVariable(prev_with_value_var),
+                                base: OldResolvingType::InferenceVariable(prev_with_value_var),
                                 narrow: pattern_type.clone(),
                             }),
                             ConstraintDiagnostic::Resolver(
@@ -1597,7 +1620,7 @@ impl ResolveTypes for ast::BranchExpressionNode {
             let resolved_type = ctx.get_resolved_type_proxying_errors(&else_branch.body);
             else_branch_info = Some(ValidateBranchExpressionTypeEdictBranch {
                 breadcrumbs: else_branch.breadcrumbs().to_owned(),
-                remaining_with_value: with_value_var.map(InferredType::InferenceVariable),
+                remaining_with_value: with_value_var.map(OldResolvingType::InferenceVariable),
                 pattern: None,
                 result: resolved_type.clone(),
             });
@@ -1605,7 +1628,7 @@ impl ResolveTypes for ast::BranchExpressionNode {
                 let var = ctx.add_inference_variable();
                 ctx.constraints.push((
                     var,
-                    TypeConstraint::EqualTo(LangType::NeverContinues.into()),
+                    TypeConstraint::EqualTo(OldResolvingLangType::NeverContinues.into()),
                     ConstraintDiagnostic::Resolver(
                         else_branch.breadcrumbs().to_owned(),
                         "with-value becomes unaccessible after else-branch".into(),
@@ -1626,7 +1649,7 @@ impl ResolveTypes for ast::BranchExpressionNode {
             branches.push(ValidateBranchExpressionTypeEdictBranch {
                 breadcrumbs: branch.breadcrumbs().to_owned(),
                 pattern: None,
-                remaining_with_value: Some(LangType::NeverContinues.into()),
+                remaining_with_value: Some(OldResolvingLangType::NeverContinues.into()),
                 result: unreachable_error.into(),
             });
         }
@@ -1636,7 +1659,7 @@ impl ResolveTypes for ast::BranchExpressionNode {
             rule: TypeEdictRule::ValidateBranchExpression(ValidateBranchExpressionTypeEdict {
                 branches: branches.clone(),
                 else_branch: else_branch_info.clone(),
-                final_with_value: with_value_var.map(InferredType::InferenceVariable),
+                final_with_value: with_value_var.map(OldResolvingType::InferenceVariable),
             }),
             diagnostic: "Branch expression".into(),
         });
@@ -1648,7 +1671,8 @@ impl ResolveTypes for ast::BranchExpressionNode {
             );
         }
 
-        let mut result = OneOfLangType::new(branches.into_iter().map(|it| it.result).collect());
+        let mut result =
+            OneOfOldResolvingLangType::new(branches.into_iter().map(|it| it.result).collect());
         if let Some(else_branch_info) = &else_branch_info {
             result = result.expand(&else_branch_info.result);
         }
@@ -1657,12 +1681,12 @@ impl ResolveTypes for ast::BranchExpressionNode {
 }
 
 impl ResolveTypes for LoopExpressionNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let tags = ctx.get_tags(self);
         let breaks = find_tags!(&tags, NodeTag::LoopBreaksAt).collect_vec();
 
         if breaks.is_empty() {
-            return Some(LangType::NeverContinues.into());
+            return Some(OldResolvingLangType::NeverContinues.into());
         }
 
         let break_types = breaks
@@ -1682,7 +1706,7 @@ impl ResolveTypes for LoopExpressionNode {
                         if let Some(with_value) = &break_expression.with_value {
                             ctx.get_resolved_type_proxying_errors(with_value)
                         } else {
-                            LangType::Action.into()
+                            OldResolvingLangType::Action.into()
                         }
                     })
                     .unwrap_or_else(|it| it.into());
@@ -1693,7 +1717,7 @@ impl ResolveTypes for LoopExpressionNode {
 
         // TODO: assert that all or no break types are Action
 
-        let loop_result_type = OneOfLangType::new(
+        let loop_result_type = OneOfOldResolvingLangType::new(
             break_types
                 .into_iter()
                 .map(|(_, return_type)| return_type)
@@ -1706,11 +1730,11 @@ impl ResolveTypes for LoopExpressionNode {
 }
 
 impl ResolveTypes for ast::BreakExpressionNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         let tags = ctx.get_tags(self);
         let break_tag = find_tag!(&tags, NodeTag::BreaksLoop);
         if break_tag.is_some() {
-            return Some(LangType::NeverContinues.into());
+            return Some(OldResolvingLangType::NeverContinues.into());
         } else {
             return Some(LangError::CannotBreakHere.into());
         }
@@ -1718,7 +1742,7 @@ impl ResolveTypes for ast::BreakExpressionNode {
 }
 
 impl ResolveTypes for ast::SingleExpressionBodyNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         return ctx
             .get_resolved_type_proxying_errors(&self.expression)
             .pipe(Some);
@@ -1726,7 +1750,7 @@ impl ResolveTypes for ast::SingleExpressionBodyNode {
 }
 
 impl ResolveTypes for FunctionSignatureParameterNode {
-    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyInferredLangType> {
+    fn compute_type(&self, ctx: &mut ResolveTypesContext) -> Option<AnyOldResolvingLangType> {
         if let Some(type_reference_node) = &self.type_reference {
             let referenced_type = ctx
                 .get_resolved_type_proxying_errors(type_reference_node)
