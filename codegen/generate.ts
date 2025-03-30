@@ -2,6 +2,7 @@ import { fs, path } from "./deps.ts";
 import { generateAst } from "./src/ast/gen.ts";
 import { generateErrors } from "./src/errors/gen.ts";
 import { generateInstructions } from "./src/instructions/gen.ts";
+import { generateLangTypes } from "./src/lang-types/gen.ts";
 import { generateTags } from "./src/tags/gen.ts";
 
 async function generate() {
@@ -10,6 +11,7 @@ async function generate() {
     generateInstructions(),
     generateTags(),
     generateErrors(),
+    generateLangTypes(),
   ]);
 }
 

@@ -14,6 +14,8 @@ use strum::EnumTryAs;
 
 use crate::error_types::{ConstraintUsedAsValueError, LangError};
 
+include!("gen/lang_types.rs");
+
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
 pub enum InferredType<T> {
     Known(T),
@@ -119,23 +121,6 @@ impl AnyInferredLangType {
 
         return instance.to_result_assuming_inferred();
     }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
-pub enum LangType {
-    TypeReference(AnyInferredLangType),
-    Action,
-    Instance(InstanceLangType),
-    Function(FunctionLangType),
-    Primitive(PrimitiveLangType),
-    Anything,
-    AnySignal,
-    OneOf(OneOfLangType),
-    NeverContinues,
-    StopgapDictionary,
-    StopgapList,
-    // BadValue should only exist at runtime
-    BadValue,
 }
 
 pub trait HasInference {
