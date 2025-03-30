@@ -338,12 +338,6 @@ impl HasInference for LangType {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct LangParameter {
-    pub name: Arc<String>,
-    pub value_type: AnyInferredLangType,
-}
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum PrimitiveLangType {
     Text,

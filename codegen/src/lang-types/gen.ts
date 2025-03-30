@@ -47,7 +47,6 @@ type TemplateComplexLangTypeField = {
 type TemplateObjectType = {
   name: string;
   fields: TemplateObjectLangTypeField[];
-  hasSubtypes: boolean;
 };
 
 type TemplateObjectLangTypeField = {
@@ -196,11 +195,59 @@ async function generateRustLangTypes() {
       };
     });
 
+  type ObjectFieldType = FieldType & { kind: "object" };
+  function discoverObjects(fieldType: FieldType): ObjectFieldType[] {
+    switch (fieldType.kind) {
+      case "object":
+        return [
+          fieldType,
+          ...Object.values(fieldType.fields).flatMap(discoverObjects),
+        ];
+
+      case "list":
+      case "optional":
+        return discoverObjects(fieldType.type);
+
+      case "canonicalTypeId":
+      case "langType":
+      case "primitiveEnum":
+      case "string":
+        return [];
+
+      default:
+        return fieldType satisfies never;
+    }
+  }
+
+  const objects: TemplateObjectType[] = langTypes
+    .flatMap((langType): ObjectFieldType[] => {
+      switch (langType.kind) {
+        case undefined:
+          return [];
+        case "simple":
+          return discoverObjects(langType.type);
+        case "complex":
+          return Object.values(langType.fields).flatMap(discoverObjects);
+        default:
+          return langType satisfies never;
+      }
+    })
+    .map(
+      (objectType): TemplateObjectType => ({
+        name: objectType.name,
+        fields: Object.entries(objectType.fields).map(
+          ([objectFieldName, objectFieldType]) => ({
+            name: objectFieldName,
+            type: rustTypeExpression(objectFieldType),
+          })
+        ),
+      })
+    );
+
   const output = template({
     langTypes: templateLangTypes,
     complexLangTypes,
-    // TODO
-    objects: [],
+    objects,
   } satisfies LangTypesTemplate);
 
   await Deno.writeTextFile(
