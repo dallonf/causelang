@@ -4,7 +4,8 @@ use rscause_compiler::{
     ast::FileNode,
     breadcrumbs::Breadcrumbs,
     compile::compile,
-    lang_types::{CanonicalLangType, CanonicalLangTypeId},
+    lang_types::CanonicalLangTypeId,
+    old_resolving_lang_types::CanonicalLangType,
     resolve_types::{resolve_types, ExternalFileDescriptor},
     tags::NodeTag,
 };

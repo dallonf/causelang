@@ -32,9 +32,8 @@ use crate::{
     compiled_file::{
         CompiledExport, CompiledFile, FunctionProcedureIdentity, Procedure, ProcedureIdentity,
     },
-    old_resolving_lang_types::{
-        CanonicalLangType, CanonicalLangTypeId, OldResolvingLangType, OldResolvingType,
-    },
+    lang_types::CanonicalLangTypeId,
+    old_resolving_lang_types::{CanonicalLangType, OldResolvingLangType, OldResolvingType},
     resolve_types::ResolveTypesResult,
     tags::NodeTag,
 };

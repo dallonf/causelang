@@ -12,11 +12,11 @@ use crate::error_types::{
 };
 use crate::infer_types::infer_types;
 use crate::lang_types::PrimitiveLangType;
+use crate::lang_types::{CanonicalLangTypeCategory, CanonicalLangTypeId};
 use crate::old_resolving_lang_types::{
-    AnyOldResolvingLangType, CanonicalLangType, CanonicalLangTypeCategory, CanonicalLangTypeId,
-    CanonicalTypeField, FunctionOldResolvingLangType, InstanceOldResolvingLangType, LangParameter,
-    ObjectCanonicalLangType, OldResolvingLangType, OldResolvingType, OneOfOldResolvingLangType,
-    SignalCanonicalLangType,
+    AnyOldResolvingLangType, CanonicalLangType, CanonicalTypeField, FunctionOldResolvingLangType,
+    InstanceOldResolvingLangType, ObjectCanonicalLangType, OldResolvingLangParameter,
+    OldResolvingLangType, OldResolvingType, OneOfOldResolvingLangType, SignalCanonicalLangType,
 };
 use crate::prelude::*;
 use crate::tags::NodeTag;
@@ -742,7 +742,7 @@ impl ResolveTypes for ast::FunctionTypeReferenceNode {
                         ),
                     ));
                 }
-                LangParameter {
+                OldResolvingLangParameter {
                     name: param.name.text.clone(),
                     value_type: OldResolvingType::InferenceVariable(inference_var).into(),
                 }
@@ -850,7 +850,7 @@ fn compute_function_type(
                 .map(|it| ctx.get_resolved_type_proxying_errors(it))
                 .unwrap_or_else(|| LangError::NeverResolved.into())
                 .and_then(|it| it.get_referenced_value_type());
-            LangParameter {
+            OldResolvingLangParameter {
                 name: param_node.name.text.clone(),
                 value_type,
             }

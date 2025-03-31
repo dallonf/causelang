@@ -2,7 +2,7 @@ import { path } from "../../deps.ts";
 import { doit } from "../utils/doit.ts";
 import { compileTemplate } from "../utils/templates.ts";
 import { langTypes } from "./langTypes.ts";
-import { FieldType, getTypeHasSubtypes } from "./types.ts";
+import { FieldType, getTypeHasSubtypes, LangTypeDeclaration } from "./types.ts";
 
 const dirname = path.dirname(path.fromFileUrl(import.meta.url));
 const projectRoot = path.resolve(dirname, "../../../");
@@ -16,6 +16,15 @@ async function generateRustLangTypes() {
     "old_resolving_lang_types.rs.handlebars",
     import.meta.url
   );
+  const generalTemplate = await compileTemplate(
+    "lang_types.rs.handlebars",
+    import.meta.url
+  );
+
+  type LangTypesTemplateGenerationContext = {
+    prefix: string;
+    fallibleType: string;
+  };
 
   type LangTypesTemplate = {
     langTypes: TemplateLangType[];
@@ -65,6 +74,30 @@ async function generateRustLangTypes() {
     type: string;
   };
 
+  function rustTypeExpression(
+    fieldType: FieldType,
+    ctx: LangTypesTemplateGenerationContext
+  ): string {
+    switch (fieldType.kind) {
+      case "string":
+        return "Arc<String>";
+      case "langType":
+        return ctx.fallibleType;
+      case "canonicalTypeId":
+        return "Arc<CanonicalLangTypeId>";
+      case "optional":
+        return `Option<${rustTypeExpression(fieldType.type, ctx)}>`;
+      case "list":
+        return `Vec<${rustTypeExpression(fieldType.type, ctx)}>`;
+      case "object":
+        return `${ctx.prefix}${fieldType.name}`;
+      case "primitiveEnum":
+        return "PrimitiveLangType";
+      default:
+        return fieldType satisfies never;
+    }
+  }
+
   function getRecursiveInferredTypesExpression(
     fieldRef: string,
     fieldType: FieldType
@@ -107,7 +140,8 @@ async function generateRustLangTypes() {
 
   function getInferenceFillVariableExpression(
     fieldRef: string,
-    fieldType: FieldType
+    fieldType: FieldType,
+    ctx: LangTypesTemplateGenerationContext
   ): string {
     switch (fieldType.kind) {
       case "string":
@@ -119,110 +153,30 @@ async function generateRustLangTypes() {
       case "optional":
         return `${fieldRef}.as_ref().map(|it| ${getInferenceFillVariableExpression(
           "it",
-          fieldType.type
+          fieldType.type,
+          ctx
         )})`;
       case "list":
         return `${fieldRef}.iter().map(|it| ${getInferenceFillVariableExpression(
           "it",
-          fieldType.type
+          fieldType.type,
+          ctx
         )}).collect()`;
       case "object": {
         const fields = Object.entries(fieldType.fields).map(
           ([objectFieldName, objectFieldType]) =>
             `${objectFieldName}: ${getInferenceFillVariableExpression(
               `${fieldRef}.${objectFieldName}`,
-              objectFieldType
+              objectFieldType,
+              ctx
             )}`
         );
-        return `${fieldType.name} { ${fields.join(",")} }`;
+        return `${ctx.prefix}${fieldType.name} { ${fields.join(",")} }`;
       }
       default:
         return fieldType satisfies never;
     }
   }
-
-  const templateLangTypes: TemplateLangType[] = langTypes.map((langType) => {
-    if (langType.kind === undefined) {
-      return { name: langType.name, hasParam: false };
-    }
-
-    const paramType = doit((): string => {
-      switch (langType.kind) {
-        case "simple":
-          return rustTypeExpression(langType.type);
-        case "complex":
-          return langType.name + "OldResolvingLangType";
-        default:
-          return langType satisfies never;
-      }
-    });
-
-    const inferenceGetRecursiveInferredTypesExpression = doit((): string => {
-      switch (langType.kind) {
-        case "simple":
-          return getRecursiveInferredTypesExpression("it", langType.type);
-        case "complex":
-          return "it.recursive_inferred_types()";
-        default:
-          return langType satisfies never;
-      }
-    });
-
-    const inferenceFillVariableExpression = doit((): string => {
-      switch (langType.kind) {
-        case "simple":
-          return getInferenceFillVariableExpression("it", langType.type);
-        case "complex":
-          return "it.fill_variable(id, value)";
-        default:
-          return langType satisfies never;
-      }
-    });
-
-    return {
-      name: langType.name,
-      hasParam: true,
-      paramType,
-      inferenceGetRecursiveInferredTypesExpression,
-      inferenceFillVariableExpression,
-    };
-  });
-
-  const complexLangTypes: TemplateComplexLangType[] = langTypes
-    .filter((it) => it.kind === "complex")
-    .map((complexLangType): TemplateComplexLangType => {
-      return {
-        name: complexLangType.name,
-        customHashImplementation: complexLangType.customHashImplementation,
-        fields: Object.entries(complexLangType.fields).map(
-          ([fieldName, fieldType]): TemplateComplexLangTypeField => {
-            const hasSubtypes = getTypeHasSubtypes(fieldType);
-
-            const subtypesSpread = hasSubtypes
-              ? {
-                  hasSubtypes: true as const,
-                  inferenceGetRecursiveInferredTypesExpression:
-                    getRecursiveInferredTypesExpression(
-                      `self.${fieldName}`,
-                      fieldType
-                    ),
-                }
-              : { hasSubtypes: false as const };
-
-            return {
-              name: fieldName,
-              type: rustTypeExpression(fieldType),
-              inferenceFillVariableExpression:
-                getInferenceFillVariableExpression(
-                  `self.${fieldName}`,
-                  fieldType
-                ),
-              ...subtypesSpread,
-            };
-          }
-        ),
-      };
-    });
 
   type ObjectFieldType = FieldType & { kind: "object" };
   function discoverObjects(fieldType: FieldType): ObjectFieldType[] {
@@ -248,60 +202,145 @@ async function generateRustLangTypes() {
     }
   }
 
-  const objects: TemplateObjectType[] = langTypes
-    .flatMap((langType): ObjectFieldType[] => {
-      switch (langType.kind) {
-        case undefined:
-          return [];
-        case "simple":
-          return discoverObjects(langType.type);
-        case "complex":
-          return Object.values(langType.fields).flatMap(discoverObjects);
-        default:
-          return langType satisfies never;
+  function getTemplateParams(
+    langTypes: LangTypeDeclaration[],
+    ctx: LangTypesTemplateGenerationContext
+  ): LangTypesTemplate {
+    const templateLangTypes: TemplateLangType[] = langTypes.map((langType) => {
+      if (langType.kind === undefined) {
+        return { name: langType.name, hasParam: false };
       }
-    })
-    .map(
-      (objectType): TemplateObjectType => ({
-        name: objectType.name,
-        fields: Object.entries(objectType.fields).map(
-          ([objectFieldName, objectFieldType]) => ({
-            name: objectFieldName,
-            type: rustTypeExpression(objectFieldType),
-          })
-        ),
-      })
-    );
 
-  const output = oldResolvingTemplate({
-    langTypes: templateLangTypes,
-    complexLangTypes,
-    objects,
-  } satisfies LangTypesTemplate);
+      const paramType = doit((): string => {
+        switch (langType.kind) {
+          case "simple":
+            return rustTypeExpression(langType.type, ctx);
+          case "complex":
+            return langType.name + ctx.prefix + "LangType";
+          default:
+            return langType satisfies never;
+        }
+      });
+
+      const inferenceGetRecursiveInferredTypesExpression = doit((): string => {
+        switch (langType.kind) {
+          case "simple":
+            return getRecursiveInferredTypesExpression("it", langType.type);
+          case "complex":
+            return "it.recursive_inferred_types()";
+          default:
+            return langType satisfies never;
+        }
+      });
+
+      const inferenceFillVariableExpression = doit((): string => {
+        switch (langType.kind) {
+          case "simple":
+            return getInferenceFillVariableExpression("it", langType.type, ctx);
+          case "complex":
+            return "it.fill_variable(id, value)";
+          default:
+            return langType satisfies never;
+        }
+      });
+
+      return {
+        name: langType.name,
+        hasParam: true,
+        paramType,
+        inferenceGetRecursiveInferredTypesExpression,
+        inferenceFillVariableExpression,
+      };
+    });
+
+    const complexLangTypes: TemplateComplexLangType[] = langTypes
+      .filter((it) => it.kind === "complex")
+      .map((complexLangType): TemplateComplexLangType => {
+        return {
+          name: complexLangType.name,
+          customHashImplementation: complexLangType.customHashImplementation,
+          fields: Object.entries(complexLangType.fields).map(
+            ([fieldName, fieldType]): TemplateComplexLangTypeField => {
+              const hasSubtypes = getTypeHasSubtypes(fieldType);
+
+              const subtypesSpread = hasSubtypes
+                ? {
+                    hasSubtypes: true as const,
+                    inferenceGetRecursiveInferredTypesExpression:
+                      getRecursiveInferredTypesExpression(
+                        `self.${fieldName}`,
+                        fieldType
+                      ),
+                  }
+                : { hasSubtypes: false as const };
+
+              return {
+                name: fieldName,
+                type: rustTypeExpression(fieldType, ctx),
+                inferenceFillVariableExpression:
+                  getInferenceFillVariableExpression(
+                    `self.${fieldName}`,
+                    fieldType,
+                    ctx
+                  ),
+                ...subtypesSpread,
+              };
+            }
+          ),
+        };
+      });
+
+    const objects: TemplateObjectType[] = langTypes
+      .flatMap((langType): ObjectFieldType[] => {
+        switch (langType.kind) {
+          case undefined:
+            return [];
+          case "simple":
+            return discoverObjects(langType.type);
+          case "complex":
+            return Object.values(langType.fields).flatMap(discoverObjects);
+          default:
+            return langType satisfies never;
+        }
+      })
+      .map(
+        (objectType): TemplateObjectType => ({
+          name: objectType.name,
+          fields: Object.entries(objectType.fields).map(
+            ([objectFieldName, objectFieldType]) => ({
+              name: objectFieldName,
+              type: rustTypeExpression(objectFieldType, ctx),
+            })
+          ),
+        })
+      );
+
+    return {
+      langTypes: templateLangTypes,
+      complexLangTypes,
+      objects,
+    };
+  }
 
   await Deno.writeTextFile(
-    path.join(projectRoot, "rscause/rscause_compiler/src/gen/old_resolving_lang_types.rs"),
-    output
+    path.join(
+      projectRoot,
+      "rscause/rscause_compiler/src/gen/old_resolving_lang_types.rs"
+    ),
+    oldResolvingTemplate(
+      getTemplateParams(langTypes, {
+        prefix: "OldResolving",
+        fallibleType: "AnyOldResolvingLangType",
+      })
+    )
   );
-}
-
-function rustTypeExpression(fieldType: FieldType): string {
-  switch (fieldType.kind) {
-    case "string":
-      return "Arc<String>";
-    case "langType":
-      return "AnyOldResolvingLangType";
-    case "canonicalTypeId":
-      return "Arc<CanonicalLangTypeId>";
-    case "optional":
-      return `Option<${rustTypeExpression(fieldType.type)}>`;
-    case "list":
-      return `Vec<${rustTypeExpression(fieldType.type)}>`;
-    case "object":
-      return fieldType.name;
-    case "primitiveEnum":
-      return "PrimitiveLangType";
-    default:
-      return fieldType satisfies never;
-  }
+  await Deno.writeTextFile(
+    path.join(projectRoot, "rscause/rscause_compiler/src/gen/lang_types.rs"),
+    generalTemplate(
+      getTemplateParams(langTypes, {
+        prefix: "",
+        fallibleType: "FallibleLangType",
+      })
+    )
+  );
 }

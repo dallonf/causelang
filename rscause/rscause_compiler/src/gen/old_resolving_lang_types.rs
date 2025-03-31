@@ -72,7 +72,7 @@ impl HasInference for InstanceOldResolvingLangType {
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct FunctionOldResolvingLangType {
   pub name: Option<Arc<String>>,
-  pub params: Vec<LangParameter>,
+  pub params: Vec<OldResolvingLangParameter>,
   pub return_type: AnyOldResolvingLangType,
 }
 impl From<FunctionOldResolvingLangType> for OldResolvingLangType {
@@ -90,7 +90,7 @@ impl HasInference for FunctionOldResolvingLangType {
   fn fill_variable(&self, id: u64, value: AnyOldResolvingLangType) -> Self {
     return Self {
         name: self.name.as_ref().map(|it| it.clone()),
-        params: self.params.iter().map(|it| LangParameter { name: it.name.clone(),value_type: it.value_type.fill_variable(id, value.clone()) }).collect(),
+        params: self.params.iter().map(|it| OldResolvingLangParameter { name: it.name.clone(),value_type: it.value_type.fill_variable(id, value.clone()) }).collect(),
         return_type: self.return_type.fill_variable(id, value.clone()),
     }
   }
@@ -118,7 +118,7 @@ impl HasInference for OneOfOldResolvingLangType {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct LangParameter {
+pub struct OldResolvingLangParameter {
     pub name: Arc<String>,
     pub value_type: AnyOldResolvingLangType,
 }

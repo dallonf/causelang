@@ -7,9 +7,10 @@ use serde::{Serialize, Serializer};
 use crate::ast::NodeInfo;
 use crate::error_types::{ErrorPosition, LangError};
 use crate::instructions::{Instruction, InstructionPhase};
+use crate::lang_types::CanonicalLangTypeId;
 use crate::old_resolving_lang_types::{
-    AnyOldResolvingLangType, CanonicalLangType, CanonicalLangTypeId, FunctionOldResolvingLangType,
-    OldResolvingLangType, OldResolvingType,
+    AnyOldResolvingLangType, CanonicalLangType, FunctionOldResolvingLangType, OldResolvingLangType,
+    OldResolvingType,
 };
 
 #[derive(Debug, Clone, Serialize)]

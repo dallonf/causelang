@@ -56,7 +56,7 @@ impl HasInference for {{name}}OldResolvingLangType {
 
 {{#each objects}}
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct {{name}} {
+pub struct OldResolving{{name}} {
     {{#each fields}}
     pub {{name}}: {{type}},
     {{/each}}
