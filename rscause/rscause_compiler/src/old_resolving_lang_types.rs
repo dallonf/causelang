@@ -583,11 +583,27 @@ impl From<OldResolvingCanonicalTypeField> for lang_types::CanonicalTypeField {
         }
     }
 }
+impl From<lang_types::CanonicalTypeField> for OldResolvingCanonicalTypeField {
+    fn from(value: lang_types::CanonicalTypeField) -> Self {
+        Self {
+            name: value.name,
+            value_type: value.value_type.into(),
+        }
+    }
+}
 impl From<OldResolvingCanonicalLangType> for lang_types::CanonicalLangType {
     fn from(value: OldResolvingCanonicalLangType) -> Self {
         match value {
             OldResolvingCanonicalLangType::Object(it) => Self::Object(it.into()),
             OldResolvingCanonicalLangType::Signal(it) => Self::Signal(it.into()),
+        }
+    }
+}
+impl From<lang_types::CanonicalLangType> for OldResolvingCanonicalLangType {
+    fn from(value: lang_types::CanonicalLangType) -> Self {
+        match value {
+            lang_types::CanonicalLangType::Object(it) => Self::Object(it.into()),
+            lang_types::CanonicalLangType::Signal(it) => Self::Signal(it.into()),
         }
     }
 }
@@ -599,8 +615,25 @@ impl From<ObjectOldResolvingCanonicalLangType> for lang_types::ObjectCanonicalLa
         }
     }
 }
+impl From<lang_types::ObjectCanonicalLangType> for ObjectOldResolvingCanonicalLangType {
+    fn from(value: lang_types::ObjectCanonicalLangType) -> Self {
+        Self {
+            type_id: value.type_id,
+            fields: value.fields.into_iter().map(|it| it.into()).collect(),
+        }
+    }
+}
 impl From<SignalOldResolvingCanonicalLangType> for lang_types::SignalCanonicalLangType {
     fn from(value: SignalOldResolvingCanonicalLangType) -> Self {
+        Self {
+            type_id: value.type_id,
+            fields: value.fields.into_iter().map(|it| it.into()).collect(),
+            result: value.result.into(),
+        }
+    }
+}
+impl From<lang_types::SignalCanonicalLangType> for SignalOldResolvingCanonicalLangType {
+    fn from(value: lang_types::SignalCanonicalLangType) -> Self {
         Self {
             type_id: value.type_id,
             fields: value.fields.into_iter().map(|it| it.into()).collect(),

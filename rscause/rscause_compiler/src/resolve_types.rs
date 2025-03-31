@@ -11,8 +11,7 @@ use crate::error_types::{
     ValueUsedAsConstraintError,
 };
 use crate::infer_types::infer_types;
-use crate::lang_types::PrimitiveLangType;
-use crate::lang_types::{CanonicalLangTypeCategory, CanonicalLangTypeId};
+use crate::lang_types::{self, CanonicalLangTypeCategory, CanonicalLangTypeId, PrimitiveLangType};
 use crate::old_resolving_lang_types::{
     AnyOldResolvingLangType, FunctionOldResolvingLangType, InstanceOldResolvingLangType,
     ObjectOldResolvingCanonicalLangType, OldResolvingCanonicalLangType,
@@ -21,6 +20,7 @@ use crate::old_resolving_lang_types::{
 };
 use crate::prelude::*;
 use crate::tags::NodeTag;
+use crate::util::arc_into;
 use crate::{find_tag, find_tags};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -36,9 +36,9 @@ pub struct ExternalFileDescriptor {
 
 #[derive(Debug, Clone)]
 pub struct ResolveTypesResult {
-    pub value_types: HashMap<Breadcrumbs, AnyOldResolvingLangType>,
+    pub value_types: HashMap<Breadcrumbs, lang_types::FallibleLangType>,
     pub errors: Vec<ResolverError>,
-    pub new_canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>,
+    pub new_canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<lang_types::CanonicalLangType>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -59,13 +59,16 @@ pub fn resolve_types(
     path: Arc<String>,
     file: Arc<ast::FileNode>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
-    canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>>,
+    canonical_types: &HashMap<Arc<CanonicalLangTypeId>, Arc<lang_types::CanonicalLangType>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 ) -> ResolveTypesResult {
     let mut ctx = ResolveTypesContext::new(
         path.clone(),
         file.clone(),
-        canonical_types,
+        canonical_types
+            .iter()
+            .map(|(k, v)| (k.to_owned(), arc_into(v)))
+            .collect(),
         node_tags,
         external_files,
     );
@@ -305,7 +308,7 @@ pub fn resolve_types(
         .filter_map(|(breadcrumbs, value_type)| {
             value_type
                 .as_ref()
-                .map(|value_type| (breadcrumbs.clone(), value_type.clone()))
+                .map(|value_type| (breadcrumbs.clone(), value_type.to_owned().into()))
         })
         .collect();
 
@@ -372,7 +375,11 @@ pub fn resolve_types(
     ResolveTypesResult {
         value_types: result,
         errors,
-        new_canonical_types: ctx.new_canonical_types,
+        new_canonical_types: ctx
+            .new_canonical_types
+            .into_iter()
+            .map(|it| (it.0, arc_into(&it.1)))
+            .collect(),
     }
 }
 
@@ -446,7 +453,7 @@ pub enum ConstraintDiagnostic {
 pub struct ResolveTypesContext {
     pub file_path: Arc<String>,
     pub root_node: Arc<ast::FileNode>,
-    pub canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>>,
+    pub canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>,
     pub node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     pub external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 
@@ -462,14 +469,14 @@ impl ResolveTypesContext {
     fn new(
         file_path: Arc<String>,
         root_node: Arc<ast::FileNode>,
-        canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>>,
+        canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>,
         node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
         external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
     ) -> Self {
         Self {
             file_path,
             root_node,
-            canonical_types: canonical_types.clone(),
+            canonical_types,
             node_tags,
             external_files,
 

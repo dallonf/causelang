@@ -22,7 +22,7 @@ use crate::instructions::{
     ReturnInstruction, StartLoopInstruction, SwapInstruction, WriteLocalInstruction,
     WriteLocalThroughEffectScopeInstruction,
 };
-use crate::old_resolving_lang_types::OneOfOldResolvingLangType;
+use crate::lang_types::{CanonicalLangType, LangType, LangTypeResult, OneOfLangType};
 use crate::prelude::*;
 use crate::resolve_types::ResolverError;
 use crate::tags::{ReferencesFileNodeTag, TopLevelDeclarationNodeTag};
@@ -33,7 +33,6 @@ use crate::{
         CompiledExport, CompiledFile, FunctionProcedureIdentity, Procedure, ProcedureIdentity,
     },
     lang_types::CanonicalLangTypeId,
-    old_resolving_lang_types::{OldResolvingCanonicalLangType, OldResolvingLangType, OldResolvingType},
     resolve_types::ResolveTypesResult,
     tags::NodeTag,
 };
@@ -52,7 +51,7 @@ struct CompilerContext {
     procedures: Vec<Procedure>,
     types: Arc<ResolveTypesResult>,
     constraint_errors: Arc<HashMap<Breadcrumbs, Vec<LangError>>>,
-    canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>,
+    canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
     scope_stack: VecDeque<Rc<RefCell<CompilerScope>>>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
 }
@@ -99,9 +98,8 @@ impl CompilerContext {
             .ok_or(anyhow!("No type for {}", breadcrumbs))?;
 
         match found_type {
-            OldResolvingType::Error(err) => Some(err.clone()),
-            OldResolvingType::InferenceVariable(_) => Some(LangError::NeverResolved.into()),
-            OldResolvingType::Known(_) => None,
+            Err(err) => Some(err.clone()),
+            Ok(_) => None,
         }
         .or_else(|| {
             self.constraint_errors
@@ -279,7 +277,7 @@ pub fn compile(
     path: Arc<String>,
     ast: &ast::FileNode,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
-    canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>>,
+    canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
     types: Arc<ResolveTypesResult>,
 ) -> Result<CompiledFile> {
     let constraint_errors = {
@@ -323,18 +321,14 @@ pub fn compile(
                     .ok_or_else(|| anyhow!("No type for function at {}", function.breadcrumbs()))?
                     .clone()
                     .and_then(|function_type| match function_type.as_ref() {
-                        OldResolvingLangType::Function(function_type) => {
-                            OldResolvingType::Known(function_type.clone().into())
-                        }
-                        _ => OldResolvingType::Error(
-                            LangError::CompilerBug(CompilerBugError {
-                                description: format!(
-                                    "Function at {} has a non-function type",
-                                    function.breadcrumbs()
-                                ),
-                            })
-                            .into(),
-                        ),
+                        LangType::Function(function_type) => Ok(function_type.clone().into()),
+                        _ => Err(LangError::CompilerBug(CompilerBugError {
+                            description: format!(
+                                "Function at {} has a non-function type",
+                                function.breadcrumbs()
+                            ),
+                        })
+                        .into()),
                     });
 
                 ctx.procedures.push(procedure);
@@ -368,7 +362,7 @@ pub fn compile(
                     .ok_or_else(|| {
                         anyhow!("No type for signal type at {}", declaration.breadcrumbs())
                     })?;
-                let resolved_type = resolved_type.to_result_assuming_inferred().map_err(|err| {
+                let resolved_type = resolved_type.map_err(|err| {
                     anyhow!(
                         "Unexpected LangError at {}: {:?}",
                         declaration.breadcrumbs(),
@@ -589,8 +583,7 @@ fn compile_local_declaration(
                 ))?;
             let resolved_referenced_type = resolved_type
                 .clone()
-                .to_result_assuming_inferred()
-                .and_then(|it| it.get_referenced_value_type().to_result_assuming_inferred());
+                .and_then(|it| it.get_referenced_value_type());
             match resolved_referenced_type {
                 Ok(resolved_type) => {
                     let constant =
@@ -634,7 +627,6 @@ fn compile_local_declaration(
                         .get(function.breadcrumbs())
                         .cloned()
                         .ok_or(anyhow!("missing type for {}", function.breadcrumbs()))?
-                        .to_result_assuming_inferred()
                         .expect("cannot be an error due to check above"),
                 ));
                 procedure.write_instruction(
@@ -693,7 +685,7 @@ fn compile_effect_statement(
         .value_types
         .get(&statement.pattern.type_reference.info().breadcrumbs)
         .ok_or(anyhow!("no type found for effect pattern"))?;
-    let matching_type = if let OldResolvingType::Known(matching_type) = matching_type {
+    let matching_type = if let Ok(matching_type) = matching_type {
         matching_type.clone()
     } else {
         // can't compile an effect without a valid type
@@ -973,8 +965,7 @@ fn compile_call_expression(
             // if you're trying to construct an object
             let callee_is_construct = callee_type
                 .clone()
-                .to_result_assuming_inferred()
-                .map(|it| matches!(it.as_ref(), OldResolvingLangType::TypeReference(_)))
+                .map(|it| matches!(it.as_ref(), LangType::TypeReference(_)))
                 .unwrap_or(false);
             if callee_is_construct || runtime_errors.as_ref() == &LangError::NotCallable {
                 Some(runtime_errors.clone())
@@ -982,7 +973,7 @@ fn compile_call_expression(
                 None
             }
         })
-        .or_else(|| callee_type.to_result_assuming_inferred_ref().err());
+        .or_else(|| callee_type.clone().err());
 
     if let Some(error_preventing_call) = error_preventing_call {
         // Don't call; pop all the arguments and the callee off the stack
@@ -1001,19 +992,17 @@ fn compile_call_expression(
     }
 
     let callee_type = callee_type
-        .to_result_assuming_inferred()
         .map_err(|_| anyhow!("callee type was an error, but that should have been caught above"))?;
 
     match callee_type.as_ref() {
-        OldResolvingLangType::TypeReference(type_reference) => {
+        LangType::TypeReference(type_reference) => {
             // TODO: handle unique types
             type_reference
                 .clone()
-                .to_result_assuming_inferred()
                 .map_err(|_| anyhow!("Callee type is a reference to an error or unique type"))?
                 .pipe(|instance_type| {
                     Ok(match instance_type.as_ref() {
-                        OldResolvingLangType::Instance(instance) => {
+                        LangType::Instance(instance) => {
                             let canonical_type = ctx.canonical_types.get(&instance.type_id).ok_or(
                                 anyhow!("No canonical type found for {:?}", &instance.type_id),
                             )?;
@@ -1023,8 +1012,7 @@ fn compile_call_expression(
                                 Some(&expression.info),
                             );
                         }
-                        OldResolvingLangType::StopgapDictionary
-                        | OldResolvingLangType::StopgapList => {
+                        LangType::StopgapDictionary | LangType::StopgapList => {
                             procedure.write_instruction(
                                 Instruction::Construct(ConstructInstruction {
                                     arity: expression.parameters.len() as u32,
@@ -1036,7 +1024,7 @@ fn compile_call_expression(
                     })
                 })?;
         }
-        OldResolvingLangType::Function(_) => procedure.write_instruction(
+        LangType::Function(_) => procedure.write_instruction(
             Instruction::CallFunction(CallFunctionInstruction {
                 arity: expression.parameters.len() as u32,
             }),
@@ -1090,8 +1078,7 @@ fn compile_pipe_call_expression(
             // if you're trying to construct an object
             let callee_is_construct = callee_type
                 .clone()
-                .to_result_assuming_inferred()
-                .map(|it| matches!(it.as_ref(), OldResolvingLangType::TypeReference(_)))
+                .map(|it| matches!(it.as_ref(), LangType::TypeReference(_)))
                 .unwrap_or(false);
             if callee_is_construct || runtime_errors.as_ref() == &LangError::NotCallable {
                 Some(runtime_errors.clone())
@@ -1099,7 +1086,7 @@ fn compile_pipe_call_expression(
                 None
             }
         })
-        .or_else(|| callee_type.to_result_assuming_inferred_ref().err());
+        .or_else(|| callee_type.clone().err());
 
     if let Some(error_preventing_call) = error_preventing_call {
         // Don't call; pop all the arguments and the callee off the stack
@@ -1118,18 +1105,16 @@ fn compile_pipe_call_expression(
     }
 
     let callee_type = callee_type
-        .to_result_assuming_inferred()
         .map_err(|_| anyhow!("callee type was an error, but that should have been caught above"))?;
 
     match callee_type.as_ref() {
-        OldResolvingLangType::TypeReference(type_reference) => {
+        LangType::TypeReference(type_reference) => {
             // TODO: handle unique types
             let canonical_type = type_reference
                 .clone()
-                .to_result_assuming_inferred()
                 .map_err(|_| anyhow!("Callee type is a reference to an error or unique type"))
                 .and_then(|instance_type| match instance_type.as_ref() {
-                    OldResolvingLangType::Instance(instance) => {
+                    LangType::Instance(instance) => {
                         ctx.canonical_types.get(&instance.type_id).ok_or(anyhow!(
                             "No canonical type found for {:?}",
                             &instance.type_id
@@ -1143,7 +1128,7 @@ fn compile_pipe_call_expression(
                 Some(&expression.info),
             )
         }
-        OldResolvingLangType::Function(_) => procedure.write_instruction(
+        LangType::Function(_) => procedure.write_instruction(
             Instruction::CallFunction(CallFunctionInstruction {
                 arity: (expression.parameters.len() + 1) as u32,
             }),
@@ -1178,14 +1163,14 @@ fn compile_member_expression(
         .value_types
         .get(expression.object_expression.breadcrumbs())
         .ok_or_else(|| anyhow!("No type found for object expression: {:?}", expression.member_identifier.breadcrumbs()))?
-        .as_known()
-        .ok_or_else(|| {
+        .clone()
+        .map_err(|_| {
             anyhow!(
                 "Object expression type is not known (should have been handled by BadValue check)"
             )
         })?
         .pipe(|object_type| {
-            if let OldResolvingLangType::Instance(instance) = object_type.as_ref() {
+            if let LangType::Instance(instance) = object_type.as_ref() {
                 Ok(instance.to_owned())
             } else {
                 Err(anyhow!("Object expression type is not an Instance (should have been handled by BadValue check)"))
@@ -1253,7 +1238,7 @@ fn compile_function_expression(
             .value_types
             .get(expression.breadcrumbs())
             .ok_or_else(|| anyhow!("Type not found for {}", expression.breadcrumbs()))?
-            .to_result_assuming_inferred_ref()
+            .as_ref()
             .map_err(|err| {
                 anyhow!(
                     "Function type must be Known when getting to this codepath - actually was {:?}",
@@ -1398,7 +1383,7 @@ fn compile_branch_expression(
             .get(expression.breadcrumbs())
             .cloned()
             .ok_or(anyhow!("no type found for branch expression"))?;
-        let error = return_type.try_as_error_ref().cloned().unwrap_or_else(|| {
+        let error = return_type.as_ref().err().cloned().unwrap_or_else(|| {
             LangError::MissingElseBranch(MissingElseBranchError { options: None }).pipe(Arc::new)
         });
         let error_const = procedure.add_constant(CompiledConstant::Error(ErrorConst {
@@ -1412,16 +1397,15 @@ fn compile_branch_expression(
 
         // If we're supposed to return an Action or NeverContinues, then this should be an immediate error
         // because the BadValue has nowhere to go
-        let return_one_of = OneOfOldResolvingLangType::new_with_one(return_type.into());
+        let return_one_of = OneOfLangType::new_with_one(return_type.into());
         let should_report_error = return_one_of.options.len() == 0
             || return_one_of.options.iter().all(|option| {
-                matches!(option, OldResolvingType::InferenceVariable(_))
-                    || matches!(option, OldResolvingType::Error(_))
+                matches!(option, Err(_))
                     || option
-                        .try_as_known_ref()
+                        .as_ref()
                         .map(|option| {
-                            matches!(option.as_ref(), OldResolvingLangType::Action)
-                                || matches!(option.as_ref(), OldResolvingLangType::NeverContinues)
+                            matches!(option.as_ref(), LangType::Action)
+                                || matches!(option.as_ref(), LangType::NeverContinues)
                         })
                         .unwrap_or(false)
             });

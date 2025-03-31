@@ -1,4 +1,4 @@
-use crate::error_types::LangError;
+use crate::error_types::{ConstraintUsedAsValueError, LangError};
 use anyhow::anyhow;
 use serde::{
     de::{self},
@@ -23,7 +23,35 @@ pub enum PrimitiveLangType {
     Number,
 }
 
+impl LangType {
+    /// If this is a TypeReference, extract the value type
+    pub fn get_referenced_value_type(&self) -> FallibleLangType {
+        match self {
+            LangType::TypeReference(value_type) => value_type.clone(),
+            _ => LangError::ConstraintUsedAsValue(ConstraintUsedAsValueError {
+                r#type: self.to_owned().into(),
+            })
+            .into(),
+        }
+    }
+}
+impl From<LangError> for FallibleLangType {
+    fn from(value: LangError) -> Self {
+        Err(Arc::new(value))
+    }
+}
+
 impl OneOfLangType {
+    pub fn new(options: Vec<FallibleLangType>) -> Self {
+        Self { options }
+    }
+
+    pub fn new_with_one(option: FallibleLangType) -> Self {
+        Self {
+            options: vec![option],
+        }
+    }
+
     pub fn simplify(&self) -> OneOfLangType {
         // TODO
         return self.clone();
