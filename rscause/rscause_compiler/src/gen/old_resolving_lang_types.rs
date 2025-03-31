@@ -50,6 +50,104 @@ pub struct OldResolvingLangParameter {
     pub value_type: AnyOldResolvingLangType,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub enum OldResolvingCanonicalLangType {
+    Object(ObjectOldResolvingCanonicalLangType),
+    Signal(SignalOldResolvingCanonicalLangType),
+}
+impl OldResolvingCanonicalLangType {
+    pub fn type_id(&self) -> CanonicalLangTypeId {
+        match self {
+            Self::Object(object) => object.type_id.clone(),
+            Self::Signal(signal) => signal.type_id.clone(),
+        }
+    }
+    pub fn fields(&self) -> Vec<OldResolvingCanonicalTypeField> {
+        match self {
+            Self::Object(object) => object.fields.clone(),
+            Self::Signal(signal) => signal.fields.clone(),
+        }
+    }
+}
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct OldResolvingCanonicalTypeField {
+    pub name: Arc<String>,
+    pub value_type: AnyOldResolvingLangType,
+}
+
+fn assert_uniqueness_matches(
+    struct_name: &str,
+    type_id: &CanonicalLangTypeId,
+    fields: &[OldResolvingCanonicalTypeField],
+) {
+    let is_unique = fields.is_empty();
+    if type_id.is_unique != is_unique {
+        panic!(
+            "Tried to create {struct_name} with type_id.is_unique={} but fields are {}",
+            is_unique,
+            if fields.is_empty() {
+                "empty"
+            } else {
+                "not empty"
+            }
+        );
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct ObjectOldResolvingCanonicalLangType {
+    pub type_id: CanonicalLangTypeId,
+    pub fields: Vec<OldResolvingCanonicalTypeField>,
+}
+impl ObjectOldResolvingCanonicalLangType {
+    pub fn new(type_id: CanonicalLangTypeId, fields: Vec<OldResolvingCanonicalTypeField>) -> Self {
+        if type_id.category != CanonicalLangTypeCategory::Object {
+            panic!("ObjectOldResolvingCanonicalLangType::new called with non-object type_id");
+        }
+        assert_uniqueness_matches("ObjectOldResolvingCanonicalLangType", &type_id, &fields);
+        Self { type_id, fields }
+    }
+    pub fn type_id(&self) -> &CanonicalLangTypeId {
+        &self.type_id
+    }
+    pub fn fields(&self) -> &[OldResolvingCanonicalTypeField] {
+        &self.fields
+    }
+}
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct SignalOldResolvingCanonicalLangType {
+    pub type_id: CanonicalLangTypeId,
+    pub fields: Vec<OldResolvingCanonicalTypeField>,
+    pub result: AnyOldResolvingLangType,
+}
+
+impl SignalOldResolvingCanonicalLangType {
+    pub fn new(
+        type_id: CanonicalLangTypeId,
+        fields: Vec<OldResolvingCanonicalTypeField>,
+        result: AnyOldResolvingLangType,
+    ) -> Self {
+        if type_id.category != CanonicalLangTypeCategory::Signal {
+            panic!("SignalOldResolvingCanonicalLangType::new called with non-signal type_id");
+        }
+        assert_uniqueness_matches("SignalOldResolvingCanonicalLangType", &type_id, &fields);
+        Self {
+            type_id,
+            fields,
+            result,
+        }
+    }
+    pub fn type_id(&self) -> &CanonicalLangTypeId {
+        &self.type_id
+    }
+    pub fn fields(&self) -> &[OldResolvingCanonicalTypeField] {
+        &self.fields
+    }
+    pub fn result(&self) -> &AnyOldResolvingLangType {
+        &self.result
+    }
+}
+
 
 impl HasInference for OldResolvingLangType {
   fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {

@@ -27,3 +27,101 @@ pub struct {{../prefix}}{{name}} {
     {{/each}}
 }
 {{/each}}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub enum {{prefix}}CanonicalLangType {
+    Object(Object{{prefix}}CanonicalLangType),
+    Signal(Signal{{prefix}}CanonicalLangType),
+}
+impl {{prefix}}CanonicalLangType {
+    pub fn type_id(&self) -> CanonicalLangTypeId {
+        match self {
+            Self::Object(object) => object.type_id.clone(),
+            Self::Signal(signal) => signal.type_id.clone(),
+        }
+    }
+    pub fn fields(&self) -> Vec<{{prefix}}CanonicalTypeField> {
+        match self {
+            Self::Object(object) => object.fields.clone(),
+            Self::Signal(signal) => signal.fields.clone(),
+        }
+    }
+}
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct {{prefix}}CanonicalTypeField {
+    pub name: Arc<String>,
+    pub value_type: {{fallibleType}},
+}
+
+fn assert_uniqueness_matches(
+    struct_name: &str,
+    type_id: &CanonicalLangTypeId,
+    fields: &[{{prefix}}CanonicalTypeField],
+) {
+    let is_unique = fields.is_empty();
+    if type_id.is_unique != is_unique {
+        panic!(
+            "Tried to create {struct_name} with type_id.is_unique={} but fields are {}",
+            is_unique,
+            if fields.is_empty() {
+                "empty"
+            } else {
+                "not empty"
+            }
+        );
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct Object{{prefix}}CanonicalLangType {
+    pub type_id: CanonicalLangTypeId,
+    pub fields: Vec<{{prefix}}CanonicalTypeField>,
+}
+impl Object{{prefix}}CanonicalLangType {
+    pub fn new(type_id: CanonicalLangTypeId, fields: Vec<{{prefix}}CanonicalTypeField>) -> Self {
+        if type_id.category != CanonicalLangTypeCategory::Object {
+            panic!("Object{{prefix}}CanonicalLangType::new called with non-object type_id");
+        }
+        assert_uniqueness_matches("Object{{prefix}}CanonicalLangType", &type_id, &fields);
+        Self { type_id, fields }
+    }
+    pub fn type_id(&self) -> &CanonicalLangTypeId {
+        &self.type_id
+    }
+    pub fn fields(&self) -> &[{{prefix}}CanonicalTypeField] {
+        &self.fields
+    }
+}
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct Signal{{prefix}}CanonicalLangType {
+    pub type_id: CanonicalLangTypeId,
+    pub fields: Vec<{{prefix}}CanonicalTypeField>,
+    pub result: {{fallibleType}},
+}
+
+impl Signal{{prefix}}CanonicalLangType {
+    pub fn new(
+        type_id: CanonicalLangTypeId,
+        fields: Vec<{{prefix}}CanonicalTypeField>,
+        result: {{fallibleType}},
+    ) -> Self {
+        if type_id.category != CanonicalLangTypeCategory::Signal {
+            panic!("Signal{{prefix}}CanonicalLangType::new called with non-signal type_id");
+        }
+        assert_uniqueness_matches("Signal{{prefix}}CanonicalLangType", &type_id, &fields);
+        Self {
+            type_id,
+            fields,
+            result,
+        }
+    }
+    pub fn type_id(&self) -> &CanonicalLangTypeId {
+        &self.type_id
+    }
+    pub fn fields(&self) -> &[{{prefix}}CanonicalTypeField] {
+        &self.fields
+    }
+    pub fn result(&self) -> &{{fallibleType}} {
+        &self.result
+    }
+}

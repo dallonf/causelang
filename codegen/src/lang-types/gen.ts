@@ -32,6 +32,7 @@ async function generateRustLangTypes() {
 
   type LangTypesTemplate = {
     prefix: string;
+    fallibleType: string;
     langTypes: TemplateLangType[];
     complexLangTypes: TemplateComplexLangType[];
     objects: TemplateObjectType[];
@@ -379,6 +380,7 @@ async function generateRustLangTypes() {
 
     return {
       prefix: ctx.prefix,
+      fallibleType: ctx.fallibleType,
       langTypes: templateLangTypes,
       complexLangTypes,
       objects,
