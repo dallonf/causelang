@@ -48,6 +48,7 @@ async function generateRustLangTypes() {
         paramType: string;
         inferenceGetRecursiveInferredTypesExpression: string;
         inferenceFillVariableExpression: string;
+        conversionExpression: string;
       }
   );
 
@@ -62,6 +63,7 @@ async function generateRustLangTypes() {
     name: string;
     type: string;
     inferenceFillVariableExpression: string;
+    conversionExpression: string;
   } & (
     | { hasSubtypes: false }
     | {
@@ -78,6 +80,7 @@ async function generateRustLangTypes() {
   type TemplateObjectLangTypeField = {
     name: string;
     type: string;
+    conversionExpression: string;
   };
 
   function rustTypeExpression(
@@ -184,6 +187,36 @@ async function generateRustLangTypes() {
     }
   }
 
+  function getConversionExpression(
+    fieldRef: string,
+    fieldType: FieldType,
+    ctx: LangTypesTemplateGenerationContext
+  ): string {
+    switch (fieldType.kind) {
+      case "canonicalTypeId":
+      case "string":
+      case "primitiveEnum":
+        return fieldRef;
+      case "langType":
+      case "object":
+        return `${fieldRef}.into()`;
+      case "list":
+        return `${fieldRef}.into_iter().map(|it| ${getConversionExpression(
+          "it",
+          fieldType.type,
+          ctx
+        )}).collect()`;
+      case "optional":
+        return `${fieldRef}.map(|it| ${getConversionExpression(
+          "it",
+          fieldType.type,
+          ctx
+        )})`;
+      default:
+        return fieldType satisfies never;
+    }
+  }
+
   type ObjectFieldType = FieldType & { kind: "object" };
   function discoverObjects(fieldType: FieldType): ObjectFieldType[] {
     switch (fieldType.kind) {
@@ -250,12 +283,24 @@ async function generateRustLangTypes() {
         }
       });
 
+      const conversionExpression = doit((): string => {
+        switch (langType.kind) {
+          case "simple":
+            return getConversionExpression("it", langType.type, ctx);
+          case "complex":
+            return "it.into()";
+          default:
+            return langType satisfies never;
+        }
+      });
+
       return {
         name: langType.name,
         hasParam: true,
         paramType,
         inferenceGetRecursiveInferredTypesExpression,
         inferenceFillVariableExpression,
+        conversionExpression,
       };
     });
 
@@ -284,6 +329,11 @@ async function generateRustLangTypes() {
               return {
                 name: fieldName,
                 type: rustTypeExpression(fieldType, ctx),
+                conversionExpression: getConversionExpression(
+                  `value.${fieldName}`,
+                  fieldType,
+                  ctx
+                ),
                 inferenceFillVariableExpression:
                   getInferenceFillVariableExpression(
                     `self.${fieldName}`,
@@ -317,6 +367,11 @@ async function generateRustLangTypes() {
             ([objectFieldName, objectFieldType]) => ({
               name: objectFieldName,
               type: rustTypeExpression(objectFieldType, ctx),
+              conversionExpression: getConversionExpression(
+                `value.${objectFieldName}`,
+                objectFieldType,
+                ctx
+              ),
             })
           ),
         })

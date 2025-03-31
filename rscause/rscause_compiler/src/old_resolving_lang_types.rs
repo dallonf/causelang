@@ -1,8 +1,7 @@
 use crate::{
     error_types::ValueUsedAsConstraintError,
     lang_types::{
-        self, CanonicalLangTypeCategory, CanonicalLangTypeId, LangType, LangTypeResult,
-        PrimitiveLangType,
+        self, CanonicalLangTypeCategory, CanonicalLangTypeId, LangTypeResult, PrimitiveLangType,
     },
     prelude::*,
 };
@@ -90,6 +89,15 @@ where
 {
     fn from(value: T) -> Self {
         Self::Known(Arc::new(value.into()))
+    }
+}
+impl From<AnyOldResolvingLangType> for lang_types::FallibleLangType {
+    fn from(value: AnyOldResolvingLangType) -> Self {
+        match value {
+            OldResolvingType::Known(known) => Ok(Arc::new(known.as_ref().to_owned().into())),
+            OldResolvingType::Error(lang_error) => Err(lang_error),
+            OldResolvingType::InferenceVariable(_) => Err(Arc::new(LangError::NeverResolved)),
+        }
     }
 }
 impl From<Arc<OldResolvingLangType>> for AnyOldResolvingLangType {
