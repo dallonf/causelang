@@ -575,6 +575,40 @@ impl HasInference for SignalOldResolvingCanonicalLangType {
     }
 }
 
+impl From<OldResolvingCanonicalTypeField> for lang_types::CanonicalTypeField {
+    fn from(value: OldResolvingCanonicalTypeField) -> Self {
+        Self {
+            name: value.name,
+            value_type: value.value_type.into(),
+        }
+    }
+}
+impl From<OldResolvingCanonicalLangType> for lang_types::CanonicalLangType {
+    fn from(value: OldResolvingCanonicalLangType) -> Self {
+        match value {
+            OldResolvingCanonicalLangType::Object(it) => Self::Object(it.into()),
+            OldResolvingCanonicalLangType::Signal(it) => Self::Signal(it.into()),
+        }
+    }
+}
+impl From<ObjectOldResolvingCanonicalLangType> for lang_types::ObjectCanonicalLangType {
+    fn from(value: ObjectOldResolvingCanonicalLangType) -> Self {
+        Self {
+            type_id: value.type_id,
+            fields: value.fields.into_iter().map(|it| it.into()).collect(),
+        }
+    }
+}
+impl From<SignalOldResolvingCanonicalLangType> for lang_types::SignalCanonicalLangType {
+    fn from(value: SignalOldResolvingCanonicalLangType) -> Self {
+        Self {
+            type_id: value.type_id,
+            fields: value.fields.into_iter().map(|it| it.into()).collect(),
+            result: value.result.into(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
