@@ -53,7 +53,7 @@ object CompilerResultRustSerialization {
                 val index = (function["procedure_index"] as JsonPrimitive).int
                 val type = function["function_type"].let functionType@{ inferredFunctionType ->
                     if (inferredFunctionType is JsonObject) {
-                        inferredFunctionType["Known"]?.let {
+                        inferredFunctionType["Ok"]?.let {
                             return@functionType LangTypeRustSerialization.deserializeFunctionValueLangType(
                                 it
                             )

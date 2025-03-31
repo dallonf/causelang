@@ -6,7 +6,7 @@ pub mod error_types;
 pub mod infer_types;
 pub mod instructions;
 pub mod lang_types;
-pub mod old_resolving_lang_types;
+mod old_resolving_lang_types;
 mod prelude;
 pub mod resolve_types;
 pub mod tags;

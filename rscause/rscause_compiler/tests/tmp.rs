@@ -5,7 +5,6 @@ use rscause_compiler::{
     breadcrumbs::Breadcrumbs,
     compile::compile,
     lang_types::{CanonicalLangType, CanonicalLangTypeId},
-    old_resolving_lang_types::OldResolvingCanonicalLangType,
     resolve_types::{resolve_types, ExternalFileDescriptor},
     tags::NodeTag,
 };

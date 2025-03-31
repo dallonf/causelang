@@ -31,7 +31,7 @@ use strum::EnumTryAs;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExternalFileDescriptor {
-    pub exports: HashMap<Arc<String>, Arc<OldResolvingLangType>>,
+    pub exports: HashMap<Arc<String>, Arc<lang_types::LangType>>,
 }
 
 #[derive(Debug, Clone)]
@@ -809,7 +809,7 @@ impl ResolveTypes for ast::ImportMappingNode {
             });
         Some(
             export
-                .map(|export| OldResolvingType::Known(export.clone()))
+                .map(|export| OldResolvingType::Known(arc_into(export)))
                 .unwrap_or_else(|err| OldResolvingType::Error(err.into())),
         )
     }
