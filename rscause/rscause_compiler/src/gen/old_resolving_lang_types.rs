@@ -13,6 +13,44 @@ pub enum OldResolvingLangType {
   OneOf(OneOfOldResolvingLangType),
   BadValue,
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct InstanceOldResolvingLangType {
+  pub type_id: Arc<CanonicalLangTypeId>,
+}
+impl From<InstanceOldResolvingLangType> for OldResolvingLangType {
+  fn from(value: InstanceOldResolvingLangType) -> Self {
+    Self::Instance(value)
+  }
+}
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct FunctionOldResolvingLangType {
+  pub name: Option<Arc<String>>,
+  pub params: Vec<OldResolvingLangParameter>,
+  pub return_type: AnyOldResolvingLangType,
+}
+impl From<FunctionOldResolvingLangType> for OldResolvingLangType {
+  fn from(value: FunctionOldResolvingLangType) -> Self {
+    Self::Function(value)
+  }
+}
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct OneOfOldResolvingLangType {
+  pub options: Vec<AnyOldResolvingLangType>,
+}
+impl From<OneOfOldResolvingLangType> for OldResolvingLangType {
+  fn from(value: OneOfOldResolvingLangType) -> Self {
+    Self::OneOf(value)
+  }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct OldResolvingLangParameter {
+    pub name: Arc<String>,
+    pub value_type: AnyOldResolvingLangType,
+}
+
+
 impl HasInference for OldResolvingLangType {
   fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
     match self {
@@ -49,15 +87,6 @@ impl HasInference for OldResolvingLangType {
   }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct InstanceOldResolvingLangType {
-  pub type_id: Arc<CanonicalLangTypeId>,
-}
-impl From<InstanceOldResolvingLangType> for OldResolvingLangType {
-  fn from(value: InstanceOldResolvingLangType) -> Self {
-    Self::Instance(value)
-  }
-}
 impl HasInference for InstanceOldResolvingLangType {
   fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
     let mut result = vec![];
@@ -67,17 +96,6 @@ impl HasInference for InstanceOldResolvingLangType {
     return Self {
         type_id: self.type_id.clone(),
     }
-  }
-}
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct FunctionOldResolvingLangType {
-  pub name: Option<Arc<String>>,
-  pub params: Vec<OldResolvingLangParameter>,
-  pub return_type: AnyOldResolvingLangType,
-}
-impl From<FunctionOldResolvingLangType> for OldResolvingLangType {
-  fn from(value: FunctionOldResolvingLangType) -> Self {
-    Self::Function(value)
   }
 }
 impl HasInference for FunctionOldResolvingLangType {
@@ -95,15 +113,6 @@ impl HasInference for FunctionOldResolvingLangType {
     }
   }
 }
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct OneOfOldResolvingLangType {
-  pub options: Vec<AnyOldResolvingLangType>,
-}
-impl From<OneOfOldResolvingLangType> for OldResolvingLangType {
-  fn from(value: OneOfOldResolvingLangType) -> Self {
-    Self::OneOf(value)
-  }
-}
 impl HasInference for OneOfOldResolvingLangType {
   fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
     let mut result = vec![];
@@ -115,10 +124,4 @@ impl HasInference for OneOfOldResolvingLangType {
         options: self.options.iter().map(|it| it.fill_variable(id, value.clone())).collect(),
     }
   }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct OldResolvingLangParameter {
-    pub name: Arc<String>,
-    pub value_type: AnyOldResolvingLangType,
 }

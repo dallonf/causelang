@@ -12,6 +12,10 @@ export async function generateLangTypes() {
 }
 
 async function generateRustLangTypes() {
+  const structsTemplate = await compileTemplate(
+    "_lang_type_structs.rs.handlebars",
+    import.meta.url
+  );
   const oldResolvingTemplate = await compileTemplate(
     "old_resolving_lang_types.rs.handlebars",
     import.meta.url
@@ -27,6 +31,7 @@ async function generateRustLangTypes() {
   };
 
   type LangTypesTemplate = {
+    prefix: string;
     langTypes: TemplateLangType[];
     complexLangTypes: TemplateComplexLangType[];
     objects: TemplateObjectType[];
@@ -47,7 +52,8 @@ async function generateRustLangTypes() {
   );
 
   type TemplateComplexLangType = {
-    name: string;
+    optionName: string;
+    structName: string;
     fields: TemplateComplexLangTypeField[];
     customHashImplementation?: boolean;
   };
@@ -257,7 +263,8 @@ async function generateRustLangTypes() {
       .filter((it) => it.kind === "complex")
       .map((complexLangType): TemplateComplexLangType => {
         return {
-          name: complexLangType.name,
+          structName: `${complexLangType.name}${ctx.prefix}LangType`,
+          optionName: complexLangType.name,
           customHashImplementation: complexLangType.customHashImplementation,
           fields: Object.entries(complexLangType.fields).map(
             ([fieldName, fieldType]): TemplateComplexLangTypeField => {
@@ -316,31 +323,36 @@ async function generateRustLangTypes() {
       );
 
     return {
+      prefix: ctx.prefix,
       langTypes: templateLangTypes,
       complexLangTypes,
       objects,
     };
   }
 
+  const oldResolvingParams = getTemplateParams(langTypes, {
+    prefix: "OldResolving",
+    fallibleType: "AnyOldResolvingLangType",
+  });
   await Deno.writeTextFile(
     path.join(
       projectRoot,
       "rscause/rscause_compiler/src/gen/old_resolving_lang_types.rs"
     ),
-    oldResolvingTemplate(
-      getTemplateParams(langTypes, {
-        prefix: "OldResolving",
-        fallibleType: "AnyOldResolvingLangType",
-      })
-    )
+    oldResolvingTemplate({
+      ...oldResolvingParams,
+      structs: structsTemplate(oldResolvingParams),
+    })
   );
   await Deno.writeTextFile(
     path.join(projectRoot, "rscause/rscause_compiler/src/gen/lang_types.rs"),
-    generalTemplate(
-      getTemplateParams(langTypes, {
-        prefix: "",
-        fallibleType: "FallibleLangType",
-      })
-    )
+    generalTemplate({
+      structs: structsTemplate(
+        getTemplateParams(langTypes, {
+          prefix: "",
+          fallibleType: "FallibleLangType",
+        })
+      ),
+    })
   );
 }

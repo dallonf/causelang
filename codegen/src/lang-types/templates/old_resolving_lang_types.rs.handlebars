@@ -1,9 +1,5 @@
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
-pub enum OldResolvingLangType {
-  {{#each langTypes}}
-  {{name}}{{#if hasParam}}({{paramType}}){{/if}},
-  {{/each}}
-}
+{{ structs }}
+
 impl HasInference for OldResolvingLangType {
   fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
     match self {
@@ -23,18 +19,7 @@ impl HasInference for OldResolvingLangType {
 }
 
 {{#each complexLangTypes}}
-#[derive(Debug, Clone, Eq, PartialEq,{{#unless customHashImplementation}} Hash,{{/unless}} Serialize, Deserialize)]
-pub struct {{name}}OldResolvingLangType {
-  {{#each fields}}
-  pub {{name}}: {{type}},
-  {{/each}}
-}
-impl From<{{name}}OldResolvingLangType> for OldResolvingLangType {
-  fn from(value: {{name}}OldResolvingLangType) -> Self {
-    Self::{{name}}(value)
-  }
-}
-impl HasInference for {{name}}OldResolvingLangType {
+impl HasInference for {{structName}} {
   fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
     let mut result = vec![];
     {{#each fields}}
@@ -51,14 +36,5 @@ impl HasInference for {{name}}OldResolvingLangType {
       {{/each}}
     }
   }
-}
-{{/each}}
-
-{{#each objects}}
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct OldResolving{{name}} {
-    {{#each fields}}
-    pub {{name}}: {{type}},
-    {{/each}}
 }
 {{/each}}

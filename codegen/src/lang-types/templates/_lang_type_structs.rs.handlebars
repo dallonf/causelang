@@ -1,0 +1,29 @@
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
+pub enum {{prefix}}LangType {
+  {{#each langTypes}}
+  {{name}}{{#if hasParam}}({{paramType}}){{/if}},
+  {{/each}}
+}
+
+{{#each complexLangTypes}}
+#[derive(Debug, Clone, Eq, PartialEq,{{#unless customHashImplementation}} Hash,{{/unless}} Serialize, Deserialize)]
+pub struct {{structName}} {
+  {{#each fields}}
+  pub {{name}}: {{type}},
+  {{/each}}
+}
+impl From<{{structName}}> for {{../prefix}}LangType {
+  fn from(value: {{structName}}) -> Self {
+    Self::{{optionName}}(value)
+  }
+}
+{{/each}}
+
+{{#each objects}}
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct {{../prefix}}{{name}} {
+    {{#each fields}}
+    pub {{name}}: {{type}},
+    {{/each}}
+}
+{{/each}}
