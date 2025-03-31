@@ -2,11 +2,11 @@ package com.dallonf.ktcause.gen
 
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeConstraintValueLangType
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeOptionValueLangType
-import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeOneOfOldResolvingLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeOneOfLangType
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeResolvedValueLangType
 import com.dallonf.ktcause.serialization.LangTypeRustSerialization.deserializeValueLangType
-import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeAnyOldResolvingLangType
-import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeOldResolvingLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeFallibleLangType
+import com.dallonf.ktcause.serialization.LangTypeRustSerialization.serializeLangType
 import com.dallonf.ktcause.serialization.RustSerialization.deserializeSourcePosition
 import com.dallonf.ktcause.serialization.RustSerialization.serializeErrorPosition
 import com.dallonf.ktcause.serialization.RustSerialization.deserializeSourcePositionSource
@@ -187,7 +187,7 @@ object LangErrorRustSerialization {
 
     fun serializeLangErrorMissingElseBranch(errorLangType: ErrorLangType.MissingElseBranch): JsonElement {
         return buildJsonObject {
-            put("options", errorLangType.options?.let { serializeOneOfOldResolvingLangType(it) } ?: JsonNull)
+            put("options", errorLangType.options?.let { serializeOneOfLangType(it) } ?: JsonNull)
         }
     }
     fun deserializeUnreachableBranchErrorLangType(error: JsonElement): ErrorLangType.UnreachableBranch {
@@ -199,7 +199,7 @@ object LangErrorRustSerialization {
 
     fun serializeLangErrorUnreachableBranch(errorLangType: ErrorLangType.UnreachableBranch): JsonElement {
         return buildJsonObject {
-            put("options", errorLangType.options?.let { serializeOneOfOldResolvingLangType(it) } ?: JsonNull)
+            put("options", errorLangType.options?.let { serializeOneOfLangType(it) } ?: JsonNull)
         }
     }
     fun deserializeConstraintUsedAsValueErrorLangType(error: JsonElement): ErrorLangType.ConstraintUsedAsValue {
@@ -211,7 +211,7 @@ object LangErrorRustSerialization {
 
     fun serializeLangErrorConstraintUsedAsValue(errorLangType: ErrorLangType.ConstraintUsedAsValue): JsonElement {
         return buildJsonObject {
-            put("type", serializeOldResolvingLangType(errorLangType.type))
+            put("type", serializeLangType(errorLangType.type))
         }
     }
     fun deserializeValueUsedAsConstraintErrorLangType(error: JsonElement): ErrorLangType.ValueUsedAsConstraint {
@@ -223,7 +223,7 @@ object LangErrorRustSerialization {
 
     fun serializeLangErrorValueUsedAsConstraint(errorLangType: ErrorLangType.ValueUsedAsConstraint): JsonElement {
         return buildJsonObject {
-            put("type", serializeAnyOldResolvingLangType(errorLangType.type))
+            put("type", serializeFallibleLangType(errorLangType.type))
         }
     }
     fun deserializeCompilerBugErrorLangType(error: JsonElement): ErrorLangType.CompilerBug {
@@ -249,8 +249,8 @@ object LangErrorRustSerialization {
 
     fun serializeLangErrorMismatchedType(errorLangType: ErrorLangType.MismatchedType): JsonElement {
         return buildJsonObject {
-            put("expected",  serializeOldResolvingLangType(errorLangType.expected.valueType))
-            put("actual",  serializeOldResolvingLangType(errorLangType.actual))
+            put("expected",  serializeLangType(errorLangType.expected.valueType))
+            put("actual",  serializeLangType(errorLangType.actual))
         }
     }
 
@@ -276,7 +276,7 @@ object LangErrorRustSerialization {
             errorLangType.types?.let { types ->
                 put("types", JsonArray(types.map {
                     buildJsonObject {
-                        put("type", serializeAnyOldResolvingLangType(it.type))
+                        put("type", serializeFallibleLangType(it.type))
                         put("position", serializeSourcePosition(it.position))
                     }
                 }))

@@ -125,7 +125,7 @@ impl AnyOldResolvingLangType {
             .try_as_type_reference_ref()
             .ok_or(
                 LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
-                    r#type: self.clone(),
+                    r#type: self.clone().into(),
                 })
                 .pipe(Arc::new),
             )?
@@ -180,7 +180,7 @@ impl OldResolvingLangType {
         match self {
             OldResolvingLangType::TypeReference(value_type) => value_type.clone(),
             _ => LangError::ConstraintUsedAsValue(ConstraintUsedAsValueError {
-                r#type: self.to_owned(),
+                r#type: self.to_owned().into(),
             })
             .into(),
         }

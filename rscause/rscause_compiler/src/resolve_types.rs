@@ -14,9 +14,10 @@ use crate::infer_types::infer_types;
 use crate::lang_types::PrimitiveLangType;
 use crate::lang_types::{CanonicalLangTypeCategory, CanonicalLangTypeId};
 use crate::old_resolving_lang_types::{
-    AnyOldResolvingLangType, OldResolvingCanonicalLangType, OldResolvingCanonicalTypeField, FunctionOldResolvingLangType,
-    InstanceOldResolvingLangType, ObjectOldResolvingCanonicalLangType, OldResolvingLangParameter,
-    OldResolvingLangType, OldResolvingType, OneOfOldResolvingLangType, SignalOldResolvingCanonicalLangType,
+    AnyOldResolvingLangType, FunctionOldResolvingLangType, InstanceOldResolvingLangType,
+    ObjectOldResolvingCanonicalLangType, OldResolvingCanonicalLangType,
+    OldResolvingCanonicalTypeField, OldResolvingLangParameter, OldResolvingLangType,
+    OldResolvingType, OneOfOldResolvingLangType, SignalOldResolvingCanonicalLangType,
 };
 use crate::prelude::*;
 use crate::tags::NodeTag;
@@ -113,8 +114,8 @@ pub fn resolve_types(
                             vec![ResolverError::new(
                                 source_position,
                                 LangError::MismatchedType(MismatchedTypeError {
-                                    expected: expected_type.as_ref().clone(),
-                                    actual: actual_type,
+                                    expected: expected_type.as_ref().clone().into(),
+                                    actual: Arc::new(actual_type.as_ref().to_owned().into()),
                                 }),
                             )]
                         } else {
@@ -130,8 +131,8 @@ pub fn resolve_types(
                             vec![ResolverError::new(
                                 source_position,
                                 LangError::MismatchedType(MismatchedTypeError {
-                                    expected: assignable_to.as_ref().clone(),
-                                    actual: implicit_value.clone(),
+                                    expected: assignable_to.as_ref().clone().into(),
+                                    actual: Arc::new(implicit_value.as_ref().to_owned().into()),
                                 }),
                             )]
                         } else {
@@ -148,7 +149,7 @@ pub fn resolve_types(
                         vec![ResolverError::new(
                             source_position,
                             LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
-                                r#type: AnyOldResolvingLangType::Known(actual_type.clone()),
+                                r#type: Ok(Arc::new(actual_type.as_ref().to_owned().into())),
                             }),
                         )]
                     }
@@ -272,11 +273,14 @@ pub fn resolve_types(
                                         non_action_returns
                                             .into_iter()
                                             .map(|it| ActionIncompatibleWithValueTypesValueType {
-                                                r#type: it
+                                                r#type: Arc::new(it
                                                     .result
                                                     .try_as_known_ref()
                                                     .expect(&format!("should be a Known type (already filtered above), but found {:?}", &it.result))
-                                                    .to_owned(),
+                                                    .as_ref()
+                                                    .to_owned()
+                                                    .into()
+                                                ),
                                                 position: ctx.get_source_position_for_breadcrumbs(
                                                     &it.breadcrumbs,
                                                 ),
@@ -660,7 +664,7 @@ impl ResolveTypes for AnyAstNode {
                     .and_then(|referenced_type| match referenced_type.as_ref() {
                         OldResolvingLangType::TypeReference(it) => it.clone(),
                         _ => LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
-                            r#type: OldResolvingType::Known(referenced_type),
+                            r#type: Ok(Arc::new(referenced_type.as_ref().to_owned().into())),
                         })
                         .into(),
                     });
@@ -1085,7 +1089,9 @@ impl ResolveTypes for ast::CauseExpressionNode {
                 .into(),
             )
             .and_then(|canonical_type| match canonical_type.as_ref() {
-                OldResolvingCanonicalLangType::Signal(signal_type) => Ok(signal_type.result().clone()),
+                OldResolvingCanonicalLangType::Signal(signal_type) => {
+                    Ok(signal_type.result().clone())
+                }
                 _ => Err(LangError::NotCausable.into()),
             })
             .unwrap_or_else(|err: Arc<LangError>| OldResolvingType::Error(err.into()));
@@ -1346,7 +1352,7 @@ impl ResolveTypes for ast::NamedValueNode {
                     }
                     _ => Err(
                         LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
-                            r#type: AnyOldResolvingLangType::Known(annotated_type.clone()),
+                            r#type: Ok(Arc::new(annotated_type.as_ref().to_owned().into())),
                         })
                         .pipe(Arc::new),
                     ),

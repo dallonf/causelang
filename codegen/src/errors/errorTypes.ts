@@ -53,12 +53,12 @@ export const errorTypes: ErrorTypeDeclaration[] = [
     manualMapping: true,
     fields: {
       expected: diverged({
-        rust: "old_resolving_lang_types::OldResolvingLangType",
+        rust: "lang_types::LangType",
         kotlin: "ConstraintValueLangType",
       }),
       actual: arc(
         diverged({
-          rust: "old_resolving_lang_types::OldResolvingLangType",
+          rust: "lang_types::LangType",
           kotlin: "ResolvedValueLangType",
         })
       ),
@@ -84,7 +84,7 @@ export const errorTypes: ErrorTypeDeclaration[] = [
     fields: {
       options: optional(
         diverged({
-          rust: "old_resolving_lang_types::OneOfOldResolvingLangType",
+          rust: "lang_types::OneOfLangType",
           kotlin: "OptionValueLangType",
         })
       ),
@@ -95,7 +95,7 @@ export const errorTypes: ErrorTypeDeclaration[] = [
     fields: {
       options: optional(
         diverged({
-          rust: "old_resolving_lang_types::OneOfOldResolvingLangType",
+          rust: "lang_types::OneOfLangType",
           kotlin: "OptionValueLangType",
         })
       ),
@@ -122,7 +122,7 @@ export const errorTypes: ErrorTypeDeclaration[] = [
     name: "ConstraintUsedAsValue",
     fields: {
       type: diverged({
-        rust: "old_resolving_lang_types::OldResolvingLangType",
+        rust: "lang_types::LangType",
         kotlin: "ConstraintValueLangType",
       }),
     },
@@ -131,7 +131,7 @@ export const errorTypes: ErrorTypeDeclaration[] = [
     name: "ValueUsedAsConstraint",
     fields: {
       type: diverged({
-        rust: "old_resolving_lang_types::AnyOldResolvingLangType",
+        rust: "lang_types::FallibleLangType",
         kotlin: "ValueLangType",
       }),
     },

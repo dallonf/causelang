@@ -131,7 +131,9 @@ pub fn infer_types(ctx: &mut ResolveTypesContext) {
                             else {
                                 break 'result TypeConstraint::EqualTo(OldResolvingType::Error(
                                     LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
-                                        r#type: known_reference.clone().into(),
+                                        r#type: Ok(Arc::new(
+                                            known_reference.as_ref().to_owned().into(),
+                                        )),
                                     })
                                     .into(),
                                 ));

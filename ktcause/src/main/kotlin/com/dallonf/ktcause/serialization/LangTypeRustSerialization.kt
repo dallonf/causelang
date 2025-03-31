@@ -8,17 +8,17 @@ import kotlinx.serialization.json.*
 object LangTypeRustSerialization {
 
     // Type Mapping Notes:
-    //  kt ValueLangType -> rs AnyOldResolvingLangType
-    //  kt ResolvedValueLangType -> rs OldResolvingLangType
-    //  kt OptionValueLangType -> rs OneOfOldResolvingLangType
+    //  kt ValueLangType -> rs FallibleLangType
+    //  kt ResolvedValueLangType -> rs LangType
+    //  kt OptionValueLangType -> rs OneOfLangType
     //  kt ConstraintValueLangType -> rs LangType::TypeReference
 
 
-    fun serializeOldResolvingLangType(resolvedValueLangType: ResolvedValueLangType): JsonElement {
+    fun serializeLangType(resolvedValueLangType: ResolvedValueLangType): JsonElement {
         return when (resolvedValueLangType) {
             is ConstraintValueLangType -> buildJsonObject {
                 put(
-                    "TypeReference", serializeAnyOldResolvingLangType(resolvedValueLangType.valueType)
+                    "TypeReference", serializeFallibleLangType(resolvedValueLangType.valueType)
                 )
             }
 
@@ -41,7 +41,7 @@ object LangTypeRustSerialization {
             is AnySignalValueLangType -> JsonPrimitive("AnySignal")
 
             is OptionValueLangType -> buildJsonObject {
-                put("OneOf", serializeOneOfOldResolvingLangType(resolvedValueLangType))
+                put("OneOf", serializeOneOfLangType(resolvedValueLangType))
             }
 
             is StopgapDictionaryLangType -> JsonPrimitive("StopgapDictionary")
@@ -113,14 +113,14 @@ object LangTypeRustSerialization {
     }
 
 
-    fun serializeAnyOldResolvingLangType(valueLangType: ValueLangType): JsonElement {
+    fun serializeFallibleLangType(valueLangType: ValueLangType): JsonElement {
         return when (valueLangType) {
             is ResolvedValueLangType -> buildJsonObject {
-                put("Known", serializeOldResolvingLangType(valueLangType))
+                put("Ok", serializeLangType(valueLangType))
             }
 
             is ErrorLangType -> buildJsonObject {
-                put("Error", serializeLangError(valueLangType))
+                put("Err", serializeLangError(valueLangType))
             }
 
             ValueLangType.Pending -> throw AssertionError("Can't serialize a Kotlin Pending type")
@@ -129,20 +129,16 @@ object LangTypeRustSerialization {
 
     fun deserializeValueLangType(anyInferredLangType: JsonElement): ValueLangType {
         if (anyInferredLangType is JsonObject) {
-            anyInferredLangType["Known"]?.let {
+            anyInferredLangType["Ok"]?.let {
                 return deserializeResolvedValueLangType(it)
             }
 
-            anyInferredLangType["Error"]?.let {
+            anyInferredLangType["Err"]?.let {
                 return LangErrorRustSerialization.deserializeErrorLangType(it)
-            }
-
-            anyInferredLangType["InferenceVariable"]?.let {
-                return ValueLangType.Pending
             }
         }
 
-        throw AssertionError("Unrecognized AnyInferredLangType: $anyInferredLangType")
+        throw AssertionError("Unrecognized FallibleLangType: $anyInferredLangType")
     }
 
 
@@ -164,7 +160,7 @@ object LangTypeRustSerialization {
         return buildJsonObject {
             put("name", functionValueLangType.name)
             put("params", functionValueLangType.params.map { serializeLangParam(it) }.let { JsonArray(it) })
-            put("return_type", serializeAnyOldResolvingLangType(functionValueLangType.returnConstraint.asValueType()))
+            put("return_type", serializeFallibleLangType(functionValueLangType.returnConstraint.asValueType()))
         }
     }
 
@@ -180,7 +176,7 @@ object LangTypeRustSerialization {
     fun serializeLangParam(langParameter: LangParameter): JsonElement {
         return buildJsonObject {
             put("name", langParameter.name)
-            put("value_type", serializeAnyOldResolvingLangType(langParameter.valueConstraint.asValueType()))
+            put("value_type", serializeFallibleLangType(langParameter.valueConstraint.asValueType()))
         }
     }
 
@@ -212,11 +208,11 @@ object LangTypeRustSerialization {
         throw AssertionError("Unrecognized primitive lang type: $primitiveLangType")
     }
 
-    fun serializeOneOfOldResolvingLangType(optionValueLangType: OptionValueLangType): JsonElement {
+    fun serializeOneOfLangType(optionValueLangType: OptionValueLangType): JsonElement {
         return buildJsonObject {
             put(
                 "options",
-                optionValueLangType.options.map { serializeAnyOldResolvingLangType(it.asValueType()) }
+                optionValueLangType.options.map { serializeFallibleLangType(it.asValueType()) }
                     .let { JsonArray(it) })
         }
     }
@@ -309,7 +305,7 @@ object LangTypeRustSerialization {
         fun serializeField(objectField: CanonicalLangType.ObjectField): JsonElement {
             return buildJsonObject {
                 put("name", objectField.name)
-                put("value_type", serializeAnyOldResolvingLangType(objectField.valueConstraint.asValueType()))
+                put("value_type", serializeFallibleLangType(objectField.valueConstraint.asValueType()))
             }
         }
 
@@ -329,7 +325,7 @@ object LangTypeRustSerialization {
                     put("fields", type.fields.map { serializeField(it) }.let {
                         JsonArray(it)
                     })
-                    put("result", serializeAnyOldResolvingLangType(type.result.asValueType()))
+                    put("result", serializeFallibleLangType(type.result.asValueType()))
                 })
             }
         }

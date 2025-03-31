@@ -38,8 +38,8 @@ pub struct ImplementationTodoError {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MismatchedTypeError {
-    pub expected: old_resolving_lang_types::OldResolvingLangType,
-    pub actual: Arc<old_resolving_lang_types::OldResolvingLangType>,
+    pub expected: lang_types::LangType,
+    pub actual: Arc<lang_types::LangType>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MissingParametersError {
@@ -51,11 +51,11 @@ pub struct ExcessParametersError {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MissingElseBranchError {
-    pub options: Option<old_resolving_lang_types::OneOfOldResolvingLangType>,
+    pub options: Option<lang_types::OneOfLangType>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct UnreachableBranchError {
-    pub options: Option<old_resolving_lang_types::OneOfOldResolvingLangType>,
+    pub options: Option<lang_types::OneOfLangType>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ActionIncompatibleWithValueTypesError {
@@ -64,11 +64,11 @@ pub struct ActionIncompatibleWithValueTypesError {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ConstraintUsedAsValueError {
-    pub r#type: old_resolving_lang_types::OldResolvingLangType,
+    pub r#type: lang_types::LangType,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ValueUsedAsConstraintError {
-    pub r#type: old_resolving_lang_types::AnyOldResolvingLangType,
+    pub r#type: lang_types::FallibleLangType,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CompilerBugError {
@@ -77,7 +77,7 @@ pub struct CompilerBugError {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ActionIncompatibleWithValueTypesValueType {
-    pub r#type: Arc<old_resolving_lang_types::OldResolvingLangType>,
+    pub r#type: Arc<lang_types::LangType>,
     pub position: SourcePosition,
 }
 

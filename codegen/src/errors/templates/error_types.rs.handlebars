@@ -18,7 +18,7 @@ pub struct {{name}}Error {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ActionIncompatibleWithValueTypesValueType {
-    pub r#type: Arc<old_resolving_lang_types::OldResolvingLangType>,
+    pub r#type: Arc<lang_types::LangType>,
     pub position: SourcePosition,
 }
 
