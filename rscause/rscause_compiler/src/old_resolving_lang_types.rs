@@ -1,7 +1,8 @@
 use crate::{
     error_types::ValueUsedAsConstraintError,
     lang_types::{
-        CanonicalLangTypeCategory, CanonicalLangTypeId, LangTypeResult, PrimitiveLangType,
+        self, CanonicalLangTypeCategory, CanonicalLangTypeId, LangType, LangTypeResult,
+        PrimitiveLangType,
     },
     prelude::*,
 };
