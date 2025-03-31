@@ -100,6 +100,14 @@ impl From<AnyOldResolvingLangType> for lang_types::FallibleLangType {
         }
     }
 }
+impl From<lang_types::FallibleLangType> for AnyOldResolvingLangType {
+    fn from(value: lang_types::FallibleLangType) -> Self {
+        match value {
+            Ok(known) => OldResolvingType::Known(Arc::new(known.as_ref().to_owned().into())),
+            Err(err) => OldResolvingType::Error(err),
+        }
+    }
+}
 impl From<Arc<OldResolvingLangType>> for AnyOldResolvingLangType {
     fn from(value: Arc<OldResolvingLangType>) -> Self {
         Self::Known(value)

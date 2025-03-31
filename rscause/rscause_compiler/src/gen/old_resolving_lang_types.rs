@@ -104,6 +104,24 @@ impl From<OldResolvingLangType> for lang_types::LangType {
     }
   }
 }
+impl From<lang_types::LangType> for OldResolvingLangType {
+  fn from(value: lang_types::LangType) -> Self {
+    match value {
+        lang_types::LangType::TypeReference(it) => OldResolvingLangType::TypeReference(it.into()),
+        lang_types::LangType::Instance(it) => OldResolvingLangType::Instance(it.into()),
+        lang_types::LangType::Function(it) => OldResolvingLangType::Function(it.into()),
+        lang_types::LangType::Primitive(it) => OldResolvingLangType::Primitive(it),
+        lang_types::LangType::StopgapDictionary => OldResolvingLangType::StopgapDictionary,
+        lang_types::LangType::StopgapList => OldResolvingLangType::StopgapList,
+        lang_types::LangType::Action => OldResolvingLangType::Action,
+        lang_types::LangType::Anything => OldResolvingLangType::Anything,
+        lang_types::LangType::AnySignal => OldResolvingLangType::AnySignal,
+        lang_types::LangType::NeverContinues => OldResolvingLangType::NeverContinues,
+        lang_types::LangType::OneOf(it) => OldResolvingLangType::OneOf(it.into()),
+        lang_types::LangType::BadValue => OldResolvingLangType::BadValue,
+    }
+  }
+}
 
 impl HasInference for InstanceOldResolvingLangType {
   fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
@@ -119,6 +137,13 @@ impl HasInference for InstanceOldResolvingLangType {
 impl From<InstanceOldResolvingLangType> for lang_types::InstanceLangType {
   fn from(value: InstanceOldResolvingLangType) -> Self {
     lang_types::InstanceLangType {
+      type_id: value.type_id,
+    }
+  }
+}
+impl From<lang_types::InstanceLangType> for InstanceOldResolvingLangType {
+  fn from(value: lang_types::InstanceLangType) -> Self {
+    InstanceOldResolvingLangType {
       type_id: value.type_id,
     }
   }
@@ -147,6 +172,15 @@ impl From<FunctionOldResolvingLangType> for lang_types::FunctionLangType {
     }
   }
 }
+impl From<lang_types::FunctionLangType> for FunctionOldResolvingLangType {
+  fn from(value: lang_types::FunctionLangType) -> Self {
+    FunctionOldResolvingLangType {
+      name: value.name.map(|it| it),
+      params: value.params.into_iter().map(|it| it.into()).collect(),
+      return_type: value.return_type.into(),
+    }
+  }
+}
 impl HasInference for OneOfOldResolvingLangType {
   fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
     let mut result = vec![];
@@ -166,10 +200,25 @@ impl From<OneOfOldResolvingLangType> for lang_types::OneOfLangType {
     }
   }
 }
+impl From<lang_types::OneOfLangType> for OneOfOldResolvingLangType {
+  fn from(value: lang_types::OneOfLangType) -> Self {
+    OneOfOldResolvingLangType {
+      options: value.options.into_iter().map(|it| it.into()).collect(),
+    }
+  }
+}
 
 impl From<OldResolvingLangParameter> for lang_types::LangParameter {
   fn from(value: OldResolvingLangParameter) -> Self {
     lang_types::LangParameter {
+      name: value.name,
+      value_type: value.value_type.into(),
+    }
+  }
+}
+impl From<lang_types::LangParameter> for OldResolvingLangParameter {
+  fn from(value: lang_types::LangParameter) -> Self {
+    OldResolvingLangParameter {
       name: value.name,
       value_type: value.value_type.into(),
     }
