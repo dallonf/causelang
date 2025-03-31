@@ -5,7 +5,7 @@ use rscause_compiler::{
     breadcrumbs::Breadcrumbs,
     compile::compile,
     lang_types::CanonicalLangTypeId,
-    old_resolving_lang_types::CanonicalLangType,
+    old_resolving_lang_types::OldResolvingCanonicalLangType,
     resolve_types::{resolve_types, ExternalFileDescriptor},
     tags::NodeTag,
 };
@@ -17,7 +17,7 @@ fn test_tmp() {
     let ast: Arc<FileNode> = serde_json::from_str(include_str!("fixtures/tmp/ast.json")).unwrap();
     let node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>> =
         serde_json::from_str(include_str!("fixtures/tmp/tags.json")).unwrap();
-    let canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>> =
+    let canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>> =
         serde_json::from_str(include_str!("fixtures/tmp/canonical_types.json")).unwrap();
     let external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>> =
         serde_json::from_str(include_str!("fixtures/tmp/external_files.json")).unwrap();

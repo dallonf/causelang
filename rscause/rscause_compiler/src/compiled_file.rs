@@ -9,14 +9,14 @@ use crate::error_types::{ErrorPosition, LangError};
 use crate::instructions::{Instruction, InstructionPhase};
 use crate::lang_types::CanonicalLangTypeId;
 use crate::old_resolving_lang_types::{
-    AnyOldResolvingLangType, CanonicalLangType, FunctionOldResolvingLangType, OldResolvingLangType,
+    AnyOldResolvingLangType, OldResolvingCanonicalLangType, FunctionOldResolvingLangType, OldResolvingLangType,
     OldResolvingType,
 };
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CompiledFile {
     pub path: Arc<String>,
-    pub types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
+    pub types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>>,
     pub procedures: Vec<Procedure>,
     pub exports: HashMap<Arc<String>, CompiledExport>,
 }

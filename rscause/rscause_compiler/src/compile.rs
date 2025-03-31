@@ -33,7 +33,7 @@ use crate::{
         CompiledExport, CompiledFile, FunctionProcedureIdentity, Procedure, ProcedureIdentity,
     },
     lang_types::CanonicalLangTypeId,
-    old_resolving_lang_types::{CanonicalLangType, OldResolvingLangType, OldResolvingType},
+    old_resolving_lang_types::{OldResolvingCanonicalLangType, OldResolvingLangType, OldResolvingType},
     resolve_types::ResolveTypesResult,
     tags::NodeTag,
 };
@@ -52,7 +52,7 @@ struct CompilerContext {
     procedures: Vec<Procedure>,
     types: Arc<ResolveTypesResult>,
     constraint_errors: Arc<HashMap<Breadcrumbs, Vec<LangError>>>,
-    canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
+    canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>,
     scope_stack: VecDeque<Rc<RefCell<CompilerScope>>>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
 }
@@ -279,7 +279,7 @@ pub fn compile(
     path: Arc<String>,
     ast: &ast::FileNode,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
-    canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
+    canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>>,
     types: Arc<ResolveTypesResult>,
 ) -> Result<CompiledFile> {
     let constraint_errors = {

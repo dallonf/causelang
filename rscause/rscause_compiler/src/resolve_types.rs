@@ -14,9 +14,9 @@ use crate::infer_types::infer_types;
 use crate::lang_types::PrimitiveLangType;
 use crate::lang_types::{CanonicalLangTypeCategory, CanonicalLangTypeId};
 use crate::old_resolving_lang_types::{
-    AnyOldResolvingLangType, CanonicalLangType, CanonicalTypeField, FunctionOldResolvingLangType,
-    InstanceOldResolvingLangType, ObjectCanonicalLangType, OldResolvingLangParameter,
-    OldResolvingLangType, OldResolvingType, OneOfOldResolvingLangType, SignalCanonicalLangType,
+    AnyOldResolvingLangType, OldResolvingCanonicalLangType, OldResolvingCanonicalTypeField, FunctionOldResolvingLangType,
+    InstanceOldResolvingLangType, ObjectOldResolvingCanonicalLangType, OldResolvingLangParameter,
+    OldResolvingLangType, OldResolvingType, OneOfOldResolvingLangType, SignalOldResolvingCanonicalLangType,
 };
 use crate::prelude::*;
 use crate::tags::NodeTag;
@@ -37,7 +37,7 @@ pub struct ExternalFileDescriptor {
 pub struct ResolveTypesResult {
     pub value_types: HashMap<Breadcrumbs, AnyOldResolvingLangType>,
     pub errors: Vec<ResolverError>,
-    pub new_canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
+    pub new_canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -58,7 +58,7 @@ pub fn resolve_types(
     path: Arc<String>,
     file: Arc<ast::FileNode>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
-    canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
+    canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 ) -> ResolveTypesResult {
     let mut ctx = ResolveTypesContext::new(
@@ -442,7 +442,7 @@ pub enum ConstraintDiagnostic {
 pub struct ResolveTypesContext {
     pub file_path: Arc<String>,
     pub root_node: Arc<ast::FileNode>,
-    pub canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
+    pub canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>>,
     pub node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     pub external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 
@@ -451,14 +451,14 @@ pub struct ResolveTypesContext {
     pub constraints: Vec<(u64, TypeConstraint, ConstraintDiagnostic)>,
     pub edicts: Vec<TypeEdict>,
     pub next_inference_variable: u64,
-    pub new_canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>,
+    pub new_canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>,
 }
 
 impl ResolveTypesContext {
     fn new(
         file_path: Arc<String>,
         root_node: Arc<ast::FileNode>,
-        canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
+        canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>>,
         node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
         external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
     ) -> Self {
@@ -579,7 +579,7 @@ impl ResolveTypesContext {
     pub fn get_canonical_type(
         &self,
         type_id: &CanonicalLangTypeId,
-    ) -> Option<Arc<CanonicalLangType>> {
+    ) -> Option<Arc<OldResolvingCanonicalLangType>> {
         self.new_canonical_types
             .get(type_id)
             .cloned()
@@ -971,7 +971,7 @@ impl ResolveTypes for ast::EffectStatementNode {
                                 instance.type_id.to_string()
                             )))
                             .and_then(|canonical_type| match canonical_type.as_ref() {
-                                CanonicalLangType::Signal(signal) => Ok(signal.clone()),
+                                OldResolvingCanonicalLangType::Signal(signal) => Ok(signal.clone()),
                                 _ => Err(LangError::NotCausable),
                             })
                             .map(|signal| signal.result().clone());
@@ -1085,7 +1085,7 @@ impl ResolveTypes for ast::CauseExpressionNode {
                 .into(),
             )
             .and_then(|canonical_type| match canonical_type.as_ref() {
-                CanonicalLangType::Signal(signal_type) => Ok(signal_type.result().clone()),
+                OldResolvingCanonicalLangType::Signal(signal_type) => Ok(signal_type.result().clone()),
                 _ => Err(LangError::NotCausable.into()),
             })
             .unwrap_or_else(|err: Arc<LangError>| OldResolvingType::Error(err.into()));
@@ -1389,7 +1389,7 @@ impl ResolveTypes for ast::ObjectTypeNode {
             .iter()
             .map(|field| {
                 let field_type = ctx.get_resolved_type_proxying_errors(field);
-                CanonicalTypeField {
+                OldResolvingCanonicalTypeField {
                     name: field.name.text.clone(),
                     value_type: field_type,
                 }
@@ -1406,7 +1406,7 @@ impl ResolveTypes for ast::ObjectTypeNode {
 
         ctx.new_canonical_types.insert(
             id.clone(),
-            CanonicalLangType::Object(ObjectCanonicalLangType {
+            OldResolvingCanonicalLangType::Object(ObjectOldResolvingCanonicalLangType {
                 type_id: id.as_ref().to_owned(),
                 fields,
             })
@@ -1444,7 +1444,7 @@ impl ResolveTypes for ast::SignalTypeNode {
             .iter()
             .map(|field| {
                 let field_type = ctx.get_resolved_type_proxying_errors(field);
-                CanonicalTypeField {
+                OldResolvingCanonicalTypeField {
                     name: field.name.text.clone(),
                     value_type: field_type,
                 }
@@ -1470,7 +1470,7 @@ impl ResolveTypes for ast::SignalTypeNode {
 
         ctx.new_canonical_types.insert(
             id.clone(),
-            CanonicalLangType::Signal(SignalCanonicalLangType {
+            OldResolvingCanonicalLangType::Signal(SignalOldResolvingCanonicalLangType {
                 type_id: id.as_ref().to_owned(),
                 fields,
                 result: result_type,

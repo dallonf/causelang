@@ -10,7 +10,7 @@ use rscause_compiler::breadcrumbs::Breadcrumbs;
 use rscause_compiler::compile::compile;
 use rscause_compiler::compiled_file::CompiledFile;
 use rscause_compiler::lang_types::CanonicalLangTypeId;
-use rscause_compiler::old_resolving_lang_types::CanonicalLangType;
+use rscause_compiler::old_resolving_lang_types::OldResolvingCanonicalLangType;
 use rscause_compiler::resolve_types::{resolve_types, ExternalFileDescriptor, ResolverError};
 use rscause_compiler::tags::NodeTag;
 use serde::Serialize;
@@ -35,7 +35,7 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local
 
         let ast: Arc<FileNode> = strict_transfer_jstring(&mut env, &jni_ast_json)?
             .pipe(|it| serde_json::from_str(&it))?;
-        let canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>> =
+        let canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<OldResolvingCanonicalLangType>>> =
             strict_transfer_jstring(&mut env, &jni_canonical_types_json)?
                 .pipe(|it| serde_json::from_str(&it))?;
         let external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>> =

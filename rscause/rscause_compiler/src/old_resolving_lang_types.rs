@@ -483,39 +483,39 @@ impl Hash for OneOfOldResolvingLangType {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub enum CanonicalLangType {
-    Object(ObjectCanonicalLangType),
-    Signal(SignalCanonicalLangType),
+pub enum OldResolvingCanonicalLangType {
+    Object(ObjectOldResolvingCanonicalLangType),
+    Signal(SignalOldResolvingCanonicalLangType),
 }
-impl CanonicalLangType {
+impl OldResolvingCanonicalLangType {
     pub fn type_id(&self) -> CanonicalLangTypeId {
         match self {
             Self::Object(object) => object.type_id.clone(),
             Self::Signal(signal) => signal.type_id.clone(),
         }
     }
-    pub fn fields(&self) -> Vec<CanonicalTypeField> {
+    pub fn fields(&self) -> Vec<OldResolvingCanonicalTypeField> {
         match self {
             Self::Object(object) => object.fields.clone(),
             Self::Signal(signal) => signal.fields.clone(),
         }
     }
 }
-impl HasInference for CanonicalLangType {
+impl HasInference for OldResolvingCanonicalLangType {
     fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
         match self {
-            CanonicalLangType::Object(object) => object.recursive_inferred_types(),
-            CanonicalLangType::Signal(signal) => signal.recursive_inferred_types(),
+            OldResolvingCanonicalLangType::Object(object) => object.recursive_inferred_types(),
+            OldResolvingCanonicalLangType::Signal(signal) => signal.recursive_inferred_types(),
         }
     }
 
     fn fill_variable(&self, id: u64, value: AnyOldResolvingLangType) -> Self {
         match self {
-            CanonicalLangType::Object(object) => {
-                CanonicalLangType::Object(object.fill_variable(id, value))
+            OldResolvingCanonicalLangType::Object(object) => {
+                OldResolvingCanonicalLangType::Object(object.fill_variable(id, value))
             }
-            CanonicalLangType::Signal(signal) => {
-                CanonicalLangType::Signal(signal.fill_variable(id, value))
+            OldResolvingCanonicalLangType::Signal(signal) => {
+                OldResolvingCanonicalLangType::Signal(signal.fill_variable(id, value))
             }
         }
     }
@@ -524,7 +524,7 @@ impl HasInference for CanonicalLangType {
 fn assert_uniqueness_matches(
     struct_name: &str,
     type_id: &CanonicalLangTypeId,
-    fields: &[CanonicalTypeField],
+    fields: &[OldResolvingCanonicalTypeField],
 ) {
     let is_unique = fields.is_empty();
     if type_id.is_unique != is_unique {
@@ -541,17 +541,17 @@ fn assert_uniqueness_matches(
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct ObjectCanonicalLangType {
+pub struct ObjectOldResolvingCanonicalLangType {
     pub type_id: CanonicalLangTypeId,
-    pub fields: Vec<CanonicalTypeField>,
+    pub fields: Vec<OldResolvingCanonicalTypeField>,
 }
 
-impl ObjectCanonicalLangType {
-    pub fn new(type_id: CanonicalLangTypeId, fields: Vec<CanonicalTypeField>) -> Self {
+impl ObjectOldResolvingCanonicalLangType {
+    pub fn new(type_id: CanonicalLangTypeId, fields: Vec<OldResolvingCanonicalTypeField>) -> Self {
         if type_id.category != CanonicalLangTypeCategory::Object {
-            panic!("ObjectCanonicalLangType::new called with non-object type_id");
+            panic!("ObjectOldResolvingCanonicalLangType::new called with non-object type_id");
         }
-        assert_uniqueness_matches("ObjectCanonicalLangType", &type_id, &fields);
+        assert_uniqueness_matches("ObjectOldResolvingCanonicalLangType", &type_id, &fields);
         Self { type_id, fields }
     }
 
@@ -559,11 +559,11 @@ impl ObjectCanonicalLangType {
         &self.type_id
     }
 
-    pub fn fields(&self) -> &[CanonicalTypeField] {
+    pub fn fields(&self) -> &[OldResolvingCanonicalTypeField] {
         &self.fields
     }
 }
-impl HasInference for ObjectCanonicalLangType {
+impl HasInference for ObjectOldResolvingCanonicalLangType {
     fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
         return self
             .fields
@@ -576,7 +576,7 @@ impl HasInference for ObjectCanonicalLangType {
         let fields = self
             .fields
             .iter()
-            .map(|it| CanonicalTypeField {
+            .map(|it| OldResolvingCanonicalTypeField {
                 name: it.name.clone(),
                 value_type: it.value_type.fill_variable(id, value.clone()),
             })
@@ -589,22 +589,22 @@ impl HasInference for ObjectCanonicalLangType {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct SignalCanonicalLangType {
+pub struct SignalOldResolvingCanonicalLangType {
     pub type_id: CanonicalLangTypeId,
-    pub fields: Vec<CanonicalTypeField>,
+    pub fields: Vec<OldResolvingCanonicalTypeField>,
     pub result: AnyOldResolvingLangType,
 }
 
-impl SignalCanonicalLangType {
+impl SignalOldResolvingCanonicalLangType {
     pub fn new(
         type_id: CanonicalLangTypeId,
-        fields: Vec<CanonicalTypeField>,
+        fields: Vec<OldResolvingCanonicalTypeField>,
         result: AnyOldResolvingLangType,
     ) -> Self {
         if type_id.category != CanonicalLangTypeCategory::Signal {
-            panic!("SignalCanonicalLangType::new called with non-signal type_id");
+            panic!("SignalOldResolvingCanonicalLangType::new called with non-signal type_id");
         }
-        assert_uniqueness_matches("SignalCanonicalLangType", &type_id, &fields);
+        assert_uniqueness_matches("SignalOldResolvingCanonicalLangType", &type_id, &fields);
         Self {
             type_id,
             fields,
@@ -614,14 +614,14 @@ impl SignalCanonicalLangType {
     pub fn type_id(&self) -> &CanonicalLangTypeId {
         &self.type_id
     }
-    pub fn fields(&self) -> &[CanonicalTypeField] {
+    pub fn fields(&self) -> &[OldResolvingCanonicalTypeField] {
         &self.fields
     }
     pub fn result(&self) -> &AnyOldResolvingLangType {
         &self.result
     }
 }
-impl HasInference for SignalCanonicalLangType {
+impl HasInference for SignalOldResolvingCanonicalLangType {
     fn recursive_inferred_types(&self) -> Vec<AnyOldResolvingLangType> {
         let mut result = vec![];
         result.append(
@@ -639,7 +639,7 @@ impl HasInference for SignalCanonicalLangType {
         let fields = self
             .fields
             .iter()
-            .map(|it| CanonicalTypeField {
+            .map(|it| OldResolvingCanonicalTypeField {
                 name: it.name.clone(),
                 value_type: it.value_type.fill_variable(id, value.clone()),
             })
@@ -654,7 +654,7 @@ impl HasInference for SignalCanonicalLangType {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct CanonicalTypeField {
+pub struct OldResolvingCanonicalTypeField {
     pub name: Arc<String>,
     pub value_type: AnyOldResolvingLangType,
 }
