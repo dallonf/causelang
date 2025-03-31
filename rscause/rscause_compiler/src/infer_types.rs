@@ -13,7 +13,7 @@ use crate::{
     error_types::{
         CompilerBugError, ErrorPosition, LangError, SourcePosition, ValueUsedAsConstraintError,
     },
-    lang_types::{
+    old_resolving_lang_types::{
         AnyOldResolvingLangType, AnyOldResolvingLangTypeResult, HasInference, OldResolvingLangType,
         OldResolvingType, OneOfOldResolvingLangType,
     },

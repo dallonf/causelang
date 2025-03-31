@@ -11,56 +11,59 @@ export async function generateLangTypes() {
   await Promise.all([generateRustLangTypes()]);
 }
 
-type LangTypesTemplate = {
-  langTypes: TemplateLangType[];
-  complexLangTypes: TemplateComplexLangType[];
-  objects: TemplateObjectType[];
-};
-
-type TemplateLangType = {
-  name: string;
-} & (
-  | {
-      hasParam: false;
-    }
-  | {
-      hasParam: true;
-      paramType: string;
-      inferenceGetRecursiveInferredTypesExpression: string;
-      inferenceFillVariableExpression: string;
-    }
-);
-
-type TemplateComplexLangType = {
-  name: string;
-  fields: TemplateComplexLangTypeField[];
-  customHashImplementation?: boolean;
-};
-
-type TemplateComplexLangTypeField = {
-  name: string;
-  type: string;
-  inferenceFillVariableExpression: string;
-} & (
-  | { hasSubtypes: false }
-  | { hasSubtypes: true; inferenceGetRecursiveInferredTypesExpression: string }
-);
-
-type TemplateObjectType = {
-  name: string;
-  fields: TemplateObjectLangTypeField[];
-};
-
-type TemplateObjectLangTypeField = {
-  name: string;
-  type: string;
-};
-
 async function generateRustLangTypes() {
-  const template = await compileTemplate(
-    "lang_types.rs.handlebars",
+  const oldResolvingTemplate = await compileTemplate(
+    "old_resolving_lang_types.rs.handlebars",
     import.meta.url
   );
+
+  type LangTypesTemplate = {
+    langTypes: TemplateLangType[];
+    complexLangTypes: TemplateComplexLangType[];
+    objects: TemplateObjectType[];
+  };
+
+  type TemplateLangType = {
+    name: string;
+  } & (
+    | {
+        hasParam: false;
+      }
+    | {
+        hasParam: true;
+        paramType: string;
+        inferenceGetRecursiveInferredTypesExpression: string;
+        inferenceFillVariableExpression: string;
+      }
+  );
+
+  type TemplateComplexLangType = {
+    name: string;
+    fields: TemplateComplexLangTypeField[];
+    customHashImplementation?: boolean;
+  };
+
+  type TemplateComplexLangTypeField = {
+    name: string;
+    type: string;
+    inferenceFillVariableExpression: string;
+  } & (
+    | { hasSubtypes: false }
+    | {
+        hasSubtypes: true;
+        inferenceGetRecursiveInferredTypesExpression: string;
+      }
+  );
+
+  type TemplateObjectType = {
+    name: string;
+    fields: TemplateObjectLangTypeField[];
+  };
+
+  type TemplateObjectLangTypeField = {
+    name: string;
+    type: string;
+  };
 
   function getRecursiveInferredTypesExpression(
     fieldRef: string,
@@ -270,14 +273,14 @@ async function generateRustLangTypes() {
       })
     );
 
-  const output = template({
+  const output = oldResolvingTemplate({
     langTypes: templateLangTypes,
     complexLangTypes,
     objects,
   } satisfies LangTypesTemplate);
 
   await Deno.writeTextFile(
-    path.join(projectRoot, "rscause/rscause_compiler/src/gen/lang_types.rs"),
+    path.join(projectRoot, "rscause/rscause_compiler/src/gen/old_resolving_lang_types.rs"),
     output
   );
 }

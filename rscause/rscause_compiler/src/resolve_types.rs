@@ -11,11 +11,12 @@ use crate::error_types::{
     ValueUsedAsConstraintError,
 };
 use crate::infer_types::infer_types;
-use crate::lang_types::{
+use crate::lang_types::PrimitiveLangType;
+use crate::old_resolving_lang_types::{
     AnyOldResolvingLangType, CanonicalLangType, CanonicalLangTypeCategory, CanonicalLangTypeId,
     CanonicalTypeField, FunctionOldResolvingLangType, InstanceOldResolvingLangType, LangParameter,
     ObjectCanonicalLangType, OldResolvingLangType, OldResolvingType, OneOfOldResolvingLangType,
-    PrimitiveLangType, SignalCanonicalLangType,
+    SignalCanonicalLangType,
 };
 use crate::prelude::*;
 use crate::tags::NodeTag;

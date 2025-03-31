@@ -3,7 +3,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use strum::EnumTryAs;
 
-use crate::{ast::DocumentRange, breadcrumbs::Breadcrumbs, lang_types};
+use crate::{ast::DocumentRange, breadcrumbs::Breadcrumbs, old_resolving_lang_types};
 
 include!("gen/error_types.rs");
 
