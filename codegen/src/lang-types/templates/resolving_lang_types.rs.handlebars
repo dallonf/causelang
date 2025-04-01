@@ -1,0 +1,62 @@
+{{ structs }}
+
+impl From<ResolvingLangType> for lang_types::LangType {
+  fn from(value: ResolvingLangType) -> Self {
+    match value {
+      {{#each langTypes}}
+        ResolvingLangType::{{name}}{{#if hasParam}}(it) => lang_types::LangType::{{name}}({{conversionExpression}}){{else}} => lang_types::LangType::{{name}}{{/if}},
+      {{/each}}
+    }
+  }
+}
+impl From<lang_types::LangType> for ResolvingLangType {
+  fn from(value: lang_types::LangType) -> Self {
+    match value {
+      {{#each langTypes}}
+        lang_types::LangType::{{name}}{{#if hasParam}}(it) => ResolvingLangType::{{name}}({{conversionExpression}}){{else}} => ResolvingLangType::{{name}}{{/if}},
+      {{/each}}
+    }
+  }
+}
+
+{{#each complexLangTypes}}
+impl From<{{structName}}> for lang_types::{{optionName}}LangType {
+  fn from(value: {{structName}}) -> Self {
+    lang_types::{{optionName}}LangType {
+      {{#each fields}}
+      {{name}}: {{conversionExpression}},
+      {{/each}}
+    }
+  }
+}
+impl From<lang_types::{{optionName}}LangType> for {{structName}} {
+  fn from(value: lang_types::{{optionName}}LangType) -> Self {
+    {{structName}} {
+      {{#each fields}}
+      {{name}}: {{conversionExpression}},
+      {{/each}}
+    }
+  }
+}
+{{/each}}
+
+{{#each objects}}
+impl From<{{../prefix}}{{name}}> for lang_types::{{name}} {
+  fn from(value: {{../prefix}}{{name}}) -> Self {
+    lang_types::{{name}} {
+      {{#each fields}}
+      {{name}}: {{conversionExpression}},
+      {{/each}}
+    }
+  }
+}
+impl From<lang_types::{{name}}> for {{../prefix}}{{name}} {
+  fn from(value: lang_types::{{name}}) -> Self {
+    {{../prefix}}{{name}} {
+      {{#each fields}}
+      {{name}}: {{conversionExpression}},
+      {{/each}}
+    }
+  }
+}
+{{/each}}

@@ -7,5 +7,6 @@ pub mod instructions;
 pub mod lang_types;
 pub mod old_resolver;
 mod prelude;
+pub mod resolver;
 pub mod tags;
 mod util;

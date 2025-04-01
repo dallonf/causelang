@@ -16,12 +16,16 @@ async function generateRustLangTypes() {
     "_lang_type_structs.rs.handlebars",
     import.meta.url
   );
+  const generalTemplate = await compileTemplate(
+    "lang_types.rs.handlebars",
+    import.meta.url
+  );
   const oldResolvingTemplate = await compileTemplate(
     "old_resolving_lang_types.rs.handlebars",
     import.meta.url
   );
-  const generalTemplate = await compileTemplate(
-    "lang_types.rs.handlebars",
+  const resolvingTemplate = await compileTemplate(
+    "resolving_lang_types.rs.handlebars",
     import.meta.url
   );
 
@@ -387,6 +391,17 @@ async function generateRustLangTypes() {
     };
   }
 
+  await Deno.writeTextFile(
+    path.join(projectRoot, "rscause/rscause_compiler/src/gen/lang_types.rs"),
+    generalTemplate({
+      structs: structsTemplate(
+        getTemplateParams(langTypes, {
+          prefix: "",
+          fallibleType: "FallibleLangType",
+        })
+      ),
+    })
+  );
   const oldResolvingParams = getTemplateParams(langTypes, {
     prefix: "OldResolving",
     fallibleType: "AnyOldResolvingLangType",
@@ -401,15 +416,18 @@ async function generateRustLangTypes() {
       structs: structsTemplate(oldResolvingParams),
     })
   );
+  const resolvingParams = getTemplateParams(langTypes, {
+    prefix: "Resolving",
+    fallibleType: "LinkedResolvingLangType",
+  });
   await Deno.writeTextFile(
-    path.join(projectRoot, "rscause/rscause_compiler/src/gen/lang_types.rs"),
-    generalTemplate({
-      structs: structsTemplate(
-        getTemplateParams(langTypes, {
-          prefix: "",
-          fallibleType: "FallibleLangType",
-        })
-      ),
+    path.join(
+      projectRoot,
+      "rscause/rscause_compiler/src/gen/resolving_lang_types.rs"
+    ),
+    resolvingTemplate({
+      ...resolvingParams,
+      structs: structsTemplate(resolvingParams),
     })
   );
 }
