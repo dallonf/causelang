@@ -5,7 +5,7 @@ use rscause_compiler::{
     breadcrumbs::Breadcrumbs,
     compile::compile,
     lang_types::{CanonicalLangType, CanonicalLangTypeId},
-    resolve_types::{resolve_types, ExternalFileDescriptor},
+    old_resolver::resolve_types::{resolve_types, ExternalFileDescriptor},
     tags::NodeTag,
 };
 use tap::Pipe;

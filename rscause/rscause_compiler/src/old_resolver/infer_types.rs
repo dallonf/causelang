@@ -1,18 +1,4 @@
-use std::{
-    cell::RefCell,
-    collections::{HashMap, HashSet},
-    hash::{DefaultHasher, Hash, Hasher},
-    sync::Arc,
-};
-
-use itertools::Itertools;
-use tap::Conv;
-
-use crate::{
-    ast::{AnyAstNode, AstNode},
-    error_types::{
-        CompilerBugError, ErrorPosition, LangError, SourcePosition, ValueUsedAsConstraintError,
-    },
+use super::{
     old_resolving_lang_types::{
         AnyOldResolvingLangType, AnyOldResolvingLangTypeResult, HasInference, OldResolvingLangType,
         OldResolvingType, OneOfOldResolvingLangType,
@@ -23,6 +9,20 @@ use crate::{
         ValidateBranchExpressionTypeEdictBranch,
     },
 };
+use crate::{
+    ast::{AnyAstNode, AstNode},
+    error_types::{
+        CompilerBugError, ErrorPosition, LangError, SourcePosition, ValueUsedAsConstraintError,
+    },
+};
+use itertools::Itertools;
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    hash::{DefaultHasher, Hash, Hasher},
+    sync::Arc,
+};
+use tap::Conv;
 
 pub fn infer_types(ctx: &mut ResolveTypesContext) {
     let mut variables = HashMap::<u64, RefCell<Vec<TypeConstraint>>>::new();

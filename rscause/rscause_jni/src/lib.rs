@@ -10,7 +10,9 @@ use rscause_compiler::breadcrumbs::Breadcrumbs;
 use rscause_compiler::compile::compile;
 use rscause_compiler::compiled_file::CompiledFile;
 use rscause_compiler::lang_types::{CanonicalLangType, CanonicalLangTypeId};
-use rscause_compiler::resolve_types::{resolve_types, ExternalFileDescriptor, ResolverError};
+use rscause_compiler::old_resolver::resolve_types::{
+    resolve_types, ExternalFileDescriptor, ResolverError,
+};
 use rscause_compiler::tags::NodeTag;
 use serde::Serialize;
 use tap::Pipe;

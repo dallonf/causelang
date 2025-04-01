@@ -1,3 +1,10 @@
+use super::infer_types::infer_types;
+use super::old_resolving_lang_types::{
+    AnyOldResolvingLangType, FunctionOldResolvingLangType, InstanceOldResolvingLangType,
+    ObjectOldResolvingCanonicalLangType, OldResolvingCanonicalLangType,
+    OldResolvingCanonicalTypeField, OldResolvingLangParameter, OldResolvingLangType,
+    OldResolvingType, OneOfOldResolvingLangType, SignalOldResolvingCanonicalLangType,
+};
 use crate::ast::{
     self, AnyAstNode, AstNode, BreadcrumbTreeNode, ExpressionNode, FunctionSignatureParameterNode,
     LoopExpressionNode,
@@ -10,14 +17,7 @@ use crate::error_types::{
     MissingElseBranchError, MissingParametersError, SourcePosition, UnreachableBranchError,
     ValueUsedAsConstraintError,
 };
-use crate::infer_types::infer_types;
 use crate::lang_types::{self, CanonicalLangTypeCategory, CanonicalLangTypeId, PrimitiveLangType};
-use crate::old_resolving_lang_types::{
-    AnyOldResolvingLangType, FunctionOldResolvingLangType, InstanceOldResolvingLangType,
-    ObjectOldResolvingCanonicalLangType, OldResolvingCanonicalLangType,
-    OldResolvingCanonicalTypeField, OldResolvingLangParameter, OldResolvingLangType,
-    OldResolvingType, OneOfOldResolvingLangType, SignalOldResolvingCanonicalLangType,
-};
 use crate::prelude::*;
 use crate::tags::NodeTag;
 use crate::util::arc_into;

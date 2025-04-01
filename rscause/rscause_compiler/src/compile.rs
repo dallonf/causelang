@@ -22,9 +22,9 @@ use crate::instructions::{
     ReturnInstruction, StartLoopInstruction, SwapInstruction, WriteLocalInstruction,
     WriteLocalThroughEffectScopeInstruction,
 };
-use crate::lang_types::{CanonicalLangType, LangType, LangTypeResult, OneOfLangType};
+use crate::lang_types::{CanonicalLangType, LangType, OneOfLangType};
+use crate::old_resolver::resolve_types::ResolverError;
 use crate::prelude::*;
-use crate::resolve_types::ResolverError;
 use crate::tags::{ReferencesFileNodeTag, TopLevelDeclarationNodeTag};
 use crate::{
     ast,
@@ -33,7 +33,7 @@ use crate::{
         CompiledExport, CompiledFile, FunctionProcedureIdentity, Procedure, ProcedureIdentity,
     },
     lang_types::CanonicalLangTypeId,
-    resolve_types::ResolveTypesResult,
+    old_resolver::resolve_types::ResolveTypesResult,
     tags::NodeTag,
 };
 use crate::{find_tag, find_tags};

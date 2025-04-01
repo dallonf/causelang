@@ -15,7 +15,7 @@ use strum::EnumTryAs;
 
 use crate::error_types::{ConstraintUsedAsValueError, LangError};
 
-include!("gen/old_resolving_lang_types.rs");
+include!("../gen/old_resolving_lang_types.rs");
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
 pub enum OldResolvingType<T> {

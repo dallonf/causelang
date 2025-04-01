@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use rscause_compiler::resolve_types::resolve_types;
+use rscause_compiler::old_resolver::resolve_types::resolve_types;
 
 #[test]
 fn test_hello_world() {
