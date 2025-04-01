@@ -1,1 +1,1 @@
-mod resolving_types;
+mod resolving_lang_types;

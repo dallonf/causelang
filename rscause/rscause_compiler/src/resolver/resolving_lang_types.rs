@@ -5,6 +5,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{
     hash::{Hash, Hasher},
+    rc::{Rc, Weak},
     sync::Arc,
 };
 use strum::EnumTryAs;
@@ -12,8 +13,17 @@ use strum::EnumTryAs;
 include!("../gen/resolving_lang_types.rs");
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct LinkedResolvingLangType {
+pub struct LinkedResolvingLangType(Rc<ResolvingLangTypeValue>);
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct ResolvingLangTypeValue {
     // TODO
+    // source (id/breadcrumb/unknown [maybe import?])
+    // value
+    // - rc (weak?)
+    // - refcell
+    // - one of:
+    //   - known
+    //   - list of constraints
 }
 impl From<LinkedResolvingLangType> for lang_types::FallibleLangType {
     fn from(value: LinkedResolvingLangType) -> Self {
