@@ -148,13 +148,34 @@ impl SignalResolvingCanonicalLangType {
     }
 }
 
-
-impl From<ResolvingLangType> for lang_types::LangType {
-  fn from(value: ResolvingLangType) -> Self {
+impl ResolvingLangType {
+  pub fn import_type(
+    ctx: &mut ResolvingLangTypesContext,
+    value: lang_types::LangType,
+  ) -> anyhow::Result<Self> {
     match value {
-        ResolvingLangType::TypeReference(it) => lang_types::LangType::TypeReference(it.into()),
-        ResolvingLangType::Instance(it) => lang_types::LangType::Instance(it.into()),
-        ResolvingLangType::Function(it) => lang_types::LangType::Function(it.into()),
+      lang_types::LangType::TypeReference(it) => ResolvingLangType::TypeReference(LinkedResolvingLangType::import_type(ctx, it)?),
+      lang_types::LangType::Instance(it) => ResolvingLangType::Instance(InstanceResolvingLangType::import_type(ctx, it)?),
+      lang_types::LangType::Function(it) => ResolvingLangType::Function(FunctionResolvingLangType::import_type(ctx, it)?),
+      lang_types::LangType::Primitive(it) => ResolvingLangType::Primitive(it),
+      lang_types::LangType::StopgapDictionary => ResolvingLangType::StopgapDictionary,
+      lang_types::LangType::StopgapList => ResolvingLangType::StopgapList,
+      lang_types::LangType::Action => ResolvingLangType::Action,
+      lang_types::LangType::Anything => ResolvingLangType::Anything,
+      lang_types::LangType::AnySignal => ResolvingLangType::AnySignal,
+      lang_types::LangType::NeverContinues => ResolvingLangType::NeverContinues,
+      lang_types::LangType::OneOf(it) => ResolvingLangType::OneOf(OneOfResolvingLangType::import_type(ctx, it)?),
+      lang_types::LangType::BadValue => ResolvingLangType::BadValue,
+    }.pipe(Ok)
+  }
+}
+impl TryFrom<ResolvingLangType> for lang_types::LangType {
+  type Error = anyhow::Error;
+  fn try_from(value: ResolvingLangType) -> Result<Self, Self::Error> {
+    match value {
+        ResolvingLangType::TypeReference(it) => lang_types::LangType::TypeReference(it.try_into()?),
+        ResolvingLangType::Instance(it) => lang_types::LangType::Instance(it.try_into()?),
+        ResolvingLangType::Function(it) => lang_types::LangType::Function(it.try_into()?),
         ResolvingLangType::Primitive(it) => lang_types::LangType::Primitive(it),
         ResolvingLangType::StopgapDictionary => lang_types::LangType::StopgapDictionary,
         ResolvingLangType::StopgapList => lang_types::LangType::StopgapList,
@@ -162,90 +183,88 @@ impl From<ResolvingLangType> for lang_types::LangType {
         ResolvingLangType::Anything => lang_types::LangType::Anything,
         ResolvingLangType::AnySignal => lang_types::LangType::AnySignal,
         ResolvingLangType::NeverContinues => lang_types::LangType::NeverContinues,
-        ResolvingLangType::OneOf(it) => lang_types::LangType::OneOf(it.into()),
+        ResolvingLangType::OneOf(it) => lang_types::LangType::OneOf(it.try_into()?),
         ResolvingLangType::BadValue => lang_types::LangType::BadValue,
-    }
-  }
-}
-impl From<lang_types::LangType> for ResolvingLangType {
-  fn from(value: lang_types::LangType) -> Self {
-    match value {
-        lang_types::LangType::TypeReference(it) => ResolvingLangType::TypeReference(it.into()),
-        lang_types::LangType::Instance(it) => ResolvingLangType::Instance(it.into()),
-        lang_types::LangType::Function(it) => ResolvingLangType::Function(it.into()),
-        lang_types::LangType::Primitive(it) => ResolvingLangType::Primitive(it),
-        lang_types::LangType::StopgapDictionary => ResolvingLangType::StopgapDictionary,
-        lang_types::LangType::StopgapList => ResolvingLangType::StopgapList,
-        lang_types::LangType::Action => ResolvingLangType::Action,
-        lang_types::LangType::Anything => ResolvingLangType::Anything,
-        lang_types::LangType::AnySignal => ResolvingLangType::AnySignal,
-        lang_types::LangType::NeverContinues => ResolvingLangType::NeverContinues,
-        lang_types::LangType::OneOf(it) => ResolvingLangType::OneOf(it.into()),
-        lang_types::LangType::BadValue => ResolvingLangType::BadValue,
-    }
+    }.pipe(Ok)
   }
 }
 
-impl From<InstanceResolvingLangType> for lang_types::InstanceLangType {
-  fn from(value: InstanceResolvingLangType) -> Self {
-    lang_types::InstanceLangType {
+impl InstanceResolvingLangType {
+  pub fn import_type(
+    ctx: &mut ResolvingLangTypesContext,
+    value: lang_types::InstanceLangType,
+  ) -> anyhow::Result<Self> {
+    Ok(InstanceResolvingLangType {
       type_id: value.type_id,
-    }
+    })
   }
 }
-impl From<lang_types::InstanceLangType> for InstanceResolvingLangType {
-  fn from(value: lang_types::InstanceLangType) -> Self {
-    InstanceResolvingLangType {
+impl TryFrom<InstanceResolvingLangType> for lang_types::InstanceLangType {
+  type Error = anyhow::Error;
+  fn try_from(value: InstanceResolvingLangType) -> Result<Self, Self::Error> {
+    Ok(lang_types::InstanceLangType {
       type_id: value.type_id,
-    }
+    })
   }
 }
-impl From<FunctionResolvingLangType> for lang_types::FunctionLangType {
-  fn from(value: FunctionResolvingLangType) -> Self {
-    lang_types::FunctionLangType {
+impl FunctionResolvingLangType {
+  pub fn import_type(
+    ctx: &mut ResolvingLangTypesContext,
+    value: lang_types::FunctionLangType,
+  ) -> anyhow::Result<Self> {
+    Ok(FunctionResolvingLangType {
+      name: value.name.map(|it| -> Result<_, anyhow::Error> { Ok(it) }).transpose()?,
+      params: value.params.into_iter().map(|it| Ok(ResolvingLangParameter::import_type(ctx, it)?)).collect::<Result<Vec<_>, anyhow::Error>>()?,
+      return_type: LinkedResolvingLangType::import_type(ctx, value.return_type)?,
+    })
+  }
+}
+impl TryFrom<FunctionResolvingLangType> for lang_types::FunctionLangType {
+  type Error = anyhow::Error;
+  fn try_from(value: FunctionResolvingLangType) -> Result<Self, Self::Error> {
+    Ok(lang_types::FunctionLangType {
       name: value.name.map(|it| it),
-      params: value.params.into_iter().map(|it| it.into()).collect(),
-      return_type: value.return_type.into(),
-    }
+      params: value.params.into_iter().map(|it| Ok(it.try_into()?)).collect::<Result<Vec<lang_types::LangParameter>, anyhow::Error>>()?,
+      return_type: value.return_type.try_into()?,
+    })
   }
 }
-impl From<lang_types::FunctionLangType> for FunctionResolvingLangType {
-  fn from(value: lang_types::FunctionLangType) -> Self {
-    FunctionResolvingLangType {
-      name: value.name.map(|it| it),
-      params: value.params.into_iter().map(|it| it.into()).collect(),
-      return_type: value.return_type.into(),
-    }
+impl OneOfResolvingLangType {
+  pub fn import_type(
+    ctx: &mut ResolvingLangTypesContext,
+    value: lang_types::OneOfLangType,
+  ) -> anyhow::Result<Self> {
+    Ok(OneOfResolvingLangType {
+      options: value.options.into_iter().map(|it| Ok(LinkedResolvingLangType::import_type(ctx, it)?)).collect::<Result<Vec<_>, anyhow::Error>>()?,
+    })
   }
 }
-impl From<OneOfResolvingLangType> for lang_types::OneOfLangType {
-  fn from(value: OneOfResolvingLangType) -> Self {
-    lang_types::OneOfLangType {
-      options: value.options.into_iter().map(|it| it.into()).collect(),
-    }
-  }
-}
-impl From<lang_types::OneOfLangType> for OneOfResolvingLangType {
-  fn from(value: lang_types::OneOfLangType) -> Self {
-    OneOfResolvingLangType {
-      options: value.options.into_iter().map(|it| it.into()).collect(),
-    }
+impl TryFrom<OneOfResolvingLangType> for lang_types::OneOfLangType {
+  type Error = anyhow::Error;
+  fn try_from(value: OneOfResolvingLangType) -> Result<Self, Self::Error> {
+    Ok(lang_types::OneOfLangType {
+      options: value.options.into_iter().map(|it| Ok(it.try_into()?)).collect::<Result<Vec<lang_types::FallibleLangType>, anyhow::Error>>()?,
+    })
   }
 }
 
-impl From<ResolvingLangParameter> for lang_types::LangParameter {
-  fn from(value: ResolvingLangParameter) -> Self {
-    lang_types::LangParameter {
+impl ResolvingLangParameter {
+  pub fn import_type(
+    ctx: &mut ResolvingLangTypesContext,
+    value: lang_types::LangParameter,
+  ) -> anyhow::Result<Self> {
+    Ok(ResolvingLangParameter {
       name: value.name,
-      value_type: value.value_type.into(),
-    }
+      value_type: LinkedResolvingLangType::import_type(ctx, value.value_type)?,
+    })
   }
 }
-impl From<lang_types::LangParameter> for ResolvingLangParameter {
-  fn from(value: lang_types::LangParameter) -> Self {
-    ResolvingLangParameter {
+impl TryFrom<ResolvingLangParameter> for lang_types::LangParameter {
+  type Error = anyhow::Error;
+  fn try_from(value: ResolvingLangParameter) -> Result<Self, Self::Error> {
+    Ok(lang_types::LangParameter {
       name: value.name,
-      value_type: value.value_type.into(),
-    }
+      value_type: value.value_type.try_into()?,
+    })
   }
 }

@@ -43,6 +43,10 @@ async function generateRustLangTypes() {
     prefix: string;
     fallibleType: string;
     excludeDerives?: string[];
+    /**
+     * If true, will generate conversion expressions with try_into() instead of into()
+     */
+    tryFrom?: boolean;
   };
 
   type LangTypesTemplate = {
@@ -67,6 +71,7 @@ async function generateRustLangTypes() {
         inferenceGetRecursiveInferredTypesExpression: string;
         inferenceFillVariableExpression: string;
         conversionExpression: string;
+        importExpression: string;
       }
   );
 
@@ -83,6 +88,7 @@ async function generateRustLangTypes() {
     type: string;
     inferenceFillVariableExpression: string;
     conversionExpression: string;
+    importExpression: string;
   } & (
     | { hasSubtypes: false }
     | {
@@ -101,6 +107,7 @@ async function generateRustLangTypes() {
     name: string;
     type: string;
     conversionExpression: string;
+    importExpression: string;
   };
 
   function makeDerivesAttribute({
@@ -235,19 +242,72 @@ async function generateRustLangTypes() {
         return fieldRef;
       case "langType":
       case "object":
-        return `${fieldRef}.into()`;
+        if (ctx.tryFrom) {
+          return `${fieldRef}.try_into()?`;
+        } else {
+          return `${fieldRef}.into()`;
+        }
       case "list":
-        return `${fieldRef}.into_iter().map(|it| ${getConversionExpression(
-          "it",
-          fieldType.type,
-          ctx
-        )}).collect()`;
+        if (ctx.tryFrom) {
+          // TODO: unsafe assumption: this will only ever be used to convert
+          // from ResolvingLangType to resolved LangType
+          const otherName = doit(() => {
+            return rustTypeExpression(fieldType.type, {
+              ...ctx,
+              fallibleType: "lang_types::FallibleLangType",
+              prefix: "lang_types::",
+            });
+          });
+
+          return `${fieldRef}.into_iter().map(|it| Ok(${getConversionExpression(
+            "it",
+            fieldType.type,
+            ctx
+          )})).collect::<Result<Vec<${otherName}>, anyhow::Error>>()?`;
+        } else {
+          return `${fieldRef}.into_iter().map(|it| ${getConversionExpression(
+            "it",
+            fieldType.type,
+            ctx
+          )}).collect()`;
+        }
       case "optional":
         return `${fieldRef}.map(|it| ${getConversionExpression(
           "it",
           fieldType.type,
           ctx
         )})`;
+      default:
+        return fieldType satisfies never;
+    }
+  }
+
+  function getImportExpression(
+    fieldRef: string,
+    fieldType: FieldType,
+    ctx: LangTypesTemplateGenerationContext
+  ): string {
+    switch (fieldType.kind) {
+      case "canonicalTypeId":
+      case "primitiveEnum":
+      case "string":
+        return `${fieldRef}`;
+      case "langType":
+        return `${ctx.fallibleType}::import_type(ctx, ${fieldRef})?`;
+      case "list":
+        return `${fieldRef}.into_iter().map(|it| Ok(${getImportExpression(
+          "it",
+          fieldType.type,
+          ctx
+        )})).collect::<Result<Vec<_>, anyhow::Error>>()?`;
+      case "object":
+        return `${ctx.prefix}${fieldType.name}::import_type(ctx, ${fieldRef})?`;
+      case "optional":
+        return `${fieldRef}.map(|it| -> Result<_, anyhow::Error> { Ok(${getImportExpression(
+          "it",
+          fieldType.type,
+          ctx
+        )}) }).transpose()?`;
       default:
         return fieldType satisfies never;
     }
@@ -324,7 +384,22 @@ async function generateRustLangTypes() {
           case "simple":
             return getConversionExpression("it", langType.type, ctx);
           case "complex":
-            return "it.into()";
+            if (ctx.tryFrom) {
+              return "it.try_into()?";
+            } else {
+              return "it.into()";
+            }
+          default:
+            return langType satisfies never;
+        }
+      });
+
+      const importExpression = doit((): string => {
+        switch (langType.kind) {
+          case "simple":
+            return getImportExpression("it", langType.type, ctx);
+          case "complex":
+            return `${langType.name}${ctx.prefix}LangType::import_type(ctx, it)?`;
           default:
             return langType satisfies never;
         }
@@ -337,6 +412,7 @@ async function generateRustLangTypes() {
         inferenceGetRecursiveInferredTypesExpression,
         inferenceFillVariableExpression,
         conversionExpression,
+        importExpression,
       };
     });
 
@@ -369,6 +445,11 @@ async function generateRustLangTypes() {
                 name: fieldName,
                 type: rustTypeExpression(fieldType, ctx),
                 conversionExpression: getConversionExpression(
+                  `value.${fieldName}`,
+                  fieldType,
+                  ctx
+                ),
+                importExpression: getImportExpression(
                   `value.${fieldName}`,
                   fieldType,
                   ctx
@@ -408,6 +489,11 @@ async function generateRustLangTypes() {
               name: objectFieldName,
               type: rustTypeExpression(objectFieldType, ctx),
               conversionExpression: getConversionExpression(
+                `value.${objectFieldName}`,
+                objectFieldType,
+                ctx
+              ),
+              importExpression: getImportExpression(
                 `value.${objectFieldName}`,
                 objectFieldType,
                 ctx
@@ -460,6 +546,7 @@ async function generateRustLangTypes() {
     prefix: "Resolving",
     fallibleType: "LinkedResolvingLangType",
     excludeDerives: ["Eq", "PartialEq", "Hash", "Serialize", "Deserialize"],
+    tryFrom: true,
   });
   await Deno.writeTextFile(
     path.join(
