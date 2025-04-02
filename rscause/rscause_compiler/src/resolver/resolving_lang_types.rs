@@ -12,9 +12,9 @@ use strum::EnumTryAs;
 
 include!("../gen/resolving_lang_types.rs");
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct LinkedResolvingLangType(Rc<ResolvingLangTypeValue>);
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
+pub struct LinkedResolvingLangType(Weak<ResolvingLangTypeValue>);
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct ResolvingLangTypeValue {
     // TODO
     // source (id/breadcrumb/unknown [maybe import?])
@@ -45,15 +45,5 @@ impl OneOfResolvingLangType {
         Self {
             options: vec![option],
         }
-    }
-
-    pub fn simplify(&self) -> OneOfResolvingLangType {
-        // TODO
-        return self.clone();
-    }
-}
-impl Hash for OneOfResolvingLangType {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.simplify().options.hash(state);
     }
 }

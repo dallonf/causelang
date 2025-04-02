@@ -29,14 +29,27 @@ async function generateRustLangTypes() {
     import.meta.url
   );
 
+  const DEFAULT_DERIVES = [
+    "Debug",
+    "Clone",
+    "Eq",
+    "PartialEq",
+    "Hash",
+    "Serialize",
+    "Deserialize",
+  ];
+
   type LangTypesTemplateGenerationContext = {
     prefix: string;
     fallibleType: string;
+    excludeDerives?: string[];
   };
 
   type LangTypesTemplate = {
     prefix: string;
     fallibleType: string;
+    structDerivesAttribute: string;
+    enumDerivesAttribute: string;
     langTypes: TemplateLangType[];
     complexLangTypes: TemplateComplexLangType[];
     objects: TemplateObjectType[];
@@ -60,6 +73,7 @@ async function generateRustLangTypes() {
   type TemplateComplexLangType = {
     optionName: string;
     structName: string;
+    derivesAttribute: string;
     fields: TemplateComplexLangTypeField[];
     customHashImplementation?: boolean;
   };
@@ -79,6 +93,7 @@ async function generateRustLangTypes() {
 
   type TemplateObjectType = {
     name: string;
+    derivesAttribute: string;
     fields: TemplateObjectLangTypeField[];
   };
 
@@ -87,6 +102,22 @@ async function generateRustLangTypes() {
     type: string;
     conversionExpression: string;
   };
+
+  function makeDerivesAttribute({
+    excludes,
+    additions,
+    ctx,
+  }: {
+    excludes?: string[];
+    additions?: string[];
+    ctx: LangTypesTemplateGenerationContext;
+  }): string {
+    const allExcludes = new Set(excludes).union(new Set(ctx.excludeDerives));
+    const allIncluded = DEFAULT_DERIVES.concat(...(additions ?? [])).filter(
+      (it) => !allExcludes.has(it)
+    );
+    return `#[derive(${allIncluded.join(", ")})]`;
+  }
 
   function rustTypeExpression(
     fieldType: FieldType,
@@ -314,8 +345,11 @@ async function generateRustLangTypes() {
       .map((complexLangType): TemplateComplexLangType => {
         return {
           structName: `${complexLangType.name}${ctx.prefix}LangType`,
+          derivesAttribute: makeDerivesAttribute({
+            excludes: complexLangType.excludeDerives,
+            ctx,
+          }),
           optionName: complexLangType.name,
-          customHashImplementation: complexLangType.customHashImplementation,
           fields: Object.entries(complexLangType.fields).map(
             ([fieldName, fieldType]): TemplateComplexLangTypeField => {
               const hasSubtypes = getTypeHasSubtypes(fieldType);
@@ -368,6 +402,7 @@ async function generateRustLangTypes() {
       .map(
         (objectType): TemplateObjectType => ({
           name: objectType.name,
+          derivesAttribute: makeDerivesAttribute({ ctx }),
           fields: Object.entries(objectType.fields).map(
             ([objectFieldName, objectFieldType]) => ({
               name: objectFieldName,
@@ -385,6 +420,11 @@ async function generateRustLangTypes() {
     return {
       prefix: ctx.prefix,
       fallibleType: ctx.fallibleType,
+      structDerivesAttribute: makeDerivesAttribute({ ctx }),
+      enumDerivesAttribute: makeDerivesAttribute({
+        additions: ["EnumTryAs"],
+        ctx,
+      }),
       langTypes: templateLangTypes,
       complexLangTypes,
       objects,
@@ -419,6 +459,7 @@ async function generateRustLangTypes() {
   const resolvingParams = getTemplateParams(langTypes, {
     prefix: "Resolving",
     fallibleType: "LinkedResolvingLangType",
+    excludeDerives: ["Eq", "PartialEq", "Hash", "Serialize", "Deserialize"],
   });
   await Deno.writeTextFile(
     path.join(

@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
+#[derive(Debug, Clone, EnumTryAs)]
 pub enum ResolvingLangType {
   TypeReference(LinkedResolvingLangType),
   Instance(InstanceResolvingLangType),
@@ -14,7 +14,7 @@ pub enum ResolvingLangType {
   BadValue,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct InstanceResolvingLangType {
   pub type_id: Arc<CanonicalLangTypeId>,
 }
@@ -23,7 +23,7 @@ impl From<InstanceResolvingLangType> for ResolvingLangType {
     Self::Instance(value)
   }
 }
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct FunctionResolvingLangType {
   pub name: Option<Arc<String>>,
   pub params: Vec<ResolvingLangParameter>,
@@ -34,7 +34,7 @@ impl From<FunctionResolvingLangType> for ResolvingLangType {
     Self::Function(value)
   }
 }
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct OneOfResolvingLangType {
   pub options: Vec<LinkedResolvingLangType>,
 }
@@ -44,13 +44,13 @@ impl From<OneOfResolvingLangType> for ResolvingLangType {
   }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ResolvingLangParameter {
     pub name: Arc<String>,
     pub value_type: LinkedResolvingLangType,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, EnumTryAs)]
 pub enum ResolvingCanonicalLangType {
     Object(ObjectResolvingCanonicalLangType),
     Signal(SignalResolvingCanonicalLangType),
@@ -69,7 +69,7 @@ impl ResolvingCanonicalLangType {
         }
     }
 }
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ResolvingCanonicalTypeField {
     pub name: Arc<String>,
     pub value_type: LinkedResolvingLangType,
@@ -94,7 +94,7 @@ fn assert_uniqueness_matches(
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ObjectResolvingCanonicalLangType {
     pub type_id: CanonicalLangTypeId,
     pub fields: Vec<ResolvingCanonicalTypeField>,
@@ -114,7 +114,7 @@ impl ObjectResolvingCanonicalLangType {
         &self.fields
     }
 }
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct SignalResolvingCanonicalLangType {
     pub type_id: CanonicalLangTypeId,
     pub fields: Vec<ResolvingCanonicalTypeField>,

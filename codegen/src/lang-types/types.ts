@@ -5,7 +5,11 @@ export type LangTypeDeclaration = {
   | { kind: "simple"; type: FieldType }
   | {
       kind: "complex";
-      customHashImplementation?: boolean;
+      /**
+       * If a certain kind of trait is too hard to implement with
+       * #[derive(...)] and needs a manual implementation, add it here
+       */
+      excludeDerives?: string[];
       fields: Record<string, FieldType>;
     }
 );

@@ -50,7 +50,7 @@ pub struct LangParameter {
     pub value_type: FallibleLangType,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
 pub enum CanonicalLangType {
     Object(ObjectCanonicalLangType),
     Signal(SignalCanonicalLangType),

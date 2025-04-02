@@ -50,7 +50,7 @@ pub struct OldResolvingLangParameter {
     pub value_type: AnyOldResolvingLangType,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
 pub enum OldResolvingCanonicalLangType {
     Object(ObjectOldResolvingCanonicalLangType),
     Signal(SignalOldResolvingCanonicalLangType),

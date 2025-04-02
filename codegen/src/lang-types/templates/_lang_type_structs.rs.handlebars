@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumTryAs)]
+{{enumDerivesAttribute}}
 pub enum {{prefix}}LangType {
   {{#each langTypes}}
   {{name}}{{#if hasParam}}({{paramType}}){{/if}},
@@ -6,7 +6,7 @@ pub enum {{prefix}}LangType {
 }
 
 {{#each complexLangTypes}}
-#[derive(Debug, Clone, Eq, PartialEq,{{#unless customHashImplementation}} Hash,{{/unless}} Serialize, Deserialize)]
+{{derivesAttribute}}
 pub struct {{structName}} {
   {{#each fields}}
   pub {{name}}: {{type}},
@@ -20,7 +20,7 @@ impl From<{{structName}}> for {{../prefix}}LangType {
 {{/each}}
 
 {{#each objects}}
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+{{derivesAttribute}}
 pub struct {{../prefix}}{{name}} {
     {{#each fields}}
     pub {{name}}: {{type}},
@@ -28,7 +28,7 @@ pub struct {{../prefix}}{{name}} {
 }
 {{/each}}
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+{{enumDerivesAttribute}}
 pub enum {{prefix}}CanonicalLangType {
     Object(Object{{prefix}}CanonicalLangType),
     Signal(Signal{{prefix}}CanonicalLangType),
@@ -47,7 +47,7 @@ impl {{prefix}}CanonicalLangType {
         }
     }
 }
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+{{structDerivesAttribute}}
 pub struct {{prefix}}CanonicalTypeField {
     pub name: Arc<String>,
     pub value_type: {{fallibleType}},
@@ -72,7 +72,7 @@ fn assert_uniqueness_matches(
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+{{structDerivesAttribute}}
 pub struct Object{{prefix}}CanonicalLangType {
     pub type_id: CanonicalLangTypeId,
     pub fields: Vec<{{prefix}}CanonicalTypeField>,
@@ -92,7 +92,7 @@ impl Object{{prefix}}CanonicalLangType {
         &self.fields
     }
 }
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+{{structDerivesAttribute}}
 pub struct Signal{{prefix}}CanonicalLangType {
     pub type_id: CanonicalLangTypeId,
     pub fields: Vec<{{prefix}}CanonicalTypeField>,
