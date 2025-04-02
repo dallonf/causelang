@@ -1,18 +1,28 @@
 use tap::Pipe;
 
-use super::resolving_lang_types::{
-    ResolvingCanonicalLangType, ResolvingLangTypeValue, ResolvingLangTypesContext,
+use super::{
+    edicts::{Edict, EdictRule},
+    resolving_lang_types::{
+        LinkedResolvingLangType, ResolvingCanonicalLangType, ResolvingLangTypeSource,
+        ResolvingLangTypeValue, ResolvingLangTypesContext,
+    },
 };
 use crate::{
-    ast::{self, AnyAstNode, BreadcrumbTreeNode, StringLiteralExpressionNode},
+    ast::{
+        self, AnyAstNode, AstNode, BreadcrumbTreeNode, IdentifierTypeReferenceNode,
+        StringLiteralExpressionNode,
+    },
     breadcrumbs::{Breadcrumbs, HasBreadcrumbs},
     compiled_file::ExternalFileDescriptor,
-    lang_types::{self, CanonicalLangTypeId, PrimitiveLangType},
+    error_types::LangError,
+    find_tag,
+    lang_types::{self, CanonicalLangTypeId, LangTypeResult, PrimitiveLangType},
     resolver::resolving_lang_types::ResolvingLangType,
     tags::NodeTag,
 };
-use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
+use std::{borrow::Cow, cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
+#[expect(dead_code)]
 pub fn discover_types(
     path: Arc<String>,
     file: Arc<ast::FileNode>,
@@ -26,27 +36,28 @@ pub fn discover_types(
 
     let mut ctx = DiscoverTypesContext {
         path,
-        file: file.clone(),
+        root_node: file.clone(),
         node_tags,
         // TODO
         canonical_types: Default::default(),
         external_files,
         resolving_types_ctx,
+        edicts: Default::default(),
     };
 
     let descendants = BreadcrumbTreeNode::from(&file.clone()).descendants();
     for descendant in &descendants {
-        let node_type = discover_type_for_any_ast_node(descendant, &mut ctx)?;
-        if let Some(node_type) = node_type {
+        let discovered_result = discover_type_for_any_ast_node(descendant, &mut ctx);
+        if let Some(discovered_result) = discovered_result {
+            let discovered_value: ResolvingLangTypeValue =
+                discovered_result.unwrap_or_else(|err| ResolvingLangTypeValue::from_error(err));
             let mut resolving_types_ctx = ctx.resolving_types_ctx.try_borrow_mut()?;
-            resolving_types_ctx.track_type(
-                Some(
-                    super::resolving_lang_types::ResolvingLangTypeSource::Breadcrumb(
-                        descendant.breadcrumbs().to_owned(),
-                    ),
+            resolving_types_ctx.add_variable(
+                super::resolving_lang_types::ResolvingLangTypeSource::Breadcrumb(
+                    descendant.breadcrumbs().to_owned(),
                 ),
-                node_type,
-            );
+                discovered_value,
+            )?;
         }
     }
     Ok(())
@@ -54,21 +65,79 @@ pub fn discover_types(
 
 struct DiscoverTypesContext {
     path: Arc<String>,
-    file: Arc<ast::FileNode>,
+    root_node: Arc<ast::FileNode>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<ResolvingCanonicalLangType>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 
     resolving_types_ctx: Rc<RefCell<ResolvingLangTypesContext>>,
+
+    edicts: Vec<Edict>,
+}
+impl DiscoverTypesContext {
+    fn get_tags<'a, 'b>(&'a self, node: &impl AstNode) -> Cow<'a, Vec<NodeTag>> {
+        self.node_tags
+            .get(node.breadcrumbs())
+            .map(|it| Cow::Borrowed(it))
+            .unwrap_or(Cow::Owned(vec![]))
+    }
+
+    fn node_at_path(&self, breadcrumbs: &Breadcrumbs) -> LangTypeResult<ast::AnyAstNode> {
+        BreadcrumbTreeNode::from(&self.root_node)
+            .at_path(breadcrumbs)
+            .map_err(|err| {
+                LangError::compiler_bug(format!(
+                    "Couldn't find a node at path {:?}: {}",
+                    breadcrumbs, err
+                ))
+                .into()
+            })
+            .and_then(|node| match node {
+                BreadcrumbTreeNode::Node(Some(node)) => Ok(node),
+                BreadcrumbTreeNode::Node(None) => Err(LangError::compiler_bug(format!(
+                    "Empty node at path {:?}",
+                    breadcrumbs
+                ))
+                .into()),
+                BreadcrumbTreeNode::List(_) => Err(LangError::compiler_bug(format!(
+                    "List node at path {:?}",
+                    breadcrumbs
+                ))
+                .into()),
+            })
+    }
+
+    fn get_link_for_node(&mut self, breadcrumbs: &Breadcrumbs) -> Rc<LinkedResolvingLangType> {
+        let mut types_ctx = self.resolving_types_ctx.borrow_mut();
+        let breadcrumbs_source = ResolvingLangTypeSource::Breadcrumb(breadcrumbs.to_owned());
+        let existing = types_ctx.get_variable(&breadcrumbs_source);
+        if let Some(existing) = existing {
+            return existing;
+        } else {
+            types_ctx
+                .add_variable(breadcrumbs_source, ResolvingLangTypeValue::Hints(vec![]))
+                .expect("we just checked for the source above, shouldn't be possible for it to come back")
+        }
+    }
+
+    fn add_edict(&mut self, breadcrumbs: &Breadcrumbs, rule: EdictRule, reason: impl Into<String>) {
+        self.edicts.push(Edict {
+            rule,
+            breadcrumbs: breadcrumbs.to_owned(),
+            reason: reason.into(),
+        });
+    }
 }
 
 fn discover_type_for_any_ast_node(
     node: &AnyAstNode,
     ctx: &mut DiscoverTypesContext,
-) -> anyhow::Result<Option<ResolvingLangTypeValue>> {
+) -> Option<DiscoverResult> {
     match node {
-        AnyAstNode::Identifier(identifier_node) => todo!(),
-        AnyAstNode::IdentifierTypeReference(identifier_type_reference_node) => todo!(),
+        AnyAstNode::Identifier(_) => None,
+        AnyAstNode::IdentifierTypeReference(node) => {
+            Some(discover_type_for_identifier_type_reference(node, ctx))
+        }
         AnyAstNode::FunctionTypeReference(function_type_reference_node) => todo!(),
         AnyAstNode::Pattern(pattern_node) => todo!(),
         AnyAstNode::FunctionSignatureParameter(function_signature_parameter_node) => todo!(),
@@ -103,20 +172,39 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::MemberExpression(member_expression_node) => todo!(),
         AnyAstNode::IdentifierExpression(identifier_expression_node) => todo!(),
         AnyAstNode::StringLiteralExpression(node) => {
-            Some(discover_type_for_string_literal_expression(node, ctx)?)
+            Some(discover_type_for_string_literal_expression(node, ctx))
         }
         AnyAstNode::NumberLiteralExpression(number_literal_expression_node) => todo!(),
         AnyAstNode::ReturnExpression(return_expression_node) => todo!(),
         AnyAstNode::BreakExpression(break_expression_node) => todo!(),
     }
-    .pipe(Ok)
+}
+
+type DiscoverResult = LangTypeResult<ResolvingLangTypeValue>;
+
+fn discover_type_for_identifier_type_reference(
+    node: &IdentifierTypeReferenceNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let tags = ctx.get_tags(node);
+    let reference_tag =
+        find_tag!(&tags, NodeTag::ValueComesFrom).ok_or(Arc::new(LangError::NotInScope))?;
+    let source_node = ctx.node_at_path(&reference_tag.source)?;
+    let source_node_type = ctx.get_link_for_node(source_node.breadcrumbs());
+    ctx.add_edict(
+        node.breadcrumbs(),
+        EdictRule::MustBeTypeReference,
+        "An IdentifierTypeReference must refer to a type",
+    );
+    Ok(ResolvingLangTypeValue::from_link(
+        source_node_type,
+        "IdentifierTypeReference",
+    ))
 }
 
 fn discover_type_for_string_literal_expression(
-    node: &StringLiteralExpressionNode,
-    ctx: &mut DiscoverTypesContext,
-) -> anyhow::Result<ResolvingLangTypeValue> {
-    Ok(ResolvingLangTypeValue::Known(Ok(
-        ResolvingLangType::Primitive(PrimitiveLangType::Text),
-    )))
+    _node: &StringLiteralExpressionNode,
+    _ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    Ok(ResolvingLangType::Primitive(PrimitiveLangType::Text).into())
 }

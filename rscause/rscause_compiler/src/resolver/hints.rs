@@ -7,6 +7,7 @@ pub enum Hint {
 
 #[derive(Debug, Clone)]
 pub struct TrackedHint {
-    hint: Hint,
-    inferred_from: Option<Vec<Hint>>,
+    pub hint: Hint,
+    pub reason: String,
+    pub inferred_from: Option<Vec<TrackedHint>>,
 }
