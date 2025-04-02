@@ -117,7 +117,7 @@ impl TryFrom<ResolvingLangTypeLink> for lang_types::FallibleLangType {
         .pipe(Ok)
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumTryAs)]
 pub enum LinkedResolvingLangType {
     Variable(LinkedResolvingLangTypeVariable),
     Imported(LangTypeResult<ResolvingLangType>),

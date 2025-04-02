@@ -1,5 +1,3 @@
-use tap::Pipe;
-
 use super::{
     edicts::{Edict, EdictRule},
     resolving_lang_types::{
@@ -9,8 +7,8 @@ use super::{
 };
 use crate::{
     ast::{
-        self, AnyAstNode, AstNode, BreadcrumbTreeNode, IdentifierTypeReferenceNode,
-        StringLiteralExpressionNode,
+        self, AnyAstNode, AstNode, BreadcrumbTreeNode, FunctionTypeReferenceNode,
+        IdentifierTypeReferenceNode, StringLiteralExpressionNode,
     },
     breadcrumbs::{Breadcrumbs, HasBreadcrumbs},
     compiled_file::ExternalFileDescriptor,
@@ -20,7 +18,9 @@ use crate::{
     resolver::resolving_lang_types::ResolvingLangType,
     tags::NodeTag,
 };
+use anyhow::anyhow;
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
+use tap::Pipe;
 
 #[expect(dead_code)]
 pub fn discover_types(
@@ -52,12 +52,43 @@ pub fn discover_types(
             let discovered_value: ResolvingLangTypeValue =
                 discovered_result.unwrap_or_else(|err| ResolvingLangTypeValue::from_error(err));
             let mut resolving_types_ctx = ctx.resolving_types_ctx.try_borrow_mut()?;
-            resolving_types_ctx.add_variable(
-                super::resolving_lang_types::ResolvingLangTypeSource::Breadcrumb(
-                    descendant.breadcrumbs().to_owned(),
-                ),
-                discovered_value,
-            )?;
+
+            let source = ResolvingLangTypeSource::Breadcrumb(descendant.breadcrumbs().to_owned());
+
+            let existing_variable = resolving_types_ctx.get_variable(&source);
+            if let Some(existing_variable) = existing_variable {
+                let variable = existing_variable.try_as_variable_ref().ok_or(anyhow!(
+                    "trying to resolve {}, linked type was not a variable, but was {:?}",
+                    descendant.breadcrumbs(),
+                    &existing_variable
+                ))?;
+                let mut value = variable.value.borrow_mut();
+                let new_value = match &*value {
+                    ResolvingLangTypeValue::Known(resolving_lang_type) => {
+                        ResolvingLangTypeValue::from_error(LangError::compiler_bug(format!(
+                      "trying to resolve {} with {:?}, but it already has a known value: {:?}",
+                      descendant.breadcrumbs(),
+                      &discovered_value,
+                      resolving_lang_type,
+                  )))
+                    }
+                    ResolvingLangTypeValue::Hints(tracked_hints) => {
+                        if tracked_hints.len() == 0 {
+                            discovered_value
+                        } else {
+                            ResolvingLangTypeValue::from_error(LangError::compiler_bug(format!(
+                                "trying to resolve {} with {:?}, but it's already accumulated hints: {:?}",
+                                descendant.breadcrumbs(),
+                                &discovered_value,
+                                tracked_hints,
+                            )))
+                        }
+                    }
+                };
+                *value = new_value;
+            } else {
+                resolving_types_ctx.add_variable(source, discovered_value)?;
+            }
         }
     }
     Ok(())
@@ -129,6 +160,8 @@ impl DiscoverTypesContext {
     }
 }
 
+type DiscoverResult = LangTypeResult<ResolvingLangTypeValue>;
+
 fn discover_type_for_any_ast_node(
     node: &AnyAstNode,
     ctx: &mut DiscoverTypesContext,
@@ -138,11 +171,11 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::IdentifierTypeReference(node) => {
             Some(discover_type_for_identifier_type_reference(node, ctx))
         }
-        AnyAstNode::FunctionTypeReference(function_type_reference_node) => todo!(),
+        AnyAstNode::FunctionTypeReference(node) => todo!(),
         AnyAstNode::Pattern(pattern_node) => todo!(),
         AnyAstNode::FunctionSignatureParameter(function_signature_parameter_node) => todo!(),
         AnyAstNode::FunctionCallParameter(function_call_parameter_node) => todo!(),
-        AnyAstNode::File(file_node) => todo!(),
+        AnyAstNode::File(_) => None,
         AnyAstNode::Import(import_node) => todo!(),
         AnyAstNode::ImportPath(import_path_node) => todo!(),
         AnyAstNode::ImportMapping(import_mapping_node) => todo!(),
@@ -179,8 +212,6 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::BreakExpression(break_expression_node) => todo!(),
     }
 }
-
-type DiscoverResult = LangTypeResult<ResolvingLangTypeValue>;
 
 fn discover_type_for_identifier_type_reference(
     node: &IdentifierTypeReferenceNode,
