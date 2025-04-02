@@ -22,8 +22,8 @@ include!("../gen/resolving_lang_types.rs");
 /// Owns strong references to all types in the graph.
 /// Must be in scope and not dropped while working with ResolvingLangTypes.
 pub struct ResolvingLangTypesContext {
-    pub values_by_source: HashMap<ResolvingLangTypeSource, Rc<ResolvingLangTypeLink>>,
-    all_values: Vec<Rc<ResolvingLangTypeLink>>,
+    pub values_by_source: HashMap<ResolvingLangTypeSource, Rc<LinkedResolvingLangType>>,
+    all_values: Vec<Rc<LinkedResolvingLangType>>,
 }
 impl ResolvingLangTypesContext {
     pub fn new() -> Self {
@@ -37,8 +37,8 @@ impl ResolvingLangTypesContext {
         &mut self,
         source: Option<ResolvingLangTypeSource>,
         value: ResolvingLangTypeValue,
-    ) -> anyhow::Result<Rc<ResolvingLangTypeLink>> {
-        let new_link = ResolvingLangTypeLink {
+    ) -> anyhow::Result<Rc<LinkedResolvingLangType>> {
+        let new_link = LinkedResolvingLangType {
             source,
             value: RefCell::new(value),
         }
@@ -60,13 +60,13 @@ impl ResolvingLangTypesContext {
 }
 
 #[derive(Debug, Clone)]
-pub struct LinkedResolvingLangType(Weak<ResolvingLangTypeLink>);
+pub struct ResolvingLangTypeLink(Weak<LinkedResolvingLangType>);
 #[derive(Debug, Clone)]
-pub struct ResolvingLangTypeLink {
+pub struct LinkedResolvingLangType {
     pub source: Option<ResolvingLangTypeSource>,
     pub value: RefCell<ResolvingLangTypeValue>,
 }
-impl LinkedResolvingLangType {
+impl ResolvingLangTypeLink {
     pub fn import_type(
         ctx: &mut ResolvingLangTypesContext,
         lang_type: FallibleLangType,
@@ -80,13 +80,13 @@ impl LinkedResolvingLangType {
         });
         let tracked = ctx.track_type(None, value)?;
 
-        Ok(LinkedResolvingLangType(Rc::downgrade(&tracked)))
+        Ok(ResolvingLangTypeLink(Rc::downgrade(&tracked)))
     }
 }
-impl TryFrom<LinkedResolvingLangType> for lang_types::FallibleLangType {
+impl TryFrom<ResolvingLangTypeLink> for lang_types::FallibleLangType {
     type Error = anyhow::Error;
 
-    fn try_from(value: LinkedResolvingLangType) -> Result<Self, Self::Error> {
+    fn try_from(value: ResolvingLangTypeLink) -> Result<Self, Self::Error> {
         let value = value
             .0
             .upgrade()
@@ -117,11 +117,11 @@ pub enum ResolvingLangTypeValue {
 }
 
 impl OneOfResolvingLangType {
-    pub fn new(options: Vec<LinkedResolvingLangType>) -> Self {
+    pub fn new(options: Vec<ResolvingLangTypeLink>) -> Self {
         Self { options }
     }
 
-    pub fn new_with_one(option: LinkedResolvingLangType) -> Self {
+    pub fn new_with_one(option: ResolvingLangTypeLink) -> Self {
         Self {
             options: vec![option],
         }

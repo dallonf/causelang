@@ -1,6 +1,6 @@
 #[derive(Debug, Clone, EnumTryAs)]
 pub enum ResolvingLangType {
-  TypeReference(LinkedResolvingLangType),
+  TypeReference(ResolvingLangTypeLink),
   Instance(InstanceResolvingLangType),
   Function(FunctionResolvingLangType),
   Primitive(PrimitiveLangType),
@@ -27,7 +27,7 @@ impl From<InstanceResolvingLangType> for ResolvingLangType {
 pub struct FunctionResolvingLangType {
   pub name: Option<Arc<String>>,
   pub params: Vec<ResolvingLangParameter>,
-  pub return_type: LinkedResolvingLangType,
+  pub return_type: ResolvingLangTypeLink,
 }
 impl From<FunctionResolvingLangType> for ResolvingLangType {
   fn from(value: FunctionResolvingLangType) -> Self {
@@ -36,7 +36,7 @@ impl From<FunctionResolvingLangType> for ResolvingLangType {
 }
 #[derive(Debug, Clone)]
 pub struct OneOfResolvingLangType {
-  pub options: Vec<LinkedResolvingLangType>,
+  pub options: Vec<ResolvingLangTypeLink>,
 }
 impl From<OneOfResolvingLangType> for ResolvingLangType {
   fn from(value: OneOfResolvingLangType) -> Self {
@@ -47,7 +47,7 @@ impl From<OneOfResolvingLangType> for ResolvingLangType {
 #[derive(Debug, Clone)]
 pub struct ResolvingLangParameter {
     pub name: Arc<String>,
-    pub value_type: LinkedResolvingLangType,
+    pub value_type: ResolvingLangTypeLink,
 }
 
 #[derive(Debug, Clone, EnumTryAs)]
@@ -72,7 +72,7 @@ impl ResolvingCanonicalLangType {
 #[derive(Debug, Clone)]
 pub struct ResolvingCanonicalTypeField {
     pub name: Arc<String>,
-    pub value_type: LinkedResolvingLangType,
+    pub value_type: ResolvingLangTypeLink,
 }
 
 fn assert_uniqueness_matches(
@@ -118,14 +118,14 @@ impl ObjectResolvingCanonicalLangType {
 pub struct SignalResolvingCanonicalLangType {
     pub type_id: CanonicalLangTypeId,
     pub fields: Vec<ResolvingCanonicalTypeField>,
-    pub result: LinkedResolvingLangType,
+    pub result: ResolvingLangTypeLink,
 }
 
 impl SignalResolvingCanonicalLangType {
     pub fn new(
         type_id: CanonicalLangTypeId,
         fields: Vec<ResolvingCanonicalTypeField>,
-        result: LinkedResolvingLangType,
+        result: ResolvingLangTypeLink,
     ) -> Self {
         if type_id.category != CanonicalLangTypeCategory::Signal {
             panic!("SignalResolvingCanonicalLangType::new called with non-signal type_id");
@@ -143,7 +143,7 @@ impl SignalResolvingCanonicalLangType {
     pub fn fields(&self) -> &[ResolvingCanonicalTypeField] {
         &self.fields
     }
-    pub fn result(&self) -> &LinkedResolvingLangType {
+    pub fn result(&self) -> &ResolvingLangTypeLink {
         &self.result
     }
 }
@@ -154,7 +154,7 @@ impl ResolvingLangType {
     value: lang_types::LangType,
   ) -> anyhow::Result<Self> {
     match value {
-      lang_types::LangType::TypeReference(it) => ResolvingLangType::TypeReference(LinkedResolvingLangType::import_type(ctx, it)?),
+      lang_types::LangType::TypeReference(it) => ResolvingLangType::TypeReference(ResolvingLangTypeLink::import_type(ctx, it)?),
       lang_types::LangType::Instance(it) => ResolvingLangType::Instance(InstanceResolvingLangType::import_type(ctx, it)?),
       lang_types::LangType::Function(it) => ResolvingLangType::Function(FunctionResolvingLangType::import_type(ctx, it)?),
       lang_types::LangType::Primitive(it) => ResolvingLangType::Primitive(it),
@@ -215,7 +215,7 @@ impl FunctionResolvingLangType {
     Ok(FunctionResolvingLangType {
       name: value.name.map(|it| -> Result<_, anyhow::Error> { Ok(it) }).transpose()?,
       params: value.params.into_iter().map(|it| Ok(ResolvingLangParameter::import_type(ctx, it)?)).collect::<Result<Vec<_>, anyhow::Error>>()?,
-      return_type: LinkedResolvingLangType::import_type(ctx, value.return_type)?,
+      return_type: ResolvingLangTypeLink::import_type(ctx, value.return_type)?,
     })
   }
 }
@@ -235,7 +235,7 @@ impl OneOfResolvingLangType {
     value: lang_types::OneOfLangType,
   ) -> anyhow::Result<Self> {
     Ok(OneOfResolvingLangType {
-      options: value.options.into_iter().map(|it| Ok(LinkedResolvingLangType::import_type(ctx, it)?)).collect::<Result<Vec<_>, anyhow::Error>>()?,
+      options: value.options.into_iter().map(|it| Ok(ResolvingLangTypeLink::import_type(ctx, it)?)).collect::<Result<Vec<_>, anyhow::Error>>()?,
     })
   }
 }
@@ -255,7 +255,7 @@ impl ResolvingLangParameter {
   ) -> anyhow::Result<Self> {
     Ok(ResolvingLangParameter {
       name: value.name,
-      value_type: LinkedResolvingLangType::import_type(ctx, value.value_type)?,
+      value_type: ResolvingLangTypeLink::import_type(ctx, value.value_type)?,
     })
   }
 }

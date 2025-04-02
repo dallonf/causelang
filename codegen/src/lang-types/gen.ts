@@ -544,7 +544,7 @@ async function generateRustLangTypes() {
   );
   const resolvingParams = getTemplateParams(langTypes, {
     prefix: "Resolving",
-    fallibleType: "LinkedResolvingLangType",
+    fallibleType: "ResolvingLangTypeLink",
     excludeDerives: ["Eq", "PartialEq", "Hash", "Serialize", "Deserialize"],
     tryFrom: true,
   });
