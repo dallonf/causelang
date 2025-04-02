@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use num::BigRational;
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer};
 
 use crate::ast::NodeInfo;
 use crate::error_types::{ErrorPosition, LangError};
@@ -82,4 +82,9 @@ pub enum CompiledExport {
     },
     Type(FallibleLangType),
     Error(Arc<LangError>),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExternalFileDescriptor {
+    pub exports: HashMap<Arc<String>, Arc<LangType>>,
 }

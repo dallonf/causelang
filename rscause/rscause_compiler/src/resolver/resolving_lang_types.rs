@@ -127,3 +127,15 @@ impl OneOfResolvingLangType {
         }
     }
 }
+
+impl ResolvingCanonicalLangType {
+    pub fn import(
+        ctx: &mut ResolvingLangTypesContext,
+        value: lang_types::CanonicalLangType,
+    ) -> anyhow::Result<Self> {
+        match value {
+            lang_types::CanonicalLangType::Object(it) => todo!(),
+            lang_types::CanonicalLangType::Signal(it) => todo!(),
+        }
+    }
+}

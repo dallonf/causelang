@@ -4,8 +4,9 @@ use rscause_compiler::{
     ast::FileNode,
     breadcrumbs::Breadcrumbs,
     compile::compile,
+    compiled_file::ExternalFileDescriptor,
     lang_types::{CanonicalLangType, CanonicalLangTypeId},
-    old_resolver::resolve_types::{resolve_types, ExternalFileDescriptor},
+    old_resolver::resolve_types::resolve_types,
     tags::NodeTag,
 };
 use tap::Pipe;

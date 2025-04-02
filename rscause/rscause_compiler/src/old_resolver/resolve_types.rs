@@ -10,6 +10,7 @@ use crate::ast::{
     LoopExpressionNode,
 };
 use crate::breadcrumbs::{Breadcrumbs, HasBreadcrumbs};
+use crate::compiled_file::ExternalFileDescriptor;
 use crate::error_types::{
     compiler_bug_error, ActionIncompatibleWithValueTypesError,
     ActionIncompatibleWithValueTypesValueType, CompilerBugError, ErrorPosition,
@@ -28,11 +29,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use strum::EnumTryAs;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ExternalFileDescriptor {
-    pub exports: HashMap<Arc<String>, Arc<lang_types::LangType>>,
-}
 
 #[derive(Debug, Clone)]
 pub struct ResolveTypesResult {
