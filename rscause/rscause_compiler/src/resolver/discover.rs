@@ -7,15 +7,11 @@ use super::{
     },
 };
 use crate::{
-    ast::{
-        self, AnyAstNode, AstNode, BreadcrumbTreeNode, FunctionCallParameterNode,
-        FunctionSignatureParameterNode, FunctionTypeReferenceNode, IdentifierTypeReferenceNode,
-        PatternNode, StringLiteralExpressionNode,
-    },
+    ast::{self, *},
     breadcrumbs::{Breadcrumbs, HasBreadcrumbs},
     compiled_file::ExternalFileDescriptor,
     error_types::{anyhow_to_compiler_bug, ImplementationTodoError, LangError},
-    find_tag,
+    find_tag, find_tags,
     lang_types::{self, CanonicalLangTypeId, LangTypeResult, PrimitiveLangType},
     resolver::{
         hints::Hint,
@@ -238,11 +234,15 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::PipeCallExpression(pipe_call_expression_node) => todo!(),
         AnyAstNode::MemberExpression(member_expression_node) => todo!(),
         AnyAstNode::IdentifierExpression(identifier_expression_node) => todo!(),
-        AnyAstNode::StringLiteralExpression(node) => {
-            Some(discover_type_for_string_literal_expression(node, ctx))
-        }
-        AnyAstNode::NumberLiteralExpression(number_literal_expression_node) => todo!(),
-        AnyAstNode::ReturnExpression(return_expression_node) => todo!(),
+        AnyAstNode::StringLiteralExpression(node) => Some(Ok(ResolvingLangType::Primitive(
+            PrimitiveLangType::Text,
+        )
+        .into())),
+        AnyAstNode::NumberLiteralExpression(node) => Some(Ok(ResolvingLangType::Primitive(
+            PrimitiveLangType::Number,
+        )
+        .into())),
+        AnyAstNode::ReturnExpression(node) => Some(discover_type_for_return_expression(node, ctx)),
         AnyAstNode::BreakExpression(break_expression_node) => todo!(),
     }
 }
@@ -352,9 +352,32 @@ fn discover_type_for_function_call_parameter(
     ))
 }
 
-fn discover_type_for_string_literal_expression(
-    _node: &StringLiteralExpressionNode,
-    _ctx: &mut DiscoverTypesContext,
+fn discover_type_for_return_expression(
+    node: &ReturnExpressionNode,
+    ctx: &mut DiscoverTypesContext,
 ) -> DiscoverResult {
-    Ok(ResolvingLangType::Primitive(PrimitiveLangType::Text).into())
+    let tags = ctx.get_tags(node);
+    let returns_from_function_tag = find_tag!(tags, NodeTag::ReturnsFromFunction).ok_or(
+        Arc::new(LangError::compiler_bug("Missing ReturnsFromFunction tag")),
+    )?;
+    let function_node = ctx.node_at_path(&returns_from_function_tag.function)?;
+    let function_type = ctx.get_link_for_node(function_node.breadcrumbs());
+
+    if let Some(value_expression) = &node.value {
+        ctx.add_edict(
+            value_expression.breadcrumbs(),
+            EdictRule::ValidReturnForFunction(function_type),
+            "validate return value",
+        );
+    } else {
+        ctx.add_edict(
+            node.breadcrumbs(),
+            EdictRule::ActionIsValidReturnForFunction(function_type),
+            "validate empty return value",
+        );
+    }
+
+    Ok(ResolvingLangTypeValue::from_type(
+        ResolvingLangType::NeverContinues,
+    ))
 }
