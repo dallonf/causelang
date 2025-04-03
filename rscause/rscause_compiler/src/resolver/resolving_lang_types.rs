@@ -24,14 +24,16 @@ include!("../gen/resolving_lang_types.rs");
 /// Owns strong references to all types in the graph.
 /// Must be in scope and not dropped while working with ResolvingLangTypes.
 pub struct ResolvingLangTypesContext {
-    pub values_by_source: HashMap<ResolvingLangTypeSource, Rc<LinkedResolvingLangType>>,
+    values_by_source: HashMap<ResolvingLangTypeSource, Rc<LinkedResolvingLangType>>,
     all_values: Vec<Rc<LinkedResolvingLangType>>,
+    next_source_id: u64,
 }
 impl ResolvingLangTypesContext {
     pub fn new() -> Self {
         Self {
             values_by_source: Default::default(),
             all_values: Default::default(),
+            next_source_id: 0,
         }
     }
 
@@ -71,6 +73,19 @@ impl ResolvingLangTypesContext {
     ) -> Rc<LinkedResolvingLangType> {
         let new_link = LinkedResolvingLangType::Constant(lang_type).pipe(Rc::new);
         new_link
+    }
+
+    pub fn create_id_variable(
+        &mut self,
+        hints: Vec<TrackedHint>,
+    ) -> anyhow::Result<(u64, Rc<LinkedResolvingLangType>)> {
+        let id = self.next_source_id;
+        self.next_source_id += 1;
+        let new_link = self.add_variable(
+            ResolvingLangTypeSource::Id(id),
+            ResolvingLangTypeValue::Hints(hints),
+        )?;
+        Ok((id, new_link))
     }
 }
 
@@ -141,7 +156,7 @@ pub struct LinkedResolvingLangTypeVariable {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, EnumTryAs)]
 pub enum ResolvingLangTypeSource {
-    Variable(u64),
+    Id(u64),
     Breadcrumb(Breadcrumbs),
 }
 

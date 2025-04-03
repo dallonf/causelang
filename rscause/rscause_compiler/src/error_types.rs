@@ -1,9 +1,8 @@
-use std::sync::Arc;
-
-use serde::{Deserialize, Serialize};
-use strum::EnumTryAs;
-
+use crate::prelude::*;
 use crate::{ast::DocumentRange, breadcrumbs::Breadcrumbs, lang_types};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use strum::EnumTryAs;
 
 include!("gen/error_types.rs");
 
@@ -52,4 +51,8 @@ pub fn compiler_bug_error(description: impl Into<String>) -> LangError {
     LangError::CompilerBug(CompilerBugError {
         description: description.into(),
     })
+}
+
+pub fn anyhow_to_compiler_bug(err: anyhow::Error) -> Arc<LangError> {
+    LangError::compiler_bug(err.to_string()).pipe(Arc::new)
 }

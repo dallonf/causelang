@@ -1,22 +1,27 @@
 use super::{
     edicts::{Edict, EdictRule},
+    hints::TrackedHint,
     resolving_lang_types::{
-        ResolvingCanonicalLangType, ResolvingLangTypeSource, ResolvingLangTypeValue,
-        ResolvingLangTypesContext,
+        LinkedResolvingLangType, ResolvingCanonicalLangType, ResolvingLangTypeSource,
+        ResolvingLangTypeValue, ResolvingLangTypesContext,
     },
 };
 use crate::{
     ast::{
-        self, AnyAstNode, AstNode, BreadcrumbTreeNode, FunctionTypeReferenceNode,
-        IdentifierTypeReferenceNode, StringLiteralExpressionNode,
+        self, AnyAstNode, AstNode, BreadcrumbTreeNode, FunctionCallParameterNode,
+        FunctionSignatureParameterNode, FunctionTypeReferenceNode, IdentifierTypeReferenceNode,
+        PatternNode, StringLiteralExpressionNode,
     },
     breadcrumbs::{Breadcrumbs, HasBreadcrumbs},
     compiled_file::ExternalFileDescriptor,
-    error_types::{ImplementationTodoError, LangError},
+    error_types::{anyhow_to_compiler_bug, ImplementationTodoError, LangError},
     find_tag,
     lang_types::{self, CanonicalLangTypeId, LangTypeResult, PrimitiveLangType},
-    resolver::resolving_lang_types::{
-        FunctionResolvingLangType, ResolvingLangType, ResolvingLangTypeLink,
+    resolver::{
+        hints::Hint,
+        resolving_lang_types::{
+            FunctionResolvingLangType, ResolvingLangType, ResolvingLangTypeLink,
+        },
     },
     tags::NodeTag,
 };
@@ -170,6 +175,17 @@ impl DiscoverTypesContext {
             reason: reason.into(),
         });
     }
+
+    fn create_id_variable(
+        &mut self,
+        hints: Vec<TrackedHint>,
+    ) -> LangTypeResult<(u64, ResolvingLangTypeLink)> {
+        let mut types_ctx = self.resolving_types_ctx.borrow_mut();
+        let (id, variable) = types_ctx
+            .create_id_variable(hints)
+            .map_err(anyhow_to_compiler_bug)?;
+        Ok((id, variable.into()))
+    }
 }
 
 type DiscoverResult = LangTypeResult<ResolvingLangTypeValue>;
@@ -186,12 +202,16 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::FunctionTypeReference(node) => {
             Some(discover_type_for_function_type_reference(node, ctx))
         }
-        AnyAstNode::Pattern(pattern_node) => todo!(),
-        AnyAstNode::FunctionSignatureParameter(function_signature_parameter_node) => todo!(),
-        AnyAstNode::FunctionCallParameter(function_call_parameter_node) => todo!(),
+        AnyAstNode::Pattern(node) => Some(discover_type_for_pattern(node, ctx)),
+        AnyAstNode::FunctionSignatureParameter(node) => {
+            Some(discover_type_for_function_signature_parameter(node, ctx))
+        }
+        AnyAstNode::FunctionCallParameter(node) => {
+            Some(discover_type_for_function_call_parameter(node, ctx))
+        }
         AnyAstNode::File(_) => None,
-        AnyAstNode::Import(import_node) => todo!(),
-        AnyAstNode::ImportPath(import_path_node) => todo!(),
+        AnyAstNode::Import(_) => None,
+        AnyAstNode::ImportPath(_) => None,
         AnyAstNode::ImportMapping(import_mapping_node) => todo!(),
         AnyAstNode::Function(function_node) => todo!(),
         AnyAstNode::NamedValue(named_value_node) => todo!(),
@@ -250,7 +270,7 @@ fn discover_type_for_identifier_type_reference(
 fn discover_type_for_function_type_reference(
     node: &FunctionTypeReferenceNode,
     ctx: &mut DiscoverTypesContext,
-) -> Result<ResolvingLangTypeValue, Arc<LangError>> {
+) -> DiscoverResult {
     let params = node
         .params
         .iter()
@@ -284,6 +304,52 @@ fn discover_type_for_function_type_reference(
     });
 
     Ok(ResolvingLangType::TypeReference(ctx.link_lang_type(function_type.into())).into())
+}
+
+fn discover_type_for_pattern(node: &PatternNode, ctx: &mut DiscoverTypesContext) -> DiscoverResult {
+    let type_reference = ctx.get_link_for_node(node.type_reference.breadcrumbs());
+    let value_type = ctx.create_id_variable(vec![TrackedHint::new(
+        Hint::ReferencedType(type_reference.clone()),
+        "patterns are represented by the value type they match",
+        None,
+    )])?;
+    Ok(ResolvingLangTypeValue::from_link(
+        value_type.1,
+        "values matched by pattern",
+    ))
+}
+
+fn discover_type_for_function_signature_parameter(
+    node: &FunctionSignatureParameterNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let type_reference_node = node.type_reference.as_ref().ok_or(
+        LangError::ImplementationTodo(ImplementationTodoError {
+            description: "Function type parameters must have type annotations".into(),
+        })
+        .pipe(Arc::new),
+    )?;
+    let type_reference = ctx.get_link_for_node(type_reference_node.breadcrumbs());
+    let value_type = ctx.create_id_variable(vec![TrackedHint::new(
+        Hint::ReferencedType(type_reference.clone()),
+        "patterns are represented by the value type they match",
+        None,
+    )])?;
+    Ok(ResolvingLangTypeValue::from_link(
+        value_type.1,
+        "value of function parameter",
+    ))
+}
+
+fn discover_type_for_function_call_parameter(
+    node: &FunctionCallParameterNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let expression_value = ctx.get_link_for_node(node.value.breadcrumbs());
+    Ok(ResolvingLangTypeValue::from_link(
+        expression_value,
+        "value of function call parameter",
+    ))
 }
 
 fn discover_type_for_string_literal_expression(
