@@ -1,8 +1,8 @@
 use super::{
     edicts::{Edict, EdictRule},
     resolving_lang_types::{
-        LinkedResolvingLangType, ResolvingCanonicalLangType, ResolvingLangTypeSource,
-        ResolvingLangTypeValue, ResolvingLangTypesContext,
+        ResolvingCanonicalLangType, ResolvingLangTypeSource, ResolvingLangTypeValue,
+        ResolvingLangTypesContext,
     },
 };
 use crate::{
@@ -12,12 +12,15 @@ use crate::{
     },
     breadcrumbs::{Breadcrumbs, HasBreadcrumbs},
     compiled_file::ExternalFileDescriptor,
-    error_types::LangError,
+    error_types::{ImplementationTodoError, LangError},
     find_tag,
     lang_types::{self, CanonicalLangTypeId, LangTypeResult, PrimitiveLangType},
-    resolver::resolving_lang_types::ResolvingLangType,
+    resolver::resolving_lang_types::{
+        FunctionResolvingLangType, ResolvingLangType, ResolvingLangTypeLink,
+    },
     tags::NodeTag,
 };
+use crate::{prelude::*, resolver::resolving_lang_types::ResolvingLangParameter};
 use anyhow::anyhow;
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 use tap::Pipe;
@@ -138,17 +141,26 @@ impl DiscoverTypesContext {
             })
     }
 
-    fn get_link_for_node(&mut self, breadcrumbs: &Breadcrumbs) -> Rc<LinkedResolvingLangType> {
+    fn get_link_for_node(&mut self, breadcrumbs: &Breadcrumbs) -> ResolvingLangTypeLink {
         let mut types_ctx = self.resolving_types_ctx.borrow_mut();
         let breadcrumbs_source = ResolvingLangTypeSource::Breadcrumb(breadcrumbs.to_owned());
         let existing = types_ctx.get_variable(&breadcrumbs_source);
         if let Some(existing) = existing {
-            return existing;
+            return existing.into();
         } else {
             types_ctx
                 .add_variable(breadcrumbs_source, ResolvingLangTypeValue::Hints(vec![]))
                 .expect("we just checked for the source above, shouldn't be possible for it to come back")
+                .into()
         }
+    }
+
+    fn link_lang_type(
+        &mut self,
+        lang_type: LangTypeResult<ResolvingLangType>,
+    ) -> ResolvingLangTypeLink {
+        let mut types_ctx = self.resolving_types_ctx.borrow_mut();
+        types_ctx.link_lang_type(lang_type).into()
     }
 
     fn add_edict(&mut self, breadcrumbs: &Breadcrumbs, rule: EdictRule, reason: impl Into<String>) {
@@ -171,7 +183,9 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::IdentifierTypeReference(node) => {
             Some(discover_type_for_identifier_type_reference(node, ctx))
         }
-        AnyAstNode::FunctionTypeReference(node) => todo!(),
+        AnyAstNode::FunctionTypeReference(node) => {
+            Some(discover_type_for_function_type_reference(node, ctx))
+        }
         AnyAstNode::Pattern(pattern_node) => todo!(),
         AnyAstNode::FunctionSignatureParameter(function_signature_parameter_node) => todo!(),
         AnyAstNode::FunctionCallParameter(function_call_parameter_node) => todo!(),
@@ -231,6 +245,45 @@ fn discover_type_for_identifier_type_reference(
         source_node_type,
         "IdentifierTypeReference",
     ))
+}
+
+fn discover_type_for_function_type_reference(
+    node: &FunctionTypeReferenceNode,
+    ctx: &mut DiscoverTypesContext,
+) -> Result<ResolvingLangTypeValue, Arc<LangError>> {
+    let params = node
+        .params
+        .iter()
+        .map(|it| {
+            let value_type = it
+                .type_reference
+                .as_ref()
+                .map(|it| ctx.get_link_for_node(it.breadcrumbs()))
+                .unwrap_or_else(|| {
+                    ctx.link_lang_type(Err(LangError::ImplementationTodo(
+                        ImplementationTodoError {
+                            description: "Function type parameters must have type annotations"
+                                .into(),
+                        },
+                    )
+                    .into()))
+                });
+            ResolvingLangParameter {
+                name: it.name.text.clone(),
+                value_type: ResolvingLangTypeLink::from(value_type),
+            }
+        })
+        .collect_vec();
+
+    let return_type = ctx.get_link_for_node(node.return_type.breadcrumbs());
+
+    let function_type = ResolvingLangType::Function(FunctionResolvingLangType {
+        name: None,
+        params,
+        return_type: return_type.into(),
+    });
+
+    Ok(ResolvingLangType::TypeReference(ctx.link_lang_type(function_type.into())).into())
 }
 
 fn discover_type_for_string_literal_expression(

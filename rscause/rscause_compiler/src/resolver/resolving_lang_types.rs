@@ -65,12 +65,12 @@ impl ResolvingLangTypesContext {
         Ok(new_link)
     }
 
-    fn import(
+    pub fn link_lang_type(
         &mut self,
-        value: LangTypeResult<ResolvingLangType>,
-    ) -> anyhow::Result<Rc<LinkedResolvingLangType>> {
-        let new_link = LinkedResolvingLangType::Imported(value).pipe(Rc::new);
-        Ok(new_link)
+        lang_type: LangTypeResult<ResolvingLangType>,
+    ) -> Rc<LinkedResolvingLangType> {
+        let new_link = LinkedResolvingLangType::Constant(lang_type).pipe(Rc::new);
+        new_link
     }
 }
 
@@ -88,7 +88,7 @@ impl ResolvingLangTypeLink {
             )?),
             Err(err) => Err(err),
         };
-        let tracked = ctx.import(value)?;
+        let tracked = ctx.link_lang_type(value);
 
         Ok(ResolvingLangTypeLink(Rc::downgrade(&tracked)))
     }
@@ -120,7 +120,7 @@ impl TryFrom<ResolvingLangTypeLink> for lang_types::FallibleLangType {
 #[derive(Debug, Clone, EnumTryAs)]
 pub enum LinkedResolvingLangType {
     Variable(LinkedResolvingLangTypeVariable),
-    Imported(LangTypeResult<ResolvingLangType>),
+    Constant(LangTypeResult<ResolvingLangType>),
 }
 impl LinkedResolvingLangType {
     fn get_snapshot_value(&self) -> Option<LangTypeResult<ResolvingLangType>> {
@@ -129,7 +129,7 @@ impl LinkedResolvingLangType {
                 ResolvingLangTypeValue::Known(value) => Some(value.to_owned()),
                 ResolvingLangTypeValue::Hints(_) => None,
             },
-            LinkedResolvingLangType::Imported(it) => Some(it.to_owned()),
+            LinkedResolvingLangType::Constant(it) => Some(it.to_owned()),
         }
     }
 }
