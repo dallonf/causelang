@@ -1,5 +1,4 @@
 use super::{
-    edicts::{Edict, EdictRule},
     hints::TrackedHint,
     resolving_lang_types::{
         LinkedResolvingLangType, ResolvingCanonicalLangType, ResolvingLangTypeSource,
@@ -106,8 +105,6 @@ struct DiscoverTypesContext {
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 
     resolving_types_ctx: Rc<RefCell<ResolvingLangTypesContext>>,
-
-    edicts: Vec<Edict>,
 }
 impl DiscoverTypesContext {
     fn get_tags<'a, 'b>(&'a self, node: &impl AstNode) -> Cow<'a, Vec<NodeTag>> {
@@ -162,14 +159,6 @@ impl DiscoverTypesContext {
     ) -> ResolvingLangTypeLink {
         let mut types_ctx = self.resolving_types_ctx.borrow_mut();
         types_ctx.link_lang_type(lang_type).into()
-    }
-
-    fn add_edict(&mut self, breadcrumbs: &Breadcrumbs, rule: EdictRule, reason: impl Into<String>) {
-        self.edicts.push(Edict {
-            rule,
-            breadcrumbs: breadcrumbs.to_owned(),
-            reason: reason.into(),
-        });
     }
 
     fn create_id_variable(
@@ -234,16 +223,20 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::PipeCallExpression(pipe_call_expression_node) => todo!(),
         AnyAstNode::MemberExpression(member_expression_node) => todo!(),
         AnyAstNode::IdentifierExpression(identifier_expression_node) => todo!(),
-        AnyAstNode::StringLiteralExpression(node) => Some(Ok(ResolvingLangType::Primitive(
+        AnyAstNode::StringLiteralExpression(_) => Some(Ok(ResolvingLangType::Primitive(
             PrimitiveLangType::Text,
         )
         .into())),
-        AnyAstNode::NumberLiteralExpression(node) => Some(Ok(ResolvingLangType::Primitive(
+        AnyAstNode::NumberLiteralExpression(_) => Some(Ok(ResolvingLangType::Primitive(
             PrimitiveLangType::Number,
         )
         .into())),
-        AnyAstNode::ReturnExpression(node) => Some(discover_type_for_return_expression(node, ctx)),
-        AnyAstNode::BreakExpression(break_expression_node) => todo!(),
+        AnyAstNode::ReturnExpression(_) => Some(Ok(ResolvingLangTypeValue::from_type(
+            ResolvingLangType::NeverContinues,
+        ))),
+        AnyAstNode::BreakExpression(_) => Some(Ok(ResolvingLangTypeValue::from_type(
+            ResolvingLangType::NeverContinues,
+        ))),
     }
 }
 
@@ -256,11 +249,6 @@ fn discover_type_for_identifier_type_reference(
         find_tag!(&tags, NodeTag::ValueComesFrom).ok_or(Arc::new(LangError::NotInScope))?;
     let source_node = ctx.node_at_path(&reference_tag.source)?;
     let source_node_type = ctx.get_link_for_node(source_node.breadcrumbs());
-    ctx.add_edict(
-        node.breadcrumbs(),
-        EdictRule::MustBeTypeReference,
-        "An IdentifierTypeReference must refer to a type",
-    );
     Ok(ResolvingLangTypeValue::from_link(
         source_node_type,
         "IdentifierTypeReference",
@@ -349,35 +337,5 @@ fn discover_type_for_function_call_parameter(
     Ok(ResolvingLangTypeValue::from_link(
         expression_value,
         "value of function call parameter",
-    ))
-}
-
-fn discover_type_for_return_expression(
-    node: &ReturnExpressionNode,
-    ctx: &mut DiscoverTypesContext,
-) -> DiscoverResult {
-    let tags = ctx.get_tags(node);
-    let returns_from_function_tag = find_tag!(tags, NodeTag::ReturnsFromFunction).ok_or(
-        Arc::new(LangError::compiler_bug("Missing ReturnsFromFunction tag")),
-    )?;
-    let function_node = ctx.node_at_path(&returns_from_function_tag.function)?;
-    let function_type = ctx.get_link_for_node(function_node.breadcrumbs());
-
-    if let Some(value_expression) = &node.value {
-        ctx.add_edict(
-            value_expression.breadcrumbs(),
-            EdictRule::ValidReturnForFunction(function_type),
-            "validate return value",
-        );
-    } else {
-        ctx.add_edict(
-            node.breadcrumbs(),
-            EdictRule::ActionIsValidReturnForFunction(function_type),
-            "validate empty return value",
-        );
-    }
-
-    Ok(ResolvingLangTypeValue::from_type(
-        ResolvingLangType::NeverContinues,
     ))
 }
