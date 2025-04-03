@@ -1,8 +1,8 @@
 use super::{
     hints::TrackedHint,
     resolving_lang_types::{
-        LinkedResolvingLangType, ResolvingCanonicalLangType, ResolvingLangTypeSource,
-        ResolvingLangTypeValue, ResolvingLangTypesContext,
+        ResolvingCanonicalLangType, ResolvingLangTypeSource, ResolvingLangTypeValue,
+        ResolvingLangTypesContext,
     },
 };
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
     breadcrumbs::{Breadcrumbs, HasBreadcrumbs},
     compiled_file::ExternalFileDescriptor,
     error_types::{anyhow_to_compiler_bug, ImplementationTodoError, LangError},
-    find_tag, find_tags,
+    find_tag,
     lang_types::{self, CanonicalLangTypeId, LangTypeResult, PrimitiveLangType},
     resolver::{
         hints::Hint,
@@ -45,7 +45,6 @@ pub fn discover_types(
         canonical_types: Default::default(),
         external_files,
         resolving_types_ctx,
-        edicts: Default::default(),
     };
 
     let descendants = BreadcrumbTreeNode::from(&file.clone()).descendants();
@@ -107,9 +106,13 @@ struct DiscoverTypesContext {
     resolving_types_ctx: Rc<RefCell<ResolvingLangTypesContext>>,
 }
 impl DiscoverTypesContext {
-    fn get_tags<'a, 'b>(&'a self, node: &impl AstNode) -> Cow<'a, Vec<NodeTag>> {
+    fn get_tags_for_node<'a>(&'a self, node: &impl AstNode) -> Cow<'a, Vec<NodeTag>> {
+        self.get_tags(node.breadcrumbs())
+    }
+
+    fn get_tags<'a>(&'a self, breadcrumbs: &Breadcrumbs) -> Cow<'a, Vec<NodeTag>> {
         self.node_tags
-            .get(node.breadcrumbs())
+            .get(breadcrumbs)
             .map(|it| Cow::Borrowed(it))
             .unwrap_or(Cow::Owned(vec![]))
     }
@@ -197,7 +200,7 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::File(_) => None,
         AnyAstNode::Import(_) => None,
         AnyAstNode::ImportPath(_) => None,
-        AnyAstNode::ImportMapping(import_mapping_node) => todo!(),
+        AnyAstNode::ImportMapping(node) => Some(discover_type_for_import_mapping(node, ctx)),
         AnyAstNode::Function(function_node) => todo!(),
         AnyAstNode::NamedValue(named_value_node) => todo!(),
         AnyAstNode::ObjectType(object_type_node) => todo!(),
@@ -244,7 +247,7 @@ fn discover_type_for_identifier_type_reference(
     node: &IdentifierTypeReferenceNode,
     ctx: &mut DiscoverTypesContext,
 ) -> DiscoverResult {
-    let tags = ctx.get_tags(node);
+    let tags = ctx.get_tags_for_node(node);
     let reference_tag =
         find_tag!(&tags, NodeTag::ValueComesFrom).ok_or(Arc::new(LangError::NotInScope))?;
     let source_node = ctx.node_at_path(&reference_tag.source)?;
@@ -337,5 +340,49 @@ fn discover_type_for_function_call_parameter(
     Ok(ResolvingLangTypeValue::from_link(
         expression_value,
         "value of function call parameter",
+    ))
+}
+
+fn discover_type_for_import_mapping(
+    node: &ImportMappingNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let tags = ctx.get_tags_for_node(node);
+
+    let comes_from_tag = find_tag!(&tags, NodeTag::ValueComesFrom);
+    let bad_file_tag = comes_from_tag
+        .and_then(|comes_from_tag| ctx.node_tags.get(&comes_from_tag.source))
+        .and_then(|source_tags| find_tag!(&source_tags, NodeTag::BadFileReference));
+    if bad_file_tag.is_some() {
+        return Err(LangError::ImportPathInvalid.into());
+    }
+
+    let references_file_tag =
+        find_tag!(tags, NodeTag::ReferencesFile).ok_or(LangError::compiler_bug(format!(
+            "Missing ReferencesFile tag on {}",
+            node.breadcrumbs()
+        )))?;
+    let external_file = ctx
+        .external_files
+        .get(&references_file_tag.path)
+        .ok_or(LangError::FileNotFound.pipe(Arc::new))?;
+
+    let export = external_file
+        .exports
+        .get(&node.source_name.text)
+        .ok_or(LangError::ExportNotFound.pipe(Arc::new))?;
+
+    let export_link = ResolvingLangTypeLink::import_type(
+        &mut ctx.resolving_types_ctx.borrow_mut(),
+        Ok(export.clone()),
+    )
+    .map_err(anyhow_to_compiler_bug)?;
+
+    Ok(ResolvingLangTypeValue::from_link(
+        export_link,
+        format!(
+            "import {} from {}",
+            node.source_name.text, references_file_tag.path
+        ),
     ))
 }
