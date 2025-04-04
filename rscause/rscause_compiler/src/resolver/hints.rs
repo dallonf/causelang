@@ -1,9 +1,22 @@
+use std::rc::Rc;
+
+use strum::EnumTryAs;
+
+use crate::breadcrumbs::Breadcrumbs;
+
 use super::resolving_lang_types::ResolvingLangTypeLink;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumTryAs)]
 pub enum Hint {
     EqualTo(ResolvingLangTypeLink),
     ReferencedType(ResolvingLangTypeLink),
+    ManyPossibleResults(Rc<Vec<ManyPossibleResultHint>>),
+}
+
+#[derive(Debug, Clone, EnumTryAs)]
+pub enum ManyPossibleResultHint {
+    Action(Breadcrumbs),
+    Result(ResolvingLangTypeLink, Breadcrumbs),
 }
 
 #[derive(Debug, Clone)]

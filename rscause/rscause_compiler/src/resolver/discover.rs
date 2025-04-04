@@ -11,9 +11,9 @@ use crate::{
     compiled_file::ExternalFileDescriptor,
     error_types::{anyhow_to_compiler_bug, ImplementationTodoError, LangError},
     find_tag,
-    lang_types::{self, CanonicalLangTypeId, LangTypeResult, PrimitiveLangType},
+    lang_types::{self, CanonicalLangTypeId, LangParameter, LangTypeResult, PrimitiveLangType},
     resolver::{
-        hints::Hint,
+        hints::{Hint, ManyPossibleResultHint},
         resolving_lang_types::{
             FunctionResolvingLangType, ResolvingLangType, ResolvingLangTypeLink,
         },
@@ -201,7 +201,13 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::Import(_) => None,
         AnyAstNode::ImportPath(_) => None,
         AnyAstNode::ImportMapping(node) => Some(discover_type_for_import_mapping(node, ctx)),
-        AnyAstNode::Function(function_node) => todo!(),
+        AnyAstNode::Function(node) => Some(discover_type_for_function(
+            Some(&node.name),
+            &node.params,
+            node.return_type.as_ref(),
+            &node.breadcrumbs(),
+            ctx,
+        )),
         AnyAstNode::NamedValue(named_value_node) => todo!(),
         AnyAstNode::ObjectType(object_type_node) => todo!(),
         AnyAstNode::SignalType(signal_type_node) => todo!(),
@@ -214,7 +220,13 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::EffectStatement(effect_statement_node) => todo!(),
         AnyAstNode::GroupExpression(group_expression_node) => todo!(),
         AnyAstNode::BlockExpression(block_expression_node) => todo!(),
-        AnyAstNode::FunctionExpression(function_expression_node) => todo!(),
+        AnyAstNode::FunctionExpression(node) => Some(discover_type_for_function(
+            None,
+            &node.params,
+            node.return_type.as_ref(),
+            &node.breadcrumbs(),
+            ctx,
+        )),
         AnyAstNode::BranchExpression(branch_expression_node) => todo!(),
         AnyAstNode::IfBranchOption(if_branch_option_node) => todo!(),
         AnyAstNode::IsBranchOption(is_branch_option_node) => todo!(),
@@ -384,5 +396,79 @@ fn discover_type_for_import_mapping(
             "import {} from {}",
             node.source_name.text, references_file_tag.path
         ),
+    ))
+}
+
+/// Gets type for any function (both declaration and expression)
+fn discover_type_for_function(
+    name_node: Option<&ast::IdentifierNode>,
+    param_nodes: &[Arc<FunctionSignatureParameterNode>],
+    return_type_node: Option<&ast::TypeReferenceNode>,
+    breadcrumbs: &Breadcrumbs,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let name = name_node.map(|it| it.text.clone());
+
+    let explicit_return_type = return_type_node
+        .map(|it| ctx.get_link_for_node(it.breadcrumbs()))
+        .map(|it| -> LangTypeResult<ResolvingLangTypeLink> {
+            ctx.create_id_variable(vec![TrackedHint::new(
+                Hint::ReferencedType(it),
+                "explicit function return",
+                None,
+            )])?
+            .1
+            .pipe(Ok)
+        })
+        .transpose()?;
+
+    let return_type = explicit_return_type.map(Ok).unwrap_or_else(
+        || -> LangTypeResult<ResolvingLangTypeLink> {
+            let tags = ctx.get_tags(breadcrumbs).to_vec();
+            let result_hint = tags
+                .iter()
+                .filter_map(|it| match it {
+                    NodeTag::FunctionCanReturnTypeOf(tag) => {
+                        let type_of_return = ctx.get_link_for_node(&tag.return_expression_value);
+                        Some(ManyPossibleResultHint::Result(
+                            type_of_return,
+                            tag.return_expression_value.to_owned(),
+                        ))
+                    }
+                    NodeTag::FunctionCanReturnAction(tag) => Some(ManyPossibleResultHint::Action(
+                        tag.return_expression.to_owned(),
+                    )),
+                    _ => None,
+                })
+                .collect_vec()
+                .pipe(|results| {
+                    TrackedHint::new(
+                        Hint::ManyPossibleResults(Rc::new(results)),
+                        "function return types",
+                        None,
+                    )
+                });
+
+            ctx.create_id_variable(vec![result_hint])?.1.pipe(Ok)
+        },
+    )?;
+
+    let params = param_nodes
+        .into_iter()
+        .map(|param_node| {
+            let value_type = ctx.get_link_for_node(param_node.breadcrumbs());
+            ResolvingLangParameter {
+                name: param_node.name.text.clone(),
+                value_type,
+            }
+        })
+        .collect();
+
+    Ok(ResolvingLangTypeValue::from_type(
+        FunctionResolvingLangType {
+            name,
+            params,
+            return_type,
+        },
     ))
 }
