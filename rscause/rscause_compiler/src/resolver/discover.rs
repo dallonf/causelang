@@ -208,7 +208,7 @@ fn discover_type_for_any_ast_node(
             &node.breadcrumbs(),
             ctx,
         )),
-        AnyAstNode::NamedValue(named_value_node) => todo!(),
+        AnyAstNode::NamedValue(node) => Some(discover_type_for_named_value(node, ctx)),
         AnyAstNode::ObjectType(object_type_node) => todo!(),
         AnyAstNode::SignalType(signal_type_node) => todo!(),
         AnyAstNode::ObjectField(object_field_node) => todo!(),
@@ -470,5 +470,33 @@ fn discover_type_for_function(
             params,
             return_type,
         },
+    ))
+}
+
+fn discover_type_for_named_value(
+    node: &NamedValueNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let explicit_type = node
+        .type_annotation
+        .as_ref()
+        .map(|type_node| ctx.get_link_for_node(type_node.breadcrumbs()))
+        .map(|type_reference_link| -> LangTypeResult<_> {
+            ctx.create_id_variable(vec![TrackedHint::new(
+                Hint::ReferencedType(type_reference_link),
+                "named value is the type of its annotation",
+                None,
+            )])?
+            .1
+            .pipe(Ok)
+        })
+        .transpose()?;
+
+    let result_type =
+        explicit_type.unwrap_or_else(|| ctx.get_link_for_node(node.value.breadcrumbs()));
+
+    Ok(ResolvingLangTypeValue::from_link(
+        result_type,
+        "named value",
     ))
 }
