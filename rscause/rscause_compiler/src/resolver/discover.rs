@@ -16,14 +16,14 @@ use crate::{
         self, CanonicalLangTypeCategory, CanonicalLangTypeId, LangTypeResult, PrimitiveLangType,
     },
     resolver::{
-        hints::{Hint, ManyPossibleResultHint},
+        hints::{Hint, OneOfOptionHint},
         resolving_lang_types::*,
     },
     tags::NodeTag,
 };
 use crate::{prelude::*, resolver::resolving_lang_types::ResolvingLangParameter};
 use anyhow::anyhow;
-use std::{borrow::Cow, cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
+use std::{borrow::Cow, cell::RefCell, collections::HashMap, option, rc::Rc, sync::Arc};
 use tap::Pipe;
 
 #[expect(dead_code)]
@@ -216,7 +216,7 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::ObjectType(node) => Some(discover_type_for_object_type(node, ctx)),
         AnyAstNode::SignalType(node) => Some(discover_type_for_signal_type(node, ctx)),
         AnyAstNode::ObjectField(node) => Some(discover_type_for_object_field(node, ctx)),
-        AnyAstNode::OneOfType(one_of_type_node) => todo!(),
+        AnyAstNode::OneOfType(node) => Some(discover_type_for_one_of_type(node, ctx)),
         AnyAstNode::BlockBody(block_body_node) => todo!(),
         AnyAstNode::SingleExpressionBody(single_expression_body_node) => todo!(),
         AnyAstNode::ExpressionStatement(expression_statement_node) => todo!(),
@@ -434,23 +434,20 @@ fn discover_type_for_function(
                 .filter_map(|it| match it {
                     NodeTag::FunctionCanReturnTypeOf(tag) => {
                         let type_of_return = ctx.get_link_for_node(&tag.return_expression_value);
-                        Some(ManyPossibleResultHint::Result(
-                            type_of_return,
-                            tag.return_expression_value.to_owned(),
-                        ))
+                        Some(OneOfOptionHint {
+                            source_breadcrumbs: tag.return_expression_value.to_owned(),
+                            value: type_of_return,
+                        })
                     }
-                    NodeTag::FunctionCanReturnAction(tag) => Some(ManyPossibleResultHint::Action(
-                        tag.return_expression.to_owned(),
-                    )),
+                    NodeTag::FunctionCanReturnAction(tag) => Some(OneOfOptionHint {
+                        source_breadcrumbs: tag.return_expression.to_owned(),
+                        value: ctx.link_lang_type(Ok(ResolvingLangType::Action)),
+                    }),
                     _ => None,
                 })
                 .collect_vec()
                 .pipe(|results| {
-                    TrackedHint::new(
-                        Hint::ManyPossibleResults(Rc::new(results)),
-                        "function return types",
-                        None,
-                    )
+                    TrackedHint::new(Hint::OneOf(Rc::new(results)), "function return types", None)
                 });
 
             ctx.create_id_variable(vec![result_hint])?.1.pipe(Ok)
@@ -635,12 +632,57 @@ fn discover_type_for_object_field(
     let type_reference = ctx.get_link_for_node(node.type_annotation.breadcrumbs());
     let value_type = ctx.create_id_variable(vec![TrackedHint::new(
         Hint::ReferencedType(type_reference),
-        "object field",
+        "object field type reference",
         None,
     )])?;
 
     Ok(ResolvingLangTypeValue::from_link(
         value_type.1,
         "object field",
+    ))
+}
+
+fn discover_type_for_one_of_type(
+    node: &OneOfTypeNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let options = node
+        .options
+        .iter()
+        .map(|option_node| -> LangTypeResult<_> {
+            let type_reference = ctx.get_link_for_node(option_node.breadcrumbs());
+            let value_type = ctx
+                .create_id_variable(vec![TrackedHint::new(
+                    Hint::ReferencedType(type_reference),
+                    "oneof option type reference",
+                    None,
+                )])?
+                .1;
+
+            Ok(OneOfOptionHint {
+                source_breadcrumbs: option_node.breadcrumbs().to_owned(),
+                value: value_type,
+            })
+        })
+        .collect::<LangTypeResult<Vec<_>>>()?;
+
+    let value_type = ctx
+        .create_id_variable(vec![TrackedHint::new(
+            Hint::OneOf(Rc::new(options)),
+            "oneof type",
+            None,
+        )])?
+        .1;
+    let type_reference = ctx
+        .create_id_variable(vec![TrackedHint::new(
+            Hint::ReferencedType(value_type),
+            "oneof type reference",
+            None,
+        )])?
+        .1;
+
+    Ok(ResolvingLangTypeValue::from_link(
+        type_reference,
+        "oneof type",
     ))
 }

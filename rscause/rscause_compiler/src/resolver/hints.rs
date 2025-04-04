@@ -10,13 +10,14 @@ use super::resolving_lang_types::ResolvingLangTypeLink;
 pub enum Hint {
     EqualTo(ResolvingLangTypeLink),
     ReferencedType(ResolvingLangTypeLink),
-    ManyPossibleResults(Rc<Vec<ManyPossibleResultHint>>),
+    TypeReference(ResolvingLangTypeLink),
+    OneOf(Rc<Vec<OneOfOptionHint>>),
 }
 
-#[derive(Debug, Clone, EnumTryAs)]
-pub enum ManyPossibleResultHint {
-    Action(Breadcrumbs),
-    Result(ResolvingLangTypeLink, Breadcrumbs),
+#[derive(Debug, Clone)]
+pub struct OneOfOptionHint {
+    pub source_breadcrumbs: Breadcrumbs,
+    pub value: ResolvingLangTypeLink,
 }
 
 #[derive(Debug, Clone)]
