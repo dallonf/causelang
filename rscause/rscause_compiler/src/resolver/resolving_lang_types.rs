@@ -21,6 +21,13 @@ use super::hints::TrackedHint;
 
 include!("../gen/resolving_lang_types.rs");
 
+// hierarchy, in order:
+// ResolvingLangTypeLink - used to represent a connection in the type graph. Weak reference
+// LinkedResolvingLangType - owned version of ResolvingLangTypeLink
+// LinkedResolvingLangTypeVariable - variant representing a variable whose value can change during resolution, and its source
+// ResolvingLangTypeValue - the actual value that can change
+// LangTypeResult<ResolvingLangType> - A known type value
+
 /// Owns strong references to all types in the graph.
 /// Must be in scope and not dropped while working with ResolvingLangTypes.
 pub struct ResolvingLangTypesContext {

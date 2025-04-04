@@ -217,13 +217,25 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::SignalType(node) => Some(discover_type_for_signal_type(node, ctx)),
         AnyAstNode::ObjectField(node) => Some(discover_type_for_object_field(node, ctx)),
         AnyAstNode::OneOfType(node) => Some(discover_type_for_one_of_type(node, ctx)),
-        AnyAstNode::BlockBody(block_body_node) => todo!(),
-        AnyAstNode::SingleExpressionBody(single_expression_body_node) => todo!(),
-        AnyAstNode::ExpressionStatement(expression_statement_node) => todo!(),
-        AnyAstNode::DeclarationStatement(declaration_statement_node) => todo!(),
-        AnyAstNode::EffectStatement(effect_statement_node) => todo!(),
-        AnyAstNode::GroupExpression(group_expression_node) => todo!(),
-        AnyAstNode::BlockExpression(block_expression_node) => todo!(),
+        AnyAstNode::BlockBody(node) => Some(discover_type_for_block_body(node, ctx)),
+        AnyAstNode::SingleExpressionBody(node) => {
+            Some(discover_type_for_single_expression_body(node, ctx))
+        }
+        AnyAstNode::ExpressionStatement(node) => {
+            Some(discover_type_for_expression_statement(node, ctx))
+        }
+        AnyAstNode::DeclarationStatement(node) => {
+            Some(discover_type_for_declaration_statement(node, ctx))
+        }
+        AnyAstNode::EffectStatement(_) => Some(Ok(ResolvingLangType::Action.into())),
+        AnyAstNode::GroupExpression(node) => Some(Ok(ResolvingLangTypeValue::from_link(
+            ctx.get_link_for_node(node.expression.breadcrumbs()),
+            "group expression",
+        ))),
+        AnyAstNode::BlockExpression(node) => Some(Ok(ResolvingLangTypeValue::from_link(
+            ctx.get_link_for_node(node.block.breadcrumbs()),
+            "block expression",
+        ))),
         AnyAstNode::FunctionExpression(node) => Some(discover_type_for_function(
             None,
             &node.params,
@@ -684,5 +696,95 @@ fn discover_type_for_one_of_type(
     Ok(ResolvingLangTypeValue::from_link(
         type_reference,
         "oneof type",
+    ))
+}
+
+fn discover_type_for_block_body(
+    node: &BlockBodyNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let final_result = node
+        .result
+        .as_ref()
+        .map(|it| ctx.get_link_for_node(it.breadcrumbs()))
+        .unwrap_or_else(|| ctx.link_lang_type(Ok(ResolvingLangType::Action)));
+
+    let statements_before_result = node
+        .statements
+        .iter()
+        .map(|statement_node| ctx.get_link_for_node(statement_node.breadcrumbs()))
+        .collect_vec();
+
+    let mut hints = statements_before_result
+        .iter()
+        .map(|statement| {
+            TrackedHint::new(
+                Hint::UnreachableIfNeverContinues(statement.clone()),
+                "statement potentially making the block result unreachable",
+                None,
+            )
+        })
+        .collect_vec();
+    hints.push(TrackedHint::new(
+        Hint::EqualTo(final_result.clone()),
+        "block result expression",
+        None,
+    ));
+
+    let result_type = ctx.create_id_variable(hints)?.1;
+
+    Ok(ResolvingLangTypeValue::from_link(
+        result_type,
+        "block result",
+    ))
+}
+
+fn discover_type_for_single_expression_body(
+    node: &SingleExpressionBodyNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let result_type = ctx.get_link_for_node(node.expression.breadcrumbs());
+
+    Ok(ResolvingLangTypeValue::from_link(
+        result_type,
+        "single expression body",
+    ))
+}
+
+fn discover_type_for_expression_statement(
+    node: &ExpressionStatementNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let expression_type = ctx.get_link_for_node(node.expression.breadcrumbs());
+    let statement_type = ctx
+        .create_id_variable(vec![TrackedHint::new(
+            Hint::UnreachableIfNeverContinues(expression_type),
+            "result might make expression statement unreachable",
+            None,
+        )])?
+        .1;
+
+    Ok(ResolvingLangTypeValue::from_link(
+        statement_type,
+        "expression statement",
+    ))
+}
+
+fn discover_type_for_declaration_statement(
+    node: &DeclarationStatementNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let declaration_type = ctx.get_link_for_node(node.declaration.breadcrumbs());
+    let statement_type = ctx
+        .create_id_variable(vec![TrackedHint::new(
+            Hint::UnreachableIfNeverContinues(declaration_type),
+            "result might make declaration statement unreachable",
+            None,
+        )])?
+        .1;
+
+    Ok(ResolvingLangTypeValue::from_link(
+        statement_type,
+        "declaration statement",
     ))
 }

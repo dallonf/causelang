@@ -12,6 +12,8 @@ pub enum Hint {
     ReferencedType(ResolvingLangTypeLink),
     TypeReference(ResolvingLangTypeLink),
     OneOf(Rc<Vec<OneOfOptionHint>>),
+    /// This type should become NeverContinues if the linked type is also NeverContinues
+    UnreachableIfNeverContinues(ResolvingLangTypeLink),
 }
 
 #[derive(Debug, Clone)]
