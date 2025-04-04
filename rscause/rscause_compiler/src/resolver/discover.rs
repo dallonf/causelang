@@ -1,8 +1,9 @@
 use super::{
     hints::TrackedHint,
     resolving_lang_types::{
-        ResolvingCanonicalLangType, ResolvingLangTypeSource, ResolvingLangTypeValue,
-        ResolvingLangTypesContext,
+        ObjectResolvingCanonicalLangType, ResolvingCanonicalLangType, ResolvingCanonicalTypeField,
+        ResolvingLangTypeSource, ResolvingLangTypeValue, ResolvingLangTypesContext,
+        SignalResolvingCanonicalLangType,
     },
 };
 use crate::{
@@ -11,12 +12,12 @@ use crate::{
     compiled_file::ExternalFileDescriptor,
     error_types::{anyhow_to_compiler_bug, ImplementationTodoError, LangError},
     find_tag,
-    lang_types::{self, CanonicalLangTypeId, LangParameter, LangTypeResult, PrimitiveLangType},
+    lang_types::{
+        self, CanonicalLangTypeCategory, CanonicalLangTypeId, LangTypeResult, PrimitiveLangType,
+    },
     resolver::{
         hints::{Hint, ManyPossibleResultHint},
-        resolving_lang_types::{
-            FunctionResolvingLangType, ResolvingLangType, ResolvingLangTypeLink,
-        },
+        resolving_lang_types::*,
     },
     tags::NodeTag,
 };
@@ -44,7 +45,9 @@ pub fn discover_types(
         // TODO
         canonical_types: Default::default(),
         external_files,
+
         resolving_types_ctx,
+        new_canonical_types: Default::default(),
     };
 
     let descendants = BreadcrumbTreeNode::from(&file.clone()).descendants();
@@ -104,6 +107,7 @@ struct DiscoverTypesContext {
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 
     resolving_types_ctx: Rc<RefCell<ResolvingLangTypesContext>>,
+    new_canonical_types: HashMap<CanonicalLangTypeId, Arc<ResolvingCanonicalLangType>>,
 }
 impl DiscoverTypesContext {
     fn get_tags_for_node<'a>(&'a self, node: &impl AstNode) -> Cow<'a, Vec<NodeTag>> {
@@ -209,8 +213,8 @@ fn discover_type_for_any_ast_node(
             ctx,
         )),
         AnyAstNode::NamedValue(node) => Some(discover_type_for_named_value(node, ctx)),
-        AnyAstNode::ObjectType(object_type_node) => todo!(),
-        AnyAstNode::SignalType(signal_type_node) => todo!(),
+        AnyAstNode::ObjectType(node) => Some(discover_type_for_object_type(node, ctx)),
+        AnyAstNode::SignalType(node) => Some(discover_type_for_signal_type(node, ctx)),
         AnyAstNode::ObjectField(object_field_node) => todo!(),
         AnyAstNode::OneOfType(one_of_type_node) => todo!(),
         AnyAstNode::BlockBody(block_body_node) => todo!(),
@@ -498,5 +502,142 @@ fn discover_type_for_named_value(
     Ok(ResolvingLangTypeValue::from_link(
         result_type,
         "named value",
+    ))
+}
+
+fn discover_type_for_object_type(
+    node: &ObjectTypeNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let tags = ctx.get_tags_for_node(node);
+    let canonical_id_tag =
+        find_tag!(&tags, NodeTag::CanonicalIdInfo).ok_or(LangError::compiler_bug(format!(
+            "Missing CanonicalIdInfo tag on {}",
+            node.breadcrumbs()
+        )))?;
+
+    let type_id = CanonicalLangTypeId {
+        path: ctx.path.clone(),
+        parent_name: canonical_id_tag.parent_name.clone(),
+        name: node.name.text.clone().into(),
+        number: canonical_id_tag.index,
+        category: CanonicalLangTypeCategory::Object,
+        is_unique: node.fields.is_empty(),
+    };
+
+    let fields = node
+        .fields
+        .iter()
+        .map(|field| {
+            let field_type_reference = ctx.get_link_for_node(field.type_annotation.breadcrumbs());
+            let field_type = ctx
+                .create_id_variable(vec![TrackedHint::new(
+                    Hint::ReferencedType(field_type_reference),
+                    "field type",
+                    None,
+                )])?
+                .1;
+            Ok(ResolvingCanonicalTypeField {
+                name: field.name.text.clone(),
+                value_type: field_type,
+            })
+        })
+        .collect::<LangTypeResult<Vec<_>>>()?;
+
+    let canonical_type = ObjectResolvingCanonicalLangType {
+        type_id: type_id.clone(),
+        fields,
+    };
+    ctx.new_canonical_types.insert(
+        type_id.clone(),
+        Arc::new(ResolvingCanonicalLangType::Object(canonical_type)),
+    );
+
+    let instance_type = ResolvingLangType::Instance(InstanceResolvingLangType {
+        type_id: Arc::new(type_id.clone()),
+    })
+    .pipe(|it| ctx.link_lang_type(Ok(it)));
+    let type_reference = ctx.link_lang_type(Ok(ResolvingLangType::TypeReference(instance_type)));
+
+    Ok(ResolvingLangTypeValue::from_link(
+        type_reference,
+        "object type",
+    ))
+}
+
+fn discover_type_for_signal_type(
+    node: &SignalTypeNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let tags = ctx.get_tags_for_node(node);
+    let canonical_id_tag =
+        find_tag!(&tags, NodeTag::CanonicalIdInfo).ok_or(LangError::compiler_bug(format!(
+            "Missing CanonicalIdInfo tag on {}",
+            node.breadcrumbs()
+        )))?;
+
+    let type_id = CanonicalLangTypeId {
+        path: ctx.path.clone(),
+        parent_name: canonical_id_tag.parent_name.clone(),
+        name: node.name.text.clone().into(),
+        number: canonical_id_tag.index,
+        category: CanonicalLangTypeCategory::Signal,
+        is_unique: node.fields.is_empty(),
+    };
+
+    let fields = node
+        .fields
+        .iter()
+        .map(|field| {
+            let field_type_reference = ctx.get_link_for_node(field.type_annotation.breadcrumbs());
+            let field_type = ctx
+                .create_id_variable(vec![TrackedHint::new(
+                    Hint::ReferencedType(field_type_reference),
+                    "field type",
+                    None,
+                )])?
+                .1;
+            Ok(ResolvingCanonicalTypeField {
+                name: field.name.text.clone(),
+                value_type: field_type,
+            })
+        })
+        .collect::<LangTypeResult<Vec<_>>>()?;
+
+    let result = match &node.result {
+        Some(result_node) => ctx.get_link_for_node(result_node.breadcrumbs()).pipe(
+            |result_type_reference| -> LangTypeResult<_> {
+                ctx.create_id_variable(vec![TrackedHint::new(
+                    Hint::ReferencedType(result_type_reference),
+                    "signal result",
+                    None,
+                )])?
+                .1
+                .pipe(Ok)
+            },
+        )?,
+        None => ctx.link_lang_type(Ok(ResolvingLangType::Action)),
+    };
+
+    let canonical_type = SignalResolvingCanonicalLangType {
+        type_id: type_id.clone(),
+        fields,
+        result,
+    };
+
+    ctx.new_canonical_types.insert(
+        type_id.clone(),
+        Arc::new(ResolvingCanonicalLangType::Signal(canonical_type)),
+    );
+
+    let instance_type = ResolvingLangType::Instance(InstanceResolvingLangType {
+        type_id: Arc::new(type_id.clone()),
+    })
+    .pipe(|it| ctx.link_lang_type(Ok(it)));
+    let type_reference = ctx.link_lang_type(Ok(ResolvingLangType::TypeReference(instance_type)));
+
+    Ok(ResolvingLangTypeValue::from_link(
+        type_reference,
+        "signal type",
     ))
 }
