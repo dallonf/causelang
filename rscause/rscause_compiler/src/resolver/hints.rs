@@ -14,6 +14,10 @@ pub enum Hint {
     OneOf(Rc<Vec<OneOfOptionHint>>),
     /// This type should become NeverContinues if the linked type is also NeverContinues
     UnreachableIfNeverContinues(ResolvingLangTypeLink),
+    // The result of calling the linked function
+    CallResult(ResolvingLangTypeLink),
+    // The result of causing the linked signal
+    CauseResult(ResolvingLangTypeLink),
 }
 
 #[derive(Debug, Clone)]

@@ -257,10 +257,15 @@ fn discover_type_for_any_ast_node(
             "option body",
         ))),
         AnyAstNode::LoopExpression(node) => Some(discover_type_for_loop_expression(node, ctx)),
-        AnyAstNode::SetExpression(set_expression_node) => todo!(),
-        AnyAstNode::CauseExpression(cause_expression_node) => todo!(),
-        AnyAstNode::CallExpression(call_expression_node) => todo!(),
-        AnyAstNode::PipeCallExpression(pipe_call_expression_node) => todo!(),
+        AnyAstNode::SetExpression(node) => Some(Ok(ResolvingLangTypeValue::from_link(
+            ctx.get_link_for_node(node.expression.breadcrumbs()),
+            "set expression value",
+        ))),
+        AnyAstNode::CauseExpression(node) => Some(discover_type_for_cause_expression(node, ctx)),
+        AnyAstNode::CallExpression(node) => Some(discover_type_for_call_expression(node, ctx)),
+        AnyAstNode::PipeCallExpression(node) => {
+            Some(discover_type_for_pipe_call_expression(node, ctx))
+        }
         AnyAstNode::MemberExpression(member_expression_node) => todo!(),
         AnyAstNode::IdentifierExpression(identifier_expression_node) => todo!(),
         AnyAstNode::StringLiteralExpression(_) => Some(Ok(ResolvingLangType::Primitive(
@@ -880,5 +885,62 @@ fn discover_type_for_loop_expression(
     Ok(ResolvingLangTypeValue::from_link(
         loop_result_type,
         "loop expression result",
+    ))
+}
+
+fn discover_type_for_call_expression(
+    node: &CallExpressionNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let function_type = ctx.get_link_for_node(node.callee.breadcrumbs());
+    let function_result = ctx
+        .create_id_variable(vec![TrackedHint::new(
+            Hint::CallResult(function_type),
+            "callee result",
+            None,
+        )])?
+        .1;
+
+    Ok(ResolvingLangTypeValue::from_link(
+        function_result,
+        "call expression result",
+    ))
+}
+
+fn discover_type_for_pipe_call_expression(
+    node: &PipeCallExpressionNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let function_type = ctx.get_link_for_node(node.callee.breadcrumbs());
+    let function_result = ctx
+        .create_id_variable(vec![TrackedHint::new(
+            Hint::CallResult(function_type),
+            "pipe call result",
+            None,
+        )])?
+        .1;
+
+    Ok(ResolvingLangTypeValue::from_link(
+        function_result,
+        "pipe call expression result",
+    ))
+}
+
+fn discover_type_for_cause_expression(
+    node: &CauseExpressionNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let signal_type = ctx.get_link_for_node(node.signal.breadcrumbs());
+    let signal_result = ctx
+        .create_id_variable(vec![TrackedHint::new(
+            Hint::CauseResult(signal_type),
+            "signal result",
+            None,
+        )])?
+        .1;
+
+    Ok(ResolvingLangTypeValue::from_link(
+        signal_result,
+        "cause expression result",
     ))
 }
