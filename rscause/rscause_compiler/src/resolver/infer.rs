@@ -16,10 +16,11 @@ fn infer_variable_step(
     let mut add_hints = Vec::<TrackedHint>::new();
     let mut remove_hint_indices = Vec::<usize>::new();
 
+    // A single EqualTo hint means it's been solved!
     if hints.len() == 1 && matches!(hints[0].hint, Hint::EqualTo(_)) {
-        let solved_hint_equal_to = hints[0].hint.try_as_equal_to_ref().unwrap();
-        // TODO: need to be able to "solve" a variable even if it just points to another variable
-        // return Ok(InferVariableStepResult::Solved(()))
+        return Ok(InferVariableStepResult::Solved(
+            hints[0].hint.try_as_equal_to_ref().unwrap().clone(),
+        ));
     }
 
     Ok(InferVariableStepResult::Next {
@@ -30,19 +31,11 @@ fn infer_variable_step(
 
 #[derive(Debug, Clone)]
 enum InferVariableStepResult {
-    Solved(LangTypeResult<ResolvingLangType>),
+    Solved(ResolvingLangTypeLink),
     Next {
         add_hints: Vec<TrackedHint>,
         remove_hint_indices: Vec<usize>,
     },
-}
-impl From<LangTypeResult<InferVariableStepResult>> for InferVariableStepResult {
-    fn from(value: LangTypeResult<InferVariableStepResult>) -> Self {
-        match value {
-            Ok(value) => value,
-            Err(err) => InferVariableStepResult::Solved(Err(err)),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

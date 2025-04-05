@@ -114,6 +114,14 @@ impl ResolvingLangTypeLink {
 
         Ok(ResolvingLangTypeLink(Rc::downgrade(&tracked)))
     }
+
+    fn get_snapshot_value(&self) -> anyhow::Result<Option<LangTypeResult<ResolvingLangType>>> {
+        let linked = self
+            .0
+            .upgrade()
+            .ok_or(anyhow!("ResolvingLangTypesContext has been dropped",))?;
+        linked.get_snapshot_value()
+    }
 }
 impl From<Rc<LinkedResolvingLangType>> for ResolvingLangTypeLink {
     fn from(value: Rc<LinkedResolvingLangType>) -> Self {
@@ -129,7 +137,7 @@ impl TryFrom<ResolvingLangTypeLink> for lang_types::FallibleLangType {
             .upgrade()
             .ok_or(anyhow!("ResolvingLangTypesContext has been dropped"))?;
 
-        match value.get_snapshot_value() {
+        match value.get_snapshot_value()? {
             Some(Ok(resolving_lang_type)) => {
                 Ok(Arc::new(resolving_lang_type.to_owned().try_into()?))
             }
@@ -145,13 +153,13 @@ pub enum LinkedResolvingLangType {
     Constant(LangTypeResult<ResolvingLangType>),
 }
 impl LinkedResolvingLangType {
-    fn get_snapshot_value(&self) -> Option<LangTypeResult<ResolvingLangType>> {
+    fn get_snapshot_value(&self) -> anyhow::Result<Option<LangTypeResult<ResolvingLangType>>> {
         match self {
             LinkedResolvingLangType::Variable(variable) => match &*variable.value.borrow() {
-                ResolvingLangTypeValue::Known(value) => Some(value.to_owned()),
-                ResolvingLangTypeValue::Hints(_) => None,
+                ResolvingLangTypeValue::Known(value) => value.get_snapshot_value(),
+                ResolvingLangTypeValue::Hints(_) => Ok(None),
             },
-            LinkedResolvingLangType::Constant(it) => Some(it.to_owned()),
+            LinkedResolvingLangType::Constant(it) => Ok(Some(it.to_owned())),
         }
     }
 }
@@ -169,30 +177,23 @@ pub enum ResolvingLangTypeSource {
 
 #[derive(Debug, Clone, EnumTryAs)]
 pub enum ResolvingLangTypeValue {
-    Known(LangTypeResult<ResolvingLangType>),
+    Known(ResolvingLangTypeLink),
     Hints(Vec<TrackedHint>),
 }
 impl ResolvingLangTypeValue {
-    pub fn from_type(lang_type: impl Into<ResolvingLangType>) -> Self {
-        Self::Known(Ok(lang_type.into()))
+    pub fn from_type(
+        lang_type: impl Into<ResolvingLangType>,
+        ctx: &mut ResolvingLangTypesContext,
+    ) -> Self {
+        let constant_link = ctx.link_lang_type(Ok(lang_type.into()));
+        Self::Known(constant_link.into())
     }
-    pub fn from_error(err: impl Into<Arc<LangError>>) -> Self {
-        Self::Known(Err(err.into()))
+    pub fn from_error(err: impl Into<Arc<LangError>>, ctx: &mut ResolvingLangTypesContext) -> Self {
+        let constant_link = ctx.link_lang_type(Err(err.into()));
+        Self::Known(constant_link.into())
     }
-    pub fn from_link(link: impl Into<ResolvingLangTypeLink>, reason: impl Into<String>) -> Self {
-        Self::Hints(vec![TrackedHint {
-            hint: super::hints::Hint::EqualTo(link.into()),
-            reason: reason.into(),
-            inferred_from: None,
-        }])
-    }
-}
-impl<T> From<T> for ResolvingLangTypeValue
-where
-    T: Into<LangTypeResult<ResolvingLangType>>,
-{
-    fn from(value: T) -> Self {
-        Self::Known(value.into())
+    pub fn from_link(link: impl Into<ResolvingLangTypeLink>) -> Self {
+        Self::Known(link.into())
     }
 }
 

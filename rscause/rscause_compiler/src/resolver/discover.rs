@@ -50,7 +50,9 @@ pub fn discover_types(
         let discovered_result = discover_type_for_any_ast_node(descendant, &mut ctx);
         if let Some(discovered_result) = discovered_result {
             let discovered_value: ResolvingLangTypeValue =
-                discovered_result.unwrap_or_else(|err| ResolvingLangTypeValue::from_error(err));
+                discovered_result.unwrap_or_else(|err| {
+                    ResolvingLangTypeValue::from_error(err, &mut ctx.resolving_types_ctx)
+                });
 
             let source = ResolvingLangTypeSource::Breadcrumb(descendant.breadcrumbs().to_owned());
 
@@ -64,12 +66,17 @@ pub fn discover_types(
                 let mut value = variable.value.borrow_mut();
                 let new_value = match &*value {
                     ResolvingLangTypeValue::Known(resolving_lang_type) => {
-                        ResolvingLangTypeValue::from_error(LangError::compiler_bug(format!(
-                      "trying to resolve {} with {:?}, but it already has a known value: {:?}",
-                      descendant.breadcrumbs(),
-                      &discovered_value,
-                      resolving_lang_type,
-                  )))
+                        ResolvingLangTypeValue::from_error(
+                            LangError::compiler_bug(
+                                format!(
+                                    "trying to resolve {} with {:?}, but it already has a known value: {:?}",
+                                    descendant.breadcrumbs(),
+                                    &discovered_value,
+                                    resolving_lang_type,
+                                )
+                            ),
+                            &mut ctx.resolving_types_ctx,
+                        )
                     }
                     ResolvingLangTypeValue::Hints(tracked_hints) => {
                         if tracked_hints.len() == 0 {
@@ -80,7 +87,7 @@ pub fn discover_types(
                                 descendant.breadcrumbs(),
                                 &discovered_value,
                                 tracked_hints,
-                            )))
+                            )), &mut ctx.resolving_types_ctx)
                         }
                     }
                 };
@@ -160,6 +167,14 @@ impl DiscoverTypesContext {
         self.resolving_types_ctx.link_lang_type(lang_type).into()
     }
 
+    fn constant_value(
+        &mut self,
+        lang_type: LangTypeResult<ResolvingLangType>,
+    ) -> ResolvingLangTypeValue {
+        let link = self.link_lang_type(lang_type);
+        ResolvingLangTypeValue::from_link(link)
+    }
+
     fn create_id_variable(
         &mut self,
         hints: Vec<TrackedHint>,
@@ -219,14 +234,14 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::DeclarationStatement(node) => {
             Some(discover_type_for_declaration_statement(node, ctx))
         }
-        AnyAstNode::EffectStatement(_) => Some(Ok(ResolvingLangType::Action.into())),
+        AnyAstNode::EffectStatement(_) => {
+            Some(Ok(ctx.constant_value(Ok(ResolvingLangType::Action))))
+        }
         AnyAstNode::GroupExpression(node) => Some(Ok(ResolvingLangTypeValue::from_link(
             ctx.get_link_for_node(node.expression.breadcrumbs()),
-            "group expression",
         ))),
         AnyAstNode::BlockExpression(node) => Some(Ok(ResolvingLangTypeValue::from_link(
             ctx.get_link_for_node(node.block.breadcrumbs()),
-            "block expression",
         ))),
         AnyAstNode::FunctionExpression(node) => Some(discover_type_for_function(
             None,
@@ -238,20 +253,16 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::BranchExpression(node) => Some(discover_type_for_branch_expression(node, ctx)),
         AnyAstNode::IfBranchOption(node) => Some(Ok(ResolvingLangTypeValue::from_link(
             ctx.get_link_for_node(node.breadcrumbs()),
-            "option body",
         ))),
         AnyAstNode::IsBranchOption(node) => Some(Ok(ResolvingLangTypeValue::from_link(
             ctx.get_link_for_node(node.breadcrumbs()),
-            "option body",
         ))),
         AnyAstNode::ElseBranchOption(node) => Some(Ok(ResolvingLangTypeValue::from_link(
             ctx.get_link_for_node(node.breadcrumbs()),
-            "option body",
         ))),
         AnyAstNode::LoopExpression(node) => Some(discover_type_for_loop_expression(node, ctx)),
         AnyAstNode::SetExpression(node) => Some(Ok(ResolvingLangTypeValue::from_link(
             ctx.get_link_for_node(node.expression.breadcrumbs()),
-            "set expression value",
         ))),
         AnyAstNode::CauseExpression(node) => Some(discover_type_for_cause_expression(node, ctx)),
         AnyAstNode::CallExpression(node) => Some(discover_type_for_call_expression(node, ctx)),
@@ -262,20 +273,18 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::IdentifierExpression(node) => {
             Some(discover_type_for_identifier_expression(node, ctx))
         }
-        AnyAstNode::StringLiteralExpression(_) => Some(Ok(ResolvingLangType::Primitive(
-            PrimitiveLangType::Text,
-        )
-        .into())),
-        AnyAstNode::NumberLiteralExpression(_) => Some(Ok(ResolvingLangType::Primitive(
-            PrimitiveLangType::Number,
-        )
-        .into())),
-        AnyAstNode::ReturnExpression(_) => Some(Ok(ResolvingLangTypeValue::from_type(
-            ResolvingLangType::NeverContinues,
-        ))),
-        AnyAstNode::BreakExpression(_) => Some(Ok(ResolvingLangTypeValue::from_type(
-            ResolvingLangType::NeverContinues,
-        ))),
+        AnyAstNode::StringLiteralExpression(_) => Some(Ok(
+            ctx.constant_value(Ok(ResolvingLangType::Primitive(PrimitiveLangType::Text)))
+        )),
+        AnyAstNode::NumberLiteralExpression(_) => Some(Ok(
+            ctx.constant_value(Ok(ResolvingLangType::Primitive(PrimitiveLangType::Number)))
+        )),
+        AnyAstNode::ReturnExpression(_) => {
+            Some(Ok(ctx.constant_value(Ok(ResolvingLangType::NeverContinues))))
+        }
+        AnyAstNode::BreakExpression(_) => {
+            Some(Ok(ctx.constant_value(Ok(ResolvingLangType::NeverContinues))))
+        }
     }
 }
 
@@ -288,10 +297,7 @@ fn discover_type_for_identifier_type_reference(
         find_tag!(&tags, NodeTag::ValueComesFrom).ok_or(Arc::new(LangError::NotInScope))?;
     let source_node = ctx.node_at_path(&reference_tag.source)?;
     let source_node_type = ctx.get_link_for_node(source_node.breadcrumbs());
-    Ok(ResolvingLangTypeValue::from_link(
-        source_node_type,
-        "IdentifierTypeReference",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(source_node_type))
 }
 
 fn discover_type_for_function_type_reference(
@@ -330,7 +336,7 @@ fn discover_type_for_function_type_reference(
         return_type: return_type.into(),
     });
 
-    Ok(ResolvingLangType::TypeReference(ctx.link_lang_type(function_type.into())).into())
+    Ok(ctx.constant_value(function_type.into()))
 }
 
 fn discover_type_for_pattern(node: &PatternNode, ctx: &mut DiscoverTypesContext) -> DiscoverResult {
@@ -340,10 +346,7 @@ fn discover_type_for_pattern(node: &PatternNode, ctx: &mut DiscoverTypesContext)
         "patterns are represented by the value type they match",
         None,
     )])?;
-    Ok(ResolvingLangTypeValue::from_link(
-        value_type.1,
-        "values matched by pattern",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(value_type.1))
 }
 
 fn discover_type_for_function_signature_parameter(
@@ -362,10 +365,7 @@ fn discover_type_for_function_signature_parameter(
         "patterns are represented by the value type they match",
         None,
     )])?;
-    Ok(ResolvingLangTypeValue::from_link(
-        value_type.1,
-        "value of function parameter",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(value_type.1))
 }
 
 fn discover_type_for_function_call_parameter(
@@ -373,10 +373,7 @@ fn discover_type_for_function_call_parameter(
     ctx: &mut DiscoverTypesContext,
 ) -> DiscoverResult {
     let expression_value = ctx.get_link_for_node(node.value.breadcrumbs());
-    Ok(ResolvingLangTypeValue::from_link(
-        expression_value,
-        "value of function call parameter",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(expression_value))
 }
 
 fn discover_type_for_import_mapping(
@@ -412,13 +409,7 @@ fn discover_type_for_import_mapping(
         ResolvingLangTypeLink::import_type(&mut ctx.resolving_types_ctx, Ok(export.clone()))
             .map_err(anyhow_to_compiler_bug)?;
 
-    Ok(ResolvingLangTypeValue::from_link(
-        export_link,
-        format!(
-            "import {} from {}",
-            node.source_name.text, references_file_tag.path
-        ),
-    ))
+    Ok(ResolvingLangTypeValue::from_link(export_link))
 }
 
 /// Gets type for any function (both declaration and expression)
@@ -483,13 +474,12 @@ fn discover_type_for_function(
         })
         .collect();
 
-    Ok(ResolvingLangTypeValue::from_type(
-        FunctionResolvingLangType {
-            name,
-            params,
-            return_type,
-        },
-    ))
+    Ok(ctx.constant_value(Ok(FunctionResolvingLangType {
+        name,
+        params,
+        return_type,
+    }
+    .into())))
 }
 
 fn discover_type_for_named_value(
@@ -514,10 +504,7 @@ fn discover_type_for_named_value(
     let result_type =
         explicit_type.unwrap_or_else(|| ctx.get_link_for_node(node.value.breadcrumbs()));
 
-    Ok(ResolvingLangTypeValue::from_link(
-        result_type,
-        "named value",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(result_type))
 }
 
 fn discover_type_for_object_type(
@@ -567,10 +554,7 @@ fn discover_type_for_object_type(
     .pipe(|it| ctx.link_lang_type(Ok(it)));
     let type_reference = ctx.link_lang_type(Ok(ResolvingLangType::TypeReference(instance_type)));
 
-    Ok(ResolvingLangTypeValue::from_link(
-        type_reference,
-        "object type",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(type_reference))
 }
 
 fn discover_type_for_signal_type(
@@ -637,10 +621,7 @@ fn discover_type_for_signal_type(
     .pipe(|it| ctx.link_lang_type(Ok(it)));
     let type_reference = ctx.link_lang_type(Ok(ResolvingLangType::TypeReference(instance_type)));
 
-    Ok(ResolvingLangTypeValue::from_link(
-        type_reference,
-        "signal type",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(type_reference))
 }
 
 fn discover_type_for_object_field(
@@ -654,10 +635,7 @@ fn discover_type_for_object_field(
         None,
     )])?;
 
-    Ok(ResolvingLangTypeValue::from_link(
-        value_type.1,
-        "object field",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(value_type.1))
 }
 
 fn discover_type_for_one_of_type(
@@ -699,10 +677,7 @@ fn discover_type_for_one_of_type(
         )])?
         .1;
 
-    Ok(ResolvingLangTypeValue::from_link(
-        type_reference,
-        "oneof type",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(type_reference))
 }
 
 fn discover_type_for_block_body(
@@ -739,10 +714,7 @@ fn discover_type_for_block_body(
 
     let result_type = ctx.create_id_variable(hints)?.1;
 
-    Ok(ResolvingLangTypeValue::from_link(
-        result_type,
-        "block result",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(result_type))
 }
 
 fn discover_type_for_single_expression_body(
@@ -751,10 +723,7 @@ fn discover_type_for_single_expression_body(
 ) -> DiscoverResult {
     let result_type = ctx.get_link_for_node(node.expression.breadcrumbs());
 
-    Ok(ResolvingLangTypeValue::from_link(
-        result_type,
-        "single expression body",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(result_type))
 }
 
 fn discover_type_for_expression_statement(
@@ -770,10 +739,7 @@ fn discover_type_for_expression_statement(
         )])?
         .1;
 
-    Ok(ResolvingLangTypeValue::from_link(
-        statement_type,
-        "expression statement",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(statement_type))
 }
 
 fn discover_type_for_declaration_statement(
@@ -789,10 +755,7 @@ fn discover_type_for_declaration_statement(
         )])?
         .1;
 
-    Ok(ResolvingLangTypeValue::from_link(
-        statement_type,
-        "declaration statement",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(statement_type))
 }
 
 fn discover_type_for_branch_expression(
@@ -818,7 +781,6 @@ fn discover_type_for_branch_expression(
             None,
         )])?
         .1,
-        "branch expression",
     ))
 }
 
@@ -830,9 +792,7 @@ fn discover_type_for_loop_expression(
     let breaks = find_tags!(&tags, NodeTag::LoopBreaksAt).collect_vec();
 
     if breaks.is_empty() {
-        return Ok(ResolvingLangTypeValue::from_type(
-            ResolvingLangType::NeverContinues,
-        ));
+        return Ok(ctx.constant_value(Ok(ResolvingLangType::NeverContinues)));
     }
 
     let break_type_hints = breaks
@@ -874,10 +834,7 @@ fn discover_type_for_loop_expression(
         )])?
         .1;
 
-    Ok(ResolvingLangTypeValue::from_link(
-        loop_result_type,
-        "loop expression result",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(loop_result_type))
 }
 
 fn discover_type_for_call_expression(
@@ -893,10 +850,7 @@ fn discover_type_for_call_expression(
         )])?
         .1;
 
-    Ok(ResolvingLangTypeValue::from_link(
-        function_result,
-        "call expression result",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(function_result))
 }
 
 fn discover_type_for_pipe_call_expression(
@@ -912,10 +866,7 @@ fn discover_type_for_pipe_call_expression(
         )])?
         .1;
 
-    Ok(ResolvingLangTypeValue::from_link(
-        function_result,
-        "pipe call expression result",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(function_result))
 }
 
 fn discover_type_for_cause_expression(
@@ -931,10 +882,7 @@ fn discover_type_for_cause_expression(
         )])?
         .1;
 
-    Ok(ResolvingLangTypeValue::from_link(
-        signal_result,
-        "cause expression result",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(signal_result))
 }
 
 fn discover_type_for_member_expression(
@@ -950,10 +898,7 @@ fn discover_type_for_member_expression(
             None,
         )])?
         .1;
-    Ok(ResolvingLangTypeValue::from_link(
-        member_type,
-        "member expression result",
-    ))
+    Ok(ResolvingLangTypeValue::from_link(member_type))
 }
 
 fn discover_type_for_identifier_expression(
@@ -965,8 +910,5 @@ fn discover_type_for_identifier_expression(
         LangError::compiler_bug("IdentifierExpressionNode didn't have a ValueComesFrom tag"),
     ))?;
     let source_type = ctx.get_link_for_node(&comes_from_tag.source);
-    Ok(ResolvingLangTypeValue::from_link(
-        source_type,
-        format!("resolved identifier: {}", &node.identifier.text),
-    ))
+    Ok(ResolvingLangTypeValue::from_link(source_type))
 }
