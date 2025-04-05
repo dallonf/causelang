@@ -32,7 +32,7 @@ pub fn discover_types(
     file: Arc<ast::FileNode>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<DiscoverTypesResult> {
     let resolving_types_ctx = ResolvingLangTypesContext::new();
 
     let mut ctx = DiscoverTypesContext {
@@ -98,7 +98,16 @@ pub fn discover_types(
             }
         }
     }
-    Ok(())
+
+    Ok(DiscoverTypesResult {
+        resolving_types_ctx: ctx.resolving_types_ctx,
+        new_canonical_types: ctx.new_canonical_types,
+    })
+}
+
+pub struct DiscoverTypesResult {
+    pub resolving_types_ctx: ResolvingLangTypesContext,
+    pub new_canonical_types: HashMap<CanonicalLangTypeId, Arc<ResolvingCanonicalLangType>>,
 }
 
 struct DiscoverTypesContext {

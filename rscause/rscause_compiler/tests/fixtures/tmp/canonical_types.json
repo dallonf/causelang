@@ -1,4 +1,18 @@
 {
+  "core/builtin.cau:O:True!": {
+    "Object": {
+      "type_id": "core/builtin.cau:O:True!",
+      "fields": [
+      ]
+    }
+  },
+  "core/builtin.cau:O:False!": {
+    "Object": {
+      "type_id": "core/builtin.cau:O:False!",
+      "fields": [
+      ]
+    }
+  },
   "core/builtin.cau:S:Debug": {
     "Signal": {
       "type_id": "core/builtin.cau:S:Debug",
@@ -6,12 +20,56 @@
         {
           "name": "value",
           "value_type": {
-            "Known": "Anything"
+            "Ok": "Anything"
           }
         }
       ],
       "result": {
-        "Known": "Action"
+        "Ok": "Action"
+      }
+    }
+  },
+  "core/builtin.cau:S:TypeError": {
+    "Signal": {
+      "type_id": "core/builtin.cau:S:TypeError",
+      "fields": [
+        {
+          "name": "badValue",
+          "value_type": {
+            "Ok": "BadValue"
+          }
+        }
+      ],
+      "result": {
+        "Ok": "NeverContinues"
+      }
+    }
+  },
+  "core/builtin.cau:S:AssumptionBroken": {
+    "Signal": {
+      "type_id": "core/builtin.cau:S:AssumptionBroken",
+      "fields": [
+        {
+          "name": "message",
+          "value_type": {
+            "Ok": {
+              "Primitive": "Text"
+            }
+          }
+        }
+      ],
+      "result": {
+        "Ok": "NeverContinues"
+      }
+    }
+  },
+  "core/builtin.cau:S:RunawayLoop!": {
+    "Signal": {
+      "type_id": "core/builtin.cau:S:RunawayLoop!",
+      "fields": [
+      ],
+      "result": {
+        "Ok": "NeverContinues"
       }
     }
   }

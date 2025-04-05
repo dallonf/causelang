@@ -7,6 +7,7 @@ use rscause_compiler::{
     compiled_file::ExternalFileDescriptor,
     lang_types::{CanonicalLangType, CanonicalLangTypeId},
     old_resolver::resolve_types::resolve_types,
+    resolver,
     tags::NodeTag,
 };
 use tap::Pipe;
@@ -22,7 +23,7 @@ fn test_tmp() {
     let external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>> =
         serde_json::from_str(include_str!("fixtures/tmp/external_files.json")).unwrap();
     let resolve_types_result = resolve_types(
-        path,
+        path.clone(),
         ast.clone(),
         node_tags.clone(),
         &canonical_types,
@@ -32,11 +33,20 @@ fn test_tmp() {
     let compile_result = compile(
         Arc::new("project/test.cau".to_owned()),
         &ast,
-        node_tags,
-        canonical_types,
+        node_tags.clone(),
+        canonical_types.clone(),
         resolve_types_result.clone(),
     )
     .pipe(Arc::new);
-    println!("resolve_types_result: {:#?}", resolve_types_result);
-    println!("compile_result: {:#?}", compile_result);
+    // println!("resolve_types_result: {:#?}", resolve_types_result);
+    // println!("compile_result: {:#?}", compile_result);
+
+    let new_resolver_result = resolver::resolve_types(
+        path.clone(),
+        ast.clone(),
+        node_tags.clone(),
+        external_files.clone(),
+        canonical_types.clone(),
+    );
+    println!("new resolve_types: {:#?}", new_resolver_result);
 }

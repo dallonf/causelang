@@ -3,49 +3,116 @@
     "exports": {
       "Text": {
         "TypeReference": {
-          "Known": {
+          "Ok": {
             "Primitive": "Text"
           }
         }
       },
       "Number": {
         "TypeReference": {
-          "Known": {
+          "Ok": {
             "Primitive": "Number"
           }
         }
       },
       "Action": {
         "TypeReference": {
-          "Known": "Action"
+          "Ok": "Action"
         }
       },
-      "NeverContinues": "Action",
+      "NeverContinues": {
+        "TypeReference": {
+          "Ok": "NeverContinues"
+        }
+      },
       "Anything": {
         "TypeReference": {
-          "Known": "Anything"
+          "Ok": "Anything"
         }
       },
       "AnySignal": {
         "TypeReference": {
-          "Known": "AnySignal"
+          "Ok": "AnySignal"
         }
       },
-      "True": "Action",
-      "False": "Action",
+      "True": {
+        "TypeReference": {
+          "Ok": {
+            "Instance": {
+              "type_id": "core/builtin.cau:O:True!"
+            }
+          }
+        }
+      },
+      "False": {
+        "TypeReference": {
+          "Ok": {
+            "Instance": {
+              "type_id": "core/builtin.cau:O:False!"
+            }
+          }
+        }
+      },
       "Debug": {
         "TypeReference": {
-          "Known": {
+          "Ok": {
             "Instance": {
               "type_id": "core/builtin.cau:S:Debug"
             }
           }
         }
       },
-      "TypeError": "Action",
-      "AssumptionBroken": "Action",
-      "RunawayLoop": "Action",
-      "TrueOrFalse": "Action",
+      "TypeError": {
+        "TypeReference": {
+          "Ok": {
+            "Instance": {
+              "type_id": "core/builtin.cau:S:TypeError"
+            }
+          }
+        }
+      },
+      "AssumptionBroken": {
+        "TypeReference": {
+          "Ok": {
+            "Instance": {
+              "type_id": "core/builtin.cau:S:AssumptionBroken"
+            }
+          }
+        }
+      },
+      "RunawayLoop": {
+        "TypeReference": {
+          "Ok": {
+            "Instance": {
+              "type_id": "core/builtin.cau:S:RunawayLoop!"
+            }
+          }
+        }
+      },
+      "TrueOrFalse": {
+        "TypeReference": {
+          "Ok": {
+            "OneOf": {
+              "options": [
+                {
+                  "Ok": {
+                    "Instance": {
+                      "type_id": "core/builtin.cau:O:True!"
+                    }
+                  }
+                },
+                {
+                  "Ok": {
+                    "Instance": {
+                      "type_id": "core/builtin.cau:O:False!"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
       "equals": {
         "Function": {
           "name": "equals",
@@ -53,29 +120,29 @@
             {
               "name": "this",
               "value_type": {
-                "Known": "Anything"
+                "Ok": "Anything"
               }
             },
             {
               "name": "other",
               "value_type": {
-                "Known": "Anything"
+                "Ok": "Anything"
               }
             }
           ],
           "return_type": {
-            "Known": {
+            "Ok": {
               "OneOf": {
                 "options": [
                   {
-                    "Known": {
+                    "Ok": {
                       "Instance": {
                         "type_id": "core/builtin.cau:O:True!"
                       }
                     }
                   },
                   {
-                    "Known": {
+                    "Ok": {
                       "Instance": {
                         "type_id": "core/builtin.cau:O:False!"
                       }
