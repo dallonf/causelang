@@ -13,7 +13,7 @@ use crate::{
     error_types::{anyhow_to_compiler_bug, ImplementationTodoError, LangError},
     find_tag, find_tags,
     lang_types::{
-        self, CanonicalLangTypeCategory, CanonicalLangTypeId, LangTypeResult, PrimitiveLangType,
+        CanonicalLangTypeCategory, CanonicalLangTypeId, LangTypeResult, PrimitiveLangType,
     },
     resolver::{
         hints::{Hint, OneOfOptionHint},
@@ -31,7 +31,6 @@ pub fn discover_types(
     path: Arc<String>,
     file: Arc<ast::FileNode>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
-    canonical_types: &HashMap<Arc<CanonicalLangTypeId>, Arc<lang_types::CanonicalLangType>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 ) -> anyhow::Result<()> {
     let resolving_types_ctx = ResolvingLangTypesContext::new()
@@ -42,8 +41,6 @@ pub fn discover_types(
         path,
         root_node: file.clone(),
         node_tags,
-        // TODO
-        canonical_types: Default::default(),
         external_files,
 
         resolving_types_ctx,
@@ -103,7 +100,6 @@ struct DiscoverTypesContext {
     path: Arc<String>,
     root_node: Arc<ast::FileNode>,
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
-    canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<ResolvingCanonicalLangType>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 
     resolving_types_ctx: Rc<RefCell<ResolvingLangTypesContext>>,
@@ -266,8 +262,10 @@ fn discover_type_for_any_ast_node(
         AnyAstNode::PipeCallExpression(node) => {
             Some(discover_type_for_pipe_call_expression(node, ctx))
         }
-        AnyAstNode::MemberExpression(member_expression_node) => todo!(),
-        AnyAstNode::IdentifierExpression(identifier_expression_node) => todo!(),
+        AnyAstNode::MemberExpression(node) => Some(discover_type_for_member_expression(node, ctx)),
+        AnyAstNode::IdentifierExpression(node) => {
+            Some(discover_type_for_identifier_expression(node, ctx))
+        }
         AnyAstNode::StringLiteralExpression(_) => Some(Ok(ResolvingLangType::Primitive(
             PrimitiveLangType::Text,
         )
@@ -942,5 +940,39 @@ fn discover_type_for_cause_expression(
     Ok(ResolvingLangTypeValue::from_link(
         signal_result,
         "cause expression result",
+    ))
+}
+
+fn discover_type_for_member_expression(
+    node: &MemberExpressionNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let object_type = ctx.get_link_for_node(node.object_expression.breadcrumbs());
+    let member_name = node.member_identifier.text.clone();
+    let member_type = ctx
+        .create_id_variable(vec![TrackedHint::new(
+            Hint::MemberOf(object_type, member_name),
+            "member of object",
+            None,
+        )])?
+        .1;
+    Ok(ResolvingLangTypeValue::from_link(
+        member_type,
+        "member expression result",
+    ))
+}
+
+fn discover_type_for_identifier_expression(
+    node: &IdentifierExpressionNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let tags = ctx.get_tags_for_node(node);
+    let comes_from_tag = find_tag!(&tags, NodeTag::ValueComesFrom).ok_or(Arc::new(
+        LangError::compiler_bug("IdentifierExpressionNode didn't have a ValueComesFrom tag"),
+    ))?;
+    let source_type = ctx.get_link_for_node(&comes_from_tag.source);
+    Ok(ResolvingLangTypeValue::from_link(
+        source_type,
+        format!("resolved identifier: {}", &node.identifier.text),
     ))
 }

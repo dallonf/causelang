@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use strum::EnumTryAs;
 
@@ -18,6 +18,8 @@ pub enum Hint {
     CallResult(ResolvingLangTypeLink),
     // The result of causing the linked signal
     CauseResult(ResolvingLangTypeLink),
+    // The named member of the linked instance
+    MemberOf(ResolvingLangTypeLink, Arc<String>),
 }
 
 #[derive(Debug, Clone)]
