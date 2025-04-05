@@ -11,7 +11,7 @@ use crate::{
     breadcrumbs::{Breadcrumbs, HasBreadcrumbs},
     compiled_file::ExternalFileDescriptor,
     error_types::{anyhow_to_compiler_bug, ImplementationTodoError, LangError},
-    find_tag,
+    find_tag, find_tags,
     lang_types::{
         self, CanonicalLangTypeCategory, CanonicalLangTypeId, LangTypeResult, PrimitiveLangType,
     },
@@ -23,7 +23,7 @@ use crate::{
 };
 use crate::{prelude::*, resolver::resolving_lang_types::ResolvingLangParameter};
 use anyhow::anyhow;
-use std::{borrow::Cow, cell::RefCell, collections::HashMap, option, rc::Rc, sync::Arc};
+use std::{borrow::Cow, cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 use tap::Pipe;
 
 #[expect(dead_code)]
@@ -243,11 +243,20 @@ fn discover_type_for_any_ast_node(
             &node.breadcrumbs(),
             ctx,
         )),
-        AnyAstNode::BranchExpression(branch_expression_node) => todo!(),
-        AnyAstNode::IfBranchOption(if_branch_option_node) => todo!(),
-        AnyAstNode::IsBranchOption(is_branch_option_node) => todo!(),
-        AnyAstNode::ElseBranchOption(else_branch_option_node) => todo!(),
-        AnyAstNode::LoopExpression(loop_expression_node) => todo!(),
+        AnyAstNode::BranchExpression(node) => Some(discover_type_for_branch_expression(node, ctx)),
+        AnyAstNode::IfBranchOption(node) => Some(Ok(ResolvingLangTypeValue::from_link(
+            ctx.get_link_for_node(node.breadcrumbs()),
+            "option body",
+        ))),
+        AnyAstNode::IsBranchOption(node) => Some(Ok(ResolvingLangTypeValue::from_link(
+            ctx.get_link_for_node(node.breadcrumbs()),
+            "option body",
+        ))),
+        AnyAstNode::ElseBranchOption(node) => Some(Ok(ResolvingLangTypeValue::from_link(
+            ctx.get_link_for_node(node.breadcrumbs()),
+            "option body",
+        ))),
+        AnyAstNode::LoopExpression(node) => Some(discover_type_for_loop_expression(node, ctx)),
         AnyAstNode::SetExpression(set_expression_node) => todo!(),
         AnyAstNode::CauseExpression(cause_expression_node) => todo!(),
         AnyAstNode::CallExpression(call_expression_node) => todo!(),
@@ -786,5 +795,90 @@ fn discover_type_for_declaration_statement(
     Ok(ResolvingLangTypeValue::from_link(
         statement_type,
         "declaration statement",
+    ))
+}
+
+fn discover_type_for_branch_expression(
+    node: &BranchExpressionNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let result_hints = node
+        .branches
+        .iter()
+        .map(|branch_node| {
+            let branch_result_value = ctx.get_link_for_node(branch_node.breadcrumbs());
+            OneOfOptionHint {
+                source_breadcrumbs: branch_node.breadcrumbs().to_owned(),
+                value: branch_result_value,
+            }
+        })
+        .collect_vec();
+
+    Ok(ResolvingLangTypeValue::from_link(
+        ctx.create_id_variable(vec![TrackedHint::new(
+            Hint::OneOf(result_hints.into()),
+            "branch can return any of its options",
+            None,
+        )])?
+        .1,
+        "branch expression",
+    ))
+}
+
+fn discover_type_for_loop_expression(
+    node: &LoopExpressionNode,
+    ctx: &mut DiscoverTypesContext,
+) -> DiscoverResult {
+    let tags = ctx.get_tags_for_node(node);
+    let breaks = find_tags!(&tags, NodeTag::LoopBreaksAt).collect_vec();
+
+    if breaks.is_empty() {
+        return Ok(ResolvingLangTypeValue::from_type(
+            ResolvingLangType::NeverContinues,
+        ));
+    }
+
+    let break_type_hints = breaks
+        .iter()
+        .map(|it| {
+            let break_expression = ctx.node_at_path(&it.break_expression);
+            let break_expression_type = break_expression
+                .and_then(|break_expression| {
+                    break_expression.try_as_break_expression().ok_or(
+                        LangError::compiler_bug(
+                            "LoopBreaksAt.break_expression didn't point at a BreakExpression",
+                        )
+                        .into(),
+                    )
+                })
+                .map(|break_expression| {
+                    if let Some(with_value) = &break_expression.with_value {
+                        OneOfOptionHint {
+                            source_breadcrumbs: with_value.breadcrumbs().to_owned(),
+                            value: ctx.get_link_for_node(with_value.breadcrumbs()),
+                        }
+                    } else {
+                        OneOfOptionHint {
+                            source_breadcrumbs: break_expression.breadcrumbs().to_owned(),
+                            value: ctx.link_lang_type(Ok(ResolvingLangType::Action)),
+                        }
+                    }
+                })?;
+
+            Ok(break_expression_type)
+        })
+        .collect::<LangTypeResult<Vec<_>>>()?;
+
+    let loop_result_type = ctx
+        .create_id_variable(vec![TrackedHint::new(
+            Hint::OneOf(break_type_hints.into()),
+            "loop result can come from any of its break expressions",
+            None,
+        )])?
+        .1;
+
+    Ok(ResolvingLangTypeValue::from_link(
+        loop_result_type,
+        "loop expression result",
     ))
 }
