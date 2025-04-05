@@ -23,7 +23,7 @@ use crate::{
 };
 use crate::{prelude::*, resolver::resolving_lang_types::ResolvingLangParameter};
 use anyhow::anyhow;
-use std::{borrow::Cow, cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, rc::Rc, sync::Arc};
 use tap::Pipe;
 
 #[expect(dead_code)]
@@ -33,9 +33,7 @@ pub fn discover_types(
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 ) -> anyhow::Result<()> {
-    let resolving_types_ctx = ResolvingLangTypesContext::new()
-        .pipe(RefCell::new)
-        .pipe(Rc::new);
+    let resolving_types_ctx = ResolvingLangTypesContext::new();
 
     let mut ctx = DiscoverTypesContext {
         path,
@@ -53,11 +51,10 @@ pub fn discover_types(
         if let Some(discovered_result) = discovered_result {
             let discovered_value: ResolvingLangTypeValue =
                 discovered_result.unwrap_or_else(|err| ResolvingLangTypeValue::from_error(err));
-            let mut resolving_types_ctx = ctx.resolving_types_ctx.try_borrow_mut()?;
 
             let source = ResolvingLangTypeSource::Breadcrumb(descendant.breadcrumbs().to_owned());
 
-            let existing_variable = resolving_types_ctx.get_variable(&source);
+            let existing_variable = ctx.resolving_types_ctx.get_variable(&source);
             if let Some(existing_variable) = existing_variable {
                 let variable = existing_variable.try_as_variable_ref().ok_or(anyhow!(
                     "trying to resolve {}, linked type was not a variable, but was {:?}",
@@ -89,7 +86,8 @@ pub fn discover_types(
                 };
                 *value = new_value;
             } else {
-                resolving_types_ctx.add_variable(source, discovered_value)?;
+                ctx.resolving_types_ctx
+                    .add_variable(source, discovered_value)?;
             }
         }
     }
@@ -102,7 +100,7 @@ struct DiscoverTypesContext {
     node_tags: Arc<HashMap<Breadcrumbs, Vec<NodeTag>>>,
     external_files: Arc<HashMap<Arc<String>, ExternalFileDescriptor>>,
 
-    resolving_types_ctx: Rc<RefCell<ResolvingLangTypesContext>>,
+    resolving_types_ctx: ResolvingLangTypesContext,
     new_canonical_types: HashMap<CanonicalLangTypeId, Arc<ResolvingCanonicalLangType>>,
 }
 impl DiscoverTypesContext {
@@ -143,13 +141,12 @@ impl DiscoverTypesContext {
     }
 
     fn get_link_for_node(&mut self, breadcrumbs: &Breadcrumbs) -> ResolvingLangTypeLink {
-        let mut types_ctx = self.resolving_types_ctx.borrow_mut();
         let breadcrumbs_source = ResolvingLangTypeSource::Breadcrumb(breadcrumbs.to_owned());
-        let existing = types_ctx.get_variable(&breadcrumbs_source);
+        let existing = self.resolving_types_ctx.get_variable(&breadcrumbs_source);
         if let Some(existing) = existing {
             return existing.into();
         } else {
-            types_ctx
+            self.resolving_types_ctx
                 .add_variable(breadcrumbs_source, ResolvingLangTypeValue::Hints(vec![]))
                 .expect("we just checked for the source above, shouldn't be possible for it to come back")
                 .into()
@@ -160,16 +157,15 @@ impl DiscoverTypesContext {
         &mut self,
         lang_type: LangTypeResult<ResolvingLangType>,
     ) -> ResolvingLangTypeLink {
-        let mut types_ctx = self.resolving_types_ctx.borrow_mut();
-        types_ctx.link_lang_type(lang_type).into()
+        self.resolving_types_ctx.link_lang_type(lang_type).into()
     }
 
     fn create_id_variable(
         &mut self,
         hints: Vec<TrackedHint>,
     ) -> LangTypeResult<(u64, ResolvingLangTypeLink)> {
-        let mut types_ctx = self.resolving_types_ctx.borrow_mut();
-        let (id, variable) = types_ctx
+        let (id, variable) = self
+            .resolving_types_ctx
             .create_id_variable(hints)
             .map_err(anyhow_to_compiler_bug)?;
         Ok((id, variable.into()))
@@ -412,11 +408,9 @@ fn discover_type_for_import_mapping(
         .get(&node.source_name.text)
         .ok_or(LangError::ExportNotFound.pipe(Arc::new))?;
 
-    let export_link = ResolvingLangTypeLink::import_type(
-        &mut ctx.resolving_types_ctx.borrow_mut(),
-        Ok(export.clone()),
-    )
-    .map_err(anyhow_to_compiler_bug)?;
+    let export_link =
+        ResolvingLangTypeLink::import_type(&mut ctx.resolving_types_ctx, Ok(export.clone()))
+            .map_err(anyhow_to_compiler_bug)?;
 
     Ok(ResolvingLangTypeValue::from_link(
         export_link,
