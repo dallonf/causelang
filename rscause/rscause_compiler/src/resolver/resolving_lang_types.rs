@@ -94,6 +94,15 @@ impl ResolvingLangTypesContext {
         )?;
         Ok((id, new_link))
     }
+
+    pub fn all_variables(
+        &self,
+    ) -> impl Iterator<Item = (ResolvingLangTypeSource, Rc<LinkedResolvingLangType>)> + use<'_>
+    {
+        self.values_by_source
+            .iter()
+            .map(|(source, value)| (source.clone(), value.clone()))
+    }
 }
 
 #[derive(Debug, Clone)]
