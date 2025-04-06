@@ -56,7 +56,7 @@ pub fn infer_types(ctx: ResolvingLangTypesContext) -> anyhow::Result<()> {
                     let mut new_hints = hints
                         .iter()
                         .enumerate()
-                        .filter(|(i, _)| remove_hint_indices.contains(i))
+                        .filter(|(i, _)| !remove_hint_indices.contains(i))
                         .map(|(_, hint)| hint.clone())
                         .collect_vec();
                     new_hints.append(&mut add_hints);
@@ -67,6 +67,7 @@ pub fn infer_types(ctx: ResolvingLangTypesContext) -> anyhow::Result<()> {
 
         iterations += 1;
         if iterations >= MAX_ITERATIONS {
+            // TODO: really need to stop earlier if we get stuck
             // TODO: "solve" all remaining unsolved variables with a "solver iterations exceeded" error
             break;
         }
