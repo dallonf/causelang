@@ -90,6 +90,20 @@ pub fn infer_types(ctx: ResolvingLangTypesContext) -> anyhow::Result<()> {
 struct InferTypesContext {
     resolving_types_ctx: ResolvingLangTypesContext,
 }
+impl InferTypesContext {
+    fn build_equal_to_hint(
+        &mut self,
+        lang_type: LangTypeResult<ResolvingLangType>,
+        reason: impl Into<String>,
+        inferred_from: &Vec<TrackedHint>,
+    ) -> TrackedHint {
+        TrackedHint::new(
+            Hint::EqualTo(self.resolving_types_ctx.link_lang_type(lang_type).into()),
+            reason.into(),
+            Some(inferred_from.clone()),
+        )
+    }
+}
 
 #[derive(Debug, Clone)]
 enum InferVariableStepResult {
@@ -155,6 +169,7 @@ fn infer_hint_step(
     ctx: &mut InferTypesContext,
 ) -> LangTypeResult<InferHintStepResult> {
     match &hint.hint {
+        // EqualTo is handled with complex rules
         Hint::EqualTo(_) => InferHintStepResult::Unchanged,
         Hint::ReferencedType(resolving_lang_type_link) => todo!(),
         Hint::TypeReference(link) => infer_type_reference_hint(link, inferred_from, ctx)?,
@@ -190,18 +205,12 @@ fn infer_type_reference_hint(
                     .pipe(Arc::new),
                 )
             }
-            Ok(value_type) => {
-                let tracked_hint = TrackedHint::new(
-                    Hint::EqualTo(
-                        ctx.resolving_types_ctx
-                            .link_lang_type(Ok(value_type))
-                            .into(),
-                    ),
+            Ok(value_type) => Ok(InferHintStepResult::ReplaceWith(vec![ctx
+                .build_equal_to_hint(
+                    Ok(value_type),
                     "type reference of value type",
-                    Some(inferred_from.clone()),
-                );
-                Ok(InferHintStepResult::ReplaceWith(vec![tracked_hint]))
-            }
+                    inferred_from,
+                )])),
             Err(err) => Err(err),
         };
     } else {
