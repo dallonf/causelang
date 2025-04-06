@@ -80,6 +80,7 @@ impl ResolvingLangTypesContext {
         lang_type: LangTypeResult<ResolvingLangType>,
     ) -> Rc<LinkedResolvingLangType> {
         let new_link = LinkedResolvingLangType::Constant(lang_type).pipe(Rc::new);
+        self.all_values.push(new_link.clone());
         new_link
     }
 

@@ -26,7 +26,6 @@ use anyhow::anyhow;
 use std::{borrow::Cow, collections::HashMap, rc::Rc, sync::Arc};
 use tap::Pipe;
 
-#[expect(dead_code)]
 pub fn discover_types(
     path: Arc<String>,
     file: Arc<ast::FileNode>,
