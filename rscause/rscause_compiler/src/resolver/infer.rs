@@ -20,7 +20,11 @@ pub fn infer_types(ctx: ResolvingLangTypesContext) -> anyhow::Result<()> {
     let mut unsolved_variables: HashMap<ResolvingLangTypeSource, Rc<LinkedResolvingLangType>> = ctx
         .resolving_types_ctx
         .all_variables()
-        .filter(|it| it.1.try_as_variable_ref().is_some())
+        .filter(|it| {
+            it.1.try_as_variable_ref()
+                .map(|it| it.value.borrow().try_as_hints_ref().is_some())
+                .unwrap_or(false)
+        })
         .collect();
     let mut solved_variable_diagnostics: HashMap<ResolvingLangTypeSource, Vec<TrackedHint>> =
         Default::default();
@@ -29,10 +33,10 @@ pub fn infer_types(ctx: ResolvingLangTypesContext) -> anyhow::Result<()> {
     loop {
         // clone so we can mutate the map while iterating
         for (source, unsolved_variable) in unsolved_variables.clone() {
-            let mut unsolved_variable_mut = unsolved_variable.try_as_variable_ref().ok_or(anyhow!(
+            let mut unsolved_variable_mut = unsolved_variable.try_as_variable_ref().ok_or_else(|| anyhow!(format!(
                 "Somehow, {source:?} is a constant, but we're tracking it as an unsolved variable: {unsolved_variable:?}"
-            ))?.value.borrow_mut();
-            let hints = unsolved_variable_mut.try_as_hints_ref().ok_or(anyhow!("Somehow, {source:?} is already solved, but we're tracking it as an unsolved variable: {unsolved_variable_mut:?}"))?;
+            )))?.value.borrow_mut();
+            let hints = unsolved_variable_mut.try_as_hints_ref().ok_or_else(|| anyhow!(format!("Somehow, {source:?} is already solved, but we're tracking it as an unsolved variable: {unsolved_variable_mut:?}")))?;
             let variable_step_result = infer_variable_step(hints, &mut ctx).unwrap_or_else(|err| {
                 InferVariableStepResult::Solved(
                     ctx.resolving_types_ctx.link_lang_type(Err(err)).into(),
@@ -75,6 +79,7 @@ pub fn infer_types(ctx: ResolvingLangTypesContext) -> anyhow::Result<()> {
             .map(|it| it.1)
             .collect_vec()
     );
+    std::mem::drop(ctx.resolving_types_ctx);
 
     Ok(())
 }
