@@ -11,6 +11,7 @@ use anyhow::anyhow;
 use std::{
     cell::RefCell,
     collections::HashMap,
+    fmt::{self, Debug},
     hash::Hash,
     rc::{Rc, Weak},
     sync::Arc,
@@ -105,7 +106,7 @@ impl ResolvingLangTypesContext {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ResolvingLangTypeLink(Weak<LinkedResolvingLangType>);
 impl ResolvingLangTypeLink {
     pub fn import_type(
@@ -154,6 +155,29 @@ impl TryFrom<ResolvingLangTypeLink> for lang_types::FallibleLangType {
             None => Err(Arc::new(LangError::NeverResolved)),
         }
         .pipe(Ok)
+    }
+}
+impl fmt::Debug for ResolvingLangTypeLink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut start = f.debug_tuple("ResolvingLangTypeLink");
+        let upgraded = self.0.upgrade();
+
+        if let Some(linked_type) = upgraded {
+            match linked_type.as_ref() {
+                LinkedResolvingLangType::Variable(variable) => {
+                    struct FormattedVariable<'a>(&'a ResolvingLangTypeSource);
+                    impl Debug for FormattedVariable<'_> {
+                        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                            f.debug_tuple("Variable").field(&self.0).finish()
+                        }
+                    }
+                    start.field(&FormattedVariable(&variable.source)).finish()
+                }
+                it @ LinkedResolvingLangType::Constant(_) => start.field(&it).finish(),
+            }
+        } else {
+            start.field(&"[weak reference dropped]").finish()
+        }
     }
 }
 #[derive(Debug, Clone, EnumTryAs)]

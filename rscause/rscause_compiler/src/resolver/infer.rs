@@ -30,9 +30,9 @@ pub fn infer_types(ctx: ResolvingLangTypesContext) -> anyhow::Result<()> {
         // clone so we can mutate the map while iterating
         for (source, unsolved_variable) in unsolved_variables.clone() {
             let mut unsolved_variable_mut = unsolved_variable.try_as_variable_ref().ok_or(anyhow!(
-                "Somehow, {source:?} is a constant, but we're tracking it as an unsolved variable: {unsolved_variable:#?}"
+                "Somehow, {source:?} is a constant, but we're tracking it as an unsolved variable: {unsolved_variable:?}"
             ))?.value.borrow_mut();
-            let hints = unsolved_variable_mut.try_as_hints_ref().ok_or(anyhow!("Somehow, {source:?} is already solved, but we're tracking it as an unsolved variable: {unsolved_variable:#?}"))?;
+            let hints = unsolved_variable_mut.try_as_hints_ref().ok_or(anyhow!("Somehow, {source:?} is already solved, but we're tracking it as an unsolved variable: {unsolved_variable_mut:?}"))?;
             let variable_step_result = infer_variable_step(hints, &mut ctx).unwrap_or_else(|err| {
                 InferVariableStepResult::Solved(
                     ctx.resolving_types_ctx.link_lang_type(Err(err)).into(),
