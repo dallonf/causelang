@@ -1,9 +1,11 @@
+use std::sync::Arc;
 use std::{collections::HashMap, rc::Rc};
 
 use anyhow::anyhow;
-use itertools::Itertools;
 
-use crate::lang_types::LangTypeResult;
+use crate::error_types::{ConstraintUsedAsValueError, LangError};
+use crate::{error_types::anyhow_to_compiler_bug, lang_types::LangTypeResult};
+use crate::{lang_types, prelude::*};
 
 use super::{
     hints::{Hint, TrackedHint},
@@ -89,12 +91,44 @@ struct InferTypesContext {
     resolving_types_ctx: ResolvingLangTypesContext,
 }
 
+#[derive(Debug, Clone)]
+enum InferVariableStepResult {
+    Solved(ResolvingLangTypeLink),
+    Next {
+        add_hints: Vec<TrackedHint>,
+        remove_hint_indices: Vec<usize>,
+    },
+}
+
 fn infer_variable_step(
     hints: &[TrackedHint],
     ctx: &mut InferTypesContext,
 ) -> LangTypeResult<InferVariableStepResult> {
     let mut add_hints = Vec::<TrackedHint>::new();
     let mut remove_hint_indices = Vec::<usize>::new();
+
+    // first process all the hints that can be processed independently
+    for (i, hint) in hints.into_iter().enumerate() {
+        let inferred_from = vec![hint.clone()];
+        let hint_step_result: InferHintStepResult = infer_hint_step(hint, &inferred_from, ctx)?;
+        match hint_step_result {
+            InferHintStepResult::Unchanged => {}
+            InferHintStepResult::ReplaceWith(mut new_hints) => {
+                remove_hint_indices.push(i);
+                add_hints.append(&mut new_hints);
+            }
+        }
+    }
+    // If any of those came up with results, end the step here
+    // so the remaining rules don't have to deal with updates in progress
+    if add_hints.len() > 0 || remove_hint_indices.len() > 0 {
+        return Ok(InferVariableStepResult::Next {
+            add_hints,
+            remove_hint_indices,
+        });
+    }
+
+    // Now, more complex rules, processed one at a time
 
     // A single EqualTo hint means it's been solved!
     if hints.len() == 1 && matches!(hints[0].hint, Hint::EqualTo(_)) {
@@ -110,16 +144,67 @@ fn infer_variable_step(
 }
 
 #[derive(Debug, Clone)]
-enum InferVariableStepResult {
-    Solved(ResolvingLangTypeLink),
-    Next {
-        add_hints: Vec<TrackedHint>,
-        remove_hint_indices: Vec<usize>,
-    },
-}
-
-#[derive(Debug, Clone)]
 enum InferHintStepResult {
     Unchanged,
     ReplaceWith(Vec<TrackedHint>),
+}
+
+fn infer_hint_step(
+    hint: &TrackedHint,
+    inferred_from: &Vec<TrackedHint>,
+    ctx: &mut InferTypesContext,
+) -> LangTypeResult<InferHintStepResult> {
+    match &hint.hint {
+        Hint::EqualTo(_) => InferHintStepResult::Unchanged,
+        Hint::ReferencedType(resolving_lang_type_link) => todo!(),
+        Hint::TypeReference(link) => infer_type_reference_hint(link, inferred_from, ctx)?,
+        Hint::OneOf(one_of_option_hints) => todo!(),
+        Hint::UnreachableIfNeverContinues(resolving_lang_type_link) => todo!(),
+        Hint::CallResult(resolving_lang_type_link) => todo!(),
+        Hint::CauseResult(resolving_lang_type_link) => todo!(),
+        Hint::MemberOf(resolving_lang_type_link, field_name) => todo!(),
+    }
+    .pipe(Ok)
+}
+
+fn infer_type_reference_hint(
+    link: &ResolvingLangTypeLink,
+    inferred_from: &Vec<TrackedHint>,
+    ctx: &mut InferTypesContext,
+) -> LangTypeResult<InferHintStepResult> {
+    let maybe_linked_type_snapshot = link
+        .linked_type()?
+        .get_snapshot_value()
+        .map_err(anyhow_to_compiler_bug)?;
+
+    if let Some(linked_type_snapshot) = maybe_linked_type_snapshot {
+        return match linked_type_snapshot {
+            Ok(type_reference @ ResolvingLangType::TypeReference(_)) => {
+                let resolved_type_reference = type_reference
+                    .try_conv::<lang_types::LangType>()
+                    .map_err(anyhow_to_compiler_bug)?;
+                Err(
+                    LangError::ConstraintUsedAsValue(ConstraintUsedAsValueError {
+                        r#type: resolved_type_reference,
+                    })
+                    .pipe(Arc::new),
+                )
+            }
+            Ok(value_type) => {
+                let tracked_hint = TrackedHint::new(
+                    Hint::EqualTo(
+                        ctx.resolving_types_ctx
+                            .link_lang_type(Ok(value_type))
+                            .into(),
+                    ),
+                    "type reference of value type",
+                    Some(inferred_from.clone()),
+                );
+                Ok(InferHintStepResult::ReplaceWith(vec![tracked_hint]))
+            }
+            Err(err) => Err(err),
+        };
+    } else {
+        return Ok(InferHintStepResult::Unchanged);
+    }
 }

@@ -133,6 +133,14 @@ impl ResolvingLangTypeLink {
             .ok_or(anyhow!("ResolvingLangTypesContext has been dropped",))?;
         linked.get_snapshot_value()
     }
+
+    pub fn linked_type(&self) -> LangTypeResult<Rc<LinkedResolvingLangType>> {
+        self.0.upgrade().ok_or_else(|| {
+            Arc::new(LangError::compiler_bug(
+                "ResolvingLangTypesContext has been dropped",
+            ))
+        })
+    }
 }
 impl From<Rc<LinkedResolvingLangType>> for ResolvingLangTypeLink {
     fn from(value: Rc<LinkedResolvingLangType>) -> Self {
@@ -187,7 +195,7 @@ pub enum LinkedResolvingLangType {
     Constant(LangTypeResult<ResolvingLangType>),
 }
 impl LinkedResolvingLangType {
-    fn get_snapshot_value(&self) -> anyhow::Result<Option<LangTypeResult<ResolvingLangType>>> {
+    pub fn get_snapshot_value(&self) -> anyhow::Result<Option<LangTypeResult<ResolvingLangType>>> {
         match self {
             LinkedResolvingLangType::Variable(variable) => match &*variable.value.borrow() {
                 ResolvingLangTypeValue::Known(value) => value.get_snapshot_value(),
