@@ -141,6 +141,62 @@ impl InferTypesContext {
                 .into()),
             })
     }
+
+    /// Wraps a LangError in a ProxyError for the current source.
+    /// Currently a no-op for Id sources.
+    fn proxy_error(
+        &self,
+        error: Arc<LangError>,
+        source: &ResolvingLangTypeSource,
+    ) -> Arc<LangError> {
+        if let ResolvingLangTypeSource::Breadcrumb(breadcrumbs_source) = source {
+            let node = match self.node_at_path(breadcrumbs_source) {
+                Ok(it) => it,
+                Err(err) => return err,
+            };
+            let mut proxy_err = match error.as_ref() {
+                LangError::ProxyError(e) => e.clone(),
+                _ => ProxyErrorError {
+                    actual_error: error.clone(),
+                    proxy_chain: vec![],
+                },
+            };
+            let position = SourcePosition {
+                path: self.file_path.clone(),
+                breadcrumbs: breadcrumbs_source.clone(),
+                position: node.info().position.clone(),
+            };
+            proxy_err
+                .proxy_chain
+                .insert(0, ErrorPosition::Source(position));
+            Arc::new(LangError::ProxyError(proxy_err))
+        } else {
+            error
+        }
+    }
+
+    /// Designed so you can `?` away errors and not have to think about them.
+    /// Returns Ok(None) if the link hasn't been solved yet.
+    fn read_snapshot_proxying_errors(
+        &self,
+        link: &ResolvingLangTypeLink,
+        source: &ResolvingLangTypeSource,
+    ) -> LangTypeResult<Option<ResolvingLangType>> {
+        let maybe_linked_type_snapshot = link
+            .linked_type()?
+            .get_snapshot_value()
+            .map_err(anyhow_to_compiler_bug)?;
+
+        let linked_type_snapshot = match maybe_linked_type_snapshot {
+            Some(it) => it,
+            None => return Ok(None),
+        };
+
+        match linked_type_snapshot {
+            Ok(value) => Ok(Some(value)),
+            Err(err) => Err(self.proxy_error(err, source)),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -229,14 +285,11 @@ fn infer_type_reference_hint(
     inferred_from: &Vec<TrackedHint>,
     ctx: &mut InferTypesContext,
 ) -> LangTypeResult<InferHintStepResult> {
-    let maybe_linked_type_snapshot = link
-        .linked_type()?
-        .get_snapshot_value()
-        .map_err(anyhow_to_compiler_bug)?;
+    let maybe_linked_type_snapshot = ctx.read_snapshot_proxying_errors(link, source)?;
 
     if let Some(linked_type_snapshot) = maybe_linked_type_snapshot {
         return match linked_type_snapshot {
-            Ok(type_reference @ ResolvingLangType::TypeReference(_)) => {
+            type_reference @ ResolvingLangType::TypeReference(_) => {
                 let resolved_type_reference = type_reference
                     .try_conv::<lang_types::LangType>()
                     .map_err(anyhow_to_compiler_bug)?;
@@ -247,36 +300,12 @@ fn infer_type_reference_hint(
                     .pipe(Arc::new),
                 )
             }
-            Ok(value_type) => Ok(InferHintStepResult::ReplaceWith(vec![ctx
+            value_type => Ok(InferHintStepResult::ReplaceWith(vec![ctx
                 .build_equal_to_hint(
                     Ok(value_type),
                     "type reference of value type",
                     inferred_from,
                 )])),
-            Err(err) => {
-                // TODO: proxying errors needs to be _much_ easier
-                if let ResolvingLangTypeSource::Breadcrumb(breadcrumbs_source) = source {
-                    let node = ctx.node_at_path(breadcrumbs_source)?;
-                    let mut proxy_err = match err.as_ref() {
-                        LangError::ProxyError(e) => e.clone(),
-                        _ => ProxyErrorError {
-                            actual_error: err.clone(),
-                            proxy_chain: vec![],
-                        },
-                    };
-                    let position = SourcePosition {
-                        path: ctx.file_path.clone(),
-                        breadcrumbs: breadcrumbs_source.clone(),
-                        position: node.info().position.clone(),
-                    };
-                    proxy_err
-                        .proxy_chain
-                        .insert(0, ErrorPosition::Source(position));
-                    Err(Arc::new(LangError::ProxyError(proxy_err)))
-                } else {
-                    Err(err)
-                }
-            }
         };
     } else {
         return Ok(InferHintStepResult::Unchanged);
