@@ -200,6 +200,16 @@ impl InferTypesContext {
             Err(err) => Err(self.proxy_error(err, source)),
         }
     }
+
+    fn get_source_position(&self, breadcrumbs: &Breadcrumbs) -> LangTypeResult<SourcePosition> {
+        let position = self.node_at_path(&breadcrumbs)?.info().position;
+        let source_position = SourcePosition {
+            path: self.file_path.clone(),
+            breadcrumbs: breadcrumbs.clone(),
+            position,
+        };
+        Ok(source_position)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -400,25 +410,12 @@ fn infer_one_of_hint(
             ActionIncompatibleWithValueTypesError {
                 actions: actions
                     .into_iter()
-                    .map(|(_, breadcrumbs)| {
-                        let position = ctx.node_at_path(&breadcrumbs)?.info().position;
-                        SourcePosition {
-                            path: ctx.file_path.clone(),
-                            breadcrumbs: breadcrumbs.clone(),
-                            position,
-                        }
-                        .pipe(Ok)
-                    })
+                    .map(|(_, breadcrumbs)| ctx.get_source_position(breadcrumbs))
                     .collect::<LangTypeResult<Vec<_>>>()?,
                 types: values
                     .into_iter()
                     .map(|(value, breadcrumbs)| -> LangTypeResult<_> {
-                        let position = ctx.node_at_path(&breadcrumbs)?.info().position;
-                        let source_position = SourcePosition {
-                            path: ctx.file_path.clone(),
-                            breadcrumbs: breadcrumbs.clone(),
-                            position,
-                        };
+                        let source_position = ctx.get_source_position(breadcrumbs)?;
                         let value_type = value
                             .clone()
                             .try_conv::<lang_types::LangType>()
