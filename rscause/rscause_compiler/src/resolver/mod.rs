@@ -33,7 +33,7 @@ pub fn resolve_types(
         external_files.clone(),
     )?;
 
-    infer_types(resolving_types_ctx)?;
+    infer_types(path.clone(), file.clone(), resolving_types_ctx)?;
 
     Ok(())
 }

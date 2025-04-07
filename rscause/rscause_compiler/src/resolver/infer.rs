@@ -3,9 +3,13 @@ use std::{collections::HashMap, rc::Rc};
 
 use anyhow::anyhow;
 
-use crate::error_types::{ConstraintUsedAsValueError, LangError};
+use crate::ast::{AstNode, BreadcrumbTreeNode};
+use crate::breadcrumbs::Breadcrumbs;
+use crate::error_types::{
+    ConstraintUsedAsValueError, ErrorPosition, LangError, ProxyErrorError, SourcePosition,
+};
+use crate::{ast, lang_types, prelude::*};
 use crate::{error_types::anyhow_to_compiler_bug, lang_types::LangTypeResult};
-use crate::{lang_types, prelude::*};
 
 use super::{
     hints::{Hint, TrackedHint},
@@ -14,8 +18,14 @@ use super::{
 
 const MAX_ITERATIONS: u16 = 10_000;
 
-pub fn infer_types(ctx: ResolvingLangTypesContext) -> anyhow::Result<()> {
+pub fn infer_types(
+    file_path: Arc<String>,
+    root_node: Arc<ast::FileNode>,
+    ctx: ResolvingLangTypesContext,
+) -> anyhow::Result<()> {
     let mut ctx = InferTypesContext {
+        file_path,
+        root_node,
         resolving_types_ctx: ctx,
     };
 
@@ -39,11 +49,12 @@ pub fn infer_types(ctx: ResolvingLangTypesContext) -> anyhow::Result<()> {
                 "Somehow, {source:?} is a constant, but we're tracking it as an unsolved variable: {unsolved_variable:?}"
             )))?.value.borrow_mut();
             let hints = unsolved_variable_mut.try_as_hints_ref().ok_or_else(|| anyhow!(format!("Somehow, {source:?} is already solved, but we're tracking it as an unsolved variable: {unsolved_variable_mut:?}")))?;
-            let variable_step_result = infer_variable_step(hints, &mut ctx).unwrap_or_else(|err| {
-                InferVariableStepResult::Solved(
-                    ctx.resolving_types_ctx.link_lang_type(Err(err)).into(),
-                )
-            });
+            let variable_step_result = infer_variable_step(hints, &source, &mut ctx)
+                .unwrap_or_else(|err| {
+                    InferVariableStepResult::Solved(
+                        ctx.resolving_types_ctx.link_lang_type(Err(err)).into(),
+                    )
+                });
 
             match variable_step_result {
                 InferVariableStepResult::Solved(known_type) => {
@@ -89,6 +100,8 @@ pub fn infer_types(ctx: ResolvingLangTypesContext) -> anyhow::Result<()> {
 
 struct InferTypesContext {
     resolving_types_ctx: ResolvingLangTypesContext,
+    file_path: Arc<String>,
+    root_node: Arc<ast::FileNode>,
 }
 impl InferTypesContext {
     fn build_equal_to_hint(
@@ -103,6 +116,31 @@ impl InferTypesContext {
             Some(inferred_from.clone()),
         )
     }
+
+    fn node_at_path(&self, breadcrumbs: &Breadcrumbs) -> LangTypeResult<ast::AnyAstNode> {
+        BreadcrumbTreeNode::from(&self.root_node)
+            .at_path(breadcrumbs)
+            .map_err(|err| {
+                LangError::compiler_bug(format!(
+                    "Couldn't find a node at path {:?}: {}",
+                    breadcrumbs, err
+                ))
+                .into()
+            })
+            .and_then(|node| match node {
+                BreadcrumbTreeNode::Node(Some(node)) => Ok(node),
+                BreadcrumbTreeNode::Node(None) => Err(LangError::compiler_bug(format!(
+                    "Empty node at path {:?}",
+                    breadcrumbs
+                ))
+                .into()),
+                BreadcrumbTreeNode::List(_) => Err(LangError::compiler_bug(format!(
+                    "List node at path {:?}",
+                    breadcrumbs
+                ))
+                .into()),
+            })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -116,6 +154,7 @@ enum InferVariableStepResult {
 
 fn infer_variable_step(
     hints: &[TrackedHint],
+    source: &ResolvingLangTypeSource,
     ctx: &mut InferTypesContext,
 ) -> LangTypeResult<InferVariableStepResult> {
     let mut add_hints = Vec::<TrackedHint>::new();
@@ -124,7 +163,8 @@ fn infer_variable_step(
     // first process all the hints that can be processed independently
     for (i, hint) in hints.into_iter().enumerate() {
         let inferred_from = vec![hint.clone()];
-        let hint_step_result: InferHintStepResult = infer_hint_step(hint, &inferred_from, ctx)?;
+        let hint_step_result: InferHintStepResult =
+            infer_hint_step(hint, source, &inferred_from, ctx)?;
         match hint_step_result {
             InferHintStepResult::Unchanged => {}
             InferHintStepResult::ReplaceWith(mut new_hints) => {
@@ -165,6 +205,7 @@ enum InferHintStepResult {
 
 fn infer_hint_step(
     hint: &TrackedHint,
+    source: &ResolvingLangTypeSource,
     inferred_from: &Vec<TrackedHint>,
     ctx: &mut InferTypesContext,
 ) -> LangTypeResult<InferHintStepResult> {
@@ -172,7 +213,7 @@ fn infer_hint_step(
         // EqualTo is handled with complex rules
         Hint::EqualTo(_) => InferHintStepResult::Unchanged,
         Hint::ReferencedType(resolving_lang_type_link) => todo!(),
-        Hint::TypeReference(link) => infer_type_reference_hint(link, inferred_from, ctx)?,
+        Hint::TypeReference(link) => infer_type_reference_hint(link, source, inferred_from, ctx)?,
         Hint::OneOf(one_of_option_hints) => todo!(),
         Hint::UnreachableIfNeverContinues(resolving_lang_type_link) => todo!(),
         Hint::CallResult(resolving_lang_type_link) => todo!(),
@@ -184,6 +225,7 @@ fn infer_hint_step(
 
 fn infer_type_reference_hint(
     link: &ResolvingLangTypeLink,
+    source: &ResolvingLangTypeSource,
     inferred_from: &Vec<TrackedHint>,
     ctx: &mut InferTypesContext,
 ) -> LangTypeResult<InferHintStepResult> {
@@ -211,7 +253,30 @@ fn infer_type_reference_hint(
                     "type reference of value type",
                     inferred_from,
                 )])),
-            Err(err) => Err(err),
+            Err(err) => {
+                // TODO: proxying errors needs to be _much_ easier
+                if let ResolvingLangTypeSource::Breadcrumb(breadcrumbs_source) = source {
+                    let node = ctx.node_at_path(breadcrumbs_source)?;
+                    let mut proxy_err = match err.as_ref() {
+                        LangError::ProxyError(e) => e.clone(),
+                        _ => ProxyErrorError {
+                            actual_error: err.clone(),
+                            proxy_chain: vec![],
+                        },
+                    };
+                    let position = SourcePosition {
+                        path: ctx.file_path.clone(),
+                        breadcrumbs: breadcrumbs_source.clone(),
+                        position: node.info().position.clone(),
+                    };
+                    proxy_err
+                        .proxy_chain
+                        .insert(0, ErrorPosition::Source(position));
+                    Err(Arc::new(LangError::ProxyError(proxy_err)))
+                } else {
+                    Err(err)
+                }
+            }
         };
     } else {
         return Ok(InferHintStepResult::Unchanged);
