@@ -7,6 +7,7 @@ use crate::ast::{AstNode, BreadcrumbTreeNode};
 use crate::breadcrumbs::Breadcrumbs;
 use crate::error_types::{
     ConstraintUsedAsValueError, ErrorPosition, LangError, ProxyErrorError, SourcePosition,
+    ValueUsedAsConstraintError,
 };
 use crate::{ast, lang_types, prelude::*};
 use crate::{error_types::anyhow_to_compiler_bug, lang_types::LangTypeResult};
@@ -268,7 +269,7 @@ fn infer_hint_step(
     match &hint.hint {
         // EqualTo is handled with complex rules
         Hint::EqualTo(_) => InferHintStepResult::Unchanged,
-        Hint::ReferencedType(resolving_lang_type_link) => todo!(),
+        Hint::ReferencedType(link) => infer_referenced_type_hint(link, source, inferred_from, ctx)?,
         Hint::TypeReference(link) => infer_type_reference_hint(link, source, inferred_from, ctx)?,
         Hint::OneOf(one_of_option_hints) => todo!(),
         Hint::UnreachableIfNeverContinues(resolving_lang_type_link) => todo!(),
@@ -279,35 +280,69 @@ fn infer_hint_step(
     .pipe(Ok)
 }
 
+fn infer_referenced_type_hint(
+    link: &ResolvingLangTypeLink,
+    source: &ResolvingLangTypeSource,
+    inferred_from: &[TrackedHint],
+    ctx: &mut InferTypesContext,
+) -> LangTypeResult<InferHintStepResult> {
+    let linked_type_snapshot = match ctx.read_snapshot_proxying_errors(link, source)? {
+        Some(it) => it,
+        None => return Ok(InferHintStepResult::Unchanged),
+    };
+
+    match linked_type_snapshot {
+        ResolvingLangType::TypeReference(referenced_type) => {
+            let hint = TrackedHint::new(
+                Hint::EqualTo(referenced_type),
+                "referenced type",
+                Some(inferred_from.into()),
+            );
+            Ok(InferHintStepResult::ReplaceWith(vec![hint]))
+        }
+        value_type => {
+            let resolved_value_type = value_type
+                .try_conv::<lang_types::LangType>()
+                .map_err(anyhow_to_compiler_bug)
+                .map(Arc::new);
+            Err(
+                LangError::ValueUsedAsConstraint(ValueUsedAsConstraintError {
+                    r#type: resolved_value_type,
+                })
+                .pipe(Arc::new),
+            )
+        }
+    }
+}
+
 fn infer_type_reference_hint(
     link: &ResolvingLangTypeLink,
     source: &ResolvingLangTypeSource,
     inferred_from: &Vec<TrackedHint>,
     ctx: &mut InferTypesContext,
 ) -> LangTypeResult<InferHintStepResult> {
-    let maybe_linked_type_snapshot = ctx.read_snapshot_proxying_errors(link, source)?;
+    let linked_type_snapshot = match ctx.read_snapshot_proxying_errors(link, source)? {
+        Some(it) => it,
+        None => return Ok(InferHintStepResult::Unchanged),
+    };
 
-    if let Some(linked_type_snapshot) = maybe_linked_type_snapshot {
-        return match linked_type_snapshot {
-            type_reference @ ResolvingLangType::TypeReference(_) => {
-                let resolved_type_reference = type_reference
-                    .try_conv::<lang_types::LangType>()
-                    .map_err(anyhow_to_compiler_bug)?;
-                Err(
-                    LangError::ConstraintUsedAsValue(ConstraintUsedAsValueError {
-                        r#type: resolved_type_reference,
-                    })
-                    .pipe(Arc::new),
-                )
-            }
-            value_type => Ok(InferHintStepResult::ReplaceWith(vec![ctx
-                .build_equal_to_hint(
-                    Ok(value_type),
-                    "type reference of value type",
-                    inferred_from,
-                )])),
-        };
-    } else {
-        return Ok(InferHintStepResult::Unchanged);
+    match linked_type_snapshot {
+        type_reference @ ResolvingLangType::TypeReference(_) => {
+            let resolved_type_reference = type_reference
+                .try_conv::<lang_types::LangType>()
+                .map_err(anyhow_to_compiler_bug)?;
+            Err(
+                LangError::ConstraintUsedAsValue(ConstraintUsedAsValueError {
+                    r#type: resolved_type_reference,
+                })
+                .pipe(Arc::new),
+            )
+        }
+        value_type => Ok(InferHintStepResult::ReplaceWith(vec![ctx
+            .build_equal_to_hint(
+                Ok(value_type),
+                "type reference of value type",
+                inferred_from,
+            )])),
     }
 }
