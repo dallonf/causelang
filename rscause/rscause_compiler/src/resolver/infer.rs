@@ -6,12 +6,14 @@ use anyhow::anyhow;
 use crate::ast::{AstNode, BreadcrumbTreeNode};
 use crate::breadcrumbs::Breadcrumbs;
 use crate::error_types::{
+    ActionIncompatibleWithValueTypesError, ActionIncompatibleWithValueTypesValueType,
     ConstraintUsedAsValueError, ErrorPosition, LangError, ProxyErrorError, SourcePosition,
     ValueUsedAsConstraintError,
 };
 use crate::{ast, lang_types, prelude::*};
 use crate::{error_types::anyhow_to_compiler_bug, lang_types::LangTypeResult};
 
+use super::hints::OneOfOptionHint;
 use super::{
     hints::{Hint, TrackedHint},
     resolving_lang_types::*,
@@ -109,12 +111,12 @@ impl InferTypesContext {
         &mut self,
         lang_type: LangTypeResult<ResolvingLangType>,
         reason: impl Into<String>,
-        inferred_from: &Vec<TrackedHint>,
+        inferred_from: &[TrackedHint],
     ) -> TrackedHint {
         TrackedHint::new(
             Hint::EqualTo(self.resolving_types_ctx.link_lang_type(lang_type).into()),
             reason.into(),
-            Some(inferred_from.clone()),
+            Some(inferred_from.to_vec()),
         )
     }
 
@@ -267,15 +269,17 @@ fn infer_hint_step(
     ctx: &mut InferTypesContext,
 ) -> LangTypeResult<InferHintStepResult> {
     match &hint.hint {
-        // EqualTo is handled with complex rules
-        Hint::EqualTo(_) => InferHintStepResult::Unchanged,
         Hint::ReferencedType(link) => infer_referenced_type_hint(link, source, inferred_from, ctx)?,
         Hint::TypeReference(link) => infer_type_reference_hint(link, source, inferred_from, ctx)?,
-        Hint::OneOf(one_of_option_hints) => todo!(),
+        Hint::OneOf(one_of_hints) => {
+            infer_one_of_hint(one_of_hints.clone(), source, inferred_from, ctx)?
+        }
         Hint::UnreachableIfNeverContinues(resolving_lang_type_link) => todo!(),
         Hint::CallResult(resolving_lang_type_link) => todo!(),
         Hint::CauseResult(resolving_lang_type_link) => todo!(),
         Hint::MemberOf(resolving_lang_type_link, field_name) => todo!(),
+        // handled with more complex rules
+        Hint::EqualTo(_) => InferHintStepResult::Unchanged,
     }
     .pipe(Ok)
 }
@@ -345,4 +349,101 @@ fn infer_type_reference_hint(
                 inferred_from,
             )])),
     }
+}
+
+fn infer_one_of_hint(
+    option_hints: Rc<Vec<OneOfOptionHint>>,
+    _source: &ResolvingLangTypeSource,
+    inferred_from: &[TrackedHint],
+    ctx: &mut InferTypesContext,
+) -> LangTypeResult<InferHintStepResult> {
+    let solved_hints = option_hints
+        .iter()
+        .map(
+            |hint| -> LangTypeResult<Option<(ResolvingLangType, Breadcrumbs)>> {
+                let maybe_linked_type_snapshot = hint
+                    .value
+                    .linked_type()?
+                    .get_snapshot_value()
+                    .map_err(anyhow_to_compiler_bug)?;
+
+                maybe_linked_type_snapshot
+                    .transpose()
+                    .map_err(|err| {
+                        ctx.proxy_error(
+                            err,
+                            &ResolvingLangTypeSource::Breadcrumb(hint.source_breadcrumbs.clone()),
+                        )
+                    })?
+                    .map(|solved_type| (solved_type, hint.source_breadcrumbs.clone()))
+                    .pipe(Ok)
+            },
+        )
+        .filter_map(|result| result.transpose())
+        .collect_vec();
+
+    if solved_hints.len() < option_hints.len() {
+        // not all of the options are solved
+        return Ok(InferHintStepResult::Unchanged);
+    }
+
+    let (actions, values): (Vec<_>, Vec<_>) = solved_hints
+        .iter()
+        .filter_map(|result| result.as_ref().ok())
+        .partition(|it| match it.0 {
+            ResolvingLangType::Action => true,
+            _ => false,
+        });
+
+    if actions.len() > 0 && values.len() > 0 {
+        return Err(LangError::ActionIncompatibleWithValueTypes(
+            ActionIncompatibleWithValueTypesError {
+                actions: actions
+                    .into_iter()
+                    .map(|(_, breadcrumbs)| {
+                        let position = ctx.node_at_path(&breadcrumbs)?.info().position;
+                        SourcePosition {
+                            path: ctx.file_path.clone(),
+                            breadcrumbs: breadcrumbs.clone(),
+                            position,
+                        }
+                        .pipe(Ok)
+                    })
+                    .collect::<LangTypeResult<Vec<_>>>()?,
+                types: values
+                    .into_iter()
+                    .map(|(value, breadcrumbs)| -> LangTypeResult<_> {
+                        let position = ctx.node_at_path(&breadcrumbs)?.info().position;
+                        let source_position = SourcePosition {
+                            path: ctx.file_path.clone(),
+                            breadcrumbs: breadcrumbs.clone(),
+                            position,
+                        };
+                        let value_type = value
+                            .clone()
+                            .try_conv::<lang_types::LangType>()
+                            .map_err(anyhow_to_compiler_bug)?
+                            .pipe(Arc::new);
+                        ActionIncompatibleWithValueTypesValueType {
+                            r#type: value_type,
+                            position: source_position,
+                        }
+                        .pipe(Ok)
+                    })
+                    .collect::<LangTypeResult<Vec<_>>>()?
+                    .pipe(Some),
+            },
+        )
+        .pipe(Arc::new));
+    }
+
+    let new_type =
+        OneOfResolvingLangType::new(option_hints.iter().map(|hint| hint.value.clone()).collect());
+
+    Ok(InferHintStepResult::ReplaceWith(vec![ctx
+        .build_equal_to_hint(
+            Ok(new_type.into()),
+            "one of",
+            inferred_from.into(),
+        )]))
 }
