@@ -24,10 +24,10 @@ include!("../gen/resolving_lang_types.rs");
 
 // hierarchy, in order:
 // ResolvingLangTypeLink - used to represent a connection in the type graph. Weak reference
-// LinkedResolvingLangType - owned version of ResolvingLangTypeLink
-// LinkedResolvingLangTypeVariable - variant representing a variable whose value can change during resolution, and its source
-// ResolvingLangTypeValue - the actual value that can change
-// LangTypeResult<ResolvingLangType> - A known type value
+// LinkedResolvingLangType - owned version of ResolvingLangTypeLink. Can be either a variable, or a known constant.
+// LinkedResolvingLangTypeVariable - variant of LinkedResolvingLangType representing a variable whose value can change during resolution, and its source
+// ResolvingLangTypeValue - the current state of a variable. Contains either another link, or a list of hints
+// LangTypeResult<ResolvingLangType> - A known type value. Found in LinkedResolvingLangType::Constant
 
 /// Owns strong references to all types in the graph.
 /// Must be in scope and not dropped while working with ResolvingLangTypes.

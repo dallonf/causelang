@@ -10,6 +10,7 @@ use crate::error_types::{
     ConstraintUsedAsValueError, ErrorPosition, LangError, ProxyErrorError, SourcePosition,
     ValueUsedAsConstraintError,
 };
+use crate::lang_types::CanonicalLangTypeId;
 use crate::{ast, lang_types, prelude::*};
 use crate::{error_types::anyhow_to_compiler_bug, lang_types::LangTypeResult};
 
@@ -25,11 +26,13 @@ pub fn infer_types(
     file_path: Arc<String>,
     root_node: Arc<ast::FileNode>,
     ctx: ResolvingLangTypesContext,
+    canonical_types: HashMap<CanonicalLangTypeId, Arc<ResolvingCanonicalLangType>>,
 ) -> anyhow::Result<()> {
     let mut ctx = InferTypesContext {
         file_path,
         root_node,
         resolving_types_ctx: ctx,
+        canonical_types,
     };
 
     let mut unsolved_variables: HashMap<ResolvingLangTypeSource, Rc<LinkedResolvingLangType>> = ctx
@@ -107,18 +110,23 @@ struct InferTypesContext {
     resolving_types_ctx: ResolvingLangTypesContext,
     file_path: Arc<String>,
     root_node: Arc<ast::FileNode>,
+    canonical_types: HashMap<CanonicalLangTypeId, Arc<ResolvingCanonicalLangType>>,
 }
 impl InferTypesContext {
     fn build_equal_to_hint(
         &mut self,
-        lang_type: LangTypeResult<ResolvingLangType>,
+        lang_type: ResolvingLangType,
         reason: impl Into<String>,
-        inferred_from: &[TrackedHint],
+        source_hint: &TrackedHint,
     ) -> TrackedHint {
         TrackedHint::new(
-            Hint::EqualTo(self.resolving_types_ctx.link_lang_type(lang_type).into()),
+            Hint::EqualTo(
+                self.resolving_types_ctx
+                    .link_lang_type(Ok(lang_type))
+                    .into(),
+            ),
             reason.into(),
-            Some(inferred_from.to_vec()),
+            Some(vec![source_hint.to_owned()]),
         )
     }
 
@@ -236,9 +244,7 @@ fn infer_variable_step(
 
     // first process all the hints that can be processed independently
     for (i, hint) in hints.into_iter().enumerate() {
-        let inferred_from = vec![hint.clone()];
-        let hint_step_result: InferHintStepResult =
-            infer_hint_step(hint, source, &inferred_from, ctx)?;
+        let hint_step_result: InferHintStepResult = infer_hint_step(hint, source, ctx)?;
         match hint_step_result {
             InferHintStepResult::Unchanged => {}
             InferHintStepResult::ReplaceWith(mut new_hints) => {
@@ -329,16 +335,13 @@ enum InferHintStepResult {
 fn infer_hint_step(
     hint: &TrackedHint,
     source: &ResolvingLangTypeSource,
-    inferred_from: &Vec<TrackedHint>,
     ctx: &mut InferTypesContext,
 ) -> LangTypeResult<InferHintStepResult> {
     match &hint.hint {
-        Hint::ReferencedType(link) => infer_referenced_type_hint(link, source, inferred_from, ctx)?,
-        Hint::TypeReference(link) => infer_type_reference_hint(link, source, inferred_from, ctx)?,
-        Hint::OneOf(one_of_hints) => {
-            infer_one_of_hint(one_of_hints.clone(), source, inferred_from, ctx)?
-        }
-        Hint::CallResult(resolving_lang_type_link) => todo!(),
+        Hint::ReferencedType(link) => infer_referenced_type_hint(link, source, hint, ctx)?,
+        Hint::TypeReference(link) => infer_type_reference_hint(link, source, hint, ctx)?,
+        Hint::OneOf(one_of_hints) => infer_one_of_hint(one_of_hints.clone(), source, hint, ctx)?,
+        Hint::CallResult(link) => infer_call_result_hint(link, source, hint, ctx)?,
         Hint::CauseResult(resolving_lang_type_link) => todo!(),
         Hint::MemberOf(resolving_lang_type_link, field_name) => todo!(),
         // handled with more complex rules
@@ -351,7 +354,7 @@ fn infer_hint_step(
 fn infer_referenced_type_hint(
     link: &ResolvingLangTypeLink,
     source: &ResolvingLangTypeSource,
-    inferred_from: &[TrackedHint],
+    hint: &TrackedHint,
     ctx: &mut InferTypesContext,
 ) -> LangTypeResult<InferHintStepResult> {
     let linked_type_snapshot = match ctx.read_snapshot_proxying_errors(link, source)? {
@@ -364,7 +367,7 @@ fn infer_referenced_type_hint(
             let hint = TrackedHint::new(
                 Hint::EqualTo(referenced_type),
                 "referenced type",
-                Some(inferred_from.into()),
+                Some(vec![hint.clone()]),
             );
             Ok(InferHintStepResult::ReplaceWith(vec![hint]))
         }
@@ -386,7 +389,7 @@ fn infer_referenced_type_hint(
 fn infer_type_reference_hint(
     link: &ResolvingLangTypeLink,
     source: &ResolvingLangTypeSource,
-    inferred_from: &Vec<TrackedHint>,
+    hint: &TrackedHint,
     ctx: &mut InferTypesContext,
 ) -> LangTypeResult<InferHintStepResult> {
     let linked_type_snapshot = match ctx.read_snapshot_proxying_errors(link, source)? {
@@ -406,19 +409,21 @@ fn infer_type_reference_hint(
                 .pipe(Arc::new),
             )
         }
-        value_type => Ok(InferHintStepResult::ReplaceWith(vec![ctx
-            .build_equal_to_hint(
-                Ok(value_type),
-                "type reference of value type",
-                inferred_from,
-            )])),
+        value_type => {
+            Ok(InferHintStepResult::ReplaceWith(vec![ctx
+                .build_equal_to_hint(
+                    value_type,
+                    "type reference of value type",
+                    hint,
+                )]))
+        }
     }
 }
 
 fn infer_one_of_hint(
     option_hints: Rc<Vec<OneOfOptionHint>>,
     _source: &ResolvingLangTypeSource,
-    inferred_from: &[TrackedHint],
+    hint: &TrackedHint,
     ctx: &mut InferTypesContext,
 ) -> LangTypeResult<InferHintStepResult> {
     let solved_hints = option_hints
@@ -491,10 +496,50 @@ fn infer_one_of_hint(
     let new_type =
         OneOfResolvingLangType::new(option_hints.iter().map(|hint| hint.value.clone()).collect());
 
-    Ok(InferHintStepResult::ReplaceWith(vec![ctx
-        .build_equal_to_hint(
-            Ok(new_type.into()),
-            "one of",
-            inferred_from.into(),
-        )]))
+    Ok(InferHintStepResult::ReplaceWith(vec![
+        ctx.build_equal_to_hint(new_type.into(), "one of", hint)
+    ]))
+}
+
+fn infer_call_result_hint(
+    link: &ResolvingLangTypeLink,
+    source: &ResolvingLangTypeSource,
+    hint: &TrackedHint,
+    ctx: &mut InferTypesContext,
+) -> LangTypeResult<InferHintStepResult> {
+    let callee_snapshot = ctx.read_snapshot_proxying_errors(link, source)?;
+    let (reason, call_result) = match callee_snapshot {
+        Some(ResolvingLangType::Function(it)) => ("function return value", it.return_type),
+        Some(ResolvingLangType::TypeReference(type_reference)) => {
+            let instance_snapshot = ctx.read_snapshot_proxying_errors(&type_reference, source)?;
+            let instance = match instance_snapshot {
+                Some(ResolvingLangType::Instance(it)) => it,
+                Some(_) => return Err(LangError::NotCallable.into()),
+                None => return Ok(InferHintStepResult::Unchanged),
+            };
+            (
+                "construct an object",
+                ctx.resolving_types_ctx
+                    .link_lang_type(Ok(ResolvingLangType::Instance(instance)))
+                    .into(),
+            )
+        }
+        Some(ResolvingLangType::Instance(instance)) => {
+            if instance.type_id.is_unique {
+                (
+                    "'construct' a unique instance",
+                    ctx.resolving_types_ctx
+                        .link_lang_type(Ok(ResolvingLangType::Instance(instance)))
+                        .into(),
+                )
+            } else {
+                return Err(LangError::NotCallable.into());
+            }
+        }
+        Some(_) => return Err(LangError::NotCallable.into()),
+        None => return Ok(InferHintStepResult::Unchanged),
+    };
+
+    let new_hint = TrackedHint::new(Hint::EqualTo(call_result), reason, Some(vec![hint.clone()]));
+    Ok(InferHintStepResult::ReplaceWith(vec![new_hint]))
 }

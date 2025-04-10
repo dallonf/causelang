@@ -2,6 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use discover::{discover_types, DiscoverTypesResult};
 use infer::infer_types;
+use resolving_lang_types::ResolvingCanonicalLangType;
 
 use crate::{
     ast,
@@ -24,7 +25,7 @@ pub fn resolve_types(
     canonical_types: Arc<HashMap<Arc<CanonicalLangTypeId>, Arc<CanonicalLangType>>>,
 ) -> anyhow::Result<()> {
     let DiscoverTypesResult {
-        resolving_types_ctx,
+        mut resolving_types_ctx,
         new_canonical_types,
     } = discover_types(
         path.clone(),
@@ -33,7 +34,29 @@ pub fn resolve_types(
         external_files.clone(),
     )?;
 
-    infer_types(path.clone(), file.clone(), resolving_types_ctx)?;
+    let combined_canonical_types = {
+        let mut result: HashMap<_, _> = canonical_types
+            .iter()
+            .map(|it| {
+                let imported = ResolvingCanonicalLangType::import(
+                    &mut resolving_types_ctx,
+                    it.1.as_ref().to_owned(),
+                )?;
+                Ok((it.0.as_ref().to_owned(), Arc::new(imported)))
+            })
+            .collect::<anyhow::Result<_>>()?;
+        for (id, value) in new_canonical_types {
+            result.insert(id, value.clone());
+        }
+        result
+    };
+
+    infer_types(
+        path.clone(),
+        file.clone(),
+        resolving_types_ctx,
+        combined_canonical_types,
+    )?;
 
     Ok(())
 }
