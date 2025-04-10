@@ -53,16 +53,18 @@ pub fn infer_types(
             )))?.value.borrow_mut();
             let hints = unsolved_variable_mut.try_as_hints_ref().ok_or_else(|| anyhow!(format!("Somehow, {source:?} is already solved, but we're tracking it as an unsolved variable: {unsolved_variable_mut:?}")))?;
             let variable_step_result = infer_variable_step(hints, &source, &mut ctx)
-                .unwrap_or_else(|err| {
-                    InferVariableStepResult::Solved(
-                        ctx.resolving_types_ctx.link_lang_type(Err(err)).into(),
-                    )
+                .unwrap_or_else(|err| InferVariableStepResult::Solved {
+                    result: ctx.resolving_types_ctx.link_lang_type(Err(err)).into(),
+                    inferred_from: hints.clone(),
                 });
 
             match variable_step_result {
-                InferVariableStepResult::Solved(known_type) => {
-                    solved_variable_diagnostics.insert(source.clone(), hints.clone());
-                    *unsolved_variable_mut = ResolvingLangTypeValue::Known(known_type);
+                InferVariableStepResult::Solved {
+                    result,
+                    inferred_from,
+                } => {
+                    solved_variable_diagnostics.insert(source.clone(), inferred_from);
+                    *unsolved_variable_mut = ResolvingLangTypeValue::Known(result);
                     unsolved_variables.remove(&source);
                 }
                 InferVariableStepResult::Next {
@@ -214,7 +216,10 @@ impl InferTypesContext {
 
 #[derive(Debug, Clone)]
 enum InferVariableStepResult {
-    Solved(ResolvingLangTypeLink),
+    Solved {
+        result: ResolvingLangTypeLink,
+        inferred_from: Vec<TrackedHint>,
+    },
     Next {
         add_hints: Vec<TrackedHint>,
         remove_hint_indices: Vec<usize>,
@@ -253,11 +258,60 @@ fn infer_variable_step(
 
     // Now, more complex rules, processed one at a time
 
+    // An UnreachableIfNeverContinues hint will either be removed,
+    // or will solve with NeverContinues
+    {
+        let unreachable_if_never_continues = hints
+            .iter()
+            .enumerate()
+            .filter_map(|(i, it)| {
+                if let Hint::UnreachableIfNeverContinues(link) = &it.hint {
+                    Some((i, it, link))
+                } else {
+                    None
+                }
+            })
+            .collect_vec();
+        let solved_hints = unreachable_if_never_continues
+            .iter()
+            .filter_map(|(i, tracked_hint, link)| {
+                let snapshot = link
+                    .linked_type()
+                    .and_then(|it| it.get_snapshot_value().map_err(anyhow_to_compiler_bug))
+                    .transpose()?;
+                Some(snapshot.map(|snapshot| (*i, *tracked_hint, snapshot)))
+            })
+            .collect::<LangTypeResult<Vec<_>>>()?;
+        let (never_continues, has_value): (Vec<_>, Vec<_>) = solved_hints
+            .iter()
+            .cloned()
+            .partition(|(_, _, link)| matches!(link, Ok(ResolvingLangType::NeverContinues)));
+        if never_continues.len() > 0 {
+            return Ok(InferVariableStepResult::Solved {
+                result: ctx
+                    .resolving_types_ctx
+                    .link_lang_type(Ok(ResolvingLangType::NeverContinues))
+                    .into(),
+                inferred_from: never_continues
+                    .into_iter()
+                    .map(|(_, hint, _)| hint.clone())
+                    .collect(),
+            });
+        }
+        // Remove any hints of this type that point to a non-NeverContinues value
+        for (i, _, _) in has_value {
+            remove_hint_indices.push(i);
+        }
+        // no need to early return here; removing a few UnreachableIfNeverContinues
+        // hints won't change the outcome of other rules
+    }
+
     // A single EqualTo hint means it's been solved!
     if hints.len() == 1 && matches!(hints[0].hint, Hint::EqualTo(_)) {
-        return Ok(InferVariableStepResult::Solved(
-            hints[0].hint.try_as_equal_to_ref().unwrap().clone(),
-        ));
+        return Ok(InferVariableStepResult::Solved {
+            result: hints[0].hint.try_as_equal_to_ref().unwrap().clone(),
+            inferred_from: vec![hints[0].to_owned()],
+        });
     }
 
     Ok(InferVariableStepResult::Next {
@@ -284,12 +338,12 @@ fn infer_hint_step(
         Hint::OneOf(one_of_hints) => {
             infer_one_of_hint(one_of_hints.clone(), source, inferred_from, ctx)?
         }
-        Hint::UnreachableIfNeverContinues(resolving_lang_type_link) => todo!(),
         Hint::CallResult(resolving_lang_type_link) => todo!(),
         Hint::CauseResult(resolving_lang_type_link) => todo!(),
         Hint::MemberOf(resolving_lang_type_link, field_name) => todo!(),
         // handled with more complex rules
         Hint::EqualTo(_) => InferHintStepResult::Unchanged,
+        Hint::UnreachableIfNeverContinues(_) => InferHintStepResult::Unchanged,
     }
     .pipe(Ok)
 }
