@@ -72,41 +72,6 @@ pub struct CanonicalLangTypeId {
     pub category: CanonicalLangTypeCategory,
     pub is_unique: bool,
 }
-impl ToString for CanonicalLangTypeId {
-    fn to_string(&self) -> String {
-        let name_with_fallback = self
-            .name
-            .as_ref()
-            .map(|it| it.to_string())
-            .unwrap_or_else(|| "$?".to_string());
-        let full_name = match &self.parent_name {
-            Some(parent_name) => {
-                format! {"{}.{}", parent_name, name_with_fallback}
-            }
-            None => name_with_fallback,
-        };
-
-        let number_if_applicable = if self.number == 0 {
-            "".into()
-        } else {
-            format!("_{}", self.number)
-        };
-
-        let category = match self.category {
-            CanonicalLangTypeCategory::Object => "O",
-            CanonicalLangTypeCategory::Signal => "S",
-        };
-
-        format!(
-            "{}:{}:{}{}{}",
-            &self.path,
-            category,
-            full_name,
-            number_if_applicable,
-            if self.is_unique { "!" } else { "" }
-        )
-    }
-}
 impl FromStr for CanonicalLangTypeId {
     type Err = anyhow::Error;
 
@@ -163,6 +128,42 @@ impl FromStr for CanonicalLangTypeId {
             category,
             is_unique: unique,
         })
+    }
+}
+impl std::fmt::Display for CanonicalLangTypeId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name_with_fallback = self
+            .name
+            .as_ref()
+            .map(|it| it.to_string())
+            .unwrap_or_else(|| "$?".to_string());
+        let full_name = match &self.parent_name {
+            Some(parent_name) => {
+                format! {"{}.{}", parent_name, name_with_fallback}
+            }
+            None => name_with_fallback,
+        };
+
+        let number_if_applicable = if self.number == 0 {
+            "".into()
+        } else {
+            format!("_{}", self.number)
+        };
+
+        let category = match self.category {
+            CanonicalLangTypeCategory::Object => "O",
+            CanonicalLangTypeCategory::Signal => "S",
+        };
+
+        write!(
+            f,
+            "{}:{}:{}{}{}",
+            &self.path,
+            category,
+            full_name,
+            number_if_applicable,
+            if self.is_unique { "!" } else { "" }
+        )
     }
 }
 impl Serialize for CanonicalLangTypeId {

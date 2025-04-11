@@ -10,7 +10,7 @@ use crate::error_types::{
     ConstraintUsedAsValueError, ErrorPosition, LangError, ProxyErrorError, SourcePosition,
     ValueUsedAsConstraintError,
 };
-use crate::lang_types::CanonicalLangTypeId;
+use crate::lang_types::{CanonicalLangTypeCategory, CanonicalLangTypeId};
 use crate::{ast, lang_types, prelude::*};
 use crate::{error_types::anyhow_to_compiler_bug, lang_types::LangTypeResult};
 
@@ -119,12 +119,21 @@ impl InferTypesContext {
         reason: impl Into<String>,
         source_hint: &TrackedHint,
     ) -> TrackedHint {
+        let link = self
+            .resolving_types_ctx
+            .link_lang_type(Ok(lang_type))
+            .into();
+        self.build_equal_to_hint_from_link(link, reason, source_hint)
+    }
+
+    fn build_equal_to_hint_from_link(
+        &mut self,
+        link: ResolvingLangTypeLink,
+        reason: impl Into<String>,
+        source_hint: &TrackedHint,
+    ) -> TrackedHint {
         TrackedHint::new(
-            Hint::EqualTo(
-                self.resolving_types_ctx
-                    .link_lang_type(Ok(lang_type))
-                    .into(),
-            ),
+            Hint::EqualTo(link),
             reason.into(),
             Some(vec![source_hint.to_owned()]),
         )
@@ -342,7 +351,7 @@ fn infer_hint_step(
         Hint::TypeReference(link) => infer_type_reference_hint(link, source, hint, ctx)?,
         Hint::OneOf(one_of_hints) => infer_one_of_hint(one_of_hints.clone(), source, hint, ctx)?,
         Hint::CallResult(link) => infer_call_result_hint(link, source, hint, ctx)?,
-        Hint::CauseResult(resolving_lang_type_link) => todo!(),
+        Hint::CauseResult(link) => infer_cause_result_hint(link, source, hint, ctx)?,
         Hint::MemberOf(resolving_lang_type_link, field_name) => todo!(),
         // handled with more complex rules
         Hint::EqualTo(_) => InferHintStepResult::Unchanged,
@@ -542,4 +551,66 @@ fn infer_call_result_hint(
 
     let new_hint = TrackedHint::new(Hint::EqualTo(call_result), reason, Some(vec![hint.clone()]));
     Ok(InferHintStepResult::ReplaceWith(vec![new_hint]))
+}
+
+fn infer_cause_result_hint(
+    link: &ResolvingLangTypeLink,
+    source: &ResolvingLangTypeSource,
+    hint: &TrackedHint,
+    ctx: &mut InferTypesContext,
+) -> LangTypeResult<InferHintStepResult> {
+    let signal_type = match ctx.read_snapshot_proxying_errors(link, source)? {
+        Some(it) => it,
+        None => return Ok(InferHintStepResult::Unchanged),
+    };
+    let signal_instance = match signal_type {
+        ResolvingLangType::Instance(instance) => instance,
+        ref type_reference @ ResolvingLangType::TypeReference(ref instance_link) => {
+            // You can only cause a _unique_ type reference,
+            // since they're interchangable with instances
+            let inner_instance = match ctx.read_snapshot_proxying_errors(instance_link, source)? {
+                Some(ResolvingLangType::Instance(it)) => it,
+                Some(_) => return Err(LangError::NotCausable.into()),
+                None => return Ok(InferHintStepResult::Unchanged),
+            };
+            if !inner_instance.type_id.is_unique {
+                let lang_type = type_reference
+                    .to_owned()
+                    .try_conv::<lang_types::LangType>()
+                    .map_err(anyhow_to_compiler_bug)?;
+                let error = LangError::ConstraintUsedAsValue(ConstraintUsedAsValueError {
+                    r#type: lang_type,
+                });
+                return Err(error.into());
+            }
+
+            inner_instance
+        }
+        _ => return Err(LangError::NotCausable.into()),
+    };
+
+    if signal_instance.type_id.category != CanonicalLangTypeCategory::Signal {
+        return Err(LangError::NotCausable.into());
+    }
+
+    let canonical_signal = ctx
+        .canonical_types
+        .get(&signal_instance.type_id)
+        .ok_or(Arc::new(LangError::compiler_bug(format!(
+            "Can't find canonical type: {}",
+            &signal_instance.type_id
+        ))))?
+        .try_as_signal_ref()
+        .ok_or(Arc::new(LangError::compiler_bug(format!(
+            "Contrary to ID claim, {} is not a signal",
+            &signal_instance.type_id
+        ))))?
+        .clone();
+
+    let hint = ctx.build_equal_to_hint_from_link(
+        canonical_signal.result.clone(),
+        "result of signal",
+        hint,
+    );
+    Ok(InferHintStepResult::ReplaceWith(vec![hint]))
 }
