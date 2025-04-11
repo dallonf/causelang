@@ -48,7 +48,7 @@ pub fn infer_types(
         Default::default();
 
     let mut iterations: u16 = 0;
-    loop {
+    while unsolved_variables.len() > 0 {
         // clone so we can mutate the map while iterating
         for (source, unsolved_variable) in unsolved_variables.clone() {
             let mut unsolved_variable_mut = unsolved_variable.try_as_variable_ref().ok_or_else(|| anyhow!(format!(
