@@ -22,12 +22,16 @@ use super::{
 
 const MAX_ITERATIONS: u16 = 10_000;
 
+pub struct InferTypesResult {
+    pub resolving_types_ctx: ResolvingLangTypesContext,
+}
+
 pub fn infer_types(
     file_path: Arc<String>,
     root_node: Arc<ast::FileNode>,
     ctx: ResolvingLangTypesContext,
     canonical_types: HashMap<CanonicalLangTypeId, Arc<ResolvingCanonicalLangType>>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<InferTypesResult> {
     let mut ctx = InferTypesContext {
         file_path,
         root_node,
@@ -94,16 +98,9 @@ pub fn infer_types(
         }
     }
 
-    println!(
-        "variables: {:#?}",
-        ctx.resolving_types_ctx
-            .all_variables()
-            .map(|it| it.1)
-            .collect_vec()
-    );
-    std::mem::drop(ctx.resolving_types_ctx);
-
-    Ok(())
+    Ok(InferTypesResult {
+        resolving_types_ctx: ctx.resolving_types_ctx,
+    })
 }
 
 struct InferTypesContext {

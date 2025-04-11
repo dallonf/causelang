@@ -10,8 +10,8 @@ use rscause_compiler::breadcrumbs::Breadcrumbs;
 use rscause_compiler::compile::compile;
 use rscause_compiler::compiled_file::{CompiledFile, ExternalFileDescriptor};
 use rscause_compiler::lang_types::{CanonicalLangType, CanonicalLangTypeId};
-use rscause_compiler::old_resolver::resolve_types::resolve_types;
-use rscause_compiler::resolver::ResolverError;
+use rscause_compiler::old_resolver;
+use rscause_compiler::resolver::{resolve_types, ResolverError};
 use rscause_compiler::tags::NodeTag;
 use serde::Serialize;
 use tap::Pipe;
@@ -45,14 +45,23 @@ pub extern "system" fn Java_com_dallonf_ktcause_RustCompiler_compileInner<'local
             strict_transfer_jstring(&mut env, &jni_tags_json)?
                 .pipe(|it| serde_json::from_str(&it))?;
 
-        let resolved_types: Arc<_> = resolve_types(
+        // let resolved_types: Arc<_> = old_resolver::resolve_types::resolve_types(
+        //     path.clone(),
+        //     ast.clone(),
+        //     tags.clone(),
+        //     canonical_types.as_ref(),
+        //     external_files.clone(),
+        // )
+        // .into();
+
+        let resolved_types = resolve_types(
             path.clone(),
             ast.clone(),
             tags.clone(),
-            canonical_types.as_ref(),
             external_files.clone(),
-        )
-        .into();
+            canonical_types.clone(),
+        )?
+        .pipe(Arc::new);
 
         let compiled_file = compile(
             path.clone(),
