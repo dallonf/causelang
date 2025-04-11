@@ -23,8 +23,8 @@ use crate::instructions::{
     WriteLocalThroughEffectScopeInstruction,
 };
 use crate::lang_types::{CanonicalLangType, LangType, OneOfLangType};
-use crate::old_resolver::resolve_types::ResolverError;
 use crate::prelude::*;
+use crate::resolver::{ResolveTypesResult, ResolverError};
 use crate::tags::{ReferencesFileNodeTag, TopLevelDeclarationNodeTag};
 use crate::{
     ast,
@@ -33,7 +33,6 @@ use crate::{
         CompiledExport, CompiledFile, FunctionProcedureIdentity, Procedure, ProcedureIdentity,
     },
     lang_types::CanonicalLangTypeId,
-    old_resolver::resolve_types::ResolveTypesResult,
     tags::NodeTag,
 };
 use crate::{find_tag, find_tags};

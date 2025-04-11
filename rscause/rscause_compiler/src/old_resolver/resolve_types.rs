@@ -20,6 +20,7 @@ use crate::error_types::{
 };
 use crate::lang_types::{self, CanonicalLangTypeCategory, CanonicalLangTypeId, PrimitiveLangType};
 use crate::prelude::*;
+use crate::resolver::{ResolveTypesResult, ResolverError};
 use crate::tags::NodeTag;
 use crate::util::arc_into;
 use crate::{find_tag, find_tags};
@@ -29,27 +30,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use strum::EnumTryAs;
-
-#[derive(Debug, Clone)]
-pub struct ResolveTypesResult {
-    pub value_types: HashMap<Breadcrumbs, lang_types::FallibleLangType>,
-    pub errors: Vec<ResolverError>,
-    pub new_canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<lang_types::CanonicalLangType>>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct ResolverError {
-    pub position: SourcePosition,
-    pub error: LangError,
-}
-impl ResolverError {
-    fn new(source_position: SourcePosition, format: LangError) -> Self {
-        Self {
-            position: source_position,
-            error: format,
-        }
-    }
-}
 
 pub fn resolve_types(
     path: Arc<String>,

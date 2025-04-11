@@ -3,12 +3,14 @@ use std::{collections::HashMap, sync::Arc};
 use discover::{discover_types, DiscoverTypesResult};
 use infer::infer_types;
 use resolving_lang_types::ResolvingCanonicalLangType;
+use serde::Serialize;
 
 use crate::{
     ast,
     breadcrumbs::Breadcrumbs,
     compiled_file::ExternalFileDescriptor,
-    lang_types::{CanonicalLangType, CanonicalLangTypeId},
+    error_types::{LangError, SourcePosition},
+    lang_types::{self, CanonicalLangType, CanonicalLangTypeId},
     tags::NodeTag,
 };
 
@@ -16,6 +18,27 @@ mod discover;
 mod hints;
 mod infer;
 mod resolving_lang_types;
+
+#[derive(Debug, Clone)]
+pub struct ResolveTypesResult {
+    pub value_types: HashMap<Breadcrumbs, lang_types::FallibleLangType>,
+    pub errors: Vec<ResolverError>,
+    pub new_canonical_types: HashMap<Arc<CanonicalLangTypeId>, Arc<lang_types::CanonicalLangType>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ResolverError {
+    pub position: SourcePosition,
+    pub error: LangError,
+}
+impl ResolverError {
+    pub fn new(source_position: SourcePosition, format: LangError) -> Self {
+        Self {
+            position: source_position,
+            error: format,
+        }
+    }
+}
 
 pub fn resolve_types(
     path: Arc<String>,
