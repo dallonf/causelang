@@ -263,8 +263,54 @@ impl ResolvingCanonicalLangType {
         value: lang_types::CanonicalLangType,
     ) -> anyhow::Result<Self> {
         match value {
-            lang_types::CanonicalLangType::Object(it) => todo!(),
-            lang_types::CanonicalLangType::Signal(it) => todo!(),
+            lang_types::CanonicalLangType::Object(it) => ResolvingCanonicalLangType::Object(
+                ObjectResolvingCanonicalLangType::import(ctx, it)?,
+            ),
+            lang_types::CanonicalLangType::Signal(it) => ResolvingCanonicalLangType::Signal(
+                SignalResolvingCanonicalLangType::import(ctx, it)?,
+            ),
         }
+        .pipe(Ok)
     }
+}
+impl ObjectResolvingCanonicalLangType {
+    pub fn import(
+        ctx: &mut ResolvingLangTypesContext,
+        value: lang_types::ObjectCanonicalLangType,
+    ) -> anyhow::Result<Self> {
+        ObjectResolvingCanonicalLangType {
+            type_id: value.type_id,
+            fields: import_canonical_type_fields(ctx, value.fields)?,
+        }
+        .pipe(Ok)
+    }
+}
+impl SignalResolvingCanonicalLangType {
+    pub fn import(
+        ctx: &mut ResolvingLangTypesContext,
+        value: lang_types::SignalCanonicalLangType,
+    ) -> anyhow::Result<Self> {
+        SignalResolvingCanonicalLangType {
+            type_id: value.type_id,
+            fields: import_canonical_type_fields(ctx, value.fields)?,
+            result: ResolvingLangTypeLink::import_type(ctx, value.result)?,
+        }
+        .pipe(Ok)
+    }
+}
+
+fn import_canonical_type_fields(
+    ctx: &mut ResolvingLangTypesContext,
+    fields: Vec<lang_types::CanonicalTypeField>,
+) -> anyhow::Result<Vec<ResolvingCanonicalTypeField>> {
+    Ok(fields
+        .into_iter()
+        .map(|field| {
+            ResolvingCanonicalTypeField {
+                name: field.name,
+                value_type: ResolvingLangTypeLink::import_type(ctx, field.value_type)?,
+            }
+            .pipe(Ok)
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?)
 }
