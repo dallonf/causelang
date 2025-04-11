@@ -352,7 +352,7 @@ fn infer_hint_step(
         Hint::OneOf(one_of_hints) => infer_one_of_hint(one_of_hints.clone(), source, hint, ctx)?,
         Hint::CallResult(link) => infer_call_result_hint(link, source, hint, ctx)?,
         Hint::CauseResult(link) => infer_cause_result_hint(link, source, hint, ctx)?,
-        Hint::MemberOf(resolving_lang_type_link, field_name) => todo!(),
+        Hint::MemberOf(link, name) => infer_member_of_hint(link, name, source, hint, ctx)?,
         // handled with more complex rules
         Hint::EqualTo(_) => InferHintStepResult::Unchanged,
         Hint::UnreachableIfNeverContinues(_) => InferHintStepResult::Unchanged,
@@ -613,4 +613,40 @@ fn infer_cause_result_hint(
         hint,
     );
     Ok(InferHintStepResult::ReplaceWith(vec![hint]))
+}
+
+fn infer_member_of_hint(
+    link: &ResolvingLangTypeLink,
+    name: &str,
+    source: &ResolvingLangTypeSource,
+    hint: &TrackedHint,
+    ctx: &mut InferTypesContext,
+) -> LangTypeResult<InferHintStepResult> {
+    let object_instance = match ctx.read_snapshot_proxying_errors(link, source)? {
+        Some(ResolvingLangType::Instance(it)) => it,
+        Some(_) => return Err(Arc::new(LangError::DoesNotHaveAnyMembers)),
+        None => return Ok(InferHintStepResult::Unchanged),
+    };
+    let canonical_type = ctx
+        .canonical_types
+        .get(&object_instance.type_id)
+        .ok_or(Arc::new(LangError::compiler_bug(format!(
+            "Can't find canonical type: {}",
+            &object_instance.type_id
+        ))))?
+        .clone();
+
+    let member = canonical_type
+        .fields()
+        .into_iter()
+        .find(|it| *it.name == name)
+        .ok_or(Arc::new(LangError::DoesNotHaveMember))?;
+
+    let new_hint = ctx.build_equal_to_hint_from_link(
+        member.value_type.clone(),
+        format!("{} field of {}", name, canonical_type.type_id()),
+        hint,
+    );
+
+    Ok(InferHintStepResult::ReplaceWith(vec![new_hint]))
 }
