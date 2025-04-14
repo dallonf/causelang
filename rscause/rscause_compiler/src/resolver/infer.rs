@@ -459,14 +459,12 @@ fn infer_type_reference_hint(
                 .pipe(Arc::new),
             )
         }
-        value_type => {
-            Ok(InferHintStepResult::ReplaceWith(vec![ctx
-                .build_equal_to_hint(
-                    value_type,
-                    "type reference of value type",
-                    hint,
-                )]))
-        }
+        _ => Ok(InferHintStepResult::ReplaceWith(vec![ctx
+            .build_equal_to_hint(
+                ResolvingLangType::TypeReference(link.clone()),
+                "type reference of value type",
+                hint,
+            )])),
     }
 }
 
