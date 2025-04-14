@@ -46,9 +46,11 @@ impl ResolvingLangTypesContext {
     }
 
     pub fn get_variable(
-        &mut self,
+        &self,
         source: &ResolvingLangTypeSource,
     ) -> Option<Rc<LinkedResolvingLangType>> {
+        // TODO: maybe this should return a LinkedResolvingLangTypeVariable, since it's guaranteed to be that
+        // unless we need the link?
         self.values_by_source.get(source).cloned()
     }
 

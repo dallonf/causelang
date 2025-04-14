@@ -226,6 +226,30 @@ impl InferTypesContext {
         };
         Ok(source_position)
     }
+
+    #[allow(unused)]
+    fn debug_breadcrumbs(&self, breadcrumbs: &Breadcrumbs) {
+        let binding = self
+            .resolving_types_ctx
+            .get_variable(&ResolvingLangTypeSource::Breadcrumb(breadcrumbs.to_owned()))
+            .expect(&format!("couldn't find variable for {}", breadcrumbs))
+            .clone();
+        let variable = binding.try_as_variable_ref().unwrap();
+
+        println!("Variable at {breadcrumbs}: {:#?}", variable);
+    }
+
+    #[allow(unused)]
+    fn debug_id(&self, id: u64) {
+        let binding = self
+            .resolving_types_ctx
+            .get_variable(&ResolvingLangTypeSource::Id(id))
+            .expect(&format!("couldn't find variable #{}", id))
+            .clone();
+        let variable = binding.try_as_variable_ref().unwrap();
+
+        println!("Variable #{id}: {:#?}", variable);
+    }
 }
 
 #[derive(Debug, Clone)]
