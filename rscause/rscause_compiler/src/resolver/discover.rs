@@ -771,14 +771,22 @@ fn discover_type_for_expression_statement(
     ctx: &mut DiscoverTypesContext,
 ) -> DiscoverResult {
     let expression_type = ctx.get_link_for_node(node.expression.breadcrumbs());
+    let action_link = ctx.link_lang_type(Ok(ResolvingLangType::Action));
     let statement_type = ctx
         .create_id_variable(
             node.breadcrumbs().to_owned(),
-            vec![TrackedHint::new(
-                Hint::UnreachableIfNeverContinues(expression_type),
-                "result might make expression statement unreachable",
-                None,
-            )],
+            vec![
+                TrackedHint::new(
+                    Hint::UnreachableIfNeverContinues(expression_type),
+                    "result might make expression statement unreachable",
+                    None,
+                ),
+                TrackedHint::new(
+                    Hint::EqualTo(action_link),
+                    "expression statements return Action by default",
+                    None,
+                ),
+            ],
         )?
         .1;
 
@@ -790,14 +798,22 @@ fn discover_type_for_declaration_statement(
     ctx: &mut DiscoverTypesContext,
 ) -> DiscoverResult {
     let declaration_type = ctx.get_link_for_node(node.declaration.breadcrumbs());
+    let action_link = ctx.link_lang_type(Ok(ResolvingLangType::Action));
     let statement_type = ctx
         .create_id_variable(
             node.breadcrumbs().to_owned(),
-            vec![TrackedHint::new(
-                Hint::UnreachableIfNeverContinues(declaration_type),
-                "result might make declaration statement unreachable",
-                None,
-            )],
+            vec![
+                TrackedHint::new(
+                    Hint::UnreachableIfNeverContinues(declaration_type),
+                    "result might make declaration statement unreachable",
+                    None,
+                ),
+                TrackedHint::new(
+                    Hint::EqualTo(action_link),
+                    "declaration statements return Action by default",
+                    None,
+                ),
+            ],
         )?
         .1;
 
