@@ -261,13 +261,13 @@ fn discover_type_for_any_ast_node(
         )),
         AnyAstNode::BranchExpression(node) => Some(discover_type_for_branch_expression(node, ctx)),
         AnyAstNode::IfBranchOption(node) => Some(Ok(ResolvingLangTypeValue::from_link(
-            ctx.get_link_for_node(node.breadcrumbs()),
+            ctx.get_link_for_node(node.body.breadcrumbs()),
         ))),
         AnyAstNode::IsBranchOption(node) => Some(Ok(ResolvingLangTypeValue::from_link(
-            ctx.get_link_for_node(node.breadcrumbs()),
+            ctx.get_link_for_node(node.body.breadcrumbs()),
         ))),
         AnyAstNode::ElseBranchOption(node) => Some(Ok(ResolvingLangTypeValue::from_link(
-            ctx.get_link_for_node(node.breadcrumbs()),
+            ctx.get_link_for_node(node.body.breadcrumbs()),
         ))),
         AnyAstNode::LoopExpression(node) => Some(discover_type_for_loop_expression(node, ctx)),
         AnyAstNode::SetExpression(node) => Some(Ok(ResolvingLangTypeValue::from_link(

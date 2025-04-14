@@ -51,6 +51,22 @@ pub fn infer_types(
     let mut solved_variable_diagnostics: HashMap<ResolvingLangTypeSource, Vec<TrackedHint>> =
         Default::default();
 
+    // for (source, value) in ctx.resolving_types_ctx.all_variables() {
+    //     let known_link = value
+    //         .try_as_variable_ref()
+    //         .and_then(|it| it.value.borrow().clone().try_as_known())
+    //         .map(|it| it.linked_type())
+    //         .transpose()
+    //         .map_err(|error| anyhow!("{:?}", error))?;
+    //     let known_link_str = known_link.map(|it| format!("{it:?}"));
+    //     let value_str = format!("{value:?}");
+    //     if known_link_str == Some(value_str.clone()) {
+    //         println!("link {source:?} resolved to itself!");
+    //         println!("{value_str}");
+    //         println!("{:?}", solved_variable_diagnostics.get(&source));
+    //     }
+    // }
+
     let mut iterations: u16 = 0;
     while unsolved_variables.len() > 0 {
         // clone so we can mutate the map while iterating
