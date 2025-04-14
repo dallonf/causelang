@@ -1,18 +1,17 @@
-use std::{collections::HashMap, hash::Hash, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::anyhow;
 use discover::{discover_types, DiscoverTypesResult};
 use infer::{infer_types, InferTypesResult};
 use resolving_lang_types::{ResolvingCanonicalLangType, ResolvingLangTypeSource};
 use serde::Serialize;
-use tap::TryConv;
 
 use crate::{
     ast::{self, AstNode, BreadcrumbTreeNode, FileNode},
     breadcrumbs::Breadcrumbs,
     compiled_file::ExternalFileDescriptor,
     error_types::{anyhow_to_compiler_bug, LangError, SourcePosition},
-    lang_types::{self, CanonicalLangType, CanonicalLangTypeId, LangType, LangTypeResult},
+    lang_types::{self, CanonicalLangType, CanonicalLangTypeId, LangType},
     tags::NodeTag,
 };
 

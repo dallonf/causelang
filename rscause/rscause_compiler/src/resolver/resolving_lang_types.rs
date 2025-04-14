@@ -33,6 +33,7 @@ include!("../gen/resolving_lang_types.rs");
 /// Must be in scope and not dropped while working with ResolvingLangTypes.
 pub struct ResolvingLangTypesContext {
     values_by_source: HashMap<ResolvingLangTypeSource, Rc<LinkedResolvingLangType>>,
+    id_diagnostics: HashMap<u64, Breadcrumbs>,
     all_values: Vec<Rc<LinkedResolvingLangType>>,
     next_source_id: u64,
 }
@@ -40,6 +41,7 @@ impl ResolvingLangTypesContext {
     pub fn new() -> Self {
         Self {
             values_by_source: Default::default(),
+            id_diagnostics: Default::default(),
             all_values: Default::default(),
             next_source_id: 0,
         }
@@ -88,6 +90,7 @@ impl ResolvingLangTypesContext {
 
     pub fn create_id_variable(
         &mut self,
+        diagnostic: Option<Breadcrumbs>,
         hints: Vec<TrackedHint>,
     ) -> anyhow::Result<(u64, Rc<LinkedResolvingLangType>)> {
         let id = self.next_source_id;
@@ -96,6 +99,9 @@ impl ResolvingLangTypesContext {
             ResolvingLangTypeSource::Id(id),
             ResolvingLangTypeValue::Hints(hints),
         )?;
+        if let Some(diagnostic) = diagnostic {
+            self.id_diagnostics.insert(id, diagnostic);
+        }
         Ok((id, new_link))
     }
 
@@ -106,6 +112,10 @@ impl ResolvingLangTypesContext {
         self.values_by_source
             .iter()
             .map(|(source, value)| (source.clone(), value.clone()))
+    }
+
+    pub fn get_diagnostic_for_id(&self, id: u64) -> Option<&Breadcrumbs> {
+        self.id_diagnostics.get(&id)
     }
 }
 

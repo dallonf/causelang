@@ -185,11 +185,12 @@ impl DiscoverTypesContext {
 
     fn create_id_variable(
         &mut self,
+        diagnostic: Breadcrumbs,
         hints: Vec<TrackedHint>,
     ) -> LangTypeResult<(u64, ResolvingLangTypeLink)> {
         let (id, variable) = self
             .resolving_types_ctx
-            .create_id_variable(hints)
+            .create_id_variable(Some(diagnostic.to_owned()), hints)
             .map_err(anyhow_to_compiler_bug)?;
         Ok((id, variable.into()))
     }
@@ -349,11 +350,14 @@ fn discover_type_for_function_type_reference(
 
 fn discover_type_for_pattern(node: &PatternNode, ctx: &mut DiscoverTypesContext) -> DiscoverResult {
     let type_reference = ctx.get_link_for_node(node.type_reference.breadcrumbs());
-    let value_type = ctx.create_id_variable(vec![TrackedHint::new(
-        Hint::ReferencedType(type_reference.clone()),
-        "patterns are represented by the value type they match",
-        None,
-    )])?;
+    let value_type = ctx.create_id_variable(
+        node.breadcrumbs().to_owned(),
+        vec![TrackedHint::new(
+            Hint::ReferencedType(type_reference.clone()),
+            "patterns are represented by the value type they match",
+            None,
+        )],
+    )?;
     Ok(ResolvingLangTypeValue::from_link(value_type.1))
 }
 
@@ -368,11 +372,14 @@ fn discover_type_for_function_signature_parameter(
         .pipe(Arc::new),
     )?;
     let type_reference = ctx.get_link_for_node(type_reference_node.breadcrumbs());
-    let value_type = ctx.create_id_variable(vec![TrackedHint::new(
-        Hint::ReferencedType(type_reference.clone()),
-        "patterns are represented by the value type they match",
-        None,
-    )])?;
+    let value_type = ctx.create_id_variable(
+        node.breadcrumbs().to_owned(),
+        vec![TrackedHint::new(
+            Hint::ReferencedType(type_reference.clone()),
+            "patterns are represented by the value type they match",
+            None,
+        )],
+    )?;
     Ok(ResolvingLangTypeValue::from_link(value_type.1))
 }
 
@@ -433,11 +440,14 @@ fn discover_type_for_function(
     let explicit_return_type = return_type_node
         .map(|it| ctx.get_link_for_node(it.breadcrumbs()))
         .map(|it| -> LangTypeResult<ResolvingLangTypeLink> {
-            ctx.create_id_variable(vec![TrackedHint::new(
-                Hint::ReferencedType(it),
-                "explicit function return",
-                None,
-            )])?
+            ctx.create_id_variable(
+                breadcrumbs.to_owned(),
+                vec![TrackedHint::new(
+                    Hint::ReferencedType(it),
+                    "explicit function return",
+                    None,
+                )],
+            )?
             .1
             .pipe(Ok)
         })
@@ -467,7 +477,9 @@ fn discover_type_for_function(
                     TrackedHint::new(Hint::OneOf(Rc::new(results)), "function return types", None)
                 });
 
-            ctx.create_id_variable(vec![result_hint])?.1.pipe(Ok)
+            ctx.create_id_variable(breadcrumbs.to_owned(), vec![result_hint])?
+                .1
+                .pipe(Ok)
         },
     )?;
 
@@ -499,11 +511,14 @@ fn discover_type_for_named_value(
         .as_ref()
         .map(|type_node| ctx.get_link_for_node(type_node.breadcrumbs()))
         .map(|type_reference_link| -> LangTypeResult<_> {
-            ctx.create_id_variable(vec![TrackedHint::new(
-                Hint::ReferencedType(type_reference_link),
-                "named value is the type of its annotation",
-                None,
-            )])?
+            ctx.create_id_variable(
+                node.breadcrumbs().to_owned(),
+                vec![TrackedHint::new(
+                    Hint::ReferencedType(type_reference_link),
+                    "named value is the type of its annotation",
+                    None,
+                )],
+            )?
             .1
             .pipe(Ok)
         })
@@ -600,11 +615,14 @@ fn discover_type_for_signal_type(
     let result = match &node.result {
         Some(result_node) => ctx.get_link_for_node(result_node.breadcrumbs()).pipe(
             |result_type_reference| -> LangTypeResult<_> {
-                ctx.create_id_variable(vec![TrackedHint::new(
-                    Hint::ReferencedType(result_type_reference),
-                    "signal result",
-                    None,
-                )])?
+                ctx.create_id_variable(
+                    node.breadcrumbs().to_owned(),
+                    vec![TrackedHint::new(
+                        Hint::ReferencedType(result_type_reference),
+                        "signal result",
+                        None,
+                    )],
+                )?
                 .1
                 .pipe(Ok)
             },
@@ -637,11 +655,14 @@ fn discover_type_for_object_field(
     ctx: &mut DiscoverTypesContext,
 ) -> DiscoverResult {
     let type_reference = ctx.get_link_for_node(node.type_annotation.breadcrumbs());
-    let value_type = ctx.create_id_variable(vec![TrackedHint::new(
-        Hint::ReferencedType(type_reference),
-        "object field type reference",
-        None,
-    )])?;
+    let value_type = ctx.create_id_variable(
+        node.breadcrumbs().to_owned(),
+        vec![TrackedHint::new(
+            Hint::ReferencedType(type_reference),
+            "object field type reference",
+            None,
+        )],
+    )?;
 
     Ok(ResolvingLangTypeValue::from_link(value_type.1))
 }
@@ -656,11 +677,14 @@ fn discover_type_for_one_of_type(
         .map(|option_node| -> LangTypeResult<_> {
             let type_reference = ctx.get_link_for_node(option_node.breadcrumbs());
             let value_type = ctx
-                .create_id_variable(vec![TrackedHint::new(
-                    Hint::ReferencedType(type_reference),
-                    "oneof option type reference",
-                    None,
-                )])?
+                .create_id_variable(
+                    node.breadcrumbs().to_owned(),
+                    vec![TrackedHint::new(
+                        Hint::ReferencedType(type_reference),
+                        "oneof option type reference",
+                        None,
+                    )],
+                )?
                 .1;
 
             Ok(OneOfOptionHint {
@@ -671,18 +695,24 @@ fn discover_type_for_one_of_type(
         .collect::<LangTypeResult<Vec<_>>>()?;
 
     let value_type = ctx
-        .create_id_variable(vec![TrackedHint::new(
-            Hint::OneOf(Rc::new(options)),
-            "oneof type",
-            None,
-        )])?
+        .create_id_variable(
+            node.breadcrumbs().to_owned(),
+            vec![TrackedHint::new(
+                Hint::OneOf(Rc::new(options)),
+                "oneof type",
+                None,
+            )],
+        )?
         .1;
     let type_reference = ctx
-        .create_id_variable(vec![TrackedHint::new(
-            Hint::ReferencedType(value_type),
-            "oneof type reference",
-            None,
-        )])?
+        .create_id_variable(
+            node.breadcrumbs().to_owned(),
+            vec![TrackedHint::new(
+                Hint::ReferencedType(value_type),
+                "oneof type reference",
+                None,
+            )],
+        )?
         .1;
 
     Ok(ResolvingLangTypeValue::from_link(type_reference))
@@ -720,7 +750,9 @@ fn discover_type_for_block_body(
         None,
     ));
 
-    let result_type = ctx.create_id_variable(hints)?.1;
+    let result_type = ctx
+        .create_id_variable(node.breadcrumbs().to_owned(), hints)?
+        .1;
 
     Ok(ResolvingLangTypeValue::from_link(result_type))
 }
@@ -740,11 +772,14 @@ fn discover_type_for_expression_statement(
 ) -> DiscoverResult {
     let expression_type = ctx.get_link_for_node(node.expression.breadcrumbs());
     let statement_type = ctx
-        .create_id_variable(vec![TrackedHint::new(
-            Hint::UnreachableIfNeverContinues(expression_type),
-            "result might make expression statement unreachable",
-            None,
-        )])?
+        .create_id_variable(
+            node.breadcrumbs().to_owned(),
+            vec![TrackedHint::new(
+                Hint::UnreachableIfNeverContinues(expression_type),
+                "result might make expression statement unreachable",
+                None,
+            )],
+        )?
         .1;
 
     Ok(ResolvingLangTypeValue::from_link(statement_type))
@@ -756,11 +791,14 @@ fn discover_type_for_declaration_statement(
 ) -> DiscoverResult {
     let declaration_type = ctx.get_link_for_node(node.declaration.breadcrumbs());
     let statement_type = ctx
-        .create_id_variable(vec![TrackedHint::new(
-            Hint::UnreachableIfNeverContinues(declaration_type),
-            "result might make declaration statement unreachable",
-            None,
-        )])?
+        .create_id_variable(
+            node.breadcrumbs().to_owned(),
+            vec![TrackedHint::new(
+                Hint::UnreachableIfNeverContinues(declaration_type),
+                "result might make declaration statement unreachable",
+                None,
+            )],
+        )?
         .1;
 
     Ok(ResolvingLangTypeValue::from_link(statement_type))
@@ -783,11 +821,14 @@ fn discover_type_for_branch_expression(
         .collect_vec();
 
     Ok(ResolvingLangTypeValue::from_link(
-        ctx.create_id_variable(vec![TrackedHint::new(
-            Hint::OneOf(result_hints.into()),
-            "branch can return any of its options",
-            None,
-        )])?
+        ctx.create_id_variable(
+            node.breadcrumbs().to_owned(),
+            vec![TrackedHint::new(
+                Hint::OneOf(result_hints.into()),
+                "branch can return any of its options",
+                None,
+            )],
+        )?
         .1,
     ))
 }
@@ -835,11 +876,14 @@ fn discover_type_for_loop_expression(
         .collect::<LangTypeResult<Vec<_>>>()?;
 
     let loop_result_type = ctx
-        .create_id_variable(vec![TrackedHint::new(
-            Hint::OneOf(break_type_hints.into()),
-            "loop result can come from any of its break expressions",
-            None,
-        )])?
+        .create_id_variable(
+            node.breadcrumbs().to_owned(),
+            vec![TrackedHint::new(
+                Hint::OneOf(break_type_hints.into()),
+                "loop result can come from any of its break expressions",
+                None,
+            )],
+        )?
         .1;
 
     Ok(ResolvingLangTypeValue::from_link(loop_result_type))
@@ -851,11 +895,14 @@ fn discover_type_for_call_expression(
 ) -> DiscoverResult {
     let function_type = ctx.get_link_for_node(node.callee.breadcrumbs());
     let function_result = ctx
-        .create_id_variable(vec![TrackedHint::new(
-            Hint::CallResult(function_type),
-            "callee result",
-            None,
-        )])?
+        .create_id_variable(
+            node.breadcrumbs().to_owned(),
+            vec![TrackedHint::new(
+                Hint::CallResult(function_type),
+                "callee result",
+                None,
+            )],
+        )?
         .1;
 
     Ok(ResolvingLangTypeValue::from_link(function_result))
@@ -867,11 +914,14 @@ fn discover_type_for_pipe_call_expression(
 ) -> DiscoverResult {
     let function_type = ctx.get_link_for_node(node.callee.breadcrumbs());
     let function_result = ctx
-        .create_id_variable(vec![TrackedHint::new(
-            Hint::CallResult(function_type),
-            "pipe call result",
-            None,
-        )])?
+        .create_id_variable(
+            node.breadcrumbs().to_owned(),
+            vec![TrackedHint::new(
+                Hint::CallResult(function_type),
+                "pipe call result",
+                None,
+            )],
+        )?
         .1;
 
     Ok(ResolvingLangTypeValue::from_link(function_result))
@@ -883,11 +933,14 @@ fn discover_type_for_cause_expression(
 ) -> DiscoverResult {
     let signal_type = ctx.get_link_for_node(node.signal.breadcrumbs());
     let signal_result = ctx
-        .create_id_variable(vec![TrackedHint::new(
-            Hint::CauseResult(signal_type),
-            "signal result",
-            None,
-        )])?
+        .create_id_variable(
+            node.breadcrumbs().to_owned(),
+            vec![TrackedHint::new(
+                Hint::CauseResult(signal_type),
+                "signal result",
+                None,
+            )],
+        )?
         .1;
 
     Ok(ResolvingLangTypeValue::from_link(signal_result))
@@ -900,11 +953,14 @@ fn discover_type_for_member_expression(
     let object_type = ctx.get_link_for_node(node.object_expression.breadcrumbs());
     let member_name = node.member_identifier.text.clone();
     let member_type = ctx
-        .create_id_variable(vec![TrackedHint::new(
-            Hint::MemberOf(object_type, member_name),
-            "member of object",
-            None,
-        )])?
+        .create_id_variable(
+            node.breadcrumbs().to_owned(),
+            vec![TrackedHint::new(
+                Hint::MemberOf(object_type, member_name),
+                "member of object",
+                None,
+            )],
+        )?
         .1;
     Ok(ResolvingLangTypeValue::from_link(member_type))
 }

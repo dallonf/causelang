@@ -247,8 +247,12 @@ impl InferTypesContext {
             .expect(&format!("couldn't find variable #{}", id))
             .clone();
         let variable = binding.try_as_variable_ref().unwrap();
+        let diagnostic = self.resolving_types_ctx.get_diagnostic_for_id(id);
+        let diagnostic_str = diagnostic
+            .map(|breadcrumbs| format!(" (from {breadcrumbs})"))
+            .unwrap_or("".into());
 
-        println!("Variable #{id}: {:#?}", variable);
+        println!("Variable #{id}{diagnostic_str}: {:#?}", variable);
     }
 }
 
