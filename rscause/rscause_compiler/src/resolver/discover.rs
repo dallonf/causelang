@@ -708,7 +708,7 @@ fn discover_type_for_one_of_type(
         .create_id_variable(
             node.breadcrumbs().to_owned(),
             vec![TrackedHint::new(
-                Hint::ReferencedType(value_type),
+                Hint::TypeReference(value_type),
                 "oneof type reference",
                 None,
             )],

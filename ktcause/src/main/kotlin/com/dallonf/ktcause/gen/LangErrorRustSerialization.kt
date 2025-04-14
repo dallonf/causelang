@@ -205,7 +205,7 @@ object LangErrorRustSerialization {
     fun deserializeConstraintUsedAsValueErrorLangType(error: JsonElement): ErrorLangType.ConstraintUsedAsValue {
         require(error is JsonObject)
         return ErrorLangType.ConstraintUsedAsValue(
-            deserializeConstraintValueLangType(error["type"]!!),
+            deserializeResolvedValueLangType(error["type"]!!),
         )
     }
 

@@ -123,7 +123,7 @@ export const errorTypes: ErrorTypeDeclaration[] = [
     fields: {
       type: diverged({
         rust: "lang_types::LangType",
-        kotlin: "ConstraintValueLangType",
+        kotlin: "ResolvedValueLangType",
       }),
     },
   },

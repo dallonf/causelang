@@ -377,7 +377,7 @@ sealed interface ErrorLangType : ValueLangType {
 
     @Serializable
     @SerialName("ConstraintUsedAsValue")
-    data class ConstraintUsedAsValue(val type: ConstraintValueLangType) : ErrorLangType {
+    data class ConstraintUsedAsValue(val type: ResolvedValueLangType) : ErrorLangType {
         override fun friendlyMessage(ctx: Debug.DebugContext?): String =
             "${type.debugMini()} is a type constraint, but it's used here like a value."
     }
