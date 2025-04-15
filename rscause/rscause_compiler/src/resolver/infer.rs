@@ -507,6 +507,8 @@ fn infer_one_of_hint(
     let (actions, values): (Vec<_>, Vec<_>) = solved_hints
         .iter()
         .filter_map(|result| result.as_ref().ok())
+        // NeverContinues doesn't count as a value or an Action
+        .filter(|it| !matches!(it.0, ResolvingLangType::NeverContinues))
         .partition(|it| match it.0 {
             ResolvingLangType::Action => true,
             _ => false,

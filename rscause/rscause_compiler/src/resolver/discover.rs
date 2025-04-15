@@ -344,8 +344,10 @@ fn discover_type_for_function_type_reference(
         params,
         return_type: return_type.into(),
     });
+    let function_type_link = ctx.link_lang_type(Ok(function_type));
+    let type_reference = ResolvingLangType::TypeReference(function_type_link.clone());
 
-    Ok(ctx.constant_value(function_type.into()))
+    Ok(ctx.constant_value(type_reference.into()))
 }
 
 fn discover_type_for_pattern(node: &PatternNode, ctx: &mut DiscoverTypesContext) -> DiscoverResult {
