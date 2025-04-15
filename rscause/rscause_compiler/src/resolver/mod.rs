@@ -12,6 +12,7 @@ use crate::{
     compiled_file::ExternalFileDescriptor,
     error_types::{anyhow_to_compiler_bug, LangError, SourcePosition},
     lang_types::{self, CanonicalLangType, CanonicalLangTypeId, LangType},
+    prelude::*,
     tags::NodeTag,
 };
 
@@ -116,17 +117,23 @@ pub fn resolve_types(
         }
     }
 
+    let new_canonical_types = new_canonical_types
+        .into_iter()
+        .map(|(id, resolving_canonical_type)| {
+            (
+                Arc::new(id),
+                Arc::new(CanonicalLangType::try_from(
+                    resolving_canonical_type.as_ref().to_owned(),
+                )?),
+            )
+                .pipe(Ok)
+        })
+        .collect::<anyhow::Result<HashMap<_, _>>>()?;
+
     Ok(ResolveTypesResult {
         value_types,
         errors,
-        new_canonical_types: HashMap::new(),
-        // TODO: export new canonical types
-        // new_canonical_types: new_canonical_types
-        //     .into_iter()
-        //     .map(|(id, resolving_canonical_type)| {
-        //         (Arc::new(id), todo!())
-        //     })
-        //     .collect(),
+        new_canonical_types,
     })
 }
 

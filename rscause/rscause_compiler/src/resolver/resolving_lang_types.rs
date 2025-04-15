@@ -285,6 +285,19 @@ impl ResolvingCanonicalLangType {
         .pipe(Ok)
     }
 }
+impl TryFrom<ResolvingCanonicalLangType> for lang_types::CanonicalLangType {
+    type Error = anyhow::Error;
+    fn try_from(value: ResolvingCanonicalLangType) -> Result<Self, Self::Error> {
+        match value {
+            ResolvingCanonicalLangType::Object(object) => {
+                object.try_into().map(lang_types::CanonicalLangType::Object)
+            }
+            ResolvingCanonicalLangType::Signal(signal) => {
+                signal.try_into().map(lang_types::CanonicalLangType::Signal)
+            }
+        }
+    }
+}
 impl ObjectResolvingCanonicalLangType {
     pub fn import(
         ctx: &mut ResolvingLangTypesContext,
@@ -293,6 +306,20 @@ impl ObjectResolvingCanonicalLangType {
         ObjectResolvingCanonicalLangType {
             type_id: value.type_id,
             fields: import_canonical_type_fields(ctx, value.fields)?,
+        }
+        .pipe(Ok)
+    }
+}
+impl TryFrom<ObjectResolvingCanonicalLangType> for lang_types::ObjectCanonicalLangType {
+    type Error = anyhow::Error;
+    fn try_from(value: ObjectResolvingCanonicalLangType) -> Result<Self, Self::Error> {
+        Self {
+            type_id: value.type_id().clone(),
+            fields: value
+                .fields
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<anyhow::Result<Vec<_>>>()?,
         }
         .pipe(Ok)
     }
@@ -306,6 +333,21 @@ impl SignalResolvingCanonicalLangType {
             type_id: value.type_id,
             fields: import_canonical_type_fields(ctx, value.fields)?,
             result: ResolvingLangTypeLink::import_type(ctx, value.result)?,
+        }
+        .pipe(Ok)
+    }
+}
+impl TryFrom<SignalResolvingCanonicalLangType> for lang_types::SignalCanonicalLangType {
+    type Error = anyhow::Error;
+    fn try_from(value: SignalResolvingCanonicalLangType) -> Result<Self, Self::Error> {
+        Self {
+            type_id: value.type_id,
+            fields: value
+                .fields
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<anyhow::Result<Vec<_>>>()?,
+            result: value.result.try_into()?,
         }
         .pipe(Ok)
     }
@@ -325,4 +367,14 @@ fn import_canonical_type_fields(
             .pipe(Ok)
         })
         .collect::<anyhow::Result<Vec<_>>>()?)
+}
+impl TryFrom<ResolvingCanonicalTypeField> for lang_types::CanonicalTypeField {
+    type Error = anyhow::Error;
+    fn try_from(value: ResolvingCanonicalTypeField) -> Result<Self, Self::Error> {
+        Self {
+            name: value.name,
+            value_type: value.value_type.try_into()?,
+        }
+        .pipe(Ok)
+    }
 }
