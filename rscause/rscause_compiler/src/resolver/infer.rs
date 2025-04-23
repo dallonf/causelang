@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::sync::Arc;
 use std::{collections::HashMap, rc::Rc};
 
@@ -244,7 +245,8 @@ impl InferTypesContext {
     }
 
     #[allow(unused)]
-    fn debug_breadcrumbs(&self, breadcrumbs: &Breadcrumbs) {
+    fn debug_breadcrumbs(&self, breadcrumbs: &str) {
+        let breadcrumbs = Breadcrumbs::from_str(breadcrumbs).unwrap();
         let binding = self
             .resolving_types_ctx
             .get_variable(&ResolvingLangTypeSource::Breadcrumb(breadcrumbs.to_owned()))
